@@ -244,7 +244,8 @@
 /* ==================== Image Grid - 5 段響應式斷點 ==================== */
 /* 參考 gallery_generator.py L1177-1216 */
 
-.showcase-grid {
+.showcase-grid,
+.actress-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
@@ -258,28 +259,32 @@
 
 /* 1500px+ → 5 columns */
 @media (min-width: 1500px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(5, 1fr);
     }
 }
 
 /* 1100-1499px → 4 columns */
 @media (min-width: 1100px) and (max-width: 1499px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(4, 1fr);
     }
 }
 
 /* 900-1099px → 3 columns */
 @media (min-width: 900px) and (max-width: 1099px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(3, 1fr);
     }
 }
 
 /* 481-899px → 4 columns 直式右裁 poster 格（US-10 / CD-11；T10 合併原 481-679 / 680-899 兩段） */
 @media (min-width: 481px) and (max-width: 899px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
     }
@@ -287,7 +292,8 @@
 
 /* ≤480px → 3 column poster 格（US5-75b，比照 .actress-grid 的 ≤480 斷點） */
 @media (max-width: 480px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(3, 1fr); /* US5-75b：1fr → 3-col（CD-75b-7） */
         gap: 0.5rem;
         padding: 0.75rem;
@@ -352,20 +358,25 @@
     }
 }
 
-/* ==================== Actress Grid — Collection Wall (44c-T6) ==================== */
-.actress-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 0.75rem;
-    padding: 1rem;
-    max-width: 100%;
-}
+/* ==================== Actress Grid — Collection Wall (44c-T6) ====================
+   108-T5（功能C）：女優 grid 的欄數/gap/padding 已併入上方 .showcase-grid 的 base +
+   5 段固定斷點（selector 擴為 .showcase-grid, .actress-grid），刪除女優自有流動欄數規則
+   → 女優卡與影片卡同寬同欄，消除「乎大乎小」。裁切比例 0.75 維持（.actress-card-photo 不動，
+   D-C2 defer）。此處不再有 .actress-grid 專屬 grid 容器規則。 */
 
-@media (max-width: 480px) {
+/* 108-T1 (功能A): 行動裝置 grid 邊到邊、~12px gutter。
+   負 margin-inline 抵消 .main-content 的 1.5rem 水平 padding（container 本身無水平 padding）；
+   padding-inline 留 12px gutter；box-sizing 顯式 border-box 防負 margin 拉滿寬後 padding 溢出成水平捲動；
+   max-width:none 解除 base max-width:100%（=CB 上限），否則負右 margin 被吃、右側殘 gap（CDP 實測）。
+   .showcase-grid, .actress-grid 併列單一規則（不可拆兩條——T6 G5 鎖此不變式）。
+   置於兩 grid base 定義之後 → 同 specificity 靠 source order 勝 base 的 max-width:100%（影片/女優皆然）。 */
+@media (max-width: 899px) {
+    .showcase-grid,
     .actress-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.5rem;
-        padding: 0.75rem;
+        margin-inline: -1.5rem;
+        padding-inline: 0.75rem;
+        box-sizing: border-box;
+        max-width: none;
     }
 }
 
@@ -1120,11 +1131,6 @@
 
 /* 75a-US3c: touch 裝置 hover-only 三處直達（比照 .lightbox-cover .cover-actions 先例，showcase.css:825-829）*/
 @media (pointer: coarse) {
-    /* (1) showcase grid 影片卡 overlay — 常駐顯示 */
-    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview-overlay {
-        opacity: 1;
-        pointer-events: auto;
-    }
     /* (2) 影片卡 footer-hover（標題層）— 常駐顯示，解除 translateY(100%) 入場 transform */
     .av-card-preview .footer-hover {
         opacity: 1;
@@ -1133,10 +1139,63 @@
     .av-card-preview .footer-default {
         opacity: 0;    /* touch 裝置：標題層常駐、番號/女優層隱藏 */
     }
-    /* (3) actress card overlay — 常駐顯示 */
-    .actress-card-overlay {
-        opacity: 1;
-        pointer-events: auto;
+}
+
+/* 108-T3 (功能B/D-B3): folder 只在能 hover 的裝置顯示。純觸控（無任何 hover 能力）隱藏——
+   folder 在 mobile/LAN 只 clipboard copy 遠端路徑、開不了遠端資料夾（inert）。
+   承重是 any-hover:none（＝沒有任何輸入能 hover ＝真‧純觸控）；不可收窄回裸 pointer:coarse
+   （coarse-primary 但有滑鼠/觸控板的 2-in-1 仍能 openLocal，不該藏）。display:none 不佔位不可點。 */
+@media (pointer: coarse) and (hover: none) and (any-hover: none) {
+    .js-open-folder {
+        display: none !important;
+    }
+}
+
+/* 108-T7（功能B 硬化，Codex pre-merge P2）：純觸控（any-hover:none）裝置點擊會合成／黏住
+   **:hover**（iOS Safari、部分 Android WebKit），讓 base 的 .av-card-preview:hover
+   →opacity:1（theme.css:1133）仍把封面 overlay icon 顯示出來（違反 AC-B1/B7 觸控封面乾淨）。
+   T2 只移 coarse force-show、靠 :hover 委派——對「會合成 hover 的純觸控」不夠（plan gotcha 假設有洞）。
+   影片卡：:not(.missing-cover) 保破圖卡例外常駐；specificity (1,4,0) > theme (1,3,0) 直接勝、不靠 source-order。
+   女優卡：opacity 與 pointer-events 皆壓（其 show 規則 showcase.css:453 帶 pointer-events:auto，
+   只壓 opacity 會留隱形 tap target 攔截點擊）。
+   🔴 只壓 :hover、**不壓 :focus-within**（Codex PR#117 二審 P2 修）：sticky-hover 純是 :hover 現象
+   （會聚焦按鈕的瀏覽器點擊時同一下也設 :hover，:hover 分支已覆蓋）；:focus-within 只在真‧鍵盤/
+   Switch Control 聚焦時成立——女優卡 base（showcase.css:453）刻意用 :focus-within 讓聚焦時顯示
+   overlay 給 a11y 使用者看見焦點，若一併壓 → 使用者 Tab 到透明按鈕、pointer-events:none 擋不住
+   鍵盤 Enter → 停在並觸發看不見的 searchActressFilms（WCAG 違規）。故 focus 一律不壓。
+   gate=any-hover:none（無任何輸入能 hover ＝真‧純觸控，與 T3 folder 同判別）；2-in-1／桌面
+   （any-hover:hover）不套用 → hover 照常浮 icon。sticky-hover CDP 復現不了、真機 hard-gate 收。
+   🔶 scope 刻意用共用 :is(#ds-gallery-components, .ds-gallery-composition)＝**涵蓋所有 gallery grid**
+   （showcase 影片/女優牆 + search 結果牆，search.html 也載本檔）——owner 拍板「觸控模式所有 grid
+   統一 clean-cover、不擋圖片，操作一律點進 lightbox」。search 卡點擊 openLightbox（結果卡）/
+   openActressLightbox（hero），動作在 .cover-actions（switchToDetail/openLocal/openSourceUrl）與
+   actress lightbox（addFavoriteActress），皆觸控常駐、T2/T7 未動 → 功能零損、只多一步進 lightbox。
+   （Codex PR#117 P2 判為 by-design：非 search 頁 regression，是刻意 cross-grid 統一。spec-108
+   Non-Goal「不動 search 頁」隨此 owner 決策放寬為「search grid 觸控呈現一併統一、功能經 lightbox 等價」。）*/
+@media (any-hover: none) {
+    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview:not(.missing-cover):hover .av-card-preview-overlay:not(.always-visible) {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .actress-card:hover .actress-card-overlay {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* 108-T7-fix（Codex PR#117 三審 P2）：觸控下把 overlay 的動作鈕設 pointer-events:none，讓整張封面成
+       單一 tap target（tap 穿透到卡片 → openLightbox），不讓看不見的 play/enrich/搜尋鈕被誤觸。
+       根因：.btn-glass-circle base pointer-events:auto（theme.css:1148，無條件）會覆蓋 overlay 的 none，
+       且在 **REST 態** 就是可點命中的 hit target（非只合成 hover）→ 故本規則**不 gate :hover**、無條件套用。
+       排除 :not(.missing-cover)〔破圖卡補資料鈕常駐一 tap〕與 :not(.always-visible)〔hero 收藏愛心常駐〕。
+       specificity (1,4,0) > theme.css:1148 (1,1,0) 直接勝。keyboard/Switch 啟動不受影響
+       （pointer-events 不管鍵盤 Enter，見上 :focus-within a11y 修）。桌面 any-hover:hover 不套用。 */
+    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview:not(.missing-cover) .av-card-preview-overlay:not(.always-visible) .btn-glass-circle {
+        pointer-events: none;
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .actress-card-overlay .btn-glass-circle {
+        pointer-events: none;
     }
 }
 

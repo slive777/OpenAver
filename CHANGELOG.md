@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.10] - 2026-07-24
+
+本版是一次 showcase（影片瀏覽牆）的行動裝置體驗優化（feature/108），三件小事，全是純前端呈現：手機上封面吃滿寬度、觸控時封面上不再擠一排操作 icon、女優牆的卡片大小終於跟影片牆一致。桌面體驗完全不變。
+
+### Changed
+#### 📱 手機上封面吃滿寬度
+- 手機（窄視窗）瀏覽影片牆／女優牆時，卡片左右的大片留白收窄到每邊約 12px，封面明顯變大（同樣 3 欄，每張封面大一圈），跟頁面上方的搜尋列一樣貼近邊緣。桌面／平板寬螢幕完全不變。
+
+#### 🖼️ 觸控時封面更純粹（操作移到燈箱）
+- 以前手機／平板上，每張封面都常駐壓著一排操作 icon（播放、開資料夾、補資料），擋住封面。本版改為：**觸控裝置上有封面的卡片，封面上不再顯示任何 icon**——想操作就點封面進燈箱，播放／補資料都在燈箱裡（燈箱在觸控裝置本來就常駐這些鈕）。桌面滑鼠 hover 浮出 icon 的行為完全不變。含 iPhone／Android 這類「點一下會短暫觸發 hover」的裝置也壓住，不會在點開燈箱的瞬間閃出 icon。
+- **例外**：真正缺封面的破圖卡維持顯示 overlay，讓「補資料」在需要補的卡上仍是一點到位。
+- 「開資料夾」鈕在**純觸控裝置**（手機、平板、LAN 端瀏覽器）上一併收起——那裡它只能把一段別人桌面的路徑複製到剪貼簿、開不了遠端資料夾，是個按了沒用的鈕。接了滑鼠／觸控板的二合一裝置（有 hover 能力）照常顯示可用。
+- **搜尋結果牆一併統一**：搜尋頁的結果卡在觸控裝置上同樣不再壓操作 icon（封面更完整）；詳情／開資料夾／收藏等動作點卡片進 lightbox 後照常可用，只多一步。桌面 hover 行為不變。
+
+#### 🎬 女優牆卡片大小對齊影片牆
+- 以前女優牆用的是「跟著寬度流動」的欄數、影片牆用固定斷點，導致同一個視窗寬度下兩者卡片大小不一致（窄視窗女優偏大、寬螢幕女優偏小、切換模式會「乎大乎小」）。本版讓女優牆改用與影片牆完全相同的欄數系統，每個寬度下女優卡與影片卡同欄同寬，切換兩模式大小穩定。女優卡的直式比例（3:4）與臉部對焦維持不變。
+
+### 測試
+- 全套 pytest **5640 passed, 1 skipped**（unit + integration，排除 smoke／e2e，與 main 同數＝純前端零回歸）＋ `ruff check .` 綠 ＋ `npm run lint` 綠（**css-guard 49**／**static_guard 1044**／cjk clean）＋ `npm test`（node:test 287）。
+- **CDP 觸控＋桌面雙態驗收全綠**（Opus 驅動 headless Playwright，CDP touch emulation）：① 留白 ≤480／481-899 兩 grid 皆 12px 對稱、桌面零變化、全寬度無水平捲動 ② 觸控影片/女優卡 overlay 隱藏、點封面開燈箱、破圖卡例外常駐、桌面 hover 零變化、lightbox cover-actions 未誤殺 ③ folder 純觸控隱藏／桌面顯示（any-hover:none 判別式坐實）④ 女優欄數=影片欄數五斷點（3/4/3/4/5）、同寬卡片、影片零變化、女優比例 0.75 維持 ⑤（T7）`CSS.forcePseudoState(['hover'])` 強制合成 hover：any-hover:none 下影片/女優 overlay opacity 0（女優 pointer-events none）、破圖卡例外保留 1、桌面 any-hover:hover 仍 1（零回歸）。
+- **機械守衛**（sonnet 實作、Opus 獨立 mutation 逐條單獨紅驗）：G1-G4（CG-TOUCH-01/02/03 + static_guard G4）鎖觸控 overlay 移除／破圖卡例外／folder any-hover 閘／marker 唯一性；G5（CG-GRID-ALIGN）鎖女優 grid 寬度決定因子與影片同源（正向 hard-code 斷點存在表 + 雙向 final-subject 負向 + stripNested CSS-aware selector 解析 + comment fail-open 檢查）；CG-TOUCH-04（T7）鎖純觸控 overlay 壓制。
+- CSS 打字（T1/T2/T3/T5）由 grok -p 分擔、Opus CDP oracle + sonnet#3 review 把關；守衛（T4/T6/T7）留 sonnet／Opus + Opus mutation。
+- **Pre-merge 跨廠牌 3-reviewer holistic branch panel**：Opus 4.8（high）LGTM；**codex 5.6-terra 增量抓到 P2**（純觸控 iOS/Android 合成 sticky-hover 仍會冒 overlay icon，違 AC-B1/B7）→ 開 T7 硬化收；grok-4.5 一跑回 LGTM 卻**漏抓該 P2**、且自稱「已查證 browser synthesis of :hover」（審 pre-T7 狀態、假查證＝false reassurance），另一跑 hang／0 輸出——提0/採0/增量0，零信號實錘，計分卡續記候補可砍。另 G5 守衛經 codex 五輪 review 逐層補 fail-open（@media 巢狀／單斷點移除／整塊刪／scoped selector／CSS-aware 解析），皆 Opus 獨立 mutation 驗。
+- 本版 **UI 呈現優化、零新增 i18n key**（純 CSS／隱藏既有元素／欄數調整，無新文案）。功能最終視覺數值（12px 手感）與 sticky-hover 真機行為留 owner 真機 hard-gate。
+
 ## [0.12.9] - 2026-07-24
 
 0.12 系列 released 前的優化版（feature/107），一次收四件性質不同的小事：桌面版開機會自動幫你看一下有沒有新版、深色主題幾顆看不清的按鈕修清楚、修好一個整理可能送出空資料的隱性 bug，以及一個只有開發者會遇到的拖檔訊息誤導。

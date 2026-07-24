@@ -40,8 +40,11 @@ function stripCssComments(text) {
 }
 
 // _parse_rule_blocks：逐字元走訪追 brace depth，depth 歸 0 時收 {selector, declarations}。
-// @media wrapper 自然被當 depth-1 外層、回傳最內層 rule block（忠實鏡射 Python 逐字元
-// 迴圈，非 regex 猜大括號配對）。
+// ⚠️ 只收 depth-0（頂層）block：`@media (...) { .a{} .b{} }` 整塊被當**單一外層** block，
+// selector=`@media (...)`、declarations=整段內文——內層 .a/.b **不會**被拆成獨立 block。
+// 要看 @media 內的規則，需另對其 body 重新 parse（見 flattenRuleBlocks / extractMediaBodies）；
+// 只掃頂層 block 的檢查對巢狀在 @media 內的規則會 fail-open（CG-GRID-ALIGN 108-T6 曾踩）。
+// 忠實鏡射 Python 逐字元迴圈，非 regex 猜大括號配對。
 function parseRuleBlocks(cssText) {
   const blocks = [];
   let depth = 0;
@@ -70,6 +73,26 @@ function parseRuleBlocks(cssText) {
 // re.escape port（token 名含 `-`，CG-FLU-12 需精確 escape，CD-96c-2）
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 遞迴展平 at-rule（@media/@supports/…）block，取得所有「真實」style rule（selector+declarations）。
+// parseRuleBlocks 只在 brace depth 歸 0 時收 block，故 `@media (...) { .a{} .b{} }` 只會回一個
+// selector=`@media (...)`、declarations=整段內文的 block —— 內層 `.a` / `.b` 規則不會被拆開，
+// 任何只掃 ctx.blocks 頂層的 rule 會漏看巢狀在 @media 裡的規則（CG-GRID-ALIGN 108-T6 fail-open 之因）。
+// 此函式對 selector 以 `@` 開頭的 block，於其 declarations 上重新 parseRuleBlocks 取內層規則並遞迴
+// （支援巢狀 @media），非 at-rule 則視為真實 style rule 直接收下。CG-GRID-ALIGN 起使用；其餘既有
+// rule 已各自用 extractDesktopMediaBodies/extractMediaBodies/extractMobileMediaBody 手工處理 @media，
+// 不受影響、不重構（避免波及已驗證行為）。
+function flattenRuleBlocks(blocks) {
+  const out = [];
+  for (const { selector, declarations } of blocks) {
+    if (selector.trim().startsWith('@')) {
+      out.push(...flattenRuleBlocks(parseRuleBlocks(declarations)));
+    } else {
+      out.push({ selector, declarations });
+    }
+  }
+  return out;
 }
 
 // @media (min-width:1024px) body 抽取（CG-FLU-09/10 11b；用 ctx.raw，鏡射 pytest css_raw）。
@@ -930,10 +953,11 @@ const RULES = [
     file: 'pages/showcase.css',
     kind: 'fn',
     check(ctx) {
-      const target = extractMediaBodies(ctx.text, MW480).filter((b) => /\.showcase-grid \{/.test(b));
+      // 108-T5：selector 由 .showcase-grid 擴為 .showcase-grid,\n.actress-grid（co-listed）→ 放寬 anchor 容納併列選擇器
+      const target = extractMediaBodies(ctx.text, MW480).filter((b) => /\.showcase-grid\b[^{}]*\{/.test(b));
       if (!target.length) ctx.fail('CG-PC-07: 找不到含 .showcase-grid 的 ≤480 block');
       else {
-        const m = target[0].match(/\.showcase-grid \{([^}]*)\}/);
+        const m = target[0].match(/\.showcase-grid\b[^{}]*\{([^}]*)\}/);
         if (!m) ctx.fail('CG-PC-07: ≤480 block 內找不到 .showcase-grid 規則');
         else {
           if (!m[1].includes('repeat(3, 1fr)')) ctx.fail('CG-PC-07: ≤480 .showcase-grid 應為 repeat(3, 1fr)');
@@ -1597,6 +1621,368 @@ const RULES = [
       }
       if (!(focalEditZ > overlayZ)) {
         ctx.fail(`CG-FOCAL-04: .cover-actions--focal-edit z-index ${focalEditZ} 未高於 .lb-mask-overlay ${overlayZ}（✓/✗ hit-test 會被 overlay 攔截，見 TASK-99a-T5 根因分析）`);
+      }
+    },
+  },
+
+  // ══ 108-T4：touch overlay 移除（T2）+ folder touch-hide（T3）回歸鎖 [lint-guard:108-T4] ══
+  // 兩個相鄰 @media (pointer: coarse) { } block（showcase.css:1126 / :1133）長得幾乎一樣，
+  // 若只用整檔字串比對會被第一個（.lightbox-cover .cover-actions，不在 T4 範圍）或註解裡的
+  // 舊字面誤命中（fail-open）。CG-TOUCH-01 一律先錨定 `75a-US3c` 註解 + 緊接的 @media 開頭，
+  // 手工 brace-walk 切出「那一個」block 才做斷言（比照 extractMobileMediaBody 的手法）。
+
+  // CG-TOUCH-01 ← T2：touch 裝置 overlay force-show（item 1/3）已刪、item 2（footer-hover 常駐）
+  // 仍在。用 75a-US3c 註解錨定唯一 block（防撞到 :1126 的 .lightbox-cover .cover-actions 或
+  // :1155 提到 75a-US3c 字面的另一段註解）。
+  {
+    id: 'CG-TOUCH-01',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const raw = ctx.raw;
+      const anchorRe = /\/\*\s*75a-US3c:[\s\S]*?\*\/\s*@media\s*\(\s*pointer\s*:\s*coarse\s*\)\s*\{/;
+      const m = anchorRe.exec(raw);
+      if (!m) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 找不到 75a-US3c 註解緊接的 @media (pointer: coarse) block（G1 anchor 遺失，selector/註解被改名？）');
+        return;
+      }
+      const braceStart = m.index + m[0].length - 1; // '{' 位置
+      let depth = 0;
+      let end = null;
+      for (let i = braceStart; i < raw.length; i += 1) {
+        if (raw[i] === '{') depth += 1;
+        else if (raw[i] === '}') {
+          depth -= 1;
+          if (depth === 0) { end = i; break; }
+        }
+      }
+      if (end === null) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c @media (pointer: coarse) block 未平衡（brace 不對稱）');
+        return;
+      }
+      const block = stripCssComments(raw.slice(braceStart + 1, end));
+      // 正向 sanity：item(2) footer-hover/footer-default 仍在此 block 內（確認錨對了正確 block）
+      if (!/\.av-card-preview\s+\.footer-hover\s*\{/.test(block)) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c block 缺 .av-card-preview .footer-hover（item(2) 應保留）');
+      }
+      if (!/\.av-card-preview\s+\.footer-default\s*\{/.test(block)) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c block 缺 .av-card-preview .footer-default（item(2) 應保留）');
+      }
+      // 負向鎖：T2 已刪除的 item(1)/item(3) overlay force-show 不得在此 block 內重新出現
+      if (/\.av-card-preview-overlay\s*\{[^}]*opacity\s*:\s*1/.test(block)) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c block 內重新出現 .av-card-preview-overlay opacity:1（T2 已刪除的 touch overlay force-show 回歸）');
+      }
+      if (/\.actress-card-overlay\s*\{[^}]*opacity\s*:\s*1/.test(block)) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c block 內重新出現 .actress-card-overlay opacity:1（T2 已刪除的 touch overlay force-show 回歸）');
+      }
+    },
+  },
+
+  // CG-TOUCH-02 ← T2：無封面卡片（.missing-cover）overlay 常駐顯示例外規則須保留（:2677 一帶）。
+  // 這條與 CG-TOUCH-01 刪的 force-show 長得像（都設 opacity:1），差別是 scope 精準綁
+  // .missing-cover（無封面才需要常駐可點），非 CG-TOUCH-01 鎖的「touch 裝置全域」force-show。
+  {
+    id: 'CG-TOUCH-02',
+    file: 'pages/showcase.css',
+    kind: 'selector-require',
+    markers: ['.missing-cover', '.av-card-preview-overlay'],
+    pattern: /(?=[\s\S]*?opacity\s*:\s*1)(?=[\s\S]*?pointer-events\s*:\s*auto)/,
+    msg: '[lint-guard:108-T4] .missing-cover .av-card-preview-overlay 例外規則須含 opacity:1 + pointer-events:auto（T2 保留：無封面卡片必須常駐可點）',
+  },
+
+  // CG-TOUCH-03 ← T3：folder 觸控隱藏 gate 須維持 any-hover:none（真‧純觸控），不可收窄回裸
+  // pointer:coarse（會誤藏 2-in-1 裝置的 folder，Codex#1 P1 抓到的回歸）。用 @media header/body
+  // 雙向綁定：反向從含 .js-open-folder 的 block 找其 header 斷言（防「narrow gate」型 mutation），
+  // 而非正向從 any-hover:none 找 body（防「gate 對但綁錯 selector」漏檢）。
+  {
+    id: 'CG-TOUCH-03',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const css = ctx.text; // 去註解，避免註解內字面 any-hover:none / .js-open-folder 假陽性
+      const mediaRe = /@media\b([^{]*)\{/g;
+      let m;
+      let found = false;
+      while ((m = mediaRe.exec(css)) !== null) {
+        let depth = 1;
+        let i = mediaRe.lastIndex;
+        while (i < css.length && depth > 0) {
+          if (css[i] === '{') depth += 1;
+          else if (css[i] === '}') depth -= 1;
+          i += 1;
+        }
+        const body = css.slice(mediaRe.lastIndex, i - 1);
+        if (!/\.js-open-folder\b/.test(body)) continue;
+        found = true;
+        const header = m[1];
+        if (!/any-hover\s*:\s*none/.test(header)) {
+          ctx.fail(`CG-TOUCH-03 [lint-guard:108-T4]: .js-open-folder 所在 @media 條件缺 any-hover:none（gate 被收窄回裸 pointer:coarse，2-in-1 裝置會誤藏 folder，Codex#1 P1 回歸）— header=${header.trim()}`);
+        }
+        const rm = body.match(/\.js-open-folder\s*\{([^}]*)\}/);
+        if (!rm) {
+          ctx.fail('CG-TOUCH-03 [lint-guard:108-T4]: .js-open-folder 所在 @media block 內找不到 .js-open-folder 規則本體');
+        } else {
+          if (!/display\s*:\s*none/.test(rm[1])) ctx.fail('CG-TOUCH-03 [lint-guard:108-T4]: .js-open-folder 應 display: none');
+          if (!/!important/.test(rm[1])) ctx.fail('CG-TOUCH-03 [lint-guard:108-T4]: .js-open-folder display:none 應帶 !important');
+        }
+      }
+      if (!found) {
+        ctx.fail('CG-TOUCH-03 [lint-guard:108-T4]: 找不到含 .js-open-folder 規則的 @media block（folder touch-hide gate 消失）');
+      }
+    },
+  },
+
+  // CG-TOUCH-04 ← T7：純觸控（any-hover:none）裝置合成 hover 時壓住卡片 overlay（AC-B1/B7 硬化，
+  // Codex pre-merge P2 + PR#117 二審 P2）。反向從「裸 @media (any-hover: none)」（排除 T3 folder 的
+  // 三條件 gate）且含 .av-card-preview-overlay 的 block 找，逐 rule 對 **selector 文字** 斷言：
+  // 影片/女優壓制 selector 須含 :hover（sticky-hover 是 :hover 現象；只驗宣告 fail-open）、**不得含
+  // :focus-within**（會藏鍵盤/Switch 聚焦控制、a11y 違規）、影片帶 :not(.missing-cover)（保破圖卡例外）；
+  // 宣告須 opacity:0（女優另補 pointer-events:none，其 show 規則帶 pointer-events:auto）。
+  {
+    id: 'CG-TOUCH-04',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const css = ctx.text;
+      const mediaRe = /@media\b([^{]*)\{/g;
+      let m;
+      let found = false;
+      while ((m = mediaRe.exec(css)) !== null) {
+        const header = m[1];
+        // 只取 T7 的裸 any-hover:none block（排除 T3 folder 的 pointer:coarse and hover:none and any-hover:none）
+        if (!/any-hover\s*:\s*none/.test(header) || /pointer\s*:\s*coarse/.test(header)) continue;
+        let depth = 1;
+        let i = mediaRe.lastIndex;
+        while (i < css.length && depth > 0) {
+          if (css[i] === '{') depth += 1;
+          else if (css[i] === '}') depth -= 1;
+          i += 1;
+        }
+        const body = css.slice(mediaRe.lastIndex, i - 1);
+        if (!/\.av-card-preview-overlay\b/.test(body)) continue; // 確認是 overlay 壓制 block
+        found = true;
+        // 逐 rule 拆 selector + declarations（selector 無 braces）→ 對「selector 文字」斷言，
+        // 非只驗宣告（否則拿掉 :hover 只留 :focus-within 仍匹配宣告塊 → fail-open，Codex PR#117 二審 P2-1）。
+        const rules = [...body.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((mm) => ({ sel: mm[1].trim(), decl: mm[2] }));
+        const vRule = rules.find((r) => /\.av-card-preview-overlay\b/.test(r.sel));
+        const aRule = rules.find((r) => /\.actress-card-overlay\b/.test(r.sel));
+        if (!vRule) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 找不到影片卡 .av-card-preview-overlay 觸控壓制規則');
+        } else {
+          if (!/:hover\b/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 壓制 selector 須含 :hover（sticky-hover 是 :hover 現象；只驗宣告會 fail-open，Codex PR#117 二審 P2-1）');
+          if (/:focus-within\b/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 壓制不得含 :focus-within（會藏聚焦控制、鍵盤/Switch a11y 違規，Codex PR#117 二審 P2-2）');
+          if (!/:not\(\.missing-cover\)/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片 overlay 壓制須帶 :not(.missing-cover)（保破圖卡例外常駐）');
+          if (!/:not\(\.always-visible\)/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片 overlay opacity 壓制須帶 :not(.always-visible)（hero 收藏愛心常駐、不得被合成 hover 壓透明，PR#117 四審 P2）');
+          if (!/opacity\s*:\s*0/.test(vRule.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 壓制應含 opacity:0（保 AC-B1 觸控封面乾淨）');
+        }
+        if (!aRule) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 找不到女優卡 .actress-card-overlay 觸控壓制規則');
+        } else {
+          if (!/:hover\b/.test(aRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制 selector 須含 :hover（fail-open 防護，Codex PR#117 二審 P2-1）');
+          if (/:focus-within\b/.test(aRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制不得含 :focus-within（會藏聚焦的 searchActressFilms、鍵盤/Switch a11y 違規，Codex PR#117 二審 P2-2）');
+          if (!/opacity\s*:\s*0/.test(aRule.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制應含 opacity:0（AC-B7）');
+          else if (!/pointer-events\s*:\s*none/.test(aRule.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制須補 pointer-events:none（其 show 規則帶 pointer-events:auto，只壓 opacity 會留隱形 tap target）');
+        }
+        // T7-fix（PR#117 三審 P2）：overlay 動作鈕須 pointer-events:none——.btn-glass-circle base
+        // pointer-events:auto（theme.css:1148）在 REST 態就覆蓋 overlay 的 none，看不見的 play/enrich/搜尋鈕
+        // 仍可被誤觸（非 tap 進 lightbox）。鎖「有壓鈕」且影片帶 :not(.missing-cover)+:not(.always-visible)。
+        const vBtn = rules.find((r) => /\.av-card-preview\b/.test(r.sel) && /\.btn-glass-circle\b/.test(r.sel));
+        const aBtn = rules.find((r) => /\.actress-card-overlay\b/.test(r.sel) && /\.btn-glass-circle\b/.test(r.sel));
+        if (!vBtn) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 找不到影片卡 overlay 動作鈕壓制規則（.av-card-preview … .btn-glass-circle，三審 P2：看不見的鈕仍可誤觸）');
+        } else {
+          if (!/pointer-events\s*:\s*none/.test(vBtn.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 動作鈕須 pointer-events:none（否則觸控下看不見的 play/enrich 被誤觸、非 tap 進 lightbox）');
+          if (!/:not\(\.missing-cover\)/.test(vBtn.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片鈕壓制須帶 :not(.missing-cover)（破圖卡補資料鈕須可點）');
+          if (!/:not\(\.always-visible\)/.test(vBtn.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片鈕壓制須帶 :not(.always-visible)（hero 收藏愛心常駐須可點）');
+        }
+        if (!aBtn || !/pointer-events\s*:\s*none/.test((aBtn || {}).decl || '')) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 動作鈕須 pointer-events:none（.actress-card-overlay .btn-glass-circle，三審 P2 誤觸）');
+        }
+      }
+      if (!found) {
+        ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 找不到 @media (any-hover: none) 的卡片 overlay 觸控壓制 block（T7 sticky-hover 硬化消失）');
+      }
+    },
+  },
+
+  // ══ 108-T6：G5 — 女優 grid（.actress-grid）必須與影片 grid（.showcase-grid）共用同一套響應式欄數
+  //    系統：base + 5 個固定斷點的 grid-template-columns 一律 co-listed `.showcase-grid, .actress-grid`，
+  //    外加 T1 行動 gutter 規則（@media max-width:899）亦 co-listed。鎖 108-T5 不變式（AC-C1：女優卡與
+  //    影片卡在每個斷點同寬）。三道檢查合起來對「base+5 斷點+T1 全 co-listed」契約 fail-closed：
+  //      (A) 正向存在表（hard-coded 斷點表，reviewer 認可/期望）：base + 5 欄數斷點 + T1 gutter 各自
+  //          必須存在一條 co-listed 且宣告錨屬性的規則。抓三類 fail-open：整塊 @media 被刪 / 斷點條件
+  //          被改（如 1500→1400）/ 某斷點拿掉 .actress-grid（只剩 showcase-only）—— 原正向 .some() 只要
+  //          任一斷點還在就綠、對「刪整塊」與「改斷點條件」全漏。斷點條件寫死＝功能契約，重構斷點本身
+  //          即契約變更，本表故意會紅逼迫有意識更新守衛（reviewer 明確認可/期望）。
+  //      (B) 負向：.actress-grid 單獨規則不得宣告任何寬度決定屬性（女優偷加自有 override，top-level 或
+  //          巢狀於 @media 皆抓）。
+  //      (C) 負向（對稱）：.showcase-grid 自身規則宣告寬度屬性卻未併列 .actress-grid（影片端在任意——含
+  //          非-canonical——斷點偷加 showcase-only 分歧，女優 grid 於該斷點悄悄回落 base auto-fill）。
+  //    欄數「值」（repeat(5)/repeat(4)/repeat(3)…）由 CG-PC-02/05/07 各自擁有；本 rule 只鎖「存在＋
+  //    co-listed」不重複值斷言（分工：G5 owns「每個 canonical 斷點 actress 有併列」，CG-PC-* owns 欄數值）。
+  //    ctx.text 已 stripCssComments → 天生排除註解內字面 `.actress-grid`；co-listed / 自身規則判定一律
+  //    用 comma-split exact-part 比對 → 天生排除後代選擇器（`.showcase-grid .av-card…`）與 z-index
+  //    sibling 規則（`.showcase-status-bar, .showcase-grid, …`：宣告 position/z-index，無寬度屬性）。 ══
+
+  // CG-GRID-ALIGN ← 108-T6 G5：正向斷點存在表 + 雙向負向（actress-only / showcase-only）分歧禁令
+  {
+    id: 'CG-GRID-ALIGN',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      // 「最終 subject」判定（Codex 四審 P2 + 五審 P2）：判斷 selector 某逗號段是否以 class `cls`
+      // 為最終 subject（最後一個 combinator ` `/`>`/`+`/`~` 之後那截 compound）。
+      // 認得 parent scope / 附加 class·pseudo / attribute 的同一 grid 規則
+      //（`.showcase-container .showcase-grid.compact`、`.showcase-grid:has(> .x)`、
+      //  `.showcase-grid[data-label="wide grid"]` 最終 subject 仍是 .showcase-grid），
+      // 排除「最終 subject 是後代元素」（`.showcase-grid .av-card…`）與「grid 只出現在
+      // functional pseudo 參數內」（`.foo:has(.showcase-grid)` subject 其實是 .foo）。
+      // ⚠️ CSS-aware：combinator / comma 這些字元在 :has()/:not()/:is()、attribute value、字串內
+      // 皆可能合法出現，naive split 會誤切（Codex 五審）。故先 stripNested 剝掉 ()/[]/引號內容
+      //（追 depth + escape），使殘留的 comma/combinator 必為頂層，再切。
+      const stripNested = (s) => {
+        let out = '';
+        let paren = 0;
+        let bracket = 0;
+        let quote = '';
+        for (let i = 0; i < s.length; i += 1) {
+          const ch = s[i];
+          if (quote) {
+            if (ch === '\\') i += 1; // 跳過 escape 的下一字元
+            else if (ch === quote) quote = '';
+            continue;
+          }
+          if (ch === '"' || ch === "'") { quote = ch; continue; }
+          if (ch === '(') { paren += 1; continue; }
+          if (ch === ')') { paren = Math.max(0, paren - 1); continue; }
+          if (ch === '[') { bracket += 1; continue; }
+          if (ch === ']') { bracket = Math.max(0, bracket - 1); continue; }
+          if (paren === 0 && bracket === 0) out += ch;
+        }
+        return out;
+      };
+      const subjectTargets = (strippedPart, cls) => {
+        const compounds = strippedPart.split(/[\s>+~]+/).filter(Boolean);
+        const last = compounds[compounds.length - 1] || '';
+        return new RegExp(`\\.${escapeRegExp(cls)}(?![\\w-])`).test(last);
+      };
+      // 先 stripNested 全 selector（()/[]/引號內容剝除）→ 殘留 comma 必為頂層 selector-list 分隔，
+      // 殘留 combinator 必為頂層 → 切段後判每段最終 subject。
+      const selHasSubject = (selector, cls) => stripNested(selector)
+        .split(',')
+        .some((part) => subjectTargets(part.trim(), cls));
+      // co-listed 判定：某段最終 subject 是 .showcase-grid、且某段最終 subject 是 .actress-grid
+      //（排除後代選擇器與 z-index sibling；支援 scoped / state 併列變體）
+      const isCoListed = (selector) => selHasSubject(selector, 'showcase-grid')
+        && selHasSubject(selector, 'actress-grid');
+      const hasCoListedAnchor = (blocks, anchorRe) => blocks.some(
+        ({ selector, declarations }) => isCoListed(selector) && anchorRe.test(declarations),
+      );
+
+      // ── (A) 正向存在表：base + 5 欄數斷點 + T1 gutter。斷點條件 hard-code（^…$ 錨定＝字面比對，
+      //    條件被改則抽不到 @media body → 判缺）。base cond=null → 只看 top-level 非-@media 規則。──
+      const COLS = /grid-template-columns\s*:/;
+      const GUTTER = /margin-inline\s*:/;
+      const REQUIRED = [
+        { label: 'base grid（top-level 非-@media）', cond: null, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (min-width: 1500px) → 5 欄', cond: /^\s*\(\s*min-width\s*:\s*1500px\s*\)\s*$/, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (min-width: 1100px) and (max-width: 1499px) → 4 欄', cond: /^\s*\(\s*min-width\s*:\s*1100px\s*\)\s+and\s+\(\s*max-width\s*:\s*1499px\s*\)\s*$/, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (min-width: 900px) and (max-width: 1099px) → 3 欄', cond: /^\s*\(\s*min-width\s*:\s*900px\s*\)\s+and\s+\(\s*max-width\s*:\s*1099px\s*\)\s*$/, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (min-width: 481px) and (max-width: 899px) → 4 欄', cond: MIN481_MAX899, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (max-width: 480px) → 3 欄', cond: MW480, anchor: COLS, prop: 'grid-template-columns' },
+        { label: 'T1 行動 gutter @media (max-width: 899px)', cond: MW899, anchor: GUTTER, prop: 'margin-inline' },
+      ];
+      for (const { label, cond, anchor, prop } of REQUIRED) {
+        let ok;
+        if (cond === null) {
+          // base：ctx.blocks 未展平，@media wrapper 的 selector 以 @ 開頭 → 濾掉只留真 top-level 規則
+          const topLevel = ctx.blocks.filter(({ selector }) => !selector.trim().startsWith('@'));
+          ok = hasCoListedAnchor(topLevel, anchor);
+        } else {
+          // 斷點：抽符合錨定條件的 @media body（可能多個同條件 block，如兩個 max-width:899），
+          // 各自 parseRuleBlocks 內層規則後找 co-listed + 錨屬性
+          const bodies = extractMediaBodies(ctx.text, cond);
+          ok = bodies.some((body) => hasCoListedAnchor(parseRuleBlocks(body), anchor));
+        }
+        if (!ok) {
+          ctx.fail(
+            `CG-GRID-ALIGN [lint-guard:108-T6]: 缺少 canonical 斷點「${label}」的 co-listed `
+              + `.showcase-grid, .actress-grid 規則（須宣告 ${prop}）—— base+5 斷點+T1 為固定功能契約；`
+              + `整塊被刪 / 斷點條件被改 / 某斷點拿掉 .actress-grid 皆違反 AC-C1「女優卡與影片卡同寬」。`
+              + `若確為有意重構斷點，請同步更新本守衛的期望表`,
+          );
+        }
+      }
+
+      // ── (B)(C) 負向：需含 @media 內巢狀規則 → flatten 成「真實 style rule」清單再逐條檢查
+      //    （原只掃 ctx.blocks 頂層看不到 @media 內的 actress-only override，fail-open）。──
+      const flatBlocks = flattenRuleBlocks(ctx.blocks);
+
+      // 負向（load-bearing）：.actress-grid 若單獨出現（selector 未同時含 .showcase-grid），
+      // 該規則不得宣告任何寬度決定屬性 — 一旦出現即代表女優 grid 悄悄脫離共用寬度系統。
+      // 逐屬性用 (行首|`;`|`{`|空白) + 屬性名 + 可選空白 + `:` 錨定，避免 padding 誤配 padding-inline
+      // 之類的前綴子字串（`\s*:` 要求屬性名後直接接冒號，中間不可再有 `-xxx`）。
+      const forbiddenWidthProps = [
+        'grid-template-columns',
+        'gap',
+        'column-gap',
+        'padding',
+        'padding-inline',
+        'padding-left',
+        'padding-right',
+        'padding-inline-start',
+        'padding-inline-end',
+        'margin-inline',
+        'margin-left',
+        'margin-right',
+        'margin-inline-start',
+        'margin-inline-end',
+        'width',
+        'min-width',
+        'max-width',
+        'inline-size',
+        'min-inline-size',
+        'max-inline-size',
+        'box-sizing',
+      ];
+      // 「宣告了哪個寬度決定屬性」共用小工具（回傳命中的 prop 名或 null）。
+      const declaredWidthProp = (declarations) => forbiddenWidthProps.find(
+        (prop) => new RegExp(`(^|[;{]|\\s)${escapeRegExp(prop)}\\s*:`).test(declarations),
+      ) || null;
+
+      // (B) 負向（load-bearing）：最終 subject 是 .actress-grid 的規則（含 scoped / 附加 class 變體），
+      // 若**未**與 .showcase-grid 併列卻宣告任一寬度決定屬性 → 女優 grid 悄悄脫離共用寬度系統。
+      // 用最終 subject 判定 → 只認「真的以 .actress-grid 為目標」的規則，不誤傷 `.actress-grid .foo` 後代規則。
+      for (const { selector, declarations } of flatBlocks) {
+        if (!selHasSubject(selector, 'actress-grid')) continue; // 只看以 .actress-grid 為目標的規則
+        if (selHasSubject(selector, 'showcase-grid')) continue; // 已與 showcase 併列 → 合規
+        const prop = declaredWidthProp(declarations);
+        if (prop) {
+          ctx.fail(
+            `CG-GRID-ALIGN [lint-guard:108-T6]: .actress-grid 單獨規則（未與 .showcase-grid 併列）`
+              + `宣告寬度決定屬性 \`${prop}\`，違反 AC-C1「女優卡與影片卡同寬」不變式 — `
+              + `selector=${selector.replace(/\s+/g, ' ').trim()}`,
+          );
+        }
+      }
+
+      // (C) 對稱負向（Codex 二審 P1 + 四審 P2）：反過來也鎖——最終 subject 是 .showcase-grid 的規則
+      // （含 `.showcase-container .showcase-grid.compact` 這類 parent scope / state class 變體），
+      // 若宣告任一寬度決定屬性卻**未**同時併列 .actress-grid，女優 grid 會在該情境悄悄脫鉤
+      // （正向存在表只鎖 canonical 斷點，攔不到 non-canonical / scoped 的 showcase-only 覆寫）。
+      // 用最終 subject 判定 → 天生排除後代選擇器（`.showcase-grid .av-card…` 最終 subject 非 grid）
+      // 與 z-index sibling（其 grid 段最終 subject 雖是 grid，但不宣告寬度屬性 → declaredWidthProp=null）。
+      for (const { selector, declarations } of flatBlocks) {
+        if (!selHasSubject(selector, 'showcase-grid')) continue; // 只看以 .showcase-grid 為目標的規則
+        if (selHasSubject(selector, 'actress-grid')) continue; // 已併列 → 合規
+        const prop = declaredWidthProp(declarations);
+        if (prop) {
+          ctx.fail(
+            `CG-GRID-ALIGN [lint-guard:108-T6]: .showcase-grid 規則宣告寬度決定屬性 \`${prop}\` `
+              + `卻未與 .actress-grid 併列 — 女優 grid 會在此情境脫鉤（違反 AC-C1「同寬」；`
+              + `含 scoped/state 變體，非只 base+5 斷點） — selector=${selector.replace(/\s+/g, ' ').trim()}`,
+          );
+        }
       }
     },
   },

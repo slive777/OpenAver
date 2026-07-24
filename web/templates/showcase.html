@@ -347,7 +347,7 @@
                                     title="{{ t('showcase.action.play_video') }}">
                                 <i class="bi bi-play-fill"></i>
                             </button>
-                            <button class="btn-glass-circle"
+                            <button class="btn-glass-circle js-open-folder"
                                     @click.stop="openLocal(video.path)"
                                     title="{{ t('search.action.open_folder') }}">
                                 <i class="bi bi-folder2-open"></i>
@@ -820,7 +820,7 @@
                                 <button class="lb-action-btn" x-show="!_maskVisible" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">
                                     <i class="bi bi-play-fill"></i>
                                 </button>
-                                <button class="lb-action-btn" x-show="!_maskVisible" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
+                                <button class="lb-action-btn js-open-folder" x-show="!_maskVisible" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
                                     <i class="bi bi-folder2-open"></i>
                                 </button>
                                 <!-- 74b US4: tap=enrichVideo（自動補缺）；長壓已移除（進階重刮走齒輪 ⚙）。 -->
