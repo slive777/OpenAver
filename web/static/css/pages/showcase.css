@@ -1136,11 +1136,6 @@
 
 /* 75a-US3c: touch 裝置 hover-only 三處直達（比照 .lightbox-cover .cover-actions 先例，showcase.css:825-829）*/
 @media (pointer: coarse) {
-    /* (1) showcase grid 影片卡 overlay — 常駐顯示 */
-    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview-overlay {
-        opacity: 1;
-        pointer-events: auto;
-    }
     /* (2) 影片卡 footer-hover（標題層）— 常駐顯示，解除 translateY(100%) 入場 transform */
     .av-card-preview .footer-hover {
         opacity: 1;
@@ -1148,11 +1143,6 @@
     }
     .av-card-preview .footer-default {
         opacity: 0;    /* touch 裝置：標題層常駐、番號/女優層隱藏 */
-    }
-    /* (3) actress card overlay — 常駐顯示 */
-    .actress-card-overlay {
-        opacity: 1;
-        pointer-events: auto;
     }
 }
 
