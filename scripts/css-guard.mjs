@@ -1708,6 +1708,76 @@ const RULES = [
       }
     },
   },
+
+  // ══ 108-T6：G5 — 女優 grid 寬度決定屬性必須來自與 .showcase-grid 併列（co-listed）的共用規則，
+  //    鎖 108-T5「.actress-grid 與 .showcase-grid 共用響應式欄數系統」不變式（AC-C1：女優卡與影片卡
+  //    在每個斷點同寬），防止日後有人加一條 .actress-grid 專屬規則悄悄改欄數/gap/padding/寬度而
+  //    silent drift。用 ctx.blocks（來自 stripCssComments 後的 parseRuleBlocks）判斷 selector，
+  //    天生排除註解內字面 `.actress-grid`（如「比照 .actress-grid」說明文字）誤命中，不會 fail-open。 ══
+
+  // CG-GRID-ALIGN ← 108-T6 G5：正向 co-listed 規則存在 + 負向 .actress-grid 單獨規則禁寬度屬性
+  {
+    id: 'CG-GRID-ALIGN',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      // 正向：至少一條 .showcase-grid 與 .actress-grid 併列的規則宣告 grid-template-columns
+      // （女優 grid 的欄數必須來自共用規則，而非自己的流動欄數規則）
+      const coListedWithColumns = ctx.blocks.some(
+        ({ selector, declarations }) => selector.includes('.showcase-grid')
+          && selector.includes('.actress-grid')
+          && /grid-template-columns\s*:/.test(declarations),
+      );
+      if (!coListedWithColumns) {
+        ctx.fail(
+          'CG-GRID-ALIGN [lint-guard:108-T6]: 找不到與 .showcase-grid 併列（co-listed）且宣告 '
+            + 'grid-template-columns 的 .actress-grid 規則（女優 grid 欄數須來自共用規則，非自有規則）',
+        );
+      }
+
+      // 負向（load-bearing）：.actress-grid 若單獨出現（selector 未同時含 .showcase-grid），
+      // 該規則不得宣告任何寬度決定屬性 — 一旦出現即代表女優 grid 悄悄脫離共用寬度系統。
+      // 逐屬性用 (行首|`;`|`{`|空白) + 屬性名 + 可選空白 + `:` 錨定，避免 padding 誤配 padding-inline
+      // 之類的前綴子字串（`\s*:` 要求屬性名後直接接冒號，中間不可再有 `-xxx`）。
+      const forbiddenWidthProps = [
+        'grid-template-columns',
+        'gap',
+        'column-gap',
+        'padding',
+        'padding-inline',
+        'padding-left',
+        'padding-right',
+        'padding-inline-start',
+        'padding-inline-end',
+        'margin-inline',
+        'margin-left',
+        'margin-right',
+        'margin-inline-start',
+        'margin-inline-end',
+        'width',
+        'min-width',
+        'max-width',
+        'inline-size',
+        'min-inline-size',
+        'max-inline-size',
+        'box-sizing',
+      ];
+      for (const { selector, declarations } of ctx.blocks) {
+        const isActressOnly = selector.includes('.actress-grid') && !selector.includes('.showcase-grid');
+        if (!isActressOnly) continue;
+        for (const prop of forbiddenWidthProps) {
+          const propRe = new RegExp(`(^|[;{]|\\s)${escapeRegExp(prop)}\\s*:`);
+          if (propRe.test(declarations)) {
+            ctx.fail(
+              `CG-GRID-ALIGN [lint-guard:108-T6]: .actress-grid 單獨規則（未與 .showcase-grid 併列）`
+                + `宣告寬度決定屬性 \`${prop}\`，違反 AC-C1「女優卡與影片卡同寬」不變式 — `
+                + `selector=${selector.replace(/\s+/g, ' ').trim()}`,
+            );
+          }
+        }
+      }
+    },
+  },
 ];
 
 // ── per-file read+parse cache（同檔多 rule 共用，讀一次 → stripCssComments → parseRuleBlocks）──
