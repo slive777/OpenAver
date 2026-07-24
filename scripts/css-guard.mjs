@@ -1601,6 +1601,113 @@ const RULES = [
       }
     },
   },
+
+  // ══ 108-T4：touch overlay 移除（T2）+ folder touch-hide（T3）回歸鎖 [lint-guard:108-T4] ══
+  // 兩個相鄰 @media (pointer: coarse) { } block（showcase.css:1126 / :1133）長得幾乎一樣，
+  // 若只用整檔字串比對會被第一個（.lightbox-cover .cover-actions，不在 T4 範圍）或註解裡的
+  // 舊字面誤命中（fail-open）。CG-TOUCH-01 一律先錨定 `75a-US3c` 註解 + 緊接的 @media 開頭，
+  // 手工 brace-walk 切出「那一個」block 才做斷言（比照 extractMobileMediaBody 的手法）。
+
+  // CG-TOUCH-01 ← T2：touch 裝置 overlay force-show（item 1/3）已刪、item 2（footer-hover 常駐）
+  // 仍在。用 75a-US3c 註解錨定唯一 block（防撞到 :1126 的 .lightbox-cover .cover-actions 或
+  // :1155 提到 75a-US3c 字面的另一段註解）。
+  {
+    id: 'CG-TOUCH-01',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const raw = ctx.raw;
+      const anchorRe = /\/\*\s*75a-US3c:[\s\S]*?\*\/\s*@media\s*\(\s*pointer\s*:\s*coarse\s*\)\s*\{/;
+      const m = anchorRe.exec(raw);
+      if (!m) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 找不到 75a-US3c 註解緊接的 @media (pointer: coarse) block（G1 anchor 遺失，selector/註解被改名？）');
+        return;
+      }
+      const braceStart = m.index + m[0].length - 1; // '{' 位置
+      let depth = 0;
+      let end = null;
+      for (let i = braceStart; i < raw.length; i += 1) {
+        if (raw[i] === '{') depth += 1;
+        else if (raw[i] === '}') {
+          depth -= 1;
+          if (depth === 0) { end = i; break; }
+        }
+      }
+      if (end === null) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c @media (pointer: coarse) block 未平衡（brace 不對稱）');
+        return;
+      }
+      const block = stripCssComments(raw.slice(braceStart + 1, end));
+      // 正向 sanity：item(2) footer-hover/footer-default 仍在此 block 內（確認錨對了正確 block）
+      if (!/\.av-card-preview\s+\.footer-hover\s*\{/.test(block)) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c block 缺 .av-card-preview .footer-hover（item(2) 應保留）');
+      }
+      if (!/\.av-card-preview\s+\.footer-default\s*\{/.test(block)) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c block 缺 .av-card-preview .footer-default（item(2) 應保留）');
+      }
+      // 負向鎖：T2 已刪除的 item(1)/item(3) overlay force-show 不得在此 block 內重新出現
+      if (/\.av-card-preview-overlay\s*\{[^}]*opacity\s*:\s*1/.test(block)) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c block 內重新出現 .av-card-preview-overlay opacity:1（T2 已刪除的 touch overlay force-show 回歸）');
+      }
+      if (/\.actress-card-overlay\s*\{[^}]*opacity\s*:\s*1/.test(block)) {
+        ctx.fail('CG-TOUCH-01 [lint-guard:108-T4]: 75a-US3c block 內重新出現 .actress-card-overlay opacity:1（T2 已刪除的 touch overlay force-show 回歸）');
+      }
+    },
+  },
+
+  // CG-TOUCH-02 ← T2：無封面卡片（.missing-cover）overlay 常駐顯示例外規則須保留（:2677 一帶）。
+  // 這條與 CG-TOUCH-01 刪的 force-show 長得像（都設 opacity:1），差別是 scope 精準綁
+  // .missing-cover（無封面才需要常駐可點），非 CG-TOUCH-01 鎖的「touch 裝置全域」force-show。
+  {
+    id: 'CG-TOUCH-02',
+    file: 'pages/showcase.css',
+    kind: 'selector-require',
+    markers: ['.missing-cover', '.av-card-preview-overlay'],
+    pattern: /(?=[\s\S]*?opacity\s*:\s*1)(?=[\s\S]*?pointer-events\s*:\s*auto)/,
+    msg: '[lint-guard:108-T4] .missing-cover .av-card-preview-overlay 例外規則須含 opacity:1 + pointer-events:auto（T2 保留：無封面卡片必須常駐可點）',
+  },
+
+  // CG-TOUCH-03 ← T3：folder 觸控隱藏 gate 須維持 any-hover:none（真‧純觸控），不可收窄回裸
+  // pointer:coarse（會誤藏 2-in-1 裝置的 folder，Codex#1 P1 抓到的回歸）。用 @media header/body
+  // 雙向綁定：反向從含 .js-open-folder 的 block 找其 header 斷言（防「narrow gate」型 mutation），
+  // 而非正向從 any-hover:none 找 body（防「gate 對但綁錯 selector」漏檢）。
+  {
+    id: 'CG-TOUCH-03',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const css = ctx.text; // 去註解，避免註解內字面 any-hover:none / .js-open-folder 假陽性
+      const mediaRe = /@media\b([^{]*)\{/g;
+      let m;
+      let found = false;
+      while ((m = mediaRe.exec(css)) !== null) {
+        let depth = 1;
+        let i = mediaRe.lastIndex;
+        while (i < css.length && depth > 0) {
+          if (css[i] === '{') depth += 1;
+          else if (css[i] === '}') depth -= 1;
+          i += 1;
+        }
+        const body = css.slice(mediaRe.lastIndex, i - 1);
+        if (!/\.js-open-folder\b/.test(body)) continue;
+        found = true;
+        const header = m[1];
+        if (!/any-hover\s*:\s*none/.test(header)) {
+          ctx.fail(`CG-TOUCH-03 [lint-guard:108-T4]: .js-open-folder 所在 @media 條件缺 any-hover:none（gate 被收窄回裸 pointer:coarse，2-in-1 裝置會誤藏 folder，Codex#1 P1 回歸）— header=${header.trim()}`);
+        }
+        const rm = body.match(/\.js-open-folder\s*\{([^}]*)\}/);
+        if (!rm) {
+          ctx.fail('CG-TOUCH-03 [lint-guard:108-T4]: .js-open-folder 所在 @media block 內找不到 .js-open-folder 規則本體');
+        } else {
+          if (!/display\s*:\s*none/.test(rm[1])) ctx.fail('CG-TOUCH-03 [lint-guard:108-T4]: .js-open-folder 應 display: none');
+          if (!/!important/.test(rm[1])) ctx.fail('CG-TOUCH-03 [lint-guard:108-T4]: .js-open-folder display:none 應帶 !important');
+        }
+      }
+      if (!found) {
+        ctx.fail('CG-TOUCH-03 [lint-guard:108-T4]: 找不到含 .js-open-folder 規則的 @media block（folder touch-hide gate 消失）');
+      }
+    },
+  },
 ];
 
 // ── per-file read+parse cache（同檔多 rule 共用，讀一次 → stripCssComments → parseRuleBlocks）──

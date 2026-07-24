@@ -3379,6 +3379,44 @@ const RULES = [
     scope: /<script[^>]*help\.js[^>]*>/,
     note: '[lint-guard 107-P1-T3] help.js script tag 禁顯式 defer（module 已隱式 defer）— 遷自 test_frontend_lint.py',
   },
+
+  // ---- [lint-guard:108-T4] G4：js-open-folder marker 只在兩顆 folder 按鈕上（T3 鎖）----
+  // 108-T3 把「隱藏 folder 按鈕」的判斷全部收斂到 CSS 的 .js-open-folder marker（G3，
+  // css-guard.mjs CG-TOUCH-03）；若這個 class 被誤搬到 play/enrich 鈕、或多加了第三個，
+  // CSS gate 會安靜地隱藏/漏藏錯的按鈕（跑起來看不出來，要點兩下才發現）。三條互補：
+  //  G4a：全檔恰好 2 個 .js-open-folder（防「多加了一個」）。
+  //  G4b/G4c：卡片格 / 燈箱 各自的 folder 按鈕，逐 element scope 綁 openLocal(＋bi-folder2-open
+  //           圖示（防「搬到別的按鈕」——被搬走那顆的 scope 內容不再含這兩者）。
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: /\bjs-open-folder\b/,
+    count: 2,
+    note: '[lint-guard:108-T4] G4a：js-open-folder marker 須恰好出現在 2 顆按鈕（卡片格 + 燈箱），不多不少',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['openLocal(', 'bi-folder2-open'],
+    scope: /<button class="btn-glass-circle js-open-folder"[\s\S]*?<\/button>/,
+    note: '[lint-guard:108-T4] G4b：卡片格 .js-open-folder 按鈕須綁 openLocal( 且圖示為 bi-folder2-open（element-scoped，非全檔字串存在）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'forbidden-string',
+    pattern: ['playVideo(', 'enrichVideo(', 'bi-play-fill', 'enrich-btn'],
+    scope: /<button class="btn-glass-circle js-open-folder"[\s\S]*?<\/button>/,
+    note: '[lint-guard:108-T4] G4b-neg：卡片格 .js-open-folder 按鈕不得混進 play/enrich 的 handler 或圖示（誤搬 class 的反向鎖）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['openLocal(', 'bi-folder2-open'],
+    scope: /<button class="lb-action-btn js-open-folder"[\s\S]*?<\/button>/,
+    note: '[lint-guard:108-T4] G4c：燈箱 .js-open-folder 按鈕須綁 openLocal( 且圖示為 bi-folder2-open（element-scoped，非全檔字串存在）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'forbidden-string',
+    pattern: ['playVideo(', 'enrichVideo(', 'bi-play-fill', 'enrich-btn'],
+    scope: /<button class="lb-action-btn js-open-folder"[\s\S]*?<\/button>/,
+    note: '[lint-guard:108-T4] G4c-neg：燈箱 .js-open-folder 按鈕不得混進 play/enrich 的 handler 或圖示（誤搬 class 的反向鎖）',
+  },
 ];
 
 // ---- helpers ----
