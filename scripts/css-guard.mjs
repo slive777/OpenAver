@@ -1782,6 +1782,21 @@ const RULES = [
           if (!/opacity\s*:\s*0/.test(aRule.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制應含 opacity:0（AC-B7）');
           else if (!/pointer-events\s*:\s*none/.test(aRule.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制須補 pointer-events:none（其 show 規則帶 pointer-events:auto，只壓 opacity 會留隱形 tap target）');
         }
+        // T7-fix（PR#117 三審 P2）：overlay 動作鈕須 pointer-events:none——.btn-glass-circle base
+        // pointer-events:auto（theme.css:1148）在 REST 態就覆蓋 overlay 的 none，看不見的 play/enrich/搜尋鈕
+        // 仍可被誤觸（非 tap 進 lightbox）。鎖「有壓鈕」且影片帶 :not(.missing-cover)+:not(.always-visible)。
+        const vBtn = rules.find((r) => /\.av-card-preview\b/.test(r.sel) && /\.btn-glass-circle\b/.test(r.sel));
+        const aBtn = rules.find((r) => /\.actress-card-overlay\b/.test(r.sel) && /\.btn-glass-circle\b/.test(r.sel));
+        if (!vBtn) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 找不到影片卡 overlay 動作鈕壓制規則（.av-card-preview … .btn-glass-circle，三審 P2：看不見的鈕仍可誤觸）');
+        } else {
+          if (!/pointer-events\s*:\s*none/.test(vBtn.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 動作鈕須 pointer-events:none（否則觸控下看不見的 play/enrich 被誤觸、非 tap 進 lightbox）');
+          if (!/:not\(\.missing-cover\)/.test(vBtn.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片鈕壓制須帶 :not(.missing-cover)（破圖卡補資料鈕須可點）');
+          if (!/:not\(\.always-visible\)/.test(vBtn.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片鈕壓制須帶 :not(.always-visible)（hero 收藏愛心常駐須可點）');
+        }
+        if (!aBtn || !/pointer-events\s*:\s*none/.test((aBtn || {}).decl || '')) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 動作鈕須 pointer-events:none（.actress-card-overlay .btn-glass-circle，三審 P2 誤觸）');
+        }
       }
       if (!found) {
         ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 找不到 @media (any-hover: none) 的卡片 overlay 觸控壓制 block（T7 sticky-hover 硬化消失）');

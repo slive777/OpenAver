@@ -1182,6 +1182,21 @@
         opacity: 0;
         pointer-events: none;
     }
+
+    /* 108-T7-fix（Codex PR#117 三審 P2）：觸控下把 overlay 的動作鈕設 pointer-events:none，讓整張封面成
+       單一 tap target（tap 穿透到卡片 → openLightbox），不讓看不見的 play/enrich/搜尋鈕被誤觸。
+       根因：.btn-glass-circle base pointer-events:auto（theme.css:1148，無條件）會覆蓋 overlay 的 none，
+       且在 **REST 態** 就是可點命中的 hit target（非只合成 hover）→ 故本規則**不 gate :hover**、無條件套用。
+       排除 :not(.missing-cover)〔破圖卡補資料鈕常駐一 tap〕與 :not(.always-visible)〔hero 收藏愛心常駐〕。
+       specificity (1,4,0) > theme.css:1148 (1,1,0) 直接勝。keyboard/Switch 啟動不受影響
+       （pointer-events 不管鍵盤 Enter，見上 :focus-within a11y 修）。桌面 any-hover:hover 不套用。 */
+    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview:not(.missing-cover) .av-card-preview-overlay:not(.always-visible) .btn-glass-circle {
+        pointer-events: none;
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .actress-card-overlay .btn-glass-circle {
+        pointer-events: none;
+    }
 }
 
 /* US5-75b fix（Codex P1）：真實觸控 ≤480px poster 格——還原 .footer-default（番號可讀層）、
