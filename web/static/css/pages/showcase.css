@@ -244,7 +244,8 @@
 /* ==================== Image Grid - 5 段響應式斷點 ==================== */
 /* 參考 gallery_generator.py L1177-1216 */
 
-.showcase-grid {
+.showcase-grid,
+.actress-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
@@ -258,28 +259,32 @@
 
 /* 1500px+ → 5 columns */
 @media (min-width: 1500px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(5, 1fr);
     }
 }
 
 /* 1100-1499px → 4 columns */
 @media (min-width: 1100px) and (max-width: 1499px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(4, 1fr);
     }
 }
 
 /* 900-1099px → 3 columns */
 @media (min-width: 900px) and (max-width: 1099px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(3, 1fr);
     }
 }
 
 /* 481-899px → 4 columns 直式右裁 poster 格（US-10 / CD-11；T10 合併原 481-679 / 680-899 兩段） */
 @media (min-width: 481px) and (max-width: 899px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
     }
@@ -287,7 +292,8 @@
 
 /* ≤480px → 3 column poster 格（US5-75b，比照 .actress-grid 的 ≤480 斷點） */
 @media (max-width: 480px) {
-    .showcase-grid {
+    .showcase-grid,
+    .actress-grid {
         grid-template-columns: repeat(3, 1fr); /* US5-75b：1fr → 3-col（CD-75b-7） */
         gap: 0.5rem;
         padding: 0.75rem;
@@ -352,22 +358,11 @@
     }
 }
 
-/* ==================== Actress Grid — Collection Wall (44c-T6) ==================== */
-.actress-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 0.75rem;
-    padding: 1rem;
-    max-width: 100%;
-}
-
-@media (max-width: 480px) {
-    .actress-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.5rem;
-        padding: 0.75rem;
-    }
-}
+/* ==================== Actress Grid — Collection Wall (44c-T6) ====================
+   108-T5（功能C）：女優 grid 的欄數/gap/padding 已併入上方 .showcase-grid 的 base +
+   5 段固定斷點（selector 擴為 .showcase-grid, .actress-grid），刪除女優自有流動欄數規則
+   → 女優卡與影片卡同寬同欄，消除「乎大乎小」。裁切比例 0.75 維持（.actress-card-photo 不動，
+   D-C2 defer）。此處不再有 .actress-grid 專屬 grid 容器規則。 */
 
 /* 108-T1 (功能A): 行動裝置 grid 邊到邊、~12px gutter。
    負 margin-inline 抵消 .main-content 的 1.5rem 水平 padding（container 本身無水平 padding）；

@@ -930,10 +930,11 @@ const RULES = [
     file: 'pages/showcase.css',
     kind: 'fn',
     check(ctx) {
-      const target = extractMediaBodies(ctx.text, MW480).filter((b) => /\.showcase-grid \{/.test(b));
+      // 108-T5：selector 由 .showcase-grid 擴為 .showcase-grid,\n.actress-grid（co-listed）→ 放寬 anchor 容納併列選擇器
+      const target = extractMediaBodies(ctx.text, MW480).filter((b) => /\.showcase-grid\b[^{}]*\{/.test(b));
       if (!target.length) ctx.fail('CG-PC-07: 找不到含 .showcase-grid 的 ≤480 block');
       else {
-        const m = target[0].match(/\.showcase-grid \{([^}]*)\}/);
+        const m = target[0].match(/\.showcase-grid\b[^{}]*\{([^}]*)\}/);
         if (!m) ctx.fail('CG-PC-07: ≤480 block 內找不到 .showcase-grid 規則');
         else {
           if (!m[1].includes('repeat(3, 1fr)')) ctx.fail('CG-PC-07: ≤480 .showcase-grid 應為 repeat(3, 1fr)');
