@@ -1732,6 +1732,53 @@ const RULES = [
     },
   },
 
+  // CG-TOUCH-04 ← T7：純觸控（any-hover:none）裝置合成 hover 時壓住卡片 overlay（AC-B1/B7 硬化，
+  // Codex pre-merge P2）。反向從「裸 @media (any-hover: none)」（排除 T3 folder 的三條件 gate）
+  // 且含 .av-card-preview-overlay 的 block 找，斷言影片壓制帶 :not(.missing-cover)（保破圖卡例外）
+  // 且 opacity:0、女優壓制 opacity:0 + pointer-events:none（其 show 規則帶 pointer-events:auto）。
+  {
+    id: 'CG-TOUCH-04',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const css = ctx.text;
+      const mediaRe = /@media\b([^{]*)\{/g;
+      let m;
+      let found = false;
+      while ((m = mediaRe.exec(css)) !== null) {
+        const header = m[1];
+        // 只取 T7 的裸 any-hover:none block（排除 T3 folder 的 pointer:coarse and hover:none and any-hover:none）
+        if (!/any-hover\s*:\s*none/.test(header) || /pointer\s*:\s*coarse/.test(header)) continue;
+        let depth = 1;
+        let i = mediaRe.lastIndex;
+        while (i < css.length && depth > 0) {
+          if (css[i] === '{') depth += 1;
+          else if (css[i] === '}') depth -= 1;
+          i += 1;
+        }
+        const body = css.slice(mediaRe.lastIndex, i - 1);
+        if (!/\.av-card-preview-overlay\b/.test(body)) continue; // 確認是 overlay 壓制 block
+        found = true;
+        if (!/:not\(\.missing-cover\)/.test(body)) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片 overlay 觸控壓制須帶 :not(.missing-cover)（保破圖卡例外常駐，否則破圖卡補資料鈕也被壓）');
+        }
+        const vr = body.match(/\.av-card-preview-overlay\s*\{([^}]*)\}/);
+        if (!vr || !/opacity\s*:\s*0/.test(vr[1])) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 觸控壓制應含 opacity:0（保 AC-B1 觸控封面乾淨、防合成 hover 冒 icon）');
+        }
+        const ar = body.match(/\.actress-card-overlay\s*\{([^}]*)\}/);
+        if (!ar || !/opacity\s*:\s*0/.test(ar[1])) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 觸控壓制應含 opacity:0（AC-B7）');
+        } else if (!/pointer-events\s*:\s*none/.test(ar[1])) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制須補 pointer-events:none（其 show 規則帶 pointer-events:auto，只壓 opacity 會留隱形 tap target）');
+        }
+      }
+      if (!found) {
+        ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 找不到 @media (any-hover: none) 的卡片 overlay 觸控壓制 block（T7 sticky-hover 硬化消失）');
+      }
+    },
+  },
+
   // ══ 108-T6：G5 — 女優 grid（.actress-grid）必須與影片 grid（.showcase-grid）共用同一套響應式欄數
   //    系統：base + 5 個固定斷點的 grid-template-columns 一律 co-listed `.showcase-grid, .actress-grid`，
   //    外加 T1 行動 gutter 規則（@media max-width:899）亦 co-listed。鎖 108-T5 不變式（AC-C1：女優卡與

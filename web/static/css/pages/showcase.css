@@ -1151,6 +1151,29 @@
     }
 }
 
+/* 108-T7（功能B 硬化，Codex pre-merge P2）：純觸控（any-hover:none）裝置點擊會合成／黏住
+   :hover｜:focus-within（iOS Safari、部分 Android WebKit），讓 base 的 .av-card-preview:hover
+   →opacity:1（theme.css:1133）仍把封面 overlay icon 顯示出來（違反 AC-B1/B7 觸控封面乾淨）。
+   T2 只移 coarse force-show、靠 :hover 委派——對「會合成 hover 的純觸控」不夠（plan gotcha 假設有洞）。
+   影片卡：:not(.missing-cover) 保破圖卡例外常駐；specificity (1,4,0) > theme (1,3,0) 直接勝、不靠 source-order。
+   女優卡：opacity 與 pointer-events 皆壓（其 show 規則 showcase.css:453 帶 pointer-events:auto，
+   只壓 opacity 會留隱形 tap target 攔截點擊）。
+   gate=any-hover:none（無任何輸入能 hover ＝真‧純觸控，與 T3 folder 同判別）；2-in-1／桌面
+   （any-hover:hover）不套用 → hover 照常浮 icon。sticky-hover CDP 復現不了、真機 hard-gate 收。 */
+@media (any-hover: none) {
+    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview:not(.missing-cover):hover .av-card-preview-overlay,
+    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview:not(.missing-cover):focus-within .av-card-preview-overlay {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .actress-card:hover .actress-card-overlay,
+    :is(#ds-gallery-components, .ds-gallery-composition) .actress-card:focus-within .actress-card-overlay {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
 /* US5-75b fix（Codex P1）：真實觸控 ≤480px poster 格——還原 .footer-default（番號可讀層）、
  * 壓回上方 75a-US3c 的 footer-hover 常駐。
  * 衝突來源：US3c 在 @media(pointer:coarse) 無條件把 .footer-default opacity:0 + footer-hover opacity:1
