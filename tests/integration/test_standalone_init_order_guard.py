@@ -333,6 +333,38 @@ class TestStandaloneInitOrderGuard:
             f"BEFORE webview.start() (line {min_start_line}) in main() (CD-70c-1)"
         )
 
+    def test_cf_transport_constructed_with_initial_origins(self):
+        """PyWebViewCfTransport(...) 必須帶第二個引數（initial_urls 種子）。
+
+        pre-merge Stage 2 FINDING 1：這個引數看起來像可省的預設值，但 javlibrary 的視窗
+        **從來不經過 navigate_and_settle**（它開機停在自己的 origin、之後只用 fetch），
+        所以 `_origins['javlibrary']` 唯一的來源就是這顆種子。拿掉它 → 全套測試照樣綠
+        （25 支 transport 測試都走 _jl_transport() helper，那個 helper 永遠會 seed）。
+
+        使用者流程：每次開 App，第一次用 JavLibrary 查片，CF 視窗會無故彈一次
+        （origin gate 比不上 → 判成需要驗證）；點掉或等一下就能用，下一次查就正常。
+        代價是每個 session 一次多餘彈窗、可自癒——所以這裡只上**粗顆粒**守衛：
+        驗「有沒有傳」，不驗傳了什麼。
+        """
+        tree, _ = self._parse()
+        main_node = _find_main_func(tree)
+        assert main_node is not None, "main() not found"
+
+        ctors = [
+            c for c in ast.walk(main_node)
+            if isinstance(c, ast.Call)
+            and isinstance(c.func, ast.Name)
+            and c.func.id == "PyWebViewCfTransport"
+        ]
+        assert ctors, "PyWebViewCfTransport(...) not found in main()"
+        for c in ctors:
+            n = len(c.args) + len(c.keywords)
+            assert n >= 2, (
+                "PyWebViewCfTransport() 必須帶第二個引數（initial origins 種子）—— "
+                "少了它，javlibrary 的 _origins 永遠是 None，使用者每個 session 第一次查 "
+                f"JavLibrary 都會被多彈一次 CF 視窗；實際引數數={n}"
+            )
+
     def test_jl_create_window_before_webview_start(self):
         """
         (b) The JL-specific webview.create_window(...) (identified by 'JavLibrary' in

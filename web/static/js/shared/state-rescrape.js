@@ -166,8 +166,9 @@ export function rescrapeState() {
         },
 
         /**
-         * 70-T5: JavLibrary 不可用 gate（desktop-only / standalone 限定）。
-         * manual_only && is_beta = javlibrary（目前唯一）；cf_transport_available = standalone 已 register。
+         * 70-T5: CF 來源不可用 gate（desktop-only / standalone 限定）。
+         * manual_only && is_beta = javlibrary + fc-javten（118a 起兩個，不再只有 javlibrary）；
+         * cf_transport_available = standalone 已 register。
          * dev / server 環境：cf_transport_available=false → 此 helper 回 true → pill 灰化不可點。
          */
         isJlUnavailable(s) {
