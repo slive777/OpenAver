@@ -46,8 +46,12 @@ class CfTransport(Protocol):
         Returns immediately without waiting for the user to finish.
         CD-70b-7: the backend must not hold a thread waiting for the solution.
 
-        *cache_key* is provided for future multi-CF-site expansion
-        (currently always ``'javlibrary'``).
+        *cache_key* selects which per-site transport window to target (e.g.
+        ``'javlibrary'`` or ``'fc-javten'``); each site owns its own hidden
+        window, dead-flag, and remembered CF URL internally (see
+        ``windows/cf_transport_impl.py``) — this Protocol's registration
+        model stays a single global transport object regardless of how many
+        sites it serves.
         """
         ...
 
@@ -70,6 +74,30 @@ class CfTransport(Protocol):
             CfChallengeRequired: fetch completed but the returned HTML is a
                 CF challenge page.  Caller should call begin_solve() →
                 poll is_ready() → retry fetch().
+        """
+        ...
+
+    def navigate_and_settle(self, url: str, cache_key: str) -> str:
+        """**Blocking (bounded)**: navigate the *cache_key* site's transport
+        window to *url*, wait for pywebview's JS bridge to become ready
+        (bounded timeout), then return the settled final URL.
+
+        Exists for sites whose search step cannot use a same-origin
+        ``fetch()`` (e.g. a redirect chain that Mixed-Content-blocks
+        mid-flight): the caller navigates first to resolve the final landing
+        URL via this method, then calls ``fetch()`` against that URL as
+        usual — ``fetch()`` and ``is_ready()`` still do all HTML retrieval.
+
+        Does not call ``evaluate_js`` before the bridge is ready (that would
+        block ~20s and strand the bridge — the 0.9.9c root cause). Once the
+        bridge is ready, reads ``document.title`` + head HTML to detect a CF
+        challenge page; if detected, raises instead of returning the URL.
+
+        Raises:
+            CfTransportUnavailable: transport / this site's window is not
+                initialised.
+            CfChallengeRequired: the bridge never became ready within the
+                timeout, or the settled page is a CF challenge.
         """
         ...
 

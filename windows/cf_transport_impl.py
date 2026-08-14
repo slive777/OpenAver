@@ -14,6 +14,13 @@ Design:
   - begin_solve() is non-blocking: show → load_url only (no evaluate_js — CF page would block 20s; over18 set in fetch()/is_ready()).
   - is_ready() is a fast non-blocking check: reads title + head HTML slice.
   - No blocking wait loop (C2: POC wait_for_ready is NOT ported here).
+  - TASK-118a-T1: multi-site support lives entirely inside this class (per-site
+    dicts: self._wins / self._dead / self._cf_urls / self._origins).  The
+    core/cf_transport.py Protocol registration model stays a single global
+    transport object (CD-118a-2) — only this implementation is per-site aware.
+    navigate_and_settle() is the one new primitive; its sole write point for
+    self._origins is _navigate() (D-0), which every load_url() call in this
+    class routes through (constructor seeding is the other write point).
 
 Import note:
   standalone.py uses sibling import: from cf_transport_impl import PyWebViewCfTransport
@@ -25,6 +32,7 @@ import json
 import queue
 import time
 from typing import Any, TYPE_CHECKING
+from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     import webview
@@ -39,6 +47,17 @@ from core.scrapers.javlibrary import (
 from core.logger import get_logger
 
 logger = get_logger(__name__)
+
+# TASK-118a-T1 D-3: bounded wait for pywebview's JS bridge inside navigate_and_settle().
+# Module-level constant so tests can monkeypatch it down to avoid a real 10s wait.
+NAVIGATE_BRIDGE_TIMEOUT_S = 10.0
+
+# TASK-118a-T1 D-4: per-site behaviour table. javlibrary's age gate (#adultwarningmask,
+# agreeBtn) is JL-specific markup — applying it to fc-javten would misclassify javten
+# pages that happen to share an element id and permanently loop CfChallengeRequired.
+# Unknown keys are NOT in this table; callers must fail-closed (CfTransportUnavailable),
+# never silently fall back to True/False here.
+_SITE_AGE_GATE = {'javlibrary': True, 'fc-javten': False}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -150,32 +169,99 @@ class PyWebViewCfTransport:
     blocking; when ready it auto-hides the window.
     """
 
-    def __init__(self, jl_window: webview.Window) -> None:
-        self._win = jl_window
-        self._dead = False
-        self._cf_url = None  # 0.9.9g: the exact URL that triggered CF, so begin_solve shows the real challenge
-        # Backstop: if the window is genuinely destroyed (crash / OS-forced / app
-        # teardown) despite the closing-intercept in standalone.py, mark dead so
-        # subsequent calls fail-fast instead of raising opaque errors on a dead window.
-        try:
-            self._win.events.closed += self._on_closed
-        except Exception:
-            logger.warning("cf_transport: could not bind events.closed (JL window)")
-        logger.info("[CF-DIAG] PyWebViewCfTransport created (uid=%s)", getattr(jl_window, 'uid', '?'))
+    def __init__(
+        self,
+        windows: dict[str, webview.Window],
+        initial_urls: dict[str, str] | None = None,
+    ) -> None:
+        # TASK-118a-T1 D-1: per-site dicts. Constructor shape is fixed — no
+        # single-window / dict polymorphism (that convenience is the next
+        # person's bug).
+        self._wins: dict[str, webview.Window] = dict(windows)
+        self._dead: dict[str, bool] = {key: False for key in self._wins}
+        self._cf_urls: dict[str, str | None] = {key: None for key in self._wins}
+        # D-0: _origins is seeded here from initial_urls (reflecting where each
+        # window already is at construction time) AND written by _navigate()
+        # (the only other write point) — never anywhere else.
+        self._origins: dict[str, str | None] = {key: None for key in self._wins}
+        for key, url in (initial_urls or {}).items():
+            if key in self._origins:
+                self._origins[key] = self._origin(url)
 
-    def _on_closed(self) -> None:
-        # [CF-DIAG] If this line ever appears in the log, edgechromium's `closed`
-        # event DID fire (70c's Layer 2). If the window dies but this never logs,
-        # Layer 2 is inert and the death only surfaces as a WebViewException /
-        # TimeoutError on the next fetch (caught by the bridge-gate in fetch()/is_ready()).
-        logger.info("[CF-DIAG] JL window 'closed' event fired → _dead=True (Layer 2 active)")
-        self._dead = True
+        # Backstop: if a window is genuinely destroyed (crash / OS-forced / app
+        # teardown) despite the closing-intercept in standalone.py, mark that
+        # site dead so subsequent calls fail-fast instead of raising opaque
+        # errors on a dead window. Bound per-key so one dead window does not
+        # affect other sites.
+        for key, win in self._wins.items():
+            try:
+                win.events.closed += self._make_on_closed(key)
+            except Exception:
+                logger.warning("cf_transport: could not bind events.closed (site=%s)", key)
+            logger.info(
+                "[CF-DIAG] PyWebViewCfTransport window registered (site=%s, uid=%s)",
+                key, getattr(win, 'uid', '?'),
+            )
+
+    @staticmethod
+    def _origin(url: str) -> str:
+        """scheme://netloc of *url* — pure string comparison, never asks the page.
+
+        Case-folded: scheme and host are case-insensitive per RFC 3986, so a
+        redirect that comes back with an upper-case host must NOT read as a
+        different origin (that would cost one spurious re-navigate + CF popup).
+        """
+        parts = urlsplit(url)
+        return f"{parts.scheme.lower()}://{parts.netloc.lower()}"
+
+    def _record_origin(self, key: str, url: str) -> None:
+        """SOLE writer of self._origins after construction (D-0).
+
+        Two callers, because two different moments genuinely know where the
+        window is: _navigate() knows where we *told* it to go, and
+        navigate_and_settle() knows where it *actually landed* once the bridge
+        reports ready.  Recording only the former is a bug: the javten search
+        step is a redirect chain we do not control (it even drops to http://
+        mid-flight before upgrading back), so if it ever settles on a different
+        host than the one we requested, the origin gate in fetch() would miss on
+        the very next call and pop the CF window on every single query — the
+        exact symptom CD-118a-18 exists to prevent.
+        """
+        self._origins[key] = self._origin(url)
+
+    def _require_window(self, key: str) -> webview.Window:
+        """Fail-closed for unknown site keys (D-4): CfTransportUnavailable, never KeyError."""
+        try:
+            return self._wins[key]
+        except KeyError:
+            raise CfTransportUnavailable(f"CF transport window for site '{key}' is not available") from None
+
+    def _navigate(self, key: str, url: str) -> None:
+        """The ONLY function that calls load_url() in this class (D-0).
+
+        Every navigation — begin_solve()'s show+navigate, fetch()'s
+        gate-miss branch, and navigate_and_settle() — routes through here so
+        self._origins[key] has a single source of truth: it always reflects
+        the last URL this window was actually told to load.
+        """
+        self._wins[key].load_url(url)
+        self._record_origin(key, url)
+
+    def _make_on_closed(self, key: str):
+        def _on_closed() -> None:
+            # [CF-DIAG] If this line ever appears in the log, edgechromium's `closed`
+            # event DID fire (70c's Layer 2). If the window dies but this never logs,
+            # Layer 2 is inert and the death only surfaces as a WebViewException /
+            # TimeoutError on the next fetch (caught by the bridge-gate in fetch()/is_ready()).
+            logger.info("[CF-DIAG] window 'closed' event fired (site=%s) → _dead=True (Layer 2 active)", key)
+            self._dead[key] = True
+        return _on_closed
 
     # ------------------------------------------------------------------
     # Bridge-readiness helpers (0.9.9c root-cause work)
     # ------------------------------------------------------------------
 
-    def _bridge_ready(self) -> bool:
+    def _bridge_ready(self, key: str) -> bool:
         """True if pywebview's JS bridge is ready so evaluate_js won't block.
 
         evaluate_js is decorated `@_pywebview_ready_call` → `_pywebviewready.wait(20)`
@@ -188,15 +274,30 @@ class PyWebViewCfTransport:
         True to preserve behavior.
         """
         try:
-            return bool(self._win.events._pywebviewready.is_set())
+            return bool(self._wins[key].events._pywebviewready.is_set())
         except Exception:
             return True
 
-    def _event_states(self) -> str:
+    def _wait_bridge_ready(self, key: str, timeout: float) -> bool:
+        """Blocking (bounded) wait for the bridge-ready Event itself — NOT evaluate_js.
+
+        Used only by navigate_and_settle() (D-3): after load_url(), the bridge
+        clears, and for fc-javten we must navigate on every query (the internal
+        id can't be avoided) so we can't reuse fetch()'s "not ready → raise
+        immediately" gate without popping the CF window on every single query.
+        Waiting on the Event directly does not touch evaluate_js at all, so it
+        cannot strand the bridge the way 0.9.9c did.
+        """
+        try:
+            return bool(self._wins[key].events._pywebviewready.wait(timeout))
+        except Exception:
+            return True
+
+    def _event_states(self, key: str) -> str:
         """Non-blocking snapshot of the window's pywebview lifecycle events (diag)."""
         def g(name: str):
             try:
-                return getattr(self._win.events, name).is_set()
+                return getattr(self._wins[key].events, name).is_set()
             except Exception:
                 return '?'
         return f"[ready={g('_pywebviewready')} shown={g('shown')} loaded={g('loaded')}]"
@@ -217,38 +318,66 @@ class PyWebViewCfTransport:
         the idiom in is_ready().  If the gate somehow persists (race / unexpected
         markup), the fallback _is_age_gate check routes into the solve/poll flow
         exactly like a CF challenge.
-        """
-        if self._dead:
-            logger.info("[CF-DIAG] fetch → _dead=True, raising unavailable (url=%s)", url)
-            raise CfTransportUnavailable("JavLibrary CF window was unexpectedly destroyed (crash / forced close); restart OpenAver to use JavLibrary again")
 
-        logger.debug("[CF-DIAG] fetch start %s (url=%s)", self._event_states(), url)
+        cache_key selects the per-site window (D-4 per-site table decides
+        whether the age gate applies).  Unknown keys fail closed with
+        CfTransportUnavailable.
+        """
+        key = cache_key
+        win = self._require_window(key)
+
+        if self._dead.get(key, False):
+            logger.info("[CF-DIAG] fetch → _dead[%s]=True, raising unavailable (url=%s)", key, url)
+            raise CfTransportUnavailable(
+                f"CF window for site '{key}' was unexpectedly destroyed (crash / forced close); "
+                "restart OpenAver to use this source again"
+            )
+
+        logger.debug("[CF-DIAG] fetch start %s (site=%s, url=%s)", self._event_states(key), key, url)
+
+        # INV-1 (CD-118a-3): pure string-level origin gate, checked BEFORE the bridge
+        # gate — it never asks the page anything. If this window isn't currently on
+        # the same origin as `url` (including "never navigated" → _origins[key] is
+        # None), _wv_fetch must NOT be sent this call: navigate there instead and
+        # route into the solve/poll flow, exactly like a CF challenge.
+        if self._origins.get(key) != self._origin(url):
+            logger.info(
+                "[CF-DIAG] fetch → origin mismatch (site=%s, have=%r, want=%r) → navigate + route to solve (url=%s)",
+                key, self._origins.get(key), self._origin(url), url,
+            )
+            self._navigate(key, url)
+            self._cf_urls[key] = url
+            raise CfChallengeRequired(f'origin mismatch for {url} (site={key})')
 
         # Bridge gate (0.9.9c): if pywebview's JS bridge is not ready, evaluate_js
         # would block ~20s on _pywebviewready.wait(20) then raise WebViewException
         # (the stranded-bridge bug). A not-ready bridge means the window is on a
         # CF/loading page → route into the solve flow instead of blocking → 無結果.
-        if not self._bridge_ready():
-            logger.info("[CF-DIAG] fetch → bridge not ready (_pywebviewready unset) → route to solve (url=%s)", url)
-            self._cf_url = url
+        if not self._bridge_ready(key):
+            logger.info("[CF-DIAG] fetch → bridge not ready (_pywebviewready unset) → route to solve (site=%s, url=%s)", key, url)
+            self._cf_urls[key] = url
             raise CfChallengeRequired(f'bridge not ready (CF likely) for {url}')
 
         # Set over18 cookie before fetching so the 18+ age gate is never served
         # (the gate is cookie-governed, not a human step). Mirrors is_ready().
-        self._win.evaluate_js(
-            "document.cookie='over18=18; path=/';"
-        )
+        # CD-118a-5: JavLibrary-only — fc-javten has no age gate, and applying
+        # this cookie/detector there is pure risk (false positives on unrelated
+        # markup), not a safety net.
+        if _SITE_AGE_GATE.get(key, False):
+            win.evaluate_js(
+                "document.cookie='over18=18; path=/';"
+            )
 
         t0 = time.monotonic()
         try:
-            final_url, status, html = _wv_fetch(self._win, url)  # C1: unpack correctly
+            final_url, status, html = _wv_fetch(win, url)  # C1: unpack correctly
         except Exception as e:
             # [CF-DIAG] zero behavior change: surface the failure TYPE + elapsed so
             # the 40-min repro distinguishes dead-window (WebViewException, ~20s)
             # from silent death (TimeoutError, 12s×3). Re-raise unchanged.
             logger.info(
-                "[CF-DIAG] fetch raised %s after %.1fs (url=%s)",
-                type(e).__name__, time.monotonic() - t0, url,
+                "[CF-DIAG] fetch raised %s after %.1fs (site=%s, url=%s)",
+                type(e).__name__, time.monotonic() - t0, key, url,
             )
             raise
 
@@ -259,18 +388,19 @@ class PyWebViewCfTransport:
         title = title or ""
 
         if _is_cf_challenge(title, html):
-            logger.info("[CF-DIAG] fetch → CF challenge detected (title=%r, url=%s)", (title or "")[:80], url)
-            self._cf_url = url
+            logger.info("[CF-DIAG] fetch → CF challenge detected (site=%s, title=%r, url=%s)", key, (title or "")[:80], url)
+            self._cf_urls[key] = url
             raise CfChallengeRequired(f'CF challenge detected for {url}')
 
         # Fallback: if the age gate still shows despite the cookie (race / unexpected
         # agreeBtn id), route into the solve/poll flow so begin_solve re-sets the
         # cookie (and the user can click if needed) — same recovery path as CF.
-        if _is_age_gate(html):
-            logger.info("[CF-DIAG] fetch → age gate persisted despite over18 cookie (url=%s)", url)
+        # JavLibrary-only (D-4); fc-javten never runs this check.
+        if _SITE_AGE_GATE.get(key, False) and _is_age_gate(html):
+            logger.info("[CF-DIAG] fetch → age gate persisted despite over18 cookie (site=%s, url=%s)", key, url)
             raise CfChallengeRequired(f'age gate detected (cookie did not suppress) for {url}')
 
-        logger.debug("[CF-DIAG] fetch ok (status=%s, len=%d, url=%s)", status, len(html), url)
+        logger.debug("[CF-DIAG] fetch ok (site=%s, status=%s, len=%d, url=%s)", key, status, len(html), url)
         return html
 
     def begin_solve(self, origin_url: str, cache_key: str = 'javlibrary') -> None:
@@ -279,18 +409,24 @@ class PyWebViewCfTransport:
         as fallback), so the user sees the actual Cloudflare Turnstile challenge
         immediately.  Returns immediately — does NOT wait for the user to solve.
 
-        0.9.9g: navigates to self._cf_url (the exact URL that triggered CF) when
-        available, rather than origin_url.  JavLibrary's homepage (/ja/) is NOT
-        behind CF but the search endpoint (/ja/vl_searchbyid.php?...) is; using
+        0.9.9g: navigates to self._cf_urls[key] (the exact URL that triggered CF)
+        when available, rather than origin_url.  JavLibrary's homepage (/ja/) is
+        NOT behind CF but the search endpoint (/ja/vl_searchbyid.php?...) is; using
         the remembered search URL ensures CF shows right away.
         """
-        if self._dead:
-            logger.info("[CF-DIAG] begin_solve → _dead=True, raising unavailable")
-            raise CfTransportUnavailable("JavLibrary CF window was unexpectedly destroyed (crash / forced close); restart OpenAver to use JavLibrary again")
-        target = self._cf_url or origin_url
-        logger.info("[CF-DIAG] begin_solve → show + load_url (target=%s) %s", target, self._event_states())
-        self._win.show()
-        self._win.load_url(target)
+        key = cache_key
+        win = self._require_window(key)
+
+        if self._dead.get(key, False):
+            logger.info("[CF-DIAG] begin_solve → _dead[%s]=True, raising unavailable", key)
+            raise CfTransportUnavailable(
+                f"CF window for site '{key}' was unexpectedly destroyed (crash / forced close); "
+                "restart OpenAver to use this source again"
+            )
+        target = self._cf_urls.get(key) or origin_url
+        logger.info("[CF-DIAG] begin_solve → show + load_url (site=%s, target=%s) %s", key, target, self._event_states(key))
+        win.show()
+        self._navigate(key, target)
         # ROOT-CAUSE FIX (0.9.9c): deliberately NO evaluate_js here. Setting the
         # over18 cookie via evaluate_js right after navigating to a (CF-challenged)
         # origin blocks ~20s on _pywebviewready.wait(20) and raises WebViewException,
@@ -310,49 +446,64 @@ class PyWebViewCfTransport:
         earlier over18=1 did not satisfy that check, so the mask kept showing). It
         never blocks the fetched HTML/parse — content is always present behind it —
         so we set over18=18 purely so the visible solve window doesn't show the mask.
+        JavLibrary-only (D-4/CD-118a-5); fc-javten has no age gate.
 
-        Sets over18 cookie on every call (idempotent, prevents age gate re-appear).
-        When first ready, auto-hides the window.
+        Sets over18 cookie on every call (idempotent, prevents age gate re-appear)
+        for sites that have one.  When first ready, auto-hides the window.
+
+        cache_key selects the per-site window — only that site's window is
+        touched; only that site's window is hidden when ready.
         """
-        if self._dead:
-            logger.info("[CF-DIAG] is_ready → _dead=True, raising unavailable")
-            raise CfTransportUnavailable("JavLibrary CF window was unexpectedly destroyed (crash / forced close); restart OpenAver to use JavLibrary again")
+        key = cache_key
+        win = self._require_window(key)
+
+        if self._dead.get(key, False):
+            logger.info("[CF-DIAG] is_ready → _dead[%s]=True, raising unavailable", key)
+            raise CfTransportUnavailable(
+                f"CF window for site '{key}' was unexpectedly destroyed (crash / forced close); "
+                "restart OpenAver to use this source again"
+            )
 
         # Bridge gate (0.9.9c): if pywebview's bridge is not ready the page is still
         # on CF / loading. evaluate_js would block ~20s and throw → report not-ready
         # without blocking.
-        if not self._bridge_ready():
-            logger.debug("[CF-DIAG] is_ready=False (bridge not ready) %s", self._event_states())
+        if not self._bridge_ready(key):
+            logger.debug("[CF-DIAG] is_ready=False (bridge not ready, site=%s) %s", key, self._event_states(key))
             return False
 
-        # 1. Set over18 cookie every time (idempotent)
-        self._win.evaluate_js(
-            "document.cookie='over18=18; path=/';"
-        )
+        site_has_age_gate = _SITE_AGE_GATE.get(key, False)
+
+        # 1. Set over18 cookie every time (idempotent) — JavLibrary-only.
+        if site_has_age_gate:
+            win.evaluate_js(
+                "document.cookie='over18=18; path=/';"
+            )
 
         # 2. Read title (sync form: no callback → evaluate_js returns synchronously)
-        title = self._win.evaluate_js("document.title") or ""
+        title = win.evaluate_js("document.title") or ""
 
         # 3. Read head HTML (truncated to avoid serialising large pages)
-        head = self._win.evaluate_js(
+        head = win.evaluate_js(
             "document.documentElement.outerHTML.slice(0, 4000)"
         ) or ""
 
         # 4. Evaluate readiness.
-        # Positive "loaded-page" guard: real JavLibrary pages always have a
-        #   non-empty <title>.  An empty title means the page is still
-        #   navigating (evaluate_js returned None/""  before the DOM is ready),
-        #   so we keep the window open and let the poll loop retry rather than
+        # Positive "loaded-page" guard: real pages always have a non-empty
+        #   <title>.  An empty title means the page is still navigating
+        #   (evaluate_js returned None/"" before the DOM is ready), so we keep
+        #   the window open and let the poll loop retry rather than
         #   misreporting ready and hiding the window prematurely.
-        # CF challenge: never ready, user must wait for Turnstile.
-        # Age-gate (agreeBtn): not ready, window stays visible so user can click
-        #   the agree button. over18 cookie (step 1) prevents re-appearance in
-        #   most cases; if the interstitial still shows, _is_age_gate (agreeBtn-
-        #   only, narrow) catches it and keeps the window open. Normal content
-        #   pages that contain "利用規約"/"18歳"/"over18" in the footer are NOT
-        #   caught because the narrowed _is_age_gate only matches agreeBtn.
+        # CF challenge: never ready, user must wait for Turnstile. Shared
+        #   across sites (_is_cf_challenge, CD-118a-5).
+        # Age-gate (agreeBtn): JavLibrary-only. not ready, window stays visible
+        #   so user can click the agree button. over18 cookie (step 1) prevents
+        #   re-appearance in most cases; if the interstitial still shows,
+        #   _is_age_gate (agreeBtn-only, narrow) catches it and keeps the
+        #   window open. Normal content pages that contain "利用規約"/"18歳"/
+        #   "over18" in the footer are NOT caught because the narrowed
+        #   _is_age_gate only matches agreeBtn.
         cf = _is_cf_challenge(title, head)
-        ag = _is_age_gate(head)
+        ag = _is_age_gate(head) if site_has_age_gate else False
         ready = bool(title.strip()) and not cf and not ag
 
         # [CF-DIAG] The CF-loop detector. After the user solves the challenge, this
@@ -361,10 +512,86 @@ class PyWebViewCfTransport:
         # from premise-revision §A — distinct from a dead window (which raises
         # CfTransportUnavailable above instead of reaching here).
         _lvl = logger.info if (ready or cf) else logger.debug
-        _lvl("[CF-DIAG] is_ready=%s (cf=%s, age_gate=%s, title=%r) %s", ready, cf, ag, (title or "")[:80], self._event_states())
+        _lvl("[CF-DIAG] is_ready=%s (site=%s, cf=%s, age_gate=%s, title=%r) %s", ready, key, cf, ag, (title or "")[:80], self._event_states(key))
 
-        # 5. Auto-hide when first ready
+        # 5. Auto-hide when first ready — only this site's window.
         if ready:
-            self._win.hide()
+            win.hide()
 
         return ready
+
+    def navigate_and_settle(self, url: str, cache_key: str) -> str:
+        """
+        TASK-118a-T1 / CD-118a-18: navigate this site's window to *url*, wait
+        (bounded) for pywebview's bridge to become ready, then return the
+        settled final URL — WITHOUT ever calling evaluate_js before the
+        bridge is ready.
+
+        Exists because fc-javten's search step can't use fetch(): the
+        redirect chain Mixed-Content-blocks mid-flight, and the internal id
+        it resolves to is required (every other value 404s), so this
+        navigation cannot be skipped even though it clears the bridge event
+        on every single query.
+
+        Three outcomes:
+          1. Bridge ready, page is NOT a CF challenge → return the final URL
+             (get_current_url(), NOT evaluate_js — D-2: doesn't touch the JS
+             bridge at all, and keeps evaluate_js usage limited to exactly
+             the title/head reads below).
+          2. Bridge ready, page IS a CF challenge → record self._cf_urls[key]
+             and raise CfChallengeRequired (do NOT return the URL).
+          3. Bridge never becomes ready within NAVIGATE_BRIDGE_TIMEOUT_S →
+             raise CfChallengeRequired.
+
+        over18 cookie / _is_age_gate are NOT applied here (CD-118a-5): those
+        are javlibrary-only, and navigate_and_settle is fc-javten-only in
+        practice (javlibrary never calls it — its window parks on its origin
+        at startup and only ever uses fetch()).
+        """
+        key = cache_key
+        win = self._require_window(key)
+
+        if self._dead.get(key, False):
+            logger.info("[CF-DIAG] navigate_and_settle → _dead[%s]=True, raising unavailable", key)
+            raise CfTransportUnavailable(
+                f"CF window for site '{key}' was unexpectedly destroyed (crash / forced close); "
+                "restart OpenAver to use this source again"
+            )
+
+        logger.info("[CF-DIAG] navigate_and_settle → load_url (site=%s, url=%s)", key, url)
+        self._navigate(key, url)
+
+        # D-3: wait on the bridge-ready Event itself (bounded) — never evaluate_js
+        # before this returns True.
+        if not self._wait_bridge_ready(key, NAVIGATE_BRIDGE_TIMEOUT_S):
+            logger.info(
+                "[CF-DIAG] navigate_and_settle → bridge never became ready within %.1fs (site=%s, url=%s)",
+                NAVIGATE_BRIDGE_TIMEOUT_S, key, url,
+            )
+            self._cf_urls[key] = url
+            raise CfChallengeRequired(f'navigate_and_settle: bridge not ready within {NAVIGATE_BRIDGE_TIMEOUT_S}s for {url} (site={key})')
+
+        final_url = win.get_current_url() or url
+        # D-0 (T1 review): the window is now settled on final_url, which a
+        # redirect may have moved to a different origin than the one we asked
+        # for. Re-record so fetch()'s origin gate compares against reality —
+        # otherwise the very next fetch() misses the gate and pops the CF
+        # window even though Cloudflare never challenged anything.
+        self._record_origin(key, final_url)
+
+        # Bridge is ready now — safe to evaluate_js, limited to the same
+        # title/head challenge-detection reads as is_ready() (no over18 cookie,
+        # no _is_age_gate: those are javlibrary-only per CD-118a-5).
+        title = win.evaluate_js("document.title") or ""
+        head = win.evaluate_js("document.documentElement.outerHTML.slice(0, 4000)") or ""
+
+        if _is_cf_challenge(title, head):
+            logger.info(
+                "[CF-DIAG] navigate_and_settle → CF challenge detected (site=%s, title=%r, url=%s)",
+                key, (title or "")[:80], final_url,
+            )
+            self._cf_urls[key] = final_url
+            raise CfChallengeRequired(f'navigate_and_settle: CF challenge detected for {url} (site={key})')
+
+        logger.debug("[CF-DIAG] navigate_and_settle ok (site=%s, final_url=%s)", key, final_url)
+        return final_url

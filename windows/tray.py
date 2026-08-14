@@ -120,12 +120,12 @@ class _OpenEventDebouncer:
 
 
 class DesktopLifecycle:
-    """Coordinates the main window, hidden CF window, tray, and close policy."""
+    """Coordinates the main window, hidden CF window(s), tray, and close policy."""
 
     def __init__(
         self,
         window,
-        jl_window,
+        cf_windows: dict | None,
         state: dict,
         save_state: Callable[[dict], None],
         prompt: Callable[[], CloseDecision] | None = None,
@@ -134,7 +134,12 @@ class DesktopLifecycle:
         write_close_action: Callable[[str], None] | None = None,
     ) -> None:
         self.window = window
-        self.jl_window = jl_window
+        # TASK-118a-T1 D-5: dict[str, webview.Window] instead of a single named
+        # `jl_window` param — "destroy ALL of them" must be a type-level
+        # guarantee, not something a human has to remember to extend when a
+        # third site window shows up (that's the same failure shape CD-118a-4b
+        # fixed for the second window: a silently-missed destroy call).
+        self.cf_windows: dict = dict(cf_windows) if cf_windows else {}
         self.state = state
         self.save_state = save_state
         self.prompt = prompt or (lambda: show_close_dialog(self.window))
@@ -263,11 +268,18 @@ class DesktopLifecycle:
                 self.tray.stop()
             except Exception:
                 logger.exception("failed to stop tray icon")
-        if self.jl_window is not None:
+        # CD-118a-4b: destroy EVERY transport window, not just one — a single
+        # window left un-destroyed keeps pywebview's instance count above 0
+        # and the process never reaches instances==0 to exit (the 0.9.9 zombie
+        # repro). Each destroy is independently try/except'd so one failure
+        # cannot prevent the rest from being destroyed.
+        for site, win in self.cf_windows.items():
+            if win is None:
+                continue
             try:
-                self.jl_window.destroy()
+                win.destroy()
             except Exception:
-                logger.warning("failed to destroy JL window on app close", exc_info=True)
+                logger.warning("failed to destroy CF window (site=%s) on app close", site, exc_info=True)
         if self.on_quit_cleanup is not None:
             try:
                 self.on_quit_cleanup()

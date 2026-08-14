@@ -9,6 +9,8 @@ import subprocess
 import sys
 import pathlib
 import queue
+import threading
+import time
 
 import pytest
 
@@ -23,6 +25,17 @@ if WINDOWS_DIR not in sys.path:
 import cf_transport_impl  # sibling import, same as standalone.py runtime
 from cf_transport_impl import PyWebViewCfTransport, _wv_fetch
 from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
+from core.scrapers.javlibrary import JAVLIBRARY_ORIGIN
+
+# TASK-118a-T1 D-1: fixed constructor shape is dict[str, Window] + optional
+# initial_urls seed. All 25 pre-existing single-window `PyWebViewCfTransport(win)`
+# construction points become a one-line mechanical rewrite to `_jl_transport(win)`,
+# with every assertion left unchanged.
+JL_ORIGIN = JAVLIBRARY_ORIGIN
+
+
+def _jl_transport(win):
+    return PyWebViewCfTransport({'javlibrary': win}, {'javlibrary': JL_ORIGIN})
 
 
 # ──────────────────────────────────────────────────────────────
@@ -107,6 +120,11 @@ class FakeWindow:
         self._never_callback: bool = False
         # events stub for CD-70c-2 __init__ binding
         self.events = FakeWindowEvents()
+        # D-2: get_current_url() is the source of navigate_and_settle()'s return
+        # value. Defaults to tracking the last load_url() target (realistic
+        # same-URL case); tests exercising an actual redirect can override
+        # self._current_url after triggering navigation.
+        self._current_url = None
 
     def show(self):
         self.calls.append(('show',))
@@ -116,6 +134,11 @@ class FakeWindow:
 
     def load_url(self, url):
         self.calls.append(('load_url', url))
+        self._current_url = url
+
+    def get_current_url(self):
+        self.calls.append(('get_current_url',))
+        return self._current_url
 
     def evaluate_js(self, code, callback=None):
         self.calls.append(('evaluate_js', code, callback))
@@ -315,7 +338,7 @@ class TestFetch:
             'status': 200,
             'html': NORMAL_HTML,
         }
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         result = transport.fetch('https://www.javlibrary.com/ja/')
         assert isinstance(result, str), "fetch() must return str, not tuple (C1 check)"
         assert result == NORMAL_HTML
@@ -328,7 +351,7 @@ class TestFetch:
             'status': 200,
             'html': CF_HTML,
         }
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         with pytest.raises(CfChallengeRequired):
             transport.fetch('https://www.javlibrary.com/ja/')
 
@@ -339,7 +362,7 @@ class TestFetch:
 
         monkeypatch.setattr(cf_transport_impl, '_wv_fetch', fake_wv_fetch)
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         with pytest.raises(TimeoutError):
             transport.fetch('https://www.javlibrary.com/ja/')
 
@@ -356,7 +379,7 @@ class TestFetch:
             'status': 200,
             'html': age_gate_html,
         }
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         # Should NOT raise — footer terms do not trigger _is_age_gate (no agreeBtn)
         result = transport.fetch('https://www.javlibrary.com/ja/')
         assert isinstance(result, str)
@@ -377,7 +400,7 @@ class TestFetch:
             'status': 200,
             'html': age_gate_html,
         }
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         with pytest.raises(CfChallengeRequired, match='age gate detected'):
             transport.fetch('https://www.javlibrary.com/ja/')
 
@@ -393,7 +416,7 @@ class TestFetch:
             'status': 200,
             'html': NORMAL_HTML,
         }
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         transport.fetch('https://www.javlibrary.com/ja/')
 
         # Collect all evaluate_js call codes
@@ -439,7 +462,7 @@ class TestFetch:
         win = FakeWindow()
         # Bridge not ready: clear the _pywebviewready event
         win.events._pywebviewready.clear()
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
 
         url = 'https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=START-578'
         with pytest.raises(CfChallengeRequired):
@@ -456,10 +479,107 @@ class TestFetch:
             f"evaluate_js must not be called when bridge is not ready; got: {eval_calls}"
         )
 
-        # _cf_url must record the challenged URL for begin_solve
-        assert transport._cf_url == url, (
-            f"_cf_url must be set to {url!r} when bridge not ready; got {transport._cf_url!r}"
+        # _cf_urls['javlibrary'] must record the challenged URL for begin_solve
+        assert transport._cf_urls['javlibrary'] == url, (
+            f"_cf_urls['javlibrary'] must be set to {url!r} when bridge not ready; "
+            f"got {transport._cf_urls['javlibrary']!r}"
         )
+
+    def test_fetch_cross_origin_raises_challenge_without_wv_fetch(self):
+        """
+        INV-1 (CD-118a-3) — the most important test in T1: a transport window
+        recorded (seeded) at a DIFFERENT origin than the requested URL must
+        route into the challenge/navigate flow WITHOUT ever calling _wv_fetch
+        (i.e. zero evaluate_js calls — _wv_fetch is evaluate_js(callback=...)).
+
+        mutation: remove the origin gate in fetch() → this test must go red
+        (load_calls becomes empty and/or evaluate_js calls appear).
+        """
+        win = FakeWindow()
+        # This window's recorded origin is fc-javten's — a mismatch for the
+        # javlibrary URL fetched below under the 'javlibrary' key.
+        transport = PyWebViewCfTransport(
+            {'javlibrary': win},
+            {'javlibrary': 'https://javten.com/'},
+        )
+        url = 'https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=START-578'
+
+        with pytest.raises(CfChallengeRequired):
+            transport.fetch(url, 'javlibrary')
+
+        load_calls = [c for c in win.calls if c[0] == 'load_url']
+        assert load_calls and load_calls[-1][1] == url, (
+            f"origin mismatch must trigger load_url({url!r}); got {load_calls}"
+        )
+
+        eval_calls = [c for c in win.calls if c[0] == 'evaluate_js']
+        assert eval_calls == [], (
+            f"_wv_fetch (evaluate_js) must NOT be called on origin mismatch; got {eval_calls}"
+        )
+
+    def test_javten_fetch_skips_age_gate_and_over18_cookie(self, monkeypatch):
+        """
+        CD-118a-5 per-site behaviour table: fetch() for fc-javten must NOT call
+        _is_age_gate and must NOT set the over18 cookie (that gate is
+        javlibrary-only — applying it to javten risks false-positive matches
+        on unrelated markup and an unsolvable CfChallengeRequired loop).
+
+        mutation: make both sites share the same age-gate handling → this test
+        must go red.
+        """
+        age_gate_calls = []
+        monkeypatch.setattr(
+            cf_transport_impl, '_is_age_gate',
+            lambda html: (age_gate_calls.append(html), False)[1],
+        )
+        win = FakeWindow()
+        win._eval_callback_result['default'] = {
+            'finalUrl': 'https://javten.com/',
+            'status': 200,
+            'html': '<html><head><title>JavTen</title></head><body>content</body></html>',
+        }
+        transport = PyWebViewCfTransport(
+            {'fc-javten': win}, {'fc-javten': 'https://javten.com/'},
+        )
+
+        result = transport.fetch('https://javten.com/', 'fc-javten')
+        assert isinstance(result, str)
+
+        assert age_gate_calls == [], (
+            f"_is_age_gate must not be called for fc-javten; got {age_gate_calls}"
+        )
+        over18_calls = [c for c in win.calls if c[0] == 'evaluate_js' and 'over18' in c[1]]
+        assert over18_calls == [], (
+            f"over18 cookie must not be set for fc-javten; got {over18_calls}"
+        )
+
+    def test_javlibrary_fetch_still_sets_age_gate_and_cookie(self, monkeypatch):
+        """
+        Regression lock (reverse of the test above): javlibrary's fetch() must
+        keep calling _is_age_gate and setting the over18 cookie — zero
+        regression from introducing the per-site behaviour table.
+        """
+        age_gate_calls = []
+        monkeypatch.setattr(
+            cf_transport_impl, '_is_age_gate',
+            lambda html: (age_gate_calls.append(html), False)[1],
+        )
+        win = FakeWindow()
+        win._eval_callback_result['default'] = {
+            'finalUrl': 'https://www.javlibrary.com/ja/',
+            'status': 200,
+            'html': NORMAL_HTML,
+        }
+        transport = _jl_transport(win)
+
+        result = transport.fetch('https://www.javlibrary.com/ja/')
+        assert isinstance(result, str)
+
+        assert len(age_gate_calls) == 1, (
+            f"_is_age_gate must be called exactly once for javlibrary; got {age_gate_calls}"
+        )
+        over18_calls = [c for c in win.calls if c[0] == 'evaluate_js' and 'over18' in c[1]]
+        assert over18_calls, "over18 cookie must be set for javlibrary"
 
 
 # ──────────────────────────────────────────────────────────────
@@ -480,7 +600,7 @@ class TestBeginSolve:
         TestBeginSolveTargetsCfUrl.
         """
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         origin = 'https://www.javlibrary.com/ja/'
         transport.begin_solve(origin)
 
@@ -505,7 +625,7 @@ class TestBeginSolve:
         """begin_solve() must return immediately (no blocking)."""
         import time
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         start = time.monotonic()
         transport.begin_solve('https://www.javlibrary.com/ja/')
         elapsed = time.monotonic() - start
@@ -559,7 +679,7 @@ class TestIsReady:
     def test_ready_page_returns_true_and_hides(self):
         """Ready page → True, window.hide() called."""
         win = FakeWindowIsReady(READY_TITLE, READY_HEAD)
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         result = transport.is_ready()
         assert result is True
         hide_calls = [c for c in win.calls if c[0] == 'hide']
@@ -568,7 +688,7 @@ class TestIsReady:
     def test_cf_challenge_returns_false_no_hide(self):
         """CF challenge page → False, no hide()."""
         win = FakeWindowIsReady(CF_TITLE, CF_HEAD)
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         result = transport.is_ready()
         assert result is False
         hide_calls = [c for c in win.calls if c[0] == 'hide']
@@ -583,7 +703,7 @@ class TestIsReady:
         用戶過了 CF 後不會卡在等待循環。
         """
         win = FakeWindowIsReady(AGE_GATE_TITLE, CONTENT_FOOTER_HEAD)
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         result = transport.is_ready()
         assert result is True, (
             "正常內容頁 footer 含 利用規約/18歳/over18 但無 agreeBtn，"
@@ -598,7 +718,7 @@ class TestIsReady:
         視窗不 hide，讓用戶手動點同意按鈕。
         """
         win = FakeWindowIsReady(AGE_GATE_TITLE, AGE_GATE_HEAD)
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         result = transport.is_ready()
         assert result is False, (
             "真實 age-gate 同意頁（含 agreeBtn）is_ready() 應回 False，"
@@ -614,7 +734,7 @@ class TestIsReady:
         """
         # Empty title simulates page still navigating (evaluate_js returns "" or None)
         win = FakeWindowIsReady("", READY_HEAD)
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         result = transport.is_ready()
         assert result is False, (
             "導航中/空 title 頁面 is_ready() 應回 False（loaded-page guard）"
@@ -625,7 +745,7 @@ class TestIsReady:
     def test_every_call_sets_over18_cookie(self):
         """Every is_ready() call sets over18 cookie (idempotent)."""
         win = FakeWindowIsReady(READY_TITLE, READY_HEAD)
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         transport.is_ready()
         transport.is_ready()
 
@@ -645,7 +765,7 @@ class TestIsReady:
                 return None  # Always None
 
         win = NoneWindow()
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         # Should not raise; returns a bool (True or False — both are acceptable)
         result = transport.is_ready()
         assert isinstance(result, bool), "is_ready() must return bool even when evaluate_js returns None"
@@ -661,7 +781,7 @@ class TestIsReady:
         win = FakeWindowIsReady(READY_TITLE, READY_HEAD)
         # Bridge not ready: clear the _pywebviewready event
         win.events._pywebviewready.clear()
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
 
         result = transport.is_ready()
 
@@ -680,6 +800,27 @@ class TestIsReady:
         assert hide_calls == [], (
             f"hide() must not be called when bridge is not ready; got: {hide_calls}"
         )
+
+    def test_is_ready_only_checks_named_site_window(self):
+        """
+        is_ready(key) must only touch that site's window: no reads on the other
+        site's window, and only that site's window gets hide()d when ready.
+        """
+        jl_win = FakeWindowIsReady(CF_TITLE, CF_HEAD)  # javlibrary still on CF (not ready)
+        javten_win = FakeWindowIsReady('JavTen', '<html><head><title>JavTen</title></head>')
+        transport = PyWebViewCfTransport(
+            {'javlibrary': jl_win, 'fc-javten': javten_win},
+            {'javlibrary': JL_ORIGIN, 'fc-javten': 'https://javten.com/'},
+        )
+
+        result = transport.is_ready('fc-javten')
+        assert result is True
+
+        assert jl_win.calls == [], (
+            f"javlibrary window must not be touched by is_ready('fc-javten'); got {jl_win.calls}"
+        )
+        hide_calls = [c for c in javten_win.calls if c[0] == 'hide']
+        assert len(hide_calls) == 1, "is_ready('fc-javten')=True must hide only the fc-javten window"
 
 
 # ──────────────────────────────────────────────────────────────
@@ -717,6 +858,16 @@ class TestStructuralGuards:
         assert result.returncode == 0 and result.stdout.strip() != '', \
             "FAIL: _wv_fetch not found at module level (column 0)"
 
+    def test_javlibrary_module_does_not_call_navigate_and_settle(self):
+        """javlibrary.py must never call navigate_and_settle — that primitive is fc-javten only."""
+        javlibrary_path = str(REPO_ROOT / 'core' / 'scrapers' / 'javlibrary.py')
+        result = subprocess.run(
+            ['grep', '-n', 'navigate_and_settle', javlibrary_path],
+            capture_output=True, text=True
+        )
+        assert result.returncode == 1 or result.stdout.strip() == '', \
+            f"FAIL: javlibrary.py references navigate_and_settle:\n{result.stdout}"
+
 
 # ──────────────────────────────────────────────────────────────
 # CD-70c-2 Layer 2: dead-flag fail-fast tests
@@ -732,25 +883,25 @@ class TestDeadFlagFailFast:
     def test_on_closed_handler_sets_dead(self):
         """_on_closed() handler sets _dead=True (backstop fire path)."""
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
-        assert transport._dead is False, "_dead must start as False"
+        transport = _jl_transport(win)
+        assert transport._dead['javlibrary'] is False, "_dead['javlibrary'] must start as False"
         # Fire the closed event as if the window was destroyed
         win.events.closed.fire()
-        assert transport._dead is True, "_on_closed should set _dead=True"
+        assert transport._dead['javlibrary'] is True, "_on_closed should set _dead['javlibrary']=True"
 
     def test_fetch_raises_when_dead(self):
-        """fetch() raises CfTransportUnavailable when _dead=True."""
+        """fetch() raises CfTransportUnavailable when _dead['javlibrary']=True."""
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
-        transport._dead = True
+        transport = _jl_transport(win)
+        transport._dead['javlibrary'] = True
         with pytest.raises(CfTransportUnavailable, match="restart OpenAver"):
             transport.fetch('https://www.javlibrary.com/ja/')
 
     def test_begin_solve_raises_when_dead(self):
-        """begin_solve() raises CfTransportUnavailable when _dead=True (guard before show())."""
+        """begin_solve() raises CfTransportUnavailable when _dead['javlibrary']=True (guard before show())."""
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
-        transport._dead = True
+        transport = _jl_transport(win)
+        transport._dead['javlibrary'] = True
         with pytest.raises(CfTransportUnavailable, match="restart OpenAver"):
             transport.begin_solve('https://www.javlibrary.com/ja/')
         # show() must NOT have been called (dead guard must be before show())
@@ -758,21 +909,47 @@ class TestDeadFlagFailFast:
         assert not show_calls, "show() must not be called after dead guard raises"
 
     def test_is_ready_raises_when_dead(self):
-        """is_ready() raises CfTransportUnavailable when _dead=True."""
+        """is_ready() raises CfTransportUnavailable when _dead['javlibrary']=True."""
         win = FakeWindowIsReady(READY_TITLE, READY_HEAD)
-        transport = PyWebViewCfTransport(win)
-        transport._dead = True
+        transport = _jl_transport(win)
+        transport._dead['javlibrary'] = True
         with pytest.raises(CfTransportUnavailable, match="restart OpenAver"):
             transport.is_ready()
 
     def test_dead_via_on_closed_then_fetch_raises(self):
         """Full path: window closed event fires → _dead=True → fetch raises."""
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         # Simulate window being destroyed by OS / crash
         win.events.closed.fire()
         with pytest.raises(CfTransportUnavailable):
             transport.fetch('https://www.javlibrary.com/ja/')
+
+    def test_dead_window_isolated_per_site(self):
+        """
+        _dead must be per-site: killing site A's window must not affect site B.
+
+        mutation: make _dead a single shared bool again → this test must go red
+        (fc-javten's fetch/is_ready would start raising CfTransportUnavailable too).
+        """
+        win_a = FakeWindow()
+        win_b = FakeWindowIsReady(READY_TITLE, READY_HEAD)
+        transport = PyWebViewCfTransport(
+            {'javlibrary': win_a, 'fc-javten': win_b},
+            {'javlibrary': JL_ORIGIN, 'fc-javten': 'https://javten.com/'},
+        )
+
+        win_a.events.closed.fire()
+        assert transport._dead['javlibrary'] is True
+        assert transport._dead['fc-javten'] is False
+
+        with pytest.raises(CfTransportUnavailable):
+            transport.fetch(JL_ORIGIN, 'javlibrary')
+
+        # fc-javten must remain fully operable despite javlibrary's window dying
+        result = transport.fetch('https://javten.com/', 'fc-javten')
+        assert isinstance(result, str)
+        assert transport.is_ready('fc-javten') is True
 
 
 # ──────────────────────────────────────────────────────────────
@@ -782,46 +959,46 @@ class TestDeadFlagFailFast:
 class TestBeginSolveTargetsCfUrl:
     """
     0.9.9g: begin_solve must navigate to the exact URL that triggered CF
-    (self._cf_url) so the user sees the real Turnstile challenge immediately,
-    rather than the homepage which has no CF challenge.
+    (self._cf_urls[key]) so the user sees the real Turnstile challenge
+    immediately, rather than the homepage which has no CF challenge.
     """
 
     CF_SEARCH_URL = 'https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=START-578'
     ORIGIN_URL = 'https://www.javlibrary.com/ja/'
 
     def test_begin_solve_navigates_to_remembered_cf_url(self):
-        """When _cf_url is set, begin_solve navigates to it (not origin)."""
+        """When _cf_urls['javlibrary'] is set, begin_solve navigates to it (not origin)."""
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
         # Simulate a CF fetch having recorded the challenged URL
-        transport._cf_url = self.CF_SEARCH_URL
+        transport._cf_urls['javlibrary'] = self.CF_SEARCH_URL
 
         transport.begin_solve(self.ORIGIN_URL)
 
         load_calls = [c for c in win.calls if c[0] == 'load_url']
         assert len(load_calls) == 1
         assert load_calls[0][1] == self.CF_SEARCH_URL, (
-            f"begin_solve must navigate to _cf_url ({self.CF_SEARCH_URL!r}), "
+            f"begin_solve must navigate to _cf_urls['javlibrary'] ({self.CF_SEARCH_URL!r}), "
             f"not origin ({self.ORIGIN_URL!r}); got {load_calls[0][1]!r}"
         )
 
     def test_begin_solve_falls_back_to_origin_when_no_cf_url(self):
-        """When _cf_url is None (fresh transport), begin_solve falls back to origin."""
+        """When _cf_urls['javlibrary'] is None (fresh transport), begin_solve falls back to origin."""
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
-        assert transport._cf_url is None
+        transport = _jl_transport(win)
+        assert transport._cf_urls['javlibrary'] is None
 
         transport.begin_solve(self.ORIGIN_URL)
 
         load_calls = [c for c in win.calls if c[0] == 'load_url']
         assert len(load_calls) == 1
         assert load_calls[0][1] == self.ORIGIN_URL, (
-            f"begin_solve must fall back to origin when _cf_url is None; "
+            f"begin_solve must fall back to origin when _cf_urls['javlibrary'] is None; "
             f"got {load_calls[0][1]!r}"
         )
 
     def test_fetch_cf_detected_records_cf_url(self, monkeypatch):
-        """fetch() with CF title → raises CfChallengeRequired AND records _cf_url."""
+        """fetch() with CF title → raises CfChallengeRequired AND records _cf_urls['javlibrary']."""
         search_url = self.CF_SEARCH_URL
 
         def fake_wv_fetch(window, url, **kwargs):
@@ -829,12 +1006,256 @@ class TestBeginSolveTargetsCfUrl:
 
         monkeypatch.setattr(cf_transport_impl, '_wv_fetch', fake_wv_fetch)
         win = FakeWindow()
-        transport = PyWebViewCfTransport(win)
+        transport = _jl_transport(win)
 
         with pytest.raises(CfChallengeRequired):
             transport.fetch(search_url)
 
-        assert transport._cf_url == search_url, (
-            f"_cf_url must be set to the CF-challenged URL ({search_url!r}); "
-            f"got {transport._cf_url!r}"
+        assert transport._cf_urls['javlibrary'] == search_url, (
+            f"_cf_urls['javlibrary'] must be set to the CF-challenged URL ({search_url!r}); "
+            f"got {transport._cf_urls['javlibrary']!r}"
+        )
+
+
+# ──────────────────────────────────────────────────────────────
+# Tests: navigate_and_settle() (TASK-118a-T1 / CD-118a-18)
+# ──────────────────────────────────────────────────────────────
+
+class FakeWindowNavigate(FakeWindow):
+    """
+    FakeWindow variant for navigate_and_settle(): supports sync evaluate_js
+    reads for document.title / outerHTML (same convention as FakeWindowIsReady),
+    on top of the base class's load_url()/get_current_url()/show()/hide().
+    """
+
+    def __init__(self, title: str = 'JavTen', head: str = '<html><head><title>JavTen</title></head>'):
+        super().__init__()
+        self._title = title
+        self._head = head
+
+    def evaluate_js(self, code, callback=None):
+        self.calls.append(('evaluate_js', code, callback))
+        if callback is not None:
+            if not self._never_callback:
+                result = self._eval_callback_result.get('default', {})
+                callback(result)
+            return None
+        if 'document.title' in code:
+            return self._title
+        if 'outerHTML' in code:
+            return self._head
+        return None
+
+
+class FakeEventLogging(FakeEvent):
+    """FakeEvent that logs wait() calls into a shared list, so a test can assert
+    ordering between the bridge-ready wait and subsequent evaluate_js reads."""
+
+    def __init__(self, initial: bool, log: list):
+        super().__init__(initial)
+        self._log = log
+
+    def wait(self, timeout=None):
+        self._log.append(('bridge_wait', timeout))
+        return super().wait(timeout)
+
+
+class RealDelayedEvent:
+    """Thin wrapper over a real threading.Event, used only for the
+    "bridge becomes ready after a short delay" blocking test — FakeEvent's
+    wait() is intentionally non-blocking (instant), so it can't model a
+    background thread calling set() a few milliseconds later."""
+
+    def __init__(self, initial: bool = False):
+        self._evt = threading.Event()
+        if initial:
+            self._evt.set()
+
+    def is_set(self):
+        return self._evt.is_set()
+
+    def set(self):
+        self._evt.set()
+
+    def clear(self):
+        self._evt.clear()
+
+    def wait(self, timeout=None):
+        return self._evt.wait(timeout)
+
+
+class TestNavigateAndSettle:
+    """
+    navigate_and_settle(url, key) — CD-118a-18: navigate the site's window,
+    wait (bounded) for the pywebview bridge, then return the settled URL.
+    Never calls evaluate_js before the bridge is ready (0.9.9c).
+    """
+
+    JAVTEN_URL = 'https://javten.com/search?kw=4938117'
+
+    def test_navigate_and_settle_no_evaluate_js_before_bridge_ready(self, monkeypatch):
+        """
+        Bridge never becomes ready → navigate_and_settle raises, and evaluate_js
+        (the title/head challenge reads) must never have been called.
+
+        mutation: change navigate_and_settle to call evaluate_js right after
+        navigating (not waiting for the Event) → this test must go red.
+        """
+        monkeypatch.setattr(cf_transport_impl, 'NAVIGATE_BRIDGE_TIMEOUT_S', 0.05)
+        win = FakeWindowNavigate()
+        win.events._pywebviewready = FakeEvent(initial=False)
+        transport = PyWebViewCfTransport({'fc-javten': win}, None)
+
+        with pytest.raises(CfChallengeRequired):
+            transport.navigate_and_settle(self.JAVTEN_URL, 'fc-javten')
+
+        eval_calls = [c for c in win.calls if c[0] == 'evaluate_js']
+        assert eval_calls == [], (
+            f"evaluate_js must not be called when the bridge never becomes ready; got {eval_calls}"
+        )
+
+    def test_navigate_and_settle_waits_for_bridge_then_returns_url(self, monkeypatch):
+        """
+        Bridge becomes ready ~50ms after navigation (a background thread calls
+        set() on a real threading.Event) → navigate_and_settle must wait for it
+        and return the settled URL, and must NEVER call show()/begin_solve.
+
+        mutation: replace the bounded wait with fetch()'s "not ready → raise
+        immediately" snapshot gate → this test must go red (it would raise
+        instead of returning, since the event isn't set() yet at call time).
+        """
+        monkeypatch.setattr(cf_transport_impl, 'NAVIGATE_BRIDGE_TIMEOUT_S', 2.0)
+        win = FakeWindowNavigate(title='JavTen', head='<html><head><title>JavTen</title></head>')
+        win.events._pywebviewready = RealDelayedEvent(initial=False)
+        transport = PyWebViewCfTransport({'fc-javten': win}, None)
+
+        def _delayed_set():
+            time.sleep(0.05)
+            win.events._pywebviewready.set()
+
+        threading.Thread(target=_delayed_set, daemon=True).start()
+
+        result = transport.navigate_and_settle(self.JAVTEN_URL, 'fc-javten')
+
+        assert result == self.JAVTEN_URL, (
+            f"navigate_and_settle must return the settled URL once the bridge "
+            f"becomes ready; got {result!r}"
+        )
+        show_calls = [c for c in win.calls if c[0] == 'show']
+        assert show_calls == [], (
+            "navigate_and_settle must never call show()/begin_solve; "
+            f"got show() calls: {show_calls}"
+        )
+
+    def test_navigate_and_settle_records_landed_origin_not_requested_origin(self, monkeypatch):
+        """
+        The search step is a redirect chain we do not control. If it settles on a
+        DIFFERENT origin than the one we requested, the origin bookkeeping must
+        follow the window, not our request — otherwise the very next fetch() misses
+        the INV-1 gate and pops the CF window although Cloudflare never challenged.
+
+        User-visible symptom if this regresses: every single fc-javten query opens
+        the CF window (the exact thing CD-118a-18 exists to prevent).
+
+        mutation: record the origin from the requested url only (drop the
+        _record_origin(key, final_url) call after get_current_url()) → this test
+        must go red with CfChallengeRequired.
+        """
+        monkeypatch.setattr(cf_transport_impl, 'NAVIGATE_BRIDGE_TIMEOUT_S', 0.05)
+        landed = 'https://www.javten.com/video/12345/id4938117/slug'
+        win = FakeWindowNavigate()
+        win.events._pywebviewready = FakeEvent(initial=True)
+        transport = PyWebViewCfTransport({'fc-javten': win}, None)
+
+        # requested host javten.com → settles on www.javten.com (cross-origin redirect)
+        win.get_current_url = lambda: landed
+        result = transport.navigate_and_settle(self.JAVTEN_URL, 'fc-javten')
+        assert result == landed
+
+        # The follow-up fetch() of the settled page must pass the origin gate:
+        # no re-navigation, no CF challenge — it must actually reach _wv_fetch.
+        fetched = []
+        monkeypatch.setattr(
+            cf_transport_impl, '_wv_fetch',
+            lambda w, u: (fetched.append(u), (u, 200, '<html><title>ok</title><body>x</body></html>'))[1],
+        )
+        loads_before = len([c for c in win.calls if c[0] == 'load_url'])
+
+        transport.fetch(landed, 'fc-javten')
+
+        assert fetched == [landed], (
+            "fetch() of the settled URL must reach _wv_fetch; the origin gate "
+            f"compared against a stale origin instead. _wv_fetch calls: {fetched}"
+        )
+        loads_after = len([c for c in win.calls if c[0] == 'load_url'])
+        assert loads_after == loads_before, (
+            "fetch() must not re-navigate after navigate_and_settle already "
+            f"settled there; load_url calls went {loads_before} → {loads_after}"
+        )
+
+    def test_origin_comparison_is_case_insensitive(self, monkeypatch):
+        """
+        RFC 3986: scheme and host are case-insensitive. A redirect returning an
+        upper-case host must not read as a different origin (one spurious
+        re-navigate + CF popup per query otherwise).
+
+        mutation: drop the .lower() calls in _origin() → this test must go red.
+        """
+        win = FakeWindow()
+        transport = PyWebViewCfTransport({'fc-javten': win}, {'fc-javten': 'https://javten.com/'})
+
+        fetched = []
+        monkeypatch.setattr(
+            cf_transport_impl, '_wv_fetch',
+            lambda w, u: (fetched.append(u), (u, 200, '<html><title>ok</title><body>x</body></html>'))[1],
+        )
+
+        upper = 'HTTPS://JAVTEN.COM/video/1/id2/slug'
+        transport.fetch(upper, 'fc-javten')
+
+        assert fetched == [upper], (
+            "an upper-case-host URL is the same origin as the recorded "
+            f"lower-case one; _wv_fetch calls: {fetched}"
+        )
+
+    def test_navigate_and_settle_raises_when_bridge_never_ready(self, monkeypatch):
+        """Bridge never becomes ready within the (monkeypatched, tiny) timeout → raises CfChallengeRequired."""
+        monkeypatch.setattr(cf_transport_impl, 'NAVIGATE_BRIDGE_TIMEOUT_S', 0.05)
+        win = FakeWindowNavigate()
+        win.events._pywebviewready = FakeEvent(initial=False)
+        transport = PyWebViewCfTransport({'fc-javten': win}, None)
+
+        with pytest.raises(CfChallengeRequired):
+            transport.navigate_and_settle(self.JAVTEN_URL, 'fc-javten')
+
+    def test_navigate_and_settle_detects_challenge_after_bridge_ready(self):
+        """
+        T1's most important navigate_and_settle test: bridge becomes ready, but
+        the settled page IS a CF challenge → navigate_and_settle must raise
+        CfChallengeRequired, record _cf_urls[key], and NOT return the URL — and
+        the title/head reads that decided this must all happen AFTER the
+        bridge-ready wait (spy-verified via a shared call log), never before.
+
+        mutation: remove the challenge check (keep only "raise if bridge never
+        ready") → this test must go red (no raise; the URL would be returned).
+        """
+        win = FakeWindowNavigate(title='Just a moment', head='<html><head><title>Just a moment</title></head>')
+        win.events._pywebviewready = FakeEventLogging(True, win.calls)
+        transport = PyWebViewCfTransport({'fc-javten': win}, None)
+
+        with pytest.raises(CfChallengeRequired):
+            transport.navigate_and_settle(self.JAVTEN_URL, 'fc-javten')
+
+        wait_idxs = [i for i, c in enumerate(win.calls) if c[0] == 'bridge_wait']
+        eval_idxs = [i for i, c in enumerate(win.calls) if c[0] == 'evaluate_js']
+        assert wait_idxs, "the bridge-ready wait must have happened"
+        assert eval_idxs, "title/head reads must have happened (they decide the challenge verdict)"
+        assert all(i > wait_idxs[0] for i in eval_idxs), (
+            f"evaluate_js reads must happen AFTER the bridge-ready wait "
+            f"(wait at {wait_idxs[0]}, evaluate_js at {eval_idxs}); call log: {win.calls}"
+        )
+
+        assert transport._cf_urls['fc-javten'] == self.JAVTEN_URL, (
+            f"_cf_urls['fc-javten'] must record the challenged URL; "
+            f"got {transport._cf_urls['fc-javten']!r}"
         )

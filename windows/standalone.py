@@ -226,6 +226,27 @@ def run_server(port, debug_mode=False):
     server.run()
 
 
+def _ensure_webview2_runtime(logger) -> None:
+    """Windows-only: verify WebView2 Runtime is installed; prompt + exit(0) if not.
+
+    TASK-118a-T1: extracted out of main() (was inline step "0.") purely to keep
+    main()'s cyclomatic complexity under the ruff C901 threshold now that a
+    second CF-transport window's setup + closing-handler branches live there —
+    this block is otherwise unrelated to T1 and unchanged behaviourally.
+    """
+    if sys.platform != 'win32':
+        return
+    if check_webview2_installed():
+        return
+    logger.info("WebView2 Runtime 未安裝")
+    if not show_webview2_prompt():
+        logger.info("用戶取消安裝，程式結束")
+        sys.exit(0)
+    else:
+        logger.info("請安裝 WebView2 後重新啟動")
+        sys.exit(0)
+
+
 # ============ 主程序 ============
 
 def main():
@@ -238,15 +259,7 @@ def main():
     logger.info("正在啟動...")
 
     # 0. 檢查 WebView2（僅 Windows）
-    if sys.platform == 'win32':
-        if not check_webview2_installed():
-            logger.info("WebView2 Runtime 未安裝")
-            if not show_webview2_prompt():
-                logger.info("用戶取消安裝，程式結束")
-                sys.exit(0)
-            else:
-                logger.info("請安裝 WebView2 後重新啟動")
-                sys.exit(0)
+    _ensure_webview2_runtime(logger)
 
     # 1. 標記為 Windows 桌面 App（feature/82 T4：_is_windows_desktop() 讀此環境變數）
     # 必須在任何 web.app import 之前設定，確保 get_common_context 能正確判斷。
@@ -326,6 +339,7 @@ def main():
     # pywebview 6.2.1: create_window(hidden=True) before start() is supported;
     # the native window is only shown after the GUI loop starts via _create_children.
     jl_win = None
+    javten_win = None
     try:
         from cf_transport_impl import PyWebViewCfTransport   # sibling import（WINDOWS_DIR 已在 sys.path）
         from core.scrapers.javlibrary import JAVLIBRARY_ORIGIN
@@ -340,10 +354,32 @@ def main():
             width=1200, height=820,
             hidden=True,
         )
-        register_cf_transport(PyWebViewCfTransport(jl_win))
-        logger.info("JavLibrary CF transport registered")
+        # TASK-118a-T1 / CD-118a-4: the fc-javten window is created eagerly here too
+        # (same non-lazy precedent as jl_win — both windows exist before webview.start()),
+        # but parked on about:blank instead of javten.com. It only navigates there on
+        # first use (navigate_and_settle in the search flow), so this does NOT add a
+        # second "connects to an external site on every startup" side effect on top of
+        # the existing JL one (P3-6, unchanged, still a separate follow-up).
+        javten_win = webview.create_window(
+            'FC2 (javten) — CF 驗證',
+            'about:blank',
+            width=1200, height=820,
+            hidden=True,
+        )
+        # D-0/D-1: only javlibrary is seeded in initial_urls — its window already sits
+        # on JAVLIBRARY_ORIGIN. fc-javten is NOT seeded (its window is on about:blank);
+        # the origin gate (INV-1) will route its first fetch()/search into
+        # navigate_and_settle instead, which is the only writer of self._origins after
+        # construction.
+        register_cf_transport(
+            PyWebViewCfTransport(
+                {'javlibrary': jl_win, 'fc-javten': javten_win},
+                {'javlibrary': JAVLIBRARY_ORIGIN},
+            )
+        )
+        logger.info("CF transport registered (javlibrary, fc-javten)")
     except Exception as e:
-        logger.warning(f"JavLibrary CF transport init failed (JL will be unavailable): {e}")
+        logger.warning(f"CF transport init failed (JavLibrary/FC2-javten may be unavailable): {e}")
 
     # CD-70c-2 Layer 1: intercept JL window close → hide instead of destroy.
     # A destroyed window makes self._win dead, breaking all subsequent fetch/is_ready
@@ -362,7 +398,7 @@ def main():
 
         lifecycle = DesktopLifecycle(
             window,
-            jl_win,
+            {'javlibrary': jl_win, 'fc-javten': javten_win},
             saved,
             window_state.save_state,
             on_quit_cleanup=lan_listener.shutdown,
@@ -382,12 +418,19 @@ def main():
             _app_state["quitting"] = lifecycle.quitting
             return result
         # Non-Windows launchers keep the original close-to-exit behaviour.
+        # CD-118a-4b: both transport windows must be destroyed here, not just jl_win —
+        # a window left un-destroyed keeps pywebview's instance count above 0 forever.
         _app_state["quitting"] = True
         if jl_win is not None:
             try:
                 jl_win.destroy()
             except Exception:
                 logger.warning("failed to destroy JL window on app close")
+        if javten_win is not None:
+            try:
+                javten_win.destroy()
+            except Exception:
+                logger.warning("failed to destroy javten window on app close")
         lan_listener.shutdown()
 
     def _on_jl_closing():
@@ -401,9 +444,21 @@ def main():
             return False
         # app quitting → return None (allow close)
 
+    def _on_javten_closing():
+        # Mirrors _on_jl_closing (CD-118a-4b): hidden ≠ destroyed for the second
+        # transport window either — same hide-and-cancel intercept, same
+        # app-quit passthrough.
+        quitting = lifecycle.quitting if lifecycle is not None else _app_state["quitting"]
+        if not quitting:
+            javten_win.hide()
+            return False
+        # app quitting → return None (allow close)
+
     window.events.closing += _on_main_closing
     if jl_win is not None:
         jl_win.events.closing += _on_jl_closing
+    if javten_win is not None:
+        javten_win.events.closing += _on_javten_closing
 
     def startup(w):
         bind_events(w)

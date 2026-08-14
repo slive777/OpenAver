@@ -62,10 +62,16 @@ def _is_webview_create_window_call(call: ast.Call) -> bool:
 
 def _is_jl_create_window_call(call: ast.Call) -> bool:
     """
-    True iff call is the JL webview.create_window(...), identified by ANY of:
+    True iff call is the JL webview.create_window(...), identified by EITHER of:
       - first positional string arg contains 'JavLibrary'
-      - keyword hidden=True is present
       - second positional arg is ast.Name(id='JAVLIBRARY_ORIGIN')
+
+    TASK-118a-T1 D-6: `hidden=True` was REMOVED from this discriminator. Once a
+    second (fc-javten) hidden window exists, `hidden=True` matches BOTH calls
+    and has lost all discriminating power — keeping it here would silently
+    make `len(jl_create_calls) == 1` fail to distinguish "found the JL call"
+    from "found some hidden call" (BE-TEST-05). `hidden=True` is now asserted
+    separately, on the specific call each discriminator already identified.
     """
     if not _is_webview_create_window_call(call):
         return False
@@ -73,13 +79,39 @@ def _is_jl_create_window_call(call: ast.Call) -> bool:
     if call.args and isinstance(call.args[0], ast.Constant) and isinstance(call.args[0].value, str):
         if "JavLibrary" in call.args[0].value:
             return True
-    # Check for hidden=True keyword
-    for kw in call.keywords:
-        if kw.arg == "hidden" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
-            return True
     # Check second positional arg is Name(id='JAVLIBRARY_ORIGIN')
     if len(call.args) >= 2 and isinstance(call.args[1], ast.Name) and call.args[1].id == "JAVLIBRARY_ORIGIN":
         return True
+    return False
+
+
+def _is_javten_create_window_call(call: ast.Call) -> bool:
+    """
+    True iff call is the fc-javten webview.create_window(...), identified by:
+      - second positional arg is the string literal constant 'about:blank'
+
+    TASK-118a-T1 / CD-118a-4: the javten window is created eagerly (same
+    startup-time precedent as JL) but parked on about:blank until first use —
+    that string literal is this call's unique fingerprint (JL's second arg is
+    the JAVLIBRARY_ORIGIN Name, never a string constant).
+    """
+    if not _is_webview_create_window_call(call):
+        return False
+    if (
+        len(call.args) >= 2
+        and isinstance(call.args[1], ast.Constant)
+        and call.args[1].value == "about:blank"
+    ):
+        return True
+    return False
+
+
+def _call_has_hidden_true(call: ast.Call) -> bool:
+    """True iff call has keyword hidden=True. D-6: asserted separately per-call
+    now that hidden=True no longer discriminates JL from javten."""
+    for kw in call.keywords:
+        if kw.arg == "hidden" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
+            return True
     return False
 
 
@@ -145,6 +177,33 @@ def _is_jl_closing_augassign(node: ast.AST) -> bool:
         and target.value.attr == "events"
         and isinstance(target.value.value, ast.Name)
         and target.value.value.id == "jl_win"
+    ):
+        return False
+    return True
+
+
+def _is_javten_closing_augassign(node: ast.AST) -> bool:
+    """
+    True iff node is: javten_win.events.closing += _on_javten_closing
+
+    TASK-118a-T1: mirrors _is_jl_closing_augassign for the second transport
+    window (D-6: distinct, explicitly-named discriminator — not a generalised
+    "any window" match, per BE-TEST-05).
+    """
+    if not isinstance(node, ast.AugAssign):
+        return False
+    if not isinstance(node.op, ast.Add):
+        return False
+    if not isinstance(node.value, ast.Name) or node.value.id != "_on_javten_closing":
+        return False
+    target = node.target
+    if not (
+        isinstance(target, ast.Attribute)
+        and target.attr == "closing"
+        and isinstance(target.value, ast.Attribute)
+        and target.value.attr == "events"
+        and isinstance(target.value.value, ast.Name)
+        and target.value.value.id == "javten_win"
     ):
         return False
     return True
@@ -250,13 +309,20 @@ class TestStandaloneInitOrderGuard:
     def test_jl_create_window_before_webview_start(self):
         """
         (b) The JL-specific webview.create_window(...) (identified by 'JavLibrary' in
-        first arg, hidden=True keyword, or JAVLIBRARY_ORIGIN as second positional arg)
-        must appear in main() body with lineno < min lineno of any webview.start(...).
+        first arg, or JAVLIBRARY_ORIGIN as second positional arg) must appear in
+        main() body with lineno < min lineno of any webview.start(...), AND that
+        call must carry hidden=True.
 
         Fix (P2): previously used min() over ALL create_window calls, which always
         picked the main OpenAver window (always before webview.start) and would NOT
         catch moving the JL create to after webview.start(). Now we pin specifically
         to the JL create call. (CD-70c-1)
+
+        TASK-118a-T1 D-6: hidden=True is now asserted separately (not part of the
+        discriminator) — once a second hidden window (fc-javten) exists, hidden=True
+        alone no longer identifies which call is JL's, so keeping it in the
+        discriminator would let this `== 1` assertion silently stop verifying
+        anything JL-specific (BE-TEST-05).
         """
         tree, _ = self._parse()
         main_node = _find_main_func(tree)
@@ -268,7 +334,7 @@ class TestStandaloneInitOrderGuard:
 
         assert len(jl_create_calls) == 1, (
             f"Expected exactly 1 JL webview.create_window() call in main() body "
-            f"(identified by 'JavLibrary' title / hidden=True / JAVLIBRARY_ORIGIN), "
+            f"(identified by 'JavLibrary' title / JAVLIBRARY_ORIGIN), "
             f"found {len(jl_create_calls)} — guard cannot verify ordering (CD-70c-1)"
         )
         assert start_calls, "webview.start() not found in main() body"
@@ -278,6 +344,48 @@ class TestStandaloneInitOrderGuard:
         assert jl_create_line < min_start_line, (
             f"JL webview.create_window() (line {jl_create_line}) must appear "
             f"BEFORE webview.start() (line {min_start_line}) in main() (CD-70c-1)"
+        )
+        assert _call_has_hidden_true(jl_create_calls[0]), (
+            f"JL webview.create_window() (line {jl_create_line}) must carry "
+            "hidden=True — it is a background CF-transport window, not the main window"
+        )
+
+    def test_javten_create_window_before_webview_start(self):
+        """
+        TASK-118a-T1 / CD-118a-4: the fc-javten webview.create_window(...)
+        (identified by second positional arg == 'about:blank') must appear in
+        main() body with lineno < min lineno of any webview.start(...), AND
+        that call must carry hidden=True.
+
+        D-6: this is a SEPARATE, explicitly-named assertion from the JL one
+        above — asserting `>= 2` on a combined "any hidden create_window" count
+        would let one of the two windows silently go missing without failing
+        (BE-TEST-05); each site's presence must be independently provable.
+        """
+        tree, _ = self._parse()
+        main_node = _find_main_func(tree)
+        assert main_node is not None, "main() not found"
+
+        direct_calls = _collect_direct_calls_in_main_body(main_node)
+        javten_create_calls = [c for c in direct_calls if _is_javten_create_window_call(c)]
+        start_calls = [c for c in direct_calls if _is_webview_start_call(c)]
+
+        assert len(javten_create_calls) == 1, (
+            f"Expected exactly 1 fc-javten webview.create_window() call in main() body "
+            f"(identified by second positional arg == 'about:blank'), "
+            f"found {len(javten_create_calls)} — guard cannot verify ordering (CD-118a-4)"
+        )
+        assert start_calls, "webview.start() not found in main() body"
+
+        javten_create_line = javten_create_calls[0].lineno
+        min_start_line = min(c.lineno for c in start_calls)
+        assert javten_create_line < min_start_line, (
+            f"fc-javten webview.create_window() (line {javten_create_line}) must appear "
+            f"BEFORE webview.start() (line {min_start_line}) in main() (CD-118a-4)"
+        )
+        assert _call_has_hidden_true(javten_create_calls[0]), (
+            f"fc-javten webview.create_window() (line {javten_create_line}) must carry "
+            "hidden=True — it is a background CF-transport window, not the main window"
         )
 
     def test_jl_events_closing_binding_and_handler(self):
@@ -352,6 +460,75 @@ class TestStandaloneInitOrderGuard:
             "close-intercept must return False to cancel the close event (CD-70c-2)"
         )
 
+    def test_javten_events_closing_binding_and_handler(self):
+        """
+        TASK-118a-T1 / CD-118a-4b: mirrors test_jl_events_closing_binding_and_handler
+        for the second (fc-javten) transport window — a SEPARATE, explicitly-named
+        assertion (D-6 / BE-TEST-05): a loosened "any window" check would let the
+        JL window's legitimate binding mask a missing javten one.
+
+        Asserts via AST:
+          1. An AugAssign `javten_win.events.closing += _on_javten_closing` exists in main().
+          2. A `def _on_javten_closing` FunctionDef exists in main().
+          3. _on_javten_closing body contains a call to javten_win.hide().
+          4. _on_javten_closing body contains `return False`.
+        """
+        tree, src = self._parse()
+        main_node = _find_main_func(tree)
+        assert main_node is not None, "main() not found"
+
+        assert "events.closing" in src, (
+            "standalone.py missing events.closing entirely — "
+            "close-intercept was removed (should not be)"
+        )
+
+        # 1. Assert javten_win.events.closing += _on_javten_closing AugAssign exists
+        javten_closing_bindings = [
+            n for n in ast.walk(main_node) if _is_javten_closing_augassign(n)
+        ]
+        assert len(javten_closing_bindings) == 1, (
+            f"Expected exactly 1 `javten_win.events.closing += _on_javten_closing` AugAssign "
+            f"in main(), found {len(javten_closing_bindings)} — "
+            "javten close-intercept binding is missing or was renamed (CD-118a-4b)"
+        )
+
+        # 2. Assert def _on_javten_closing exists inside main()
+        handler_def = _find_func_def(main_node, "_on_javten_closing")
+        assert handler_def is not None, (
+            "def _on_javten_closing not found inside main() — "
+            "javten close-intercept handler is missing or was renamed (CD-118a-4b)"
+        )
+
+        # 3. Assert _on_javten_closing body contains javten_win.hide() call
+        handler_calls = _collect_calls_in_node(handler_def)
+        javten_hide_calls = [
+            c for c in handler_calls
+            if (
+                isinstance(c.func, ast.Attribute)
+                and c.func.attr == "hide"
+                and isinstance(c.func.value, ast.Name)
+                and c.func.value.id == "javten_win"
+            )
+        ]
+        assert javten_hide_calls, (
+            "javten_win.hide() call not found in _on_javten_closing body — "
+            "close-intercept must call javten_win.hide() to prevent window destruction (CD-118a-4b)"
+        )
+
+        # 4. Assert _on_javten_closing body contains `return False`
+        return_false_nodes = [
+            n for n in ast.walk(handler_def)
+            if (
+                isinstance(n, ast.Return)
+                and isinstance(n.value, ast.Constant)
+                and n.value.value is False
+            )
+        ]
+        assert return_false_nodes, (
+            "`return False` not found in _on_javten_closing body — "
+            "close-intercept must return False to cancel the close event (CD-118a-4b)"
+        )
+
     def test_on_main_closing_destroys_jl_win(self):
         """
         B1 guard (TASK-70c-B): _on_main_closing must call jl_win.destroy() after
@@ -387,4 +564,43 @@ class TestStandaloneInitOrderGuard:
             "jl_win.destroy() call not found in _on_main_closing body — "
             "B1 fix: must destroy the hidden JL window on app close so pywebview "
             "can reach instances==0 and exit cleanly (TASK-70c-B)"
+        )
+
+    def test_on_main_closing_destroys_javten_win(self):
+        """
+        TASK-118a-T1 / CD-118a-4b: mirrors test_on_main_closing_destroys_jl_win for
+        the second (fc-javten) transport window — a SEPARATE, explicitly-named
+        assertion (D-6 / BE-TEST-05): if only jl_win.destroy() is checked, adding
+        the javten window without also destroying it on close would keep pywebview's
+        instance count above 0 forever (the same zombie-process shape TASK-70c-B
+        fixed for jl_win) and this guard would stay green.
+
+        AST: find the _on_main_closing FunctionDef inside main(), walk it, assert
+        a Call with func.attr=='destroy' and func.value.id=='javten_win'.
+        """
+        tree, _ = self._parse()
+        main_node = _find_main_func(tree)
+        assert main_node is not None, "main() not found"
+
+        handler_def = _find_func_def(main_node, "_on_main_closing")
+        assert handler_def is not None, (
+            "def _on_main_closing not found inside main() — "
+            "B1 zombie-process fix requires _on_main_closing (standalone.py)"
+        )
+
+        # Walk _on_main_closing body for a Call: javten_win.destroy(...)
+        handler_calls = _collect_calls_in_node(handler_def)
+        javten_destroy_calls = [
+            c for c in handler_calls
+            if (
+                isinstance(c.func, ast.Attribute)
+                and c.func.attr == "destroy"
+                and isinstance(c.func.value, ast.Name)
+                and c.func.value.id == "javten_win"
+            )
+        ]
+        assert javten_destroy_calls, (
+            "javten_win.destroy() call not found in _on_main_closing body — "
+            "CD-118a-4b: must destroy the hidden fc-javten window on app close so "
+            "pywebview can reach instances==0 and exit cleanly"
         )

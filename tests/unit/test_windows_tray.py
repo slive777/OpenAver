@@ -50,7 +50,7 @@ def desktop():
         "maximized": False,
     }
     lifecycle = DesktopLifecycle(
-        window, jl_window, state,
+        window, {'javlibrary': jl_window}, state,
         lambda value: saved.append(dict(value)),
         read_close_action=_read_ca,
         write_close_action=_write_ca,
@@ -137,6 +137,51 @@ def test_quit_cleanup_is_idempotent(desktop):
     lifecycle.shutdown_after_loop()
     assert tray.stop.call_count == 1
     assert jl_window.destroy.call_count == 1
+
+
+def test_begin_quit_destroys_all_cf_windows():
+    """
+    CD-118a-4b: the quit path must destroy EVERY window in cf_windows, not just
+    the first key — the exact failure shape that produced the 0.9.9 zombie
+    process (a window left un-destroyed keeps pywebview's instance count > 0).
+
+    mutation: make _begin_quit() only destroy the first window in cf_windows
+    → this test must go red (win_b/win_c would never see destroy() called).
+    """
+    window = MagicMock()
+    win_a = MagicMock()
+    win_b = MagicMock()
+    win_c = MagicMock()
+    lc = DesktopLifecycle(
+        window, {'a': win_a, 'b': win_b, 'c': win_c},
+        {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
+        lambda v: None,
+    )
+
+    lc._begin_quit()
+
+    win_a.destroy.assert_called_once_with()
+    win_b.destroy.assert_called_once_with()
+    win_c.destroy.assert_called_once_with()
+
+
+def test_begin_quit_continues_after_one_window_destroy_fails():
+    """D-5: each CF window destroy is independently try/except'd — one window's
+    destroy() raising must not prevent the others from being destroyed."""
+    window = MagicMock()
+    win_a = MagicMock()
+    win_a.destroy.side_effect = RuntimeError("boom")
+    win_b = MagicMock()
+    lc = DesktopLifecycle(
+        window, {'a': win_a, 'b': win_b},
+        {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
+        lambda v: None,
+    )
+
+    lc._begin_quit()  # must not raise
+
+    win_a.destroy.assert_called_once_with()
+    win_b.destroy.assert_called_once_with()
 
 
 def test_dialog_result_mapping():
@@ -271,7 +316,7 @@ def test_injected_read_write_store_roundtrip():
     saved = []
 
     lifecycle = DesktopLifecycle(
-        window, jl_window, {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
+        window, {'javlibrary': jl_window}, {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
         lambda v: saved.append(dict(v)),
         read_close_action=lambda: store["value"],
         write_close_action=lambda a: store.__setitem__("value", a),
@@ -291,7 +336,7 @@ def test_injected_read_invalid_value_coerced_to_ask():
     window = MagicMock()
 
     lifecycle = DesktopLifecycle(
-        window, MagicMock(), {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
+        window, {'javlibrary': MagicMock()}, {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
         lambda v: None,
         read_close_action=lambda: store["value"],
         write_close_action=lambda a: None,
@@ -358,7 +403,7 @@ def _make_lifecycle_with_cleanup(cleanup_cb):
     tray = MagicMock()
     state = {"close_action": CLOSE_ASK}
     lc = DesktopLifecycle(
-        window, jl_window, state,
+        window, {'javlibrary': jl_window}, state,
         lambda value: None,
         on_quit_cleanup=cleanup_cb,
     )
@@ -434,7 +479,7 @@ def test_set_close_action_swallows_write_failure():
 
     window = MagicMock()
     lc = DesktopLifecycle(
-        window, MagicMock(),
+        window, {'javlibrary': MagicMock()},
         {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
         lambda v: None,
         read_close_action=lambda: CLOSE_ASK,
@@ -450,7 +495,7 @@ def test_set_close_action_invalid_still_raises_value_error():
     """set_close_action with a bogus action must still raise ValueError (programming-error guard)."""
     window = MagicMock()
     lc = DesktopLifecycle(
-        window, MagicMock(),
+        window, {'javlibrary': MagicMock()},
         {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
         lambda v: None,
         write_close_action=lambda a: None,
@@ -467,7 +512,7 @@ def test_on_window_closing_remember_best_effort_with_raising_write():
 
     window = MagicMock()
     lc = DesktopLifecycle(
-        window, MagicMock(),
+        window, {'javlibrary': MagicMock()},
         {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
         lambda v: None,
         read_close_action=lambda: CLOSE_ASK,
@@ -497,7 +542,7 @@ def test_session_override_cleared_on_successful_write():
 
     window = MagicMock()
     lc = DesktopLifecycle(
-        window, MagicMock(),
+        window, {'javlibrary': MagicMock()},
         {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
         lambda v: None,
         read_close_action=lambda: store["value"],
@@ -524,7 +569,7 @@ def test_successful_write_does_not_shadow_external_config_change():
 
     window = MagicMock()
     lc = DesktopLifecycle(
-        window, MagicMock(),
+        window, {'javlibrary': MagicMock()},
         {"width": 1200, "height": 800, "x": None, "y": None, "maximized": False},
         lambda v: None,
         read_close_action=lambda: store["value"],
