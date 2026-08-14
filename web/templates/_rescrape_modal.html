@@ -64,8 +64,9 @@
               <i class="bi bi-slash-circle slash-icn" x-show="rescrapeLoadingSource !== s.id && !isJlUnavailable(s)" aria-hidden="true"></i>
               {# 品牌名（display_name_raw → display_name_key fallback；不走 i18n，CD-62-12） #}
               <span class="pill-name" x-text="s.display_name_raw || s.display_name_key || s.id"></span>
-              {# 70-T5: BETA badge（manual_only && is_beta = javlibrary 等；未來 beta source 自動顯示） #}
-              <span class="source-pill-badge" x-show="s.manual_only && s.is_beta" aria-hidden="true">BETA</span>
+              {# 118a-T7（spec F3）：BETA 徽章已移除。「這個來源可能要你完成一次驗證」改由上面那組
+                 aria-disabled / :title / @click toast 在真正需要的時刻交付；虛線外框（manual-only）
+                 負責視覺區隔。徽章是常駐裝飾，說的又是偶爾才發生的事。 #}
             </button>
           </template>
         </div>

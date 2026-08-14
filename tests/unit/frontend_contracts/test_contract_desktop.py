@@ -110,7 +110,8 @@ class TestJavlibraryPickerT5Guard:
       (1) bootstrap template 含 cf_transport_available 注入
       (2) app.py get_common_context 注入 cf_transport_available
       (3) state-rescrape.js 定義 isJlUnavailable
-      (4) _rescrape_modal.html builtin pill 含 source-pill-badge（BETA）綁於 manual_only && is_beta
+      (4) ⛔ 已刪除（118a-T7 / spec F3）：BETA 徽章整個移除，該不變式被反轉，回歸鎖改在
+          scripts/static_guard_lint.mjs 的 [118a-T7] forbidden-string 規則
       (5) _rescrape_modal.html builtin pill 含 isJlUnavailable gate（aria-disabled + jl_desktop_only toast）
       (6) 4 locale 檔含 jl_desktop_only key
     """
@@ -139,15 +140,17 @@ class TestJavlibraryPickerT5Guard:
             "70-T5 違規：state-rescrape.js 未定義 isJlUnavailable helper"
         )
 
-    def test_modal_builtin_pill_has_beta_badge(self):
-        """(4) _rescrape_modal.html builtin pill 模板含 source-pill-badge（BETA badge）。"""
-        html = _MODAL_HTML_70.read_text(encoding="utf-8")
-        assert "source-pill-badge" in html, (
-            "70-T5 違規：_rescrape_modal.html builtin pill 模板缺 source-pill-badge（BETA badge）"
-        )
-        assert "manual_only" in html and "is_beta" in html, (
-            "70-T5 違規：source-pill-badge 未綁於 manual_only && is_beta 條件（不應對所有 pill 顯示）"
-        )
+    # (4) 原 test_modal_builtin_pill_has_beta_badge 已刪除（118a-T7 / spec F3）。
+    #
+    # 它鎖的是「source-pill-badge 必須存在、且綁在 manual_only && is_beta 上」。owner
+    # 2026-08-14 拍板把 BETA 徽章整個移除 —— 那個不變式被**反轉**了，不是搬到別處守，
+    # 所以這裡沒有「等價性維持」可談（AGENTS.md 守衛模式 1 的比較前提不成立）。
+    #
+    # 回歸鎖改寫在 scripts/static_guard_lint.mjs（[118a-T7] 六條 forbidden-string）——
+    # 依 CLAUDE.md「Lint 守衛規則」，「某個 HTML/CSS 字串不應出現」屬 lint 不屬 pytest。
+    #
+    # 下面兩支**必須維持綠**：徽章移除之後，AC-3.2（讓使用者理解這裡可能要他做一件事）
+    # 完全由它們守的那組機制承擔 —— 它們是本次敢移除徽章的依據，不是普通的鄰居測試。
 
     def test_modal_builtin_pill_jl_unavailable_gate(self):
         """(5) _rescrape_modal.html builtin pill 含 isJlUnavailable gate（aria-disabled + jl_desktop_only）。"""

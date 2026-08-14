@@ -328,9 +328,9 @@
                                 <span class="source-pill-mt-badge"
                                       x-show="s.type === 'metatube'"
                                       aria-hidden="true">m</span>
-                                <span class="source-pill-badge" x-show="s.manual_only">
-                                    {{ t('settings.sources.manual_only_badge') }}
-                                </span>
+                                {# 118a-T7（spec F3）：BETA 徽章已移除——它傳達的是「這功能還沒做好」，
+                                   而 JavLibrary / FC2-javten 是做好的，只是偶爾要過一次驗證。
+                                   手動屬性由 .source-pill--manual-only 的虛線外框表達。 #}
                             </div>
                         </template>
                     </div>

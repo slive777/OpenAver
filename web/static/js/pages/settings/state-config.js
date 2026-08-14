@@ -1413,7 +1413,13 @@ export function stateConfig() {
             this.showToast(window.t('settings.sources.mt_disconnect_toast'), 'warning');
         },
 
-        // Manual-Only（JavLibrary）：Active Row 內 no-op（[BETA] badge 取代 toggle，固定末尾）。
+        // Manual-Only（JavLibrary / FC2-javten）：Active Row 內 no-op，固定末尾。
+        //
+        // 118a-T7（spec F3）：原註解寫「[BETA] badge 取代 toggle」——那顆徽章已移除，
+        // 所以現在**沒有任何東西在解釋這裡為什麼點了沒反應**（虛線外框只表達「不一樣」，
+        // 不表達「要去進階搜尋選」）。這個缺口在移除之前就存在（BETA 三個字也沒解釋過），
+        // 移除只是把弱訊號降成零訊號，因此未在 T7 內一併處理——已攤給 owner 判斷。
+        // 隔壁的 clickDisconnectedMetatube() 是現成的正確形狀（no-op + toast 說明）。
         clickJavLibrary() {
             // 進階搜尋專用 — no-op。
         },

@@ -85,7 +85,8 @@
     text-underline-offset: 2px;
 }
 
-/* Manual-only (JavLibrary BETA) — non-toggle pill */
+/* Manual-only (JavLibrary / FC2-javten) — non-toggle pill.
+   118a-T7：不再有 BETA 徽章，這個虛線外框是這兩支來源唯一的視覺區隔。 */
 .source-pill--manual-only {
     cursor: default;
     color: var(--text-secondary);
@@ -111,19 +112,9 @@
     color: var(--text-primary);
 }
 
-/* Inline pill badge (Manual-Only / future generic) */
-.source-pill-badge {
-    padding: 0.18rem 0.5rem;
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    line-height: 1;
-    color: var(--accent);
-    background: color-mix(in oklch, var(--accent) 16%, transparent);
-    border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
-    border-radius: var(--radius-pill);
-}
+/* 118a-T7（spec F3）：inline pill badge 已刪除。唯一的使用者是 BETA 標記，而該標記
+   傳達的是「這功能還沒做好」——與事實相反。要再做行內徽章時重新定形，不留死碼。
+   注意 .source-pill-mt-badge（metatube 的 m 角標）是不同元件，仍在使用。 */
 
 /* ─── Drag-and-drop visual state (61c-2; HTML5 native, CD-61-4) ─── */
 /* Pill being dragged: dimmed + lifted shadow. */
@@ -347,12 +338,6 @@
 [data-theme="dim"] .source-pill[data-enabled="true"] {
     background: color-mix(in oklch, var(--pill-accent) 22%, transparent);
     border-color: color-mix(in oklch, var(--pill-accent) 60%, transparent);
-}
-
-/* P2/P4: inline badge — 提 tint 28% + border 60%（dim 下不退化成普通文字） */
-[data-theme="dim"] .source-pill-badge {
-    background: color-mix(in oklch, var(--accent) 28%, transparent);
-    border-color: color-mix(in oklch, var(--accent) 60%, transparent);
 }
 
 /* P7: Parts Bin dim 可達態（staged）— 虛線在暗底提強度（base-content 40%，transparent partner） */

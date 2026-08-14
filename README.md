@@ -231,7 +231,7 @@ curl http://localhost:<port>/api/capabilities
 內建 8 個來源彼此 fallback，單一來源暫時失效仍可從其他來源補；進階玩家還可選配接上自架的 Metatube 聯邦再擴 30+ 來源，等於替片庫多買一份保險。
 
 **為什麼 JavLibrary 來源不能用 AI 或批次自動抓取？**
-因為 OpenAver 選擇尊重 JavLibrary 全站的 Cloudflare 人機驗證。桌面版用戶本來就是真人——首次或驗證過期時會彈出一個真的 JavLibrary 瀏覽器視窗，你手動點一次驗證，系統再自動重試並回填結果。所以 JavLibrary（BETA）只支援桌面版的手動精確番號查詢，不參與批量／自動搜尋、也不開放給 AI agent。換來的好處是：那些連 Metatube 30+ 來源都沒收錄的冷門長尾番號與社群標籤，OpenAver 也能在合規前提下抓到。
+因為 OpenAver 選擇尊重 JavLibrary 全站的 Cloudflare 人機驗證。桌面版用戶本來就是真人——首次或驗證過期時會彈出一個真的 JavLibrary 瀏覽器視窗，你手動點一次驗證，系統再自動重試並回填結果。所以 JavLibrary 只支援桌面版的手動精確番號查詢，不參與批量／自動搜尋、也不開放給 AI agent。換來的好處是：那些連 Metatube 30+ 來源都沒收錄的冷門長尾番號與社群標籤，OpenAver 也能在合規前提下抓到。
 
 **可以讓 AI 工具操作 OpenAver 嗎？**
 可以。內建 REST API + capabilities manifest，`curl` 一次 AI 就學會所有端點，能用一句話跑完多步流程（詳見上方 AI-Ready API 段）。

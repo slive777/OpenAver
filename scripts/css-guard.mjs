@@ -1368,13 +1368,15 @@ const RULES = [
     kind: 'fn',
     check(ctx) {
       const css = ctx.raw; // source-pill.css
-      // ── test_source_pill_css_exists_with_selectors：全部 7 selector ──
+      // ── test_source_pill_css_exists_with_selectors：全部 6 selector ──
+      // 118a-T7（spec F3）：`.source-pill-badge` 從清單移除——該元件已刪除（唯一使用者是
+      // BETA 標記）。這條正向鎖與 static_guard_lint 的 [118a-T7] 反向鎖直接衝突，
+      // 兩者必須同時處置；保留其餘 6 條不變（`.source-pill-mt-badge` 是不同元件，仍在用）。
       for (const sel of [
         '.source-pill',
         '.source-pill--uncensored',
         '.source-pill--manual-only',
         '.source-pill-mt-badge',
-        '.source-pill-badge',
         '.source-pill.is-partsbin',
         '.source-pill[data-enabled="false"] .pill-name',
       ]) {

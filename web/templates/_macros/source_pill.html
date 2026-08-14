@@ -15,7 +15,6 @@
     icon='',
     loading_expr='false',
     mt_badge=false,
-    beta_badge=false,
     extra_classes='',
     attrs=''
 ) %}
@@ -24,6 +23,5 @@
   {% if icon %}<i class="bi {{ icon }}" x-show="!({{ loading_expr }})" aria-hidden="true"></i>{% endif %}
   <span class="pill-name" x-text="{{ name }}"></span>
   {% if mt_badge %}<span class="source-pill-mt-badge" aria-hidden="true">m</span>{% endif %}
-  {% if beta_badge %}<span class="source-pill-badge" aria-hidden="true">BETA</span>{% endif %}
 </button>
 {% endmacro %}

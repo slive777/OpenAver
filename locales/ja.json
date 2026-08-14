@@ -277,7 +277,6 @@
       "counter_prefix": "有効",
       "cap_tag": "上限",
       "select_all": "すべて有効",
-      "manual_only_badge": "BETA",
       "cap_exceeded_title": "有効化上限に達しました",
       "cap_exceeded_body": "上限の 10 個に達しました。先にいずれかのソースを無効にするか、高度な検索でソースを 1 つ手動選択して上書きしてください。",
       "warn_all_disabled": "現在有効なソースがありません。有修正の完全一致検索はデータなしになります。例外：女優 / キーワード検索は JavBus の always-on ルールで引き続き動作します；FC2 / HEYZO / 日付形式の品番は無修正ソースへの自動 fallback が機能します。",

@@ -1002,6 +1002,18 @@ const RULES = [
   { file: 'web/templates/design_system/settings-components.html', kind: 'forbidden-string', pattern: 'longPressStart', note: '[TestDesignSystemLongPressCard] D.14 long-press demo card retired' },
   { file: 'web/templates/design_system/settings-components.html', kind: 'forbidden-string', pattern: 'long-press.js', note: '[TestDesignSystemLongPressCard] D.14 long-press demo card retired' },
 
+  // ---- [118a-T7] BETA 徽章反向鎖（spec F3，owner 2026-08-14 拍板移除，不換文案） ----
+  // 這不是把舊守衛換個地方守——舊的 test_modal_builtin_pill_has_beta_badge 鎖的是「徽章必須存在」，
+  // 元件整個移除後那個不變式被**反轉**了。這裡鎖的是回歸：BETA 不得重新長回任何一個渲染點。
+  // 使用者後果（若回歸）：兩支能用的來源又被標成「這功能還沒做好」，而它們只是偶爾要過一次驗證。
+  // `.source-pill-mt-badge`（metatube 的 m 角標）是不同 class，不受這些規則影響。
+  { file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: 'source-pill-badge', note: '[118a-T7] BETA badge removed (spec F3); AC-3.2 now carried by aria-disabled + title + toast' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'source-pill-badge', note: '[118a-T7] BETA badge removed (spec F3)' },
+  { file: 'web/templates/_macros/source_pill.html', kind: 'forbidden-string', pattern: 'beta_badge', note: '[118a-T7] dead macro param removed (no caller ever passed it)' },
+  { file: 'web/templates/design_system/settings-components.html', kind: 'forbidden-string', pattern: 'source-pill-badge', note: '[118a-T7] BETA badge demo retired with the component' },
+  { file: 'web/static/css/components/source-pill.css', kind: 'forbidden-string', pattern: '.source-pill-badge', note: '[118a-T7] component deleted; re-add only with a real use case' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'manual_only_badge', note: '[118a-T7] i18n key deleted from all 4 locales' },
+
   // ---- [TestGridSettlePulse]（只港 flat required 半邊，method-body window 半邊留 T2） ----
   { file: 'web/static/js/pages/search/animations.js', kind: 'required-string', pattern: 'playGridSettle', note: '[TestGridSettlePulse] animations.js flat required (method-body window half deferred to T2)' },
   { file: 'web/static/js/pages/search/animations.js', kind: 'required-string', pattern: 'CustomEase.create("settle"', note: '[TestGridSettlePulse] animations.js flat required (method-body window half deferred to T2)' },
