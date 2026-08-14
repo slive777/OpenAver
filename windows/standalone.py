@@ -247,6 +247,53 @@ def _ensure_webview2_runtime(logger) -> None:
         sys.exit(0)
 
 
+def _maybe_autostart_lan_listener(lan_listener, logger) -> None:
+    from core.config import load_config
+    if load_config().get("general", {}).get("server_mode", False):
+        try:
+            _lp = lan_listener.start()
+            logger.info("server_mode persisted true → LAN listener on :%s", _lp)
+        except Exception as e:                     # noqa: BLE001 — auto-start best-effort
+            logger.warning("auto-start LAN listener failed: %s", e)
+            try:
+                from web.routers.notifications import emit_notification
+                # 不傳 str(e)：Python 例外細節不可暴露給前端（安全規則）。
+                # 細節已由上方 logger.warning 寫入 server-side log。
+                emit_notification("error", "settings.server_info.autostart_failed")
+            except Exception:  # noqa: BLE001,S110 — emit_notification failure is harmless; best-effort only
+                pass
+
+
+def _setup_windows_lifecycle(window, jl_win, javten_win, saved, lan_listener) -> DesktopLifecycle | None:
+    if sys.platform == 'win32':
+        from core.config import mutate_config
+        from core.config import load_config
+        import window_state
+
+        def _write_close_action(action: str) -> None:
+            def _mutator(cfg):
+                cfg.setdefault("general", {})["close_action"] = action
+            mutate_config(_mutator)
+
+        lifecycle = DesktopLifecycle(
+            window,
+            {'javlibrary': jl_win, 'fc-javten': javten_win},
+            saved,
+            window_state.save_state,
+            on_quit_cleanup=lan_listener.shutdown,
+            read_close_action=lambda: load_config().get("general", {}).get("close_action", "ask"),
+            write_close_action=_write_close_action,
+        )
+        tray_icon = NativeTrayIcon(
+            Path(APP_DIR) / "web" / "static" / "favicon.png",
+            lifecycle.handle_tray_command,
+            lifecycle.get_close_action,
+        )
+        lifecycle.attach_tray(tray_icon)
+        return lifecycle
+    return None
+
+
 # ============ 主程序 ============
 
 def main():
@@ -301,20 +348,7 @@ def main():
     from web.app import app as _app
     from web.lan_listener import lan_listener
     lan_listener.wire(_app, local_port=port)
-    from core.config import load_config
-    if load_config().get("general", {}).get("server_mode", False):
-        try:
-            _lp = lan_listener.start()
-            logger.info("server_mode persisted true → LAN listener on :%s", _lp)
-        except Exception as e:                     # noqa: BLE001 — auto-start best-effort
-            logger.warning("auto-start LAN listener failed: %s", e)
-            try:
-                from web.routers.notifications import emit_notification
-                # 不傳 str(e)：Python 例外細節不可暴露給前端（安全規則）。
-                # 細節已由上方 logger.warning 寫入 server-side log。
-                emit_notification("error", "settings.server_info.autostart_failed")
-            except Exception:  # noqa: BLE001,S110 — emit_notification failure is harmless; best-effort only
-                pass
+    _maybe_autostart_lan_listener(lan_listener, logger)
 
     # 4. 啟動 PyWebView 窗口
     logger.info("啟動視窗...")
@@ -387,30 +421,7 @@ def main():
     # app-quit guard: when the main window is closing (app is quitting), let the JL
     # window close normally so we don't trap the shutdown sequence.
     _app_state = {"quitting": False}
-    lifecycle = None
-    if sys.platform == 'win32':
-        from core.config import mutate_config
-
-        def _write_close_action(action: str) -> None:
-            def _mutator(cfg):
-                cfg.setdefault("general", {})["close_action"] = action
-            mutate_config(_mutator)
-
-        lifecycle = DesktopLifecycle(
-            window,
-            {'javlibrary': jl_win, 'fc-javten': javten_win},
-            saved,
-            window_state.save_state,
-            on_quit_cleanup=lan_listener.shutdown,
-            read_close_action=lambda: load_config().get("general", {}).get("close_action", "ask"),
-            write_close_action=_write_close_action,
-        )
-        tray_icon = NativeTrayIcon(
-            Path(APP_DIR) / "web" / "static" / "favicon.png",
-            lifecycle.handle_tray_command,
-            lifecycle.get_close_action,
-        )
-        lifecycle.attach_tray(tray_icon)
+    lifecycle = _setup_windows_lifecycle(window, jl_win, javten_win, saved, lan_listener)
 
     def _on_main_closing():
         if lifecycle is not None:

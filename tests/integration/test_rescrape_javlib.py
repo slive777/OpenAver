@@ -295,6 +295,33 @@ class TestRescrapePreviewFcJavtenCf:
         assert "cf_source" not in data or data.get("cf_source") is None
         mock_t.begin_solve.assert_not_called()
 
+    def test_preview_fc_javten_transport_unavailable_returns_cf_unavailable(self, client):
+        """AC-2.5：dev／區網選 fc-javten → {success:false, cf_unavailable:true}。
+
+        鏡射 test_api_cf_endpoints.test_cf_transport_unavailable_returns_cf_unavailable，
+        但走 search_jav_single_source 分支（不是 javlibrary 的 search_javlib_versions）。
+        patch 使用端 web.routers.scraper.search_jav_single_source，side_effect 轉發
+        真實函式：transport=None 時 FC2JavtenScraper.search 必須拋 CfTransportUnavailable。
+        可證偽：search() 若改成 return None，使用者會拿到「查無此片」而非「僅限桌面版」。
+        """
+        from core.scraper import search_jav_single_source as _real_single
+
+        with patch(
+            'web.routers.scraper.search_jav_single_source',
+            side_effect=_real_single,
+        ), patch(
+            'core.scrapers.fc2_javten.get_cf_transport',
+            return_value=None,
+        ):
+            resp = client.post("/api/rescrape/preview", json={
+                "number": "FC2-PPV-1234567", "source": "fc-javten",
+            })
+
+        data = resp.json()
+        assert resp.status_code == 200
+        assert data.get("success") is False
+        assert data.get("cf_unavailable") is True
+
 
 class TestEnrichSingleFcJavtenCf:
     def test_enrich_single_fc_javten_cf_needed(self, client):

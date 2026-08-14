@@ -26,7 +26,6 @@ max-complexity = 30
 
 [tool.ruff.lint.per-file-ignores]
 "core/scrapers/avsox.py" = ["T201"]
-"core/scrapers/fc2.py" = ["T201"]
 "core/gallery_generator.py" = ["T201"]
 "core/gallery_scanner.py" = ["T201"]
 "build.py" = ["T201"]

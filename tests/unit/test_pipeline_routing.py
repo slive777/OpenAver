@@ -370,6 +370,66 @@ class TestFcJavtenDispatch:
 
 
 # ============================================================
+# TestFcJavtenDoesNotAffectOtherSources — TASK-118a-T5 AC-2.6
+# ============================================================
+
+class TestFcJavtenDoesNotAffectOtherSources:
+    """fc-javten 壞掉／不可用時，不拖累 auto 對 FC2 番號的官方站結果。
+
+    獨立 class：不繼承 TestPipeline，必須自帶 BE-TEST-02 隔離 fixture。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _all_sources_enabled(self, monkeypatch):
+        """隔離 ambient web/config.json 的啟用來源集合（BE-TEST-02）。
+
+        TASK-61a-3 起 search_jav(source='auto') 改讀 get_enabled_source_ids()
+        →（讀 live web/config.json）決定 fan-out 來源。
+
+        ⚠️ **本 class 需要隔離的理由與 TestPipeline 不同，不要照抄那邊的說明。**
+        這裡的斷言只看「FC2 番號仍由官方站（`fc2`）供應」，所以弄壞它的不是
+        dmm/javbus 被停用，而是**開發者在自己的 web/config.json 裡把 `fc2` 停用**
+        ——那時 cascade 根本不會試官方站，結果變空，這支就會在某些人的機器上紅、
+        某些人的機器上綠。（T5 review 階段以 mutation 實測確認：只停 dmm/javbus
+        這支照樣綠，停 `fc2` 才會紅——所以這個 fixture 是承重的，不是裝飾。）
+
+        此 fixture 把 core.scraper.get_enabled_source_ids monkeypatch 成回傳
+        全部 8 個 builtin id（canonical 順序），讓本 class 只驗證
+        「`fc-javten` 不可用時不影響其他來源」，與環境 config 無關。
+        """
+        monkeypatch.setattr(
+            "core.scraper.get_enabled_source_ids",
+            lambda availability_map=None: list(SOURCE_ORDER),
+        )
+
+    def test_auto_search_fc2_number_still_gets_official_when_javten_unavailable(self):
+        """AC-2.6：transport=None 時，search_jav(source='auto') 對 FC2 番號仍拿 fc2。
+
+        不 patch FC2JavtenScraper：它結構上不在 SOURCE_ORDER，auto 不該呼叫它。
+        """
+        from core.scrapers.avsox import AVSOXScraper
+        from core.scrapers.fc2_official import FC2OfficialScraper
+        from core.scrapers.jav321 import JAV321Scraper
+        from core.scrapers.javdb import JavDBScraper
+
+        mock_video = _make_video("fc2", "FC2-PPV-1234567")
+
+        with patch.object(FC2OfficialScraper, 'search', return_value=mock_video), \
+             patch.object(D2PassScraper, 'search', return_value=None), \
+             patch.object(HEYZOScraper, 'search', return_value=None), \
+             patch.object(DMMScraper, 'search', return_value=None), \
+             patch.object(JavBusScraper, 'search', return_value=None), \
+             patch.object(JAV321Scraper, 'search', return_value=None), \
+             patch.object(JavDBScraper, 'search', return_value=None), \
+             patch.object(AVSOXScraper, 'search', return_value=None), \
+             patch('core.scrapers.fc2_javten.get_cf_transport', return_value=None):
+            result = search_jav("FC2-PPV-1234567", source="auto")
+
+        assert result is not None
+        assert result['_source'] == 'fc2'
+
+
+# ============================================================
 # TestFuzzyGuard — CD-65-4 always-on 與 partial 能力約束護欄
 # （T4，CD-85-7：fuzzy chain always-on / partial javbus 寫死）
 # ============================================================

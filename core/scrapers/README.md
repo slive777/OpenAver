@@ -25,13 +25,14 @@
 | `heyzo` | HEYZO | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；HEYZO-XXXX 格式 |
 | `fc2` | FC2 | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；**官方站 `adult.contents.fc2.com`**（0.13.12 起，`fc2_official.py`；舊的 javten 鏡像已於 0.13.13 改名接管成獨立來源 `fc-javten`，見 `fc2_javten.py`）；**有發行日**（官方頁「販売日」）；連不上／非 200 一律靜默回 `None`，與其他來源同語意 |
 | `avsox` | AVSOX | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；模糊鏈永不呼叫（`search_by_keyword` 刻意不接線） |
+| `fc-javten` | FC2-javten | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | **manual_only**：不進 `SOURCE_ORDER` fan-out；javten.com 鏡像站；補得到官方已下架的番號；**無發售日期**（結構性沒有此欄位）；需 CF transport（桌面版限定） |
 
 ### 1.3 常數定義位置
 
 ```
 core/scrapers/utils.py
   CENSORED_SOURCES    = ['dmm', 'javbus', 'jav321', 'javdb']  (+ javlibrary append)
-  UNCENSORED_SOURCES  = ['d2pass', 'heyzo', 'fc2', 'avsox']
+  UNCENSORED_SOURCES  = ['d2pass', 'heyzo', 'fc2', 'avsox']  (+ fc-javten append)
   SOURCE_ORDER        = CENSORED_SOURCES + UNCENSORED_SOURCES  # 8 elem，不含 javlibrary
   PROXY_SOURCES       = {'dmm'}
   FUZZY_SEARCH_SOURCES = ['javbus', 'dmm']

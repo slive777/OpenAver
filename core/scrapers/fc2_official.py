@@ -1,7 +1,7 @@
 """FC2 官方站爬蟲（adult.contents.fc2.com，單次 GET）
 
-與 core/scrapers/fc2.py（javten 鏡像站版）並存並取代它成為 `fc2` 來源的
-dispatch 目標（core/scraper.py）。本檔零耦合既有 fc2.py。
+與 core/scrapers/fc2_javten.py（javten 鏡像站版，來源 id `fc-javten`）並存，本檔取代它成為
+`fc2` 來源的 dispatch 目標（core/scraper.py）。本檔零耦合 fc2_javten.py。
 
 失敗語意與其他七支來源相同：逾時／連不上／非 200／解析不出商品頁，
 一律回 None（不拋自訂例外）。
@@ -52,7 +52,7 @@ class FC2OfficialScraper(BaseScraper):
 
     def _normalize_fc2_number(self, number: str) -> str:
         """
-        正規化 FC2 番號（與 fc2.py:_normalize_fc2_number 等價，獨立實作）
+        正規化 FC2 番號（與 fc2_javten.py:_normalize_fc2_number 等價，獨立實作）
 
         Examples:
             FC2-PPV-1234567 → 1234567
@@ -268,7 +268,7 @@ class FC2OfficialScraper(BaseScraper):
 
     def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:
         """
-        關鍵字搜尋（比照 fc2.py:232-244）
+        關鍵字搜尋（比照 fc2_javten.py:219-231）
 
         Args:
             keyword: 搜尋關鍵字（會被當作番號處理）

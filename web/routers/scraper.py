@@ -70,6 +70,21 @@ def _begin_solve_for_source(source: Optional[str]) -> Optional[str]:
     return "cf_needed"
 
 
+def _readonly_cf_response(source, outcome: str) -> dict:
+    """唯讀分支的 CF 回應：完整 EnrichResult 形狀 ＋ additive 旗標（F-0，不得回 partial dict）。"""
+    if outcome == "cf_unavailable":
+        return {
+            **asdict(_readonly_enrich_failure("僅限桌面應用程式（standalone）可用", "error")),
+            "cf_unavailable": True,
+            "cf_source": source,
+        }
+    return {
+        **asdict(_readonly_enrich_failure("需要通過驗證後才能繼續", "error")),
+        "cf_needed": True,
+        "cf_source": source,
+    }
+
+
 router = APIRouter(prefix="/api", tags=["scraper"])
 
 # SSRF 防護：confirm 階段的 detail_url 來自 client（不可信），會被丟給 CF transport
@@ -506,23 +521,9 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             outcome = _begin_solve_for_source(request.source)
             if outcome is None:
                 return asdict(_readonly_enrich_failure("enrich 處理失敗，請查閱日誌", "error"))
-            if outcome == "cf_unavailable":
-                return {
-                    **asdict(_readonly_enrich_failure("僅限桌面應用程式（standalone）可用", "error")),
-                    "cf_unavailable": True,
-                    "cf_source": request.source,
-                }
-            return {
-                **asdict(_readonly_enrich_failure("需要通過驗證後才能繼續", "error")),
-                "cf_needed": True,
-                "cf_source": request.source,
-            }
+            return _readonly_cf_response(request.source, outcome)
         except CfTransportUnavailable:
-            return {
-                **asdict(_readonly_enrich_failure("僅限桌面應用程式（standalone）可用", "error")),
-                "cf_unavailable": True,
-                "cf_source": request.source,
-            }
+            return _readonly_cf_response(request.source, "cf_unavailable")
         except Exception:
             logger.exception("enrich_single_endpoint readonly 改道失敗")
             return asdict(_readonly_enrich_failure("enrich 處理失敗，請查閱日誌", "error"))

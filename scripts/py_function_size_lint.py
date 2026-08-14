@@ -189,12 +189,6 @@ EXEMPTIONS: dict[tuple[str, str], tuple[int, str]] = {
         "演進中；拆成多個小函式不會降低本質複雜度，只會增加呼叫層次與跨函式的 cursor/conn "
         "傳遞。",
     ),
-    ("windows/standalone.py", "main"): (
-        202,
-        "CLI 進入點主流程：debug flag 解析 → logging setup → 設定載入 → server bootstrap → "
-        "lifecycle wiring，是單一啟動序列，各步驟間有嚴格順序依賴，拆分會打散初始化順序、"
-        "增加跨函式傳遞已初始化物件的成本。",
-    ),
 }
 
 
