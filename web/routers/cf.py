@@ -37,9 +37,15 @@ def cf_status(key: str = "javlibrary") -> dict:
 @router.post("/abandon")
 def cf_abandon(key: str = "javlibrary") -> dict:
     """前端 poll 逾時/取消時呼叫；後端代 emit_notification（前端無直接通道）。"""
+    # 依 key 分流；兩站共用來源中立文案 key（zh_TW 已去掉站名）。未知 key 仍用同一則，
+    # 避免落到「javlibrary 專屬」語意。
+    _title_by_key = {
+        "javlibrary": "notif.jl_cf_timeout",
+        "fc-javten": "notif.jl_cf_timeout",
+    }
     emit_notification(
         "warn",
-        "notif.jl_cf_timeout",
+        _title_by_key.get(key, "notif.jl_cf_timeout"),
         task_type="cf_abandon",
     )
     return {"ok": True}

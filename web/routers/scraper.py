@@ -31,6 +31,7 @@ from core.scraper import (
 from core.source_config import validate_source_id
 from core.cf_transport import get_cf_transport, CfChallengeRequired, CfTransportUnavailable
 from core.scrapers.javlibrary import JAVLIBRARY_ORIGIN
+from core.scrapers.fc2_javten import JAVTEN_ORIGIN
 from core.logger import get_logger
 from core.config import load_config, STEM_IMAGE_MODES
 from core.readonly_source import is_path_readonly, readonly_source_prefixes, writable_source_prefixes
@@ -43,6 +44,31 @@ from core import thumbnail_cache
 from web.routers.notifications import emit_notification as _emit_notif
 
 logger = get_logger(__name__)
+
+# 互動 CF 的 site → origin 查表。值來自各 scraper 模組的公開常數（CD-118a-12）。
+# 新增 manual_only CF 來源時必須同步這張表（F-1 parity 測試會擋漂移）。
+# 查不到不得 .get(source, JAVLIBRARY_ORIGIN)——那正是「解完驗證去刮錯站」的原 bug。
+_CF_SITE_ORIGINS = {
+    'javlibrary': JAVLIBRARY_ORIGIN,
+    'fc-javten': JAVTEN_ORIGIN,
+}
+
+
+def _begin_solve_for_source(source: Optional[str]) -> Optional[str]:
+    """查表後 begin_solve。回傳 'cf_needed' / 'cf_unavailable'；查不到回 None（不 begin_solve）。"""
+    origin = _CF_SITE_ORIGINS.get(source)
+    if origin is None:
+        logger.error("CF origin 查表失敗：未知來源 %r，不呼叫 begin_solve", source)
+        return None
+    t = get_cf_transport()
+    if t:
+        try:
+            t.begin_solve(origin, source)
+        except Exception:
+            logger.exception("begin_solve 失敗，回 cf_unavailable")
+            return "cf_unavailable"
+    return "cf_needed"
+
 
 router = APIRouter(prefix="/api", tags=["scraper"])
 
@@ -351,14 +377,12 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
             return {"success": False}
         return {"success": True, **strip_internal_nfo_keys(result)}
     except CfChallengeRequired:
-        t = get_cf_transport()
-        if t:
-            try:
-                t.begin_solve(JAVLIBRARY_ORIGIN, 'javlibrary')  # 非阻塞
-            except Exception:
-                logger.exception("rescrape_preview: begin_solve 失敗，回 cf_unavailable")
-                return {"success": False, "cf_unavailable": True}
-        return {"success": False, "cf_needed": True}
+        outcome = _begin_solve_for_source(request.source)
+        if outcome is None:
+            return {"success": False, "error": "預覽搜尋失敗，請查閱日誌"}
+        if outcome == "cf_unavailable":
+            return {"success": False, "cf_unavailable": True}
+        return {"success": False, "cf_needed": True, "cf_source": request.source}
     except CfTransportUnavailable:
         return {"success": False, "cf_unavailable": True}
     except Exception:
@@ -477,6 +501,28 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 after_produce=lambda: thumbnail_cache.invalidate(canonical),
             )
             return asdict(result)
+        except CfChallengeRequired:
+            # F-0：完整 EnrichResult 形狀 ＋ additive cf_needed/cf_source（不得回 partial dict）
+            outcome = _begin_solve_for_source(request.source)
+            if outcome is None:
+                return asdict(_readonly_enrich_failure("enrich 處理失敗，請查閱日誌", "error"))
+            if outcome == "cf_unavailable":
+                return {
+                    **asdict(_readonly_enrich_failure("僅限桌面應用程式（standalone）可用", "error")),
+                    "cf_unavailable": True,
+                    "cf_source": request.source,
+                }
+            return {
+                **asdict(_readonly_enrich_failure("需要通過驗證後才能繼續", "error")),
+                "cf_needed": True,
+                "cf_source": request.source,
+            }
+        except CfTransportUnavailable:
+            return {
+                **asdict(_readonly_enrich_failure("僅限桌面應用程式（standalone）可用", "error")),
+                "cf_unavailable": True,
+                "cf_source": request.source,
+            }
         except Exception:
             logger.exception("enrich_single_endpoint readonly 改道失敗")
             return asdict(_readonly_enrich_failure("enrich 處理失敗，請查閱日誌", "error"))
@@ -578,6 +624,15 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
         if result.success:
             thumbnail_cache.invalidate(coerce_to_file_uri(request.file_path))  # uri-no-reverse: coerce_to_file_uri forward URI build, D2 complement
         return asdict(result)
+    except CfChallengeRequired:
+        outcome = _begin_solve_for_source(request.source)
+        if outcome is None:
+            return {"success": False, "error": "enrich 處理失敗，請查閱日誌"}
+        if outcome == "cf_unavailable":
+            return {"success": False, "cf_unavailable": True}
+        return {"success": False, "cf_needed": True, "cf_source": request.source}
+    except CfTransportUnavailable:
+        return {"success": False, "cf_unavailable": True}
     except Exception:
         logger.exception("enrich_single_endpoint 失敗")
         return {"success": False, "error": "enrich 處理失敗，請查閱日誌"}

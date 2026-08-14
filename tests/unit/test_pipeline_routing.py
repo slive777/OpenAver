@@ -355,6 +355,20 @@ class TestFc2Dispatch:
         assert result is None
 
 
+class TestFcJavtenDispatch:
+    """TASK-118a-T4：dispatch 表必須含 fc-javten → FC2JavtenScraper。"""
+
+    def test_source_to_scraper_includes_fc_javten(self):
+        """search_jav(source='fc-javten') 必須建構並呼叫 FC2JavtenScraper.search。"""
+        from core.scrapers.fc2_javten import FC2JavtenScraper
+
+        with patch.object(FC2JavtenScraper, 'search', return_value=None) as mock_search:
+            result = search_jav("FC2-PPV-1234567", source="fc-javten")
+
+        mock_search.assert_called()
+        assert result is None
+
+
 # ============================================================
 # TestFuzzyGuard — CD-65-4 always-on 與 partial 能力約束護欄
 # （T4，CD-85-7：fuzzy chain always-on / partial javbus 寫死）

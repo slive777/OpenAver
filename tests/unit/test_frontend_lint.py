@@ -2507,22 +2507,22 @@ class TestRescrapeVersionStateGuard:
     # ── (B) routing: search 入口 javlib 不早 return ──
 
     def test_search_javlib_does_not_early_return_advancedSearch(self):
-        """CD-86-8: rescrapeWithSource search+javlib 分支不得無條件 early return advancedSearch。
-        守衛：search early return 必須帶 sourceId !== 'javlibrary' 的判斷（只有非 javlib 才走 advancedSearch）。
-        element-bound：檢測 search 條件 if-block 的前 400 字元內有 javlibrary（防 file-wide false GREEN）。
+        """CD-86-8 / T4：search early return 必須是有條件的，不得無條件走 advancedSearch。
+
+        舊判準是字面 sourceId !== 'javlibrary'；T4 改成查該來源 manual_only。
+        意圖不變：search 入口的 preview 路徑只給 CF/manual_only 來源。
+        element-bound：search 條件後 400 字元內必須出現 manual_only（防 file-wide false GREEN）。
         """
         src = self._rescrape()
-        # 先找 search 分支位置，再在其後 400 字元內確認 javlibrary 出現（不跨函式）
         m_search = re.search(
             r"rescrapeEntryPoint\s*===\s*['\"]search['\"]",
             src,
         )
         assert m_search, "rescrapeWithSource 中未見 rescrapeEntryPoint === 'search' 判斷"
-        # 取 search 分支後 400 字元（足夠涵蓋 if block body，不跨到 _pollCfThenRetry）
         window = src[m_search.start():m_search.start() + 400]
-        assert "javlibrary" in window, (
-            "CD-86-8 違規：rescrapeWithSource search 分支（前 400 字元）未見 javlibrary 判斷——"
-            "search+javlib 可能仍走早 return advancedSearch 路徑"
+        assert "manual_only" in window, (
+            "CD-86-8 違規：rescrapeWithSource search 分支（前 400 字元）未見 manual_only 判斷——"
+            "search 入口 early return 必須依來源 manual_only 條件分流，不得無條件 advancedSearch"
         )
 
     # ── (B) switch-source 多版本切換器（T7） ──
@@ -3350,8 +3350,13 @@ class TestJavlibraryCfFlowT6Guard:
         js = _STATE_RESCRAPE_JS.read_text(encoding="utf-8")
         m = _re.search(r"rescrapeConfirm\s*\(\s*\)\s*\{", js)
         assert m is not None, "P2-2 違規：找不到 rescrapeConfirm() 定義"
-        # _pollCfThenRetry(number) 是其後的方法定義（call site 用 this.rescrapeNumber.trim() 不匹配）
-        end = js.index("_pollCfThenRetry(number)", m.start())
+        # T4：簽章是 _pollCfThenRetry(number, sourceId)。用 regex 錨定（含逗號），
+        # 不得改成去掉右括號的子字串比對（v0.13.10 綠殼坑）。
+        end_m = _re.search(r"_pollCfThenRetry\s*\(\s*number\s*,", js[m.start():])
+        assert end_m is not None, (
+            "P2-2 違規：找不到 _pollCfThenRetry(number, …) 定義錨點"
+        )
+        end = m.start() + end_m.start()
         body = js[m.start():end]
         assert "result.cf_unavailable" in body, (
             "P2-2 違規：rescrapeConfirm lightbox 分支未接 result.cf_unavailable（CF session 過期靜默卡死）"

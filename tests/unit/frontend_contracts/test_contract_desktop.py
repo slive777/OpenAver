@@ -238,18 +238,18 @@ class TestCfPollUnavailableGuard:
         # try finding the definition via "function body" marker (contains 'setInterval').
         # Use rfind to find the last definition (definitions come after call sites).
         all_matches = list(_re.finditer(r'\b_pollCfThenRetry\s*\(', js))
-        # Prefer the match followed by a simple parameter name (definition) over
-        # a call expression with 'this.' arguments.  The definition looks like:
-        #   _pollCfThenRetry(number) {
+        # Prefer the match followed by plain identifier parameters (definition) over
+        # a call expression with 'this.' arguments.  T4 signature:
+        #   _pollCfThenRetry(number, sourceId) {
         def_idx = None
         for match in all_matches:
             tail = js[match.start(): match.start() + 80]
-            # Definition has a plain identifier parameter, not 'this.'
-            if _re.match(r'\b_pollCfThenRetry\s*\(\s*\w+\s*\)\s*\{', tail):
+            # Definition has plain identifier parameters, not 'this.'
+            if _re.match(r'\b_pollCfThenRetry\s*\(\s*\w+\s*,\s*\w+\s*\)\s*\{', tail):
                 def_idx = match.start()
                 break
         assert def_idx is not None, (
-            "Could not find _pollCfThenRetry(param) { definition in state-rescrape.js"
+            "Could not find _pollCfThenRetry(param, param) { definition in state-rescrape.js"
         )
         # Extract ~1500 chars from the function start to cover the setInterval body
         snippet = js[def_idx: def_idx + 1500]

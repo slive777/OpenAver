@@ -294,6 +294,7 @@ def search(
             # no cf_needed). The JavLibrary pill is hidden in search context when
             # cf_transport_available is false (frontend isJlUnavailable), so this path is
             # UI-unreachable; these blocks exist only as a structured 500-guard fallback.
+            # TASK-118a-T4：這條路 UI 不可達（CD-70c-4），字面對 fc-javten 不準，刻意不動。
             except CfChallengeRequired:
                 logger.warning("search: CfChallengeRequired for source=%s q=%s", source, q)
                 return {

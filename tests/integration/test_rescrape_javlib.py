@@ -251,6 +251,119 @@ class TestEnrichSingleDetailUrl:
         assert call_kwargs.get("scraper_data") is None  # 無預餵，enrich_single 自行重搜
 
 
+# ── TASK-118a-T4：fc-javten CF 接線（preview / enrich-single / readonly） ──
+
+class TestRescrapePreviewFcJavtenCf:
+    def test_preview_fc_javten_cf_needed_carries_cf_source(self, client):
+        """CD-118a-7：fc-javten 觸發 CF → cf_needed + cf_source='fc-javten'，begin_solve 用 JAVTEN_ORIGIN。"""
+        from core.cf_transport import CfChallengeRequired
+        from core.scrapers.fc2_javten import JAVTEN_ORIGIN
+
+        mock_t = MagicMock()
+        with patch(
+            'web.routers.scraper.search_jav_single_source',
+            side_effect=CfChallengeRequired("test"),
+        ), patch('web.routers.scraper.get_cf_transport', return_value=mock_t):
+            resp = client.post("/api/rescrape/preview", json={
+                "number": "FC2-PPV-1234567", "source": "fc-javten",
+            })
+
+        data = resp.json()
+        assert resp.status_code == 200
+        assert data["success"] is False
+        assert data.get("cf_needed") is True
+        assert data.get("cf_source") == "fc-javten"
+        mock_t.begin_solve.assert_called_once_with(JAVTEN_ORIGIN, "fc-javten")
+
+    def test_unknown_cf_source_does_not_begin_solve_or_fallback(self, client):
+        """F-1：origin 表查不到 → 不 begin_solve、不 silent fallback 到 javlibrary。"""
+        from core.cf_transport import CfChallengeRequired
+
+        mock_t = MagicMock()
+        with patch(
+            'web.routers.scraper.search_jav_single_source',
+            side_effect=CfChallengeRequired("test"),
+        ), patch('web.routers.scraper.get_cf_transport', return_value=mock_t):
+            resp = client.post("/api/rescrape/preview", json={
+                "number": "SONE-205", "source": "javbus",
+            })
+
+        data = resp.json()
+        assert resp.status_code == 200
+        assert data["success"] is False
+        assert data.get("cf_needed") is not True
+        assert "cf_source" not in data or data.get("cf_source") is None
+        mock_t.begin_solve.assert_not_called()
+
+
+class TestEnrichSingleFcJavtenCf:
+    def test_enrich_single_fc_javten_cf_needed(self, client):
+        """CD-118a-16：confirm 抓取被 CF 擋 → {success:false, cf_needed, cf_source}，不是籠統失敗。"""
+        from core.cf_transport import CfChallengeRequired
+        from core.scrapers.fc2_javten import JAVTEN_ORIGIN
+
+        mock_t = MagicMock()
+        with patch('web.routers.scraper.resolve_owning_output_root', return_value=None), \
+             patch('web.routers.scraper.enrich_single',
+                   side_effect=CfChallengeRequired("test")), \
+             patch('web.routers.scraper.get_cf_transport', return_value=mock_t):
+            resp = client.post("/api/enrich-single", json={
+                "file_path": "file:///fake/FC2-PPV-1234567.mp4",
+                "number": "FC2-PPV-1234567",
+                "source": "fc-javten",
+                "mode": "refresh_full",
+                "overwrite_existing": True,
+            })
+
+        data = resp.json()
+        assert resp.status_code == 200
+        assert data["success"] is False
+        assert data.get("cf_needed") is True
+        assert data.get("cf_source") == "fc-javten"
+        assert data.get("error") != "enrich 處理失敗，請查閱日誌"
+        mock_t.begin_solve.assert_called_once_with(JAVTEN_ORIGIN, "fc-javten")
+
+    def test_enrich_single_readonly_fc_javten_cf_needed_full_shape(self, client):
+        """CD-118a-16 + F-0：readonly 路徑回完整 EnrichResult ＋ additive cf_needed/cf_source。"""
+        from core.cf_transport import CfChallengeRequired
+        from core.enrich_contract import EnrichResult
+        from core.scrapers.fc2_javten import JAVTEN_ORIGIN
+
+        mock_source = MagicMock()
+        mock_source.path = "/tmp/ro_src"
+        mock_t = MagicMock()
+        with patch(
+            'web.routers.scraper.resolve_owning_output_root',
+            return_value=(mock_source, "/out/ro", "file:///out/ro"),
+        ), patch(
+            'web.routers.scraper.enrich_one_readonly',
+            side_effect=CfChallengeRequired("test"),
+        ), patch('web.routers.scraper.get_cf_transport', return_value=mock_t):
+            resp = client.post("/api/enrich-single", json={
+                "file_path": "file:///tmp/ro_src/FC2-PPV-1234567.mp4",
+                "number": "FC2-PPV-1234567",
+                "source": "fc-javten",
+                "readonly_action": "rescrape",
+                "write_nfo": True,
+            })
+
+        data = resp.json()
+        assert resp.status_code == 200
+        expected_fields = {f.name for f in EnrichResult.__dataclass_fields__.values()}
+        assert expected_fields <= set(data.keys()), (
+            f"F-0 違規：readonly CF 回應缺少 EnrichResult 欄位 {expected_fields - set(data.keys())}"
+        )
+        assert data["success"] is False
+        assert data["nfo_written"] is False
+        assert data["cover_written"] is False
+        assert data["extrafanart_written"] == 0
+        assert data["fields_filled"] == []
+        assert data["source_used"] == ""
+        assert data.get("cf_needed") is True
+        assert data.get("cf_source") == "fc-javten"
+        mock_t.begin_solve.assert_called_once_with(JAVTEN_ORIGIN, "fc-javten")
+
+
 # ── capabilities 全檔守衛 ─────────────────────────────────────────────────────
 
 def test_detail_url_not_in_capabilities():
