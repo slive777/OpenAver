@@ -120,6 +120,33 @@ def _is_register_cf_transport_call(call: ast.Call) -> bool:
     return isinstance(call.func, ast.Name) and call.func.id == "register_cf_transport"
 
 
+def _build_parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST]:
+    """child → parent map so we can walk enclosing Try nodes."""
+    parents: dict[ast.AST, ast.AST] = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            parents[child] = node
+    return parents
+
+
+def _enclosing_try_nodes(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> list[ast.Try]:
+    """Innermost-first list of ast.Try ancestors of *node*."""
+    tries: list[ast.Try] = []
+    cur: ast.AST | None = node
+    while cur is not None:
+        cur = parents.get(cur)
+        if isinstance(cur, ast.Try):
+            tries.append(cur)
+    return tries
+
+
+def _try_contains_register_cf_transport(try_node: ast.Try) -> bool:
+    return any(
+        isinstance(n, ast.Call) and _is_register_cf_transport_call(n)
+        for n in ast.walk(try_node)
+    )
+
+
 def _collect_calls_in_node(node: ast.AST) -> list[ast.Call]:
     """Collect all Call nodes under node (via ast.walk)."""
     return [n for n in ast.walk(node) if isinstance(n, ast.Call)]
@@ -386,6 +413,41 @@ class TestStandaloneInitOrderGuard:
         assert _call_has_hidden_true(javten_create_calls[0]), (
             f"fc-javten webview.create_window() (line {javten_create_line}) must carry "
             "hidden=True — it is a background CF-transport window, not the main window"
+        )
+
+    def test_javten_create_window_in_own_try_without_register(self):
+        """
+        P2-A: javten's create_window must sit inside an ast.Try that does NOT
+        contain register_cf_transport() — its own inner try, not the shared
+        outer try that also registers the CF transport.
+
+        If javten create_window shares the outer try with register_cf_transport,
+        a javten window failure skips registration and greys out JavLibrary too
+        (both sources disabled, no UI message, only restart recovers).
+
+        mutation: drop the inner try (single shared try again) → this test
+        must go red.
+        """
+        tree, _ = self._parse()
+        main_node = _find_main_func(tree)
+        assert main_node is not None, "main() not found"
+
+        direct_calls = _collect_direct_calls_in_main_body(main_node)
+        javten_create_calls = [c for c in direct_calls if _is_javten_create_window_call(c)]
+        assert len(javten_create_calls) == 1, (
+            f"Expected exactly 1 fc-javten webview.create_window() in main() body, "
+            f"found {len(javten_create_calls)}"
+        )
+
+        parents = _build_parent_map(tree)
+        enclosing_tries = _enclosing_try_nodes(javten_create_calls[0], parents)
+        isolated = [
+            t for t in enclosing_tries if not _try_contains_register_cf_transport(t)
+        ]
+        assert isolated, (
+            "fc-javten webview.create_window() must sit inside an ast.Try that "
+            "does not contain register_cf_transport() — javten window failure "
+            "must not skip CF transport registration for JavLibrary"
         )
 
     def test_jl_events_closing_binding_and_handler(self):

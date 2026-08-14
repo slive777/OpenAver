@@ -52,6 +52,12 @@ logger = get_logger(__name__)
 # Module-level constant so tests can monkeypatch it down to avoid a real 10s wait.
 NAVIGATE_BRIDGE_TIMEOUT_S = 10.0
 
+# After the bridge is ready, wait for a non-empty document.title before reading
+# the settled URL. An empty title means the page is still navigating (same
+# positive guard as is_ready(), 0.9.9). Tests must monkeypatch both down.
+SETTLE_TITLE_TIMEOUT_S = 10.0
+SETTLE_TITLE_POLL_S = 0.05
+
 # TASK-118a-T1 D-4: per-site behaviour table. javlibrary's age gate (#adultwarningmask,
 # agreeBtn) is JL-specific markup — applying it to fc-javten would misclassify javten
 # pages that happen to share an element id and permanently loop CfChallengeRequired.
@@ -293,6 +299,22 @@ class PyWebViewCfTransport:
         except Exception:
             return True
 
+    def _wait_nonempty_title(self, win: webview.Window, timeout: float) -> bool:
+        """Bounded poll of document.title until nonempty (or timeout).
+
+        Mirrors is_ready()'s positive loaded-page guard. Only called after
+        the JS bridge is ready — evaluate_js is safe. No other detection.
+        """
+        deadline = time.monotonic() + timeout
+        while True:
+            title = win.evaluate_js("document.title") or ""
+            if title.strip():
+                return True
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            time.sleep(min(SETTLE_TITLE_POLL_S, remaining))
+
     def _event_states(self, key: str) -> str:
         """Non-blocking snapshot of the window's pywebview lifecycle events (diag)."""
         def g(name: str):
@@ -533,15 +555,17 @@ class PyWebViewCfTransport:
         navigation cannot be skipped even though it clears the bridge event
         on every single query.
 
-        Three outcomes:
-          1. Bridge ready, page is NOT a CF challenge → return the final URL
-             (get_current_url(), NOT evaluate_js — D-2: doesn't touch the JS
-             bridge at all, and keeps evaluate_js usage limited to exactly
-             the title/head reads below).
+        Four outcomes:
+          1. Bridge ready, title nonempty, page is NOT a CF challenge →
+             return the final URL (get_current_url() only AFTER title
+             settles — a mid-redirect URL would fail the scraper match).
           2. Bridge ready, page IS a CF challenge → record self._cf_urls[key]
              and raise CfChallengeRequired (do NOT return the URL).
           3. Bridge never becomes ready within NAVIGATE_BRIDGE_TIMEOUT_S →
              raise CfChallengeRequired.
+          4. Bridge ready but title stays empty within SETTLE_TITLE_TIMEOUT_S
+             → still navigating; record self._cf_urls[key] and raise
+             CfChallengeRequired (same path as "bridge never ready").
 
         over18 cookie / _is_age_gate are NOT applied here (CD-118a-5): those
         are javlibrary-only, and navigate_and_settle is fc-javten-only in
@@ -570,6 +594,19 @@ class PyWebViewCfTransport:
             )
             self._cf_urls[key] = url
             raise CfChallengeRequired(f'navigate_and_settle: bridge not ready within {NAVIGATE_BRIDGE_TIMEOUT_S}s for {url} (site={key})')
+
+        # Empty title = still navigating (is_ready() 0.9.9 positive guard).
+        # Must settle BEFORE get_current_url() — a mid-redirect URL would
+        # fail the scraper match and surface as "not found".
+        if not self._wait_nonempty_title(win, SETTLE_TITLE_TIMEOUT_S):
+            logger.info(
+                "[CF-DIAG] navigate_and_settle → empty title after %.1fs (still navigating) (site=%s, url=%s)",
+                SETTLE_TITLE_TIMEOUT_S, key, url,
+            )
+            self._cf_urls[key] = url
+            raise CfChallengeRequired(
+                f'navigate_and_settle: empty title within {SETTLE_TITLE_TIMEOUT_S}s for {url} (site={key})'
+            )
 
         final_url = win.get_current_url() or url
         # D-0 (T1 review): the window is now settled on final_url, which a

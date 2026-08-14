@@ -1259,3 +1259,82 @@ class TestNavigateAndSettle:
             f"_cf_urls['fc-javten'] must record the challenged URL; "
             f"got {transport._cf_urls['fc-javten']!r}"
         )
+
+    def test_navigate_and_settle_waits_for_nonempty_title_before_reading_url(self, monkeypatch):
+        """
+        Bridge ready, title starts empty (still navigating), then becomes
+        nonempty → return the final URL. get_current_url() must be read
+        only AFTER the first nonempty title (a mid-redirect URL is stale).
+
+        mutation: drop the empty-title wait (go back to get_current_url
+        immediately after the bridge is ready) → this test must go red.
+        """
+        monkeypatch.setattr(cf_transport_impl, 'SETTLE_TITLE_TIMEOUT_S', 0.2)
+        monkeypatch.setattr(cf_transport_impl, 'SETTLE_TITLE_POLL_S', 0.001)
+
+        class DelayedTitleWindow(FakeWindowNavigate):
+            def __init__(self):
+                super().__init__(title='')
+                self._title_reads = 0
+                self.title_became_nonempty = False
+                self.url_read_after_nonempty_title = None
+
+            def evaluate_js(self, code, callback=None):
+                self.calls.append(('evaluate_js', code, callback))
+                if callback is not None:
+                    if not self._never_callback:
+                        callback(self._eval_callback_result.get('default', {}))
+                    return None
+                if 'document.title' in code:
+                    self._title_reads += 1
+                    if self._title_reads >= 2:
+                        self._title = 'JavTen'
+                        self.title_became_nonempty = True
+                    return self._title
+                if 'outerHTML' in code:
+                    return self._head
+                return None
+
+            def get_current_url(self):
+                self.calls.append(('get_current_url',))
+                self.url_read_after_nonempty_title = self.title_became_nonempty
+                return self._current_url
+
+        win = DelayedTitleWindow()
+        win.events._pywebviewready = FakeEvent(initial=True)
+        transport = PyWebViewCfTransport({'fc-javten': win}, None)
+
+        result = transport.navigate_and_settle(self.JAVTEN_URL, 'fc-javten')
+
+        assert result == self.JAVTEN_URL
+        assert win.title_became_nonempty is True, (
+            "title must have become nonempty during the settle wait"
+        )
+        assert win.url_read_after_nonempty_title is True, (
+            "get_current_url() must be called only after document.title is nonempty; "
+            f"call log: {win.calls}"
+        )
+
+    def test_navigate_and_settle_empty_title_timeout_raises_cf(self, monkeypatch):
+        """
+        Bridge ready, title stays empty for the (monkeypatched, tiny) timeout
+        → still navigating → raise CfChallengeRequired and record _cf_urls[key].
+        """
+        monkeypatch.setattr(cf_transport_impl, 'SETTLE_TITLE_TIMEOUT_S', 0.02)
+        monkeypatch.setattr(cf_transport_impl, 'SETTLE_TITLE_POLL_S', 0.005)
+        win = FakeWindowNavigate(title='')
+        win.events._pywebviewready = FakeEvent(initial=True)
+        transport = PyWebViewCfTransport({'fc-javten': win}, None)
+
+        with pytest.raises(CfChallengeRequired):
+            transport.navigate_and_settle(self.JAVTEN_URL, 'fc-javten')
+
+        assert transport._cf_urls['fc-javten'] == self.JAVTEN_URL, (
+            f"_cf_urls['fc-javten'] must be set to the requested URL on empty-title "
+            f"timeout; got {transport._cf_urls['fc-javten']!r}"
+        )
+        url_reads = [c for c in win.calls if c[0] == 'get_current_url']
+        assert url_reads == [], (
+            "get_current_url() must not run when title never settles; "
+            f"got {url_reads}"
+        )

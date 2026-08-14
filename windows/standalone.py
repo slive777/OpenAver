@@ -226,6 +226,24 @@ def run_server(port, debug_mode=False):
     server.run()
 
 
+def _wait_for_server_or_exit(port, logger) -> None:
+    """Wait for the local server; show error and exit(1) on timeout.
+
+    Extracted from main() so the P2-A inner-try around javten create_window
+    stays inside the function-size budget (MAX_LINES = 200). Fall-through
+    or sys.exit(1) — same control flow as the inlined block.
+    """
+    if not wait_for_server(port):
+        logger.info("錯誤：伺服器啟動逾時")
+        show_error(
+            "啟動失敗",
+            "伺服器啟動逾時。\n\n請檢查是否有其他程式佔用端口 8000。",
+            None,
+            logger
+        )
+        sys.exit(1)
+
+
 def _ensure_webview2_runtime(logger) -> None:
     """Windows-only: verify WebView2 Runtime is installed; prompt + exit(0) if not.
 
@@ -333,15 +351,7 @@ def main():
 
     # 3. 等待伺服器就緒
     logger.info("等待伺服器就緒...")
-    if not wait_for_server(port):
-        logger.info("錯誤：伺服器啟動逾時")
-        show_error(
-            "啟動失敗",
-            "伺服器啟動逾時。\n\n請檢查是否有其他程式佔用端口 8000。",
-            None,
-            logger
-        )
-        sys.exit(1)
+    _wait_for_server_or_exit(port, logger)
     logger.info("伺服器已就緒")
 
     # 3b. 接線 LAN listener manager（dual-listener 架構）
@@ -394,24 +404,25 @@ def main():
         # first use (navigate_and_settle in the search flow), so this does NOT add a
         # second "connects to an external site on every startup" side effect on top of
         # the existing JL one (P3-6, unchanged, still a separate follow-up).
-        javten_win = webview.create_window(
-            'FC2 (javten) — CF 驗證',
-            'about:blank',
-            width=1200, height=820,
-            hidden=True,
-        )
+        try:
+            javten_win = webview.create_window(
+                'FC2 (javten) — CF 驗證',
+                'about:blank',
+                width=1200, height=820,
+                hidden=True,
+            )
+        except Exception as e:                                       # noqa: BLE001
+            logger.warning("fc-javten CF 視窗建立失敗，該來源不可用（JavLibrary 不受影響）：%s", e)
         # D-0/D-1: only javlibrary is seeded in initial_urls — its window already sits
         # on JAVLIBRARY_ORIGIN. fc-javten is NOT seeded (its window is on about:blank);
         # the origin gate (INV-1) will route its first fetch()/search into
         # navigate_and_settle instead, which is the only writer of self._origins after
         # construction.
-        register_cf_transport(
-            PyWebViewCfTransport(
-                {'javlibrary': jl_win, 'fc-javten': javten_win},
-                {'javlibrary': JAVLIBRARY_ORIGIN},
-            )
-        )
-        logger.info("CF transport registered (javlibrary, fc-javten)")
+        cf_wins = {'javlibrary': jl_win}
+        if javten_win is not None:
+            cf_wins['fc-javten'] = javten_win
+        register_cf_transport(PyWebViewCfTransport(cf_wins, {'javlibrary': JAVLIBRARY_ORIGIN}))
+        logger.info("CF transport registered (%s)", ', '.join(cf_wins))
     except Exception as e:
         logger.warning(f"CF transport init failed (JavLibrary/FC2-javten may be unavailable): {e}")
 
