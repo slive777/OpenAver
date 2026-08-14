@@ -1415,11 +1415,13 @@ export function stateConfig() {
 
         // Manual-Only（JavLibrary / FC2-javten）：Active Row 內 no-op，固定末尾。
         //
-        // 118a-T7（spec F3）：原註解寫「[BETA] badge 取代 toggle」——那顆徽章已移除，
-        // 所以現在**沒有任何東西在解釋這裡為什麼點了沒反應**（虛線外框只表達「不一樣」，
-        // 不表達「要去進階搜尋選」）。這個缺口在移除之前就存在（BETA 三個字也沒解釋過），
-        // 移除只是把弱訊號降成零訊號，因此未在 T7 內一併處理——已攤給 owner 判斷。
-        // 隔壁的 clickDisconnectedMetatube() 是現成的正確形狀（no-op + toast 說明）。
+        // 118a-T7（spec F3）：原註解寫「[BETA] badge 取代 toggle」，那顆徽章已移除。
+        //
+        // 這裡不需要 toast 說明。owner 2026-08-14 澄清：這兩顆膠囊**本來就不可點、不可拖**，
+        // 而且畫面上是這樣宣告的——`.source-pill--manual-only` 是 `cursor: default`、
+        // hover 不抬升（source-pill.css:90-103），`isDraggable()` 對 manual_only 直接回 false。
+        // 沒有可互動的樣子，就不會有「點了沒反應＝壞掉」的印象。
+        // （pre-merge Stage 2 曾把這裡標成 UX 缺口，是只看 handler 沒看 affordance 的誤判。）
         clickJavLibrary() {
             // 進階搜尋專用 — no-op。
         },
