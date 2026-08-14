@@ -132,7 +132,7 @@ def get_builtin_sources() -> list[SourceConfig]:
 
 
 def get_manual_only_sources() -> list[SourceConfig]:
-    """回傳 manual_only=True 的 builtin 來源（目前只有 javlibrary BETA）。
+    """回傳 manual_only=True 的 builtin 來源（javlibrary BETA、fc-javten BETA）。
 
     不進 SOURCE_ORDER / fan-out，不揭露至 capabilities，僅供：
     - config migration additive step（追加至 sources 段）
@@ -152,7 +152,20 @@ def get_manual_only_sources() -> list[SourceConfig]:
             manual_only=True,
             # requires_proxy 由 _derive_requires_proxy model_validator 自動推為 False
             # （javlibrary 不在 PROXY_SOURCES）
-        )
+        ),
+        SourceConfig(
+            id='fc-javten',
+            type='builtin',
+            display_name_key='FC2-javten',   # CD-118a-17：顯示名不走 i18n，這個字面直接進畫面
+            display_name_raw='',
+            enabled=False,
+            order=100,                        # 必須大於 javlibrary 的 99，且必須是清單第二筆
+            config={},
+            is_beta=True,                     # CD-118a-14：與 javlibrary 一致，118c 才一起翻
+            manual_only=True,
+            # requires_proxy 由 _derive_requires_proxy model_validator 自動推為 False
+            # （fc-javten 不在 PROXY_SOURCES）
+        ),
     ]
 
 
@@ -226,7 +239,8 @@ def validate_source_id(sid: str) -> bool:
     """
     if sid == 'auto':
         return True
-    if sid == 'javlibrary':
+    manual_only_ids = {s.id for s in get_manual_only_sources()}
+    if sid in manual_only_ids:
         return True
     if sid in SOURCE_ORDER:
         return True

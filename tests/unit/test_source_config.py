@@ -5,6 +5,7 @@ from core.source_config import (
     SourceConfig,
     build_metatube_sources,
     get_builtin_sources,
+    get_manual_only_sources,
     get_source_enum,
     render_name,
     validate_source_id,
@@ -415,3 +416,60 @@ def test_requires_proxy_metatube_explicit_false_not_derived():
         config={'censored_type': 'censored'},
     )
     assert s.requires_proxy is False
+
+
+# ---------------------------------------------------------------------------
+# TASK-118a-T2：fc-javten manual_only 來源登記
+# ---------------------------------------------------------------------------
+def test_validate_source_id_fc_javten():
+    """CD-118a-10：validate_source_id 查 manual_only 集合，不是字面 if。"""
+    assert validate_source_id('fc-javten') is True
+
+
+def test_get_manual_only_sources_returns_fc_javten_second():
+    """CD-118a-1／-11／-14／-17：第二筆是 fc-javten，欄位值定案。"""
+    sources = get_manual_only_sources()
+    assert len(sources) == 2
+    assert sources[0].id == 'javlibrary'
+    fc = sources[1]
+    assert fc.id == 'fc-javten'
+    assert fc.display_name_key == 'FC2-javten'
+    assert fc.order == 100
+    assert fc.enabled is False
+    assert fc.manual_only is True
+    assert fc.is_beta is True
+    assert fc.type == 'builtin'
+
+
+def test_get_manual_only_sources_first_is_still_javlibrary():
+    """CD-118a-11：釘住 [0] 仍是 javlibrary。
+
+    守的是既有隱性依賴：
+    tests/unit/test_javlibrary_contracts.py:89
+    tests/unit/test_core_config.py:1181,1193
+    這三處假設 get_manual_only_sources()[0] 就是 javlibrary。
+    """
+    assert get_manual_only_sources()[0].id == 'javlibrary'
+
+
+def test_source_order_unchanged_8_elements():
+    """CD-118a-2 邊界：SOURCE_ORDER 仍是 8 元素且不含 fc-javten。"""
+    assert len(SOURCE_ORDER) == 8
+    assert 'fc-javten' not in SOURCE_ORDER
+    assert len(get_builtin_sources()) == 8
+
+
+def test_is_censored_fc_javten_uncensored_no_warning(caplog):
+    """T2 DoD：fc-javten 是無碼，且不觸發未知 builtin warning fallback。"""
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger='core.source_config'):
+        sources = get_manual_only_sources()
+    fc = next(s for s in sources if s.id == 'fc-javten')
+    assert fc.is_censored is False
+    assert 'fc-javten' not in caplog.text
+
+
+def test_source_config_schema_has_no_requires_cf():
+    """v4 反向鎖（CD-118a-8 撤銷）：SourceConfig 不得再加 requires_cf。"""
+    assert 'requires_cf' not in SourceConfig.model_fields

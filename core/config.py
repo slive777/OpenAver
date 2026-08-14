@@ -473,19 +473,18 @@ def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；
                 raw_config['sources'] = []
             need_save = True
 
-        # Additive migration（T3）：javlibrary manual_only BETA 追加（若缺席）。
+        # Additive migration：manual_only builtin 來源追加（若缺席）。
         # 防禦性、獨立於上方三分支（缺段/合法/損壞），保證全部路徑都能走到。
-        # fail-open：不讓啟動失敗。
+        # fail-open：不讓啟動失敗。遍歷清單，避免只補得到第一筆（CD-118a-9）。
         try:
             if isinstance(raw_config.get('sources'), list):
                 existing_ids = {s.get('id') for s in raw_config['sources'] if isinstance(s, dict)}
-                if 'javlibrary' not in existing_ids:
-                    raw_config['sources'].append(
-                        get_manual_only_sources()[0].model_dump()
-                    )
-                    need_save = True
+                for manual_source in get_manual_only_sources():
+                    if manual_source.id not in existing_ids:
+                        raw_config['sources'].append(manual_source.model_dump())
+                        need_save = True
         except Exception as exc:
-            logger.warning("[Config] javlibrary additive migration 發生例外，略過：%s", exc)
+            logger.warning("[Config] manual_only additive migration 發生例外，略過：%s", exc)
 
         # Additive migration（feature/71 T2）：top-level thumbnail_cache_enabled 補預設。
         # load_config() 直接 return raw dict（不 model_validate），故舊 config.json 缺此 key

@@ -392,6 +392,8 @@ SOURCE_ORDER = CENSORED_SOURCES + UNCENSORED_SOURCES
 # - 不加入 FUZZY_SEARCH_SOURCES（CD-70b：exact-only）。
 # - 必須在 SOURCE_ORDER 建立後才 append，否則 SOURCE_ORDER tuple 已含 javlibrary（污染 fan-out）。
 CENSORED_SOURCES.append('javlibrary')
+# CD-118a-1：fc-javten 無碼 manual_only BETA。鏡射 javlibrary 的 append 時機（SOURCE_ORDER 建立後）。
+UNCENSORED_SOURCES.append('fc-javten')
 
 SOURCE_NAMES = {
     'dmm': 'DMM',
@@ -403,6 +405,7 @@ SOURCE_NAMES = {
     'fc2': 'FC2',
     'avsox': 'AVSOX',
     'javlibrary': 'JavLibrary',
+    'fc-javten': 'FC2-javten',
 }
 
 # ============================================================

@@ -913,9 +913,9 @@ class TestMigrationSources:
         result = load_config()
 
         # T3 後：3 既有 + 1 javlibrary（additive migration）= 4
-        non_javlibrary = [s for s in result["sources"] if s.get("id") != "javlibrary"]
-        assert len(non_javlibrary) == 3
-        emap = self._enabled_map(non_javlibrary)
+        builtin_sources = [s for s in result["sources"] if not s.get("manual_only")]
+        assert len(builtin_sources) == 3
+        emap = self._enabled_map(builtin_sources)
         assert emap["javbus"] is False
         assert emap["dmm"] is True
 
@@ -959,9 +959,9 @@ class TestMigrationSources:
         result = load_config()
 
         # T3 後：1 既有 dmm + 1 javlibrary（additive migration）= 2
-        non_javlibrary = [s for s in result["sources"] if s.get("id") != "javlibrary"]
-        assert len(non_javlibrary) == 1
-        assert non_javlibrary[0]["enabled"] is True
+        builtin_sources = [s for s in result["sources"] if not s.get("manual_only")]
+        assert len(builtin_sources) == 1
+        assert builtin_sources[0]["enabled"] is True
 
     def test_corrupt_sources_string_fallback(self, tmp_path, monkeypatch):
         """sources 是字串（損壞）→ fallback 8 builtin 全 enabled + sources_bak 持有原值
@@ -1015,6 +1015,76 @@ class TestMigrationSources:
         builtin_sources = [s for s in second["sources"] if not s.get("manual_only")]
         assert len(builtin_sources) == 8
         assert second["sources_bak"] == "broken"  # 不被合法 sources 清掉
+
+    def test_migration_backfills_fc_javten_when_javlibrary_already_present(
+        self, tmp_path, monkeypatch
+    ):
+        """CD-118a-9：已有 javlibrary、沒有 fc-javten 的舊 config → load 後補上 fc-javten。"""
+        from core.source_config import get_manual_only_sources
+
+        config_path = tmp_path / "config.json"
+        existing = AppConfig().model_dump()
+        existing["sources"].append(get_manual_only_sources()[0].model_dump())
+        _write_config(config_path, existing)
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        ids = [s.get("id") for s in result["sources"]]
+        assert "fc-javten" in ids
+        fc = next(s for s in result["sources"] if s.get("id") == "fc-javten")
+        assert fc["order"] == 100
+        assert fc["manual_only"] is True
+        assert fc["is_beta"] is True
+        assert fc["enabled"] is False
+
+    def test_migration_idempotent_with_both_manual_sources(self, tmp_path, monkeypatch):
+        """CD-118a-9 冪等：config 已同時有 javlibrary 與 fc-javten → 不重複 append。"""
+        from core.source_config import get_manual_only_sources
+
+        config_path = tmp_path / "config.json"
+        existing = AppConfig().model_dump()
+        existing["sources"].append(get_manual_only_sources()[0].model_dump())
+        existing["sources"].append({
+            "id": "fc-javten",
+            "type": "builtin",
+            "display_name_key": "FC2-javten",
+            "display_name_raw": "",
+            "enabled": False,
+            "order": 100,
+            "config": {},
+            "is_beta": True,
+            "manual_only": True,
+        })
+        _write_config(config_path, existing)
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        jl_entries = [s for s in result["sources"] if s.get("id") == "javlibrary"]
+        fc_entries = [s for s in result["sources"] if s.get("id") == "fc-javten"]
+        assert len(jl_entries) == 1
+        assert len(fc_entries) == 1
+
+    def test_migration_fresh_config_includes_both_manual_sources(self, tmp_path, monkeypatch):
+        """CD-118a-9 全新安裝：無 config.json → 8 builtin + javlibrary + fc-javten 共 10。"""
+        config_path = tmp_path / "config.json"
+        default_path = tmp_path / "config.default.json"
+        _write_config(default_path, {"general": {"theme": "light"}})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", default_path)
+
+        result = load_config()
+
+        sources = result["sources"]
+        ids = [s.get("id") for s in sources]
+        builtin_sources = [s for s in sources if not s.get("manual_only")]
+        assert len(builtin_sources) == 8
+        assert "javlibrary" in ids
+        assert "fc-javten" in ids
+        assert len(sources) == 10
 
 
 # ============ config.default.json schema parity（Codex PR#45 P2 drift guard）============
