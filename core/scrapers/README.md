@@ -23,7 +23,7 @@
 |---------|--------|-----------|---------------|------------|---------|------------|-----------|------|
 | `d2pass` | D2Pass | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；日期格式番號（caribbeancom / 1pondo 等） |
 | `heyzo` | HEYZO | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；HEYZO-XXXX 格式 |
-| `fc2` | FC2 | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；**官方站 `adult.contents.fc2.com`**（0.13.12 起，`fc2_official.py`；舊的 javten 鏡像 `fc2.py` 保留但不被 dispatch 引用）；**有發行日**（官方頁「販売日」）；連不上／非 200 一律靜默回 `None`，與其他來源同語意 |
+| `fc2` | FC2 | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；**官方站 `adult.contents.fc2.com`**（0.13.12 起，`fc2_official.py`；舊的 javten 鏡像已於 0.13.13 改名接管成獨立來源 `fc-javten`，見 `fc2_javten.py`）；**有發行日**（官方頁「販売日」）；連不上／非 200 一律靜默回 `None`，與其他來源同語意 |
 | `avsox` | AVSOX | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；模糊鏈永不呼叫（`search_by_keyword` 刻意不接線） |
 
 ### 1.3 常數定義位置
@@ -196,5 +196,5 @@ post-spec-85（T1c 解耦後）：standalone 函式，不再實例化 `JavBusScr
 | JavBus 搜尋端點已死 | `/search/{keyword}` 回 404；exact 走 detail URL（正常）；partial/prefix 走 `get_ids_from_search`（正常）；**不可**再實作任何依賴 `/search/` 的功能 |
 | javlibrary manual_only | `get_enabled_source_ids()` 自動排除 manual_only 來源，javlibrary 不進 cascade head；只能由進階搜尋顯式指定 |
 | fuzzy always-on | 停用 javbus/dmm 只影響 exact cascade；模糊路徑仍會呼叫它們（設計如此，CD-65-4） |
-| ~~FC2 無發行日~~ | ⛔ **0.13.12 起作廢**：該不變式屬於舊的 javten 鏡像實作（`fc2.py` 硬定 `date=""`）。現行 `fc2` 走官方站 `fc2_official.py`，**會回傳發行日**（spec-118 AC-1.2 就是要它）。看到 FC2 有日期**不是 bug**，看到它恆空才是 |
+| ~~FC2 無發行日~~ | ⛔ **0.13.12 起作廢**：該不變式屬於舊的 javten 鏡像實作（0.13.13 起為 `fc2_javten.py`／來源 `fc-javten`，仍硬定 `date=""`——站方結構性沒有這個欄位）。現行 `fc2` 走官方站 `fc2_official.py`，**會回傳發行日**（spec-118 AC-1.2 就是要它）。看到 FC2 有日期**不是 bug**，看到它恆空才是 |
 | 路徑處理 | `file:///` URI 轉換一律用 `core/path_utils.py`，禁止手動 strip/建構 |

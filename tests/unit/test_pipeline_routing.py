@@ -335,7 +335,7 @@ class TestUnknownSource:
 # ============================================================
 
 class TestFc2Dispatch:
-    """dispatch 路徑：source='fc2' 必須建構 FC2OfficialScraper，不是 javten FC2Scraper。"""
+    """dispatch 路徑：source='fc2' 必須建構 FC2OfficialScraper，不是 javten FC2JavtenScraper。"""
 
     def test_fc2_source_constructs_official_scraper(self):
         """search_jav(source='fc2') 建出來的是 FC2OfficialScraper。"""

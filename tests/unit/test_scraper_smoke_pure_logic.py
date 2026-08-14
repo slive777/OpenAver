@@ -5,11 +5,11 @@ test_scraper_smoke_pure_logic.py — 桶 D 純邏輯守衛（TASK-73e-T1）
 不加 pytestmark = pytest.mark.smoke，CI 正常收錄。
 """
 import pytest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from core.scrapers import (
     JavBusScraper, JAV321Scraper, JavDBScraper,
-    FC2Scraper, FC2OfficialScraper, AVSOXScraper,
+    FC2JavtenScraper, FC2OfficialScraper, AVSOXScraper,
     Video, Actress,
 )
 
@@ -23,7 +23,7 @@ class TestFC2NormalizePureLogic:
 
     @pytest.fixture
     def scraper(self):
-        return FC2Scraper()
+        return FC2JavtenScraper()
 
     def test_normalize_fc2_number(self, scraper):
         """測試：FC2 番號正規化（5 case 含純數字輸入）"""
@@ -52,7 +52,7 @@ class TestFC2OfficialNormalizePureLogic:
 
 # ============================================================
 # FC2 負向合約——搬離線（TASK-73e-T1，CD-73e-7）
-# patch _search_url 回 None → search() 短路回 None
+# mock navigate_and_settle 回 /search?kw= → search() 短路回 None
 # 禁止 stub search 本身
 # ============================================================
 
@@ -61,12 +61,16 @@ class TestFC2SearchMissReturnsNone:
 
     @pytest.fixture
     def scraper(self):
-        with patch("core.scrapers.fc2.rate_limit"):
-            yield FC2Scraper()
+        with patch("core.scrapers.fc2_javten.rate_limit"):
+            yield FC2JavtenScraper()
 
     def test_search_invalid_number_returns_none(self, scraper):
-        """FC2-PPV-9999999999 不存在→ _search_url 回 None → search() 回 None"""
-        with patch.object(scraper, "_search_url", return_value=None):
+        """FC2-PPV-9999999999 不存在→ 最終 URL 仍是 /search?kw= → search() 回 None"""
+        transport = MagicMock()
+        transport.navigate_and_settle.return_value = (
+            "https://javten.com/search?kw=9999999999"
+        )
+        with patch("core.scrapers.fc2_javten.get_cf_transport", return_value=transport):
             result = scraper.search("FC2-PPV-9999999999")
         assert result is None
 
@@ -139,7 +143,7 @@ class TestMultiSourceIntegration:
             JavBusScraper(),
             JAV321Scraper(),
             JavDBScraper(),
-            FC2Scraper(),
+            FC2JavtenScraper(),
             FC2OfficialScraper(),
             AVSOXScraper(),
         ]
@@ -159,12 +163,13 @@ class TestMultiSourceIntegration:
             JavBusScraper(),
             JAV321Scraper(),
             JavDBScraper(),
-            FC2Scraper(),
+            FC2OfficialScraper(),
+            FC2JavtenScraper(),
             AVSOXScraper(),
         ]
 
         source_names = [s.source_name for s in scrapers]
         assert len(source_names) == len(set(source_names)), "來源名稱應唯一"
 
-        expected_names = {"javbus", "jav321", "javdb", "fc2", "avsox"}
+        expected_names = {"javbus", "jav321", "javdb", "fc2", "fc-javten", "avsox"}
         assert set(source_names) == expected_names

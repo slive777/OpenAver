@@ -4,7 +4,7 @@ from .models import Video, Actress, ScraperConfig
 from .javbus import JavBusScraper
 from .jav321 import JAV321Scraper
 from .javdb import JavDBScraper
-from .fc2 import FC2Scraper
+from .fc2_javten import FC2JavtenScraper
 from .fc2_official import FC2OfficialScraper
 from .avsox import AVSOXScraper
 from .d2pass import D2PassScraper
@@ -21,7 +21,7 @@ __all__ = [
     'JavBusScraper',
     'JAV321Scraper',
     'JavDBScraper',
-    'FC2Scraper',
+    'FC2JavtenScraper',
     'FC2OfficialScraper',
     'AVSOXScraper',
     'D2PassScraper',

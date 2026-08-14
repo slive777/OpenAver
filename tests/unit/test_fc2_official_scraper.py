@@ -315,7 +315,7 @@ class TestTransportFailureReturnsNone:
 
 
 # ============================================================
-# search_by_keyword：比照 fc2.py，包成 list
+# search_by_keyword：比照 fc2_javten.py（0.13.13 前為 fc2.py），包成 list
 # ============================================================
 
 class TestSearchByKeyword:

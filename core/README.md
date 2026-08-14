@@ -24,7 +24,7 @@ scrapers/
 ├── jav321.py           # JAV321Scraper
 ├── javdb.py            # JavDBScraper (需 curl_cffi)
 ├── fc2_official.py     # FC2OfficialScraper（`fc2` 來源的現行實作：官方站 adult.contents.fc2.com）
-├── fc2.py              # FC2Scraper（舊 javten 實作，站方 CF 全擋後不再被 dispatch 引用，留待 spec-118 F2 接管）
+├── fc2_javten.py       # FC2JavtenScraper（`fc-javten` 來源：javten 鏡像站）
 ├── avsox.py            # AVSOXScraper
 ├── dmm.py              # DMMScraper (GraphQL API + Proxy)
 ├── d2pass.py           # D2PassScraper (1Pondo/Caribbeancom/10musume)
