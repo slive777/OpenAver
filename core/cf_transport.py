@@ -40,11 +40,18 @@ class CfTransport(Protocol):
     """
 
     def begin_solve(self, origin_url: str, cache_key: str) -> None:
-        """**Non-blocking**: display the transport window and navigate to
-        *origin_url* so the user can complete the CF challenge + age gate.
+        """Display the transport window and navigate to *origin_url* so the user
+        can complete the CF challenge + age gate.
 
-        Returns immediately without waiting for the user to finish.
-        CD-70b-7: the backend must not hold a thread waiting for the solution.
+        **Never waits for the user to solve anything** — CD-70b-7 (the backend
+        must not hold a thread waiting for the solution) is unchanged.
+
+        It is NOT, however, strictly instantaneous: an implementation may spend a
+        short, bounded wait on navigation transitions before returning (the
+        pywebview one bounces the window off ``about:blank`` first for sites where
+        WebView2 otherwise stops completing repeat navigations — TASK-118a-T6/F-2,
+        bounded by ``NAV_RESET_TIMEOUT_S``, ~0.1s in practice). Call it from a
+        threadpool/sync path, not directly from an asyncio event loop.
 
         *cache_key* selects which per-site transport window to target (e.g.
         ``'javlibrary'`` or ``'fc-javten'``); each site owns its own hidden

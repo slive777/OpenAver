@@ -2,6 +2,7 @@
 import json
 import re
 from typing import Optional
+from urllib.parse import urlsplit
 
 from lxml import etree
 
@@ -19,6 +20,35 @@ logger = get_logger(__name__)
 
 # 模組層公開常數（CD-118a-12）。windows/ 與 web/routers/ 一律 import 這個，禁止重定義。
 JAVTEN_ORIGIN = "https://javten.com/"
+
+# T6-P3-2（Codex review）：落地 URL 的 host/scheme 白名單。
+#
+# 為什麼是這次才需要：T6/F-1 之前，navigate_and_settle() 回的是
+# `get_current_url() or url`，而 WebView2 的那個值不跟轉址走 —— 等於**意外地**把 host
+# 鎖死在我們請求的 javten URL 上。F-1 改讀 location.href 之後才真的會跟著轉址離開
+# javten，信任面是這次改動放開的，所以由這次補上。
+#
+# 為什麼 INV-1 的 origin gate 擋不住：它比對「transport 記錄的 origin」與「要 fetch 的
+# origin」，兩者都源自同一個落地 URL，by construction 必然相等。它防的是內部狀態走鐘，
+# 不是「這個 host 該不該信」。
+#
+# 使用者流程：javten 是第三方鏡像站（本來就不可信）。它哪天把搜尋轉去別的 host，我們就
+# 把那個 host 的頁面當成影片資料 —— 標題／封面／標籤／劇照網址寫進使用者的 NFO 與資料庫，
+# 而他看不出來，只能整批重刮。
+#
+# 寫法沿用本專案既有慣例（`web/routers/scraper.py` 的 `_is_javlibrary_url()`）：
+# urlparse → scheme 精確比對 → netloc 精確比對，**不用 startswith**（`javten.com.evil.com`
+# 會通過 prefix 比對），也不靠命中 regex（它是 re.search 未錨定，`?x=` 塞得進去）。
+_JAVTEN_ALLOWED_NETLOCS = frozenset({"javten.com", "www.javten.com"})
+
+
+def _is_javten_url(url: str) -> bool:
+    """落地 URL 是否仍在 javten 自己的 https origin 上。"""
+    try:
+        parts = urlsplit(url)
+    except (ValueError, TypeError):
+        return False
+    return parts.scheme == "https" and parts.netloc.lower() in _JAVTEN_ALLOWED_NETLOCS
 
 
 def strip_lang_segment(url: str) -> str:
@@ -169,6 +199,15 @@ class FC2JavtenScraper(BaseScraper):
             # 分隔符，**不保證回傳純數字**（實測 'garbage' → 'GARBAGE'）。番號裡的 `.` `*` 會
             # 讓這條 pattern 變寬 → javten 的搜尋 302 到別片時我們會照收 → 別片的標題／封面／
             # 標籤被寫進使用者的 NFO 與 DB，而他看不出來。
+            # T6-P3-2：先擋 host/scheme，再談路徑命中。順序不能反 —— 命中判準是未錨定的
+            # re.search，`https://evil.com/?x=https://javten.com/video/1/id<番號>/` 會通過它。
+            # 這裡檢 `final`（strip_lang_segment 只剝語言段、不動 host，實測與測試皆已覆蓋）。
+            if not _is_javten_url(final):
+                logger.warning(
+                    "FC2-javten 搜尋落在 javten 之外的位址，已拒絕（不 fetch）：%s", final
+                )
+                return None
+
             if not re.search(rf'/video/\d+/id{re.escape(digits)}(/|$)', final):
                 # 仍停在 /search?kw= ＝ 查無此片（CD-118a-19，前提是 transport 已擋掉挑戰頁）
                 return None

@@ -369,6 +369,59 @@ def test_match_predicate_escapes_regex_metachars(scraper):
 
 
 # ============================================================
+# T6-P3-2：落地 URL 的 host／scheme 白名單（SSRF defense-in-depth）
+# ============================================================
+#
+# T6/F-1 之前，navigate_and_settle() 回的是 `get_current_url() or url`，在 WebView2 上
+# 那個值不跟轉址，等於**意外地**把 host 鎖死在我們請求的 javten URL 上。F-1 改讀
+# location.href 之後才真的會跟著轉址走 —— 也就是說信任面是這次改動放開的。
+#
+# INV-1 的 origin gate 擋不住這條：它比對「記錄的 origin」與「要 fetch 的 origin」，
+# 而兩者都源自同一個落地 URL，by construction 必然相等。它防的是內部狀態走鐘，
+# 不是「這個 host 該不該信」。
+#
+# 使用者流程：javten（第三方鏡像站，本來就不可信）某天把搜尋轉址到別的 host →
+# 我們拿那個 host 的頁面當成影片資料 → 標題／封面／標籤／劇照網址寫進他的 NFO 與
+# 資料庫，而他看不出來，只能整批重刮。
+#
+# 本專案已為 javlibrary 做過同一道檢查（`web/routers/scraper.py` 的
+# `_is_javlibrary_url()`，註解明寫要擋 `evil.com` 與 `www.javlibrary.com.evil.com`
+# 這類 prefix 繞過），這裡是補上 fc-javten 的對等檢查，寫法沿用同一個 urlparse 慣例。
+
+@pytest.mark.parametrize("landed, why", [
+    ("https://evil.com/video/12345/id4914771/slug", "完全不同的 host"),
+    ("https://javten.com.evil.com/video/12345/id4914771/slug", "prefix 繞過（不得用 startswith 比對）"),
+    ("https://evil.com/?x=https://javten.com/video/12345/id4914771/", "把合法 URL 塞進 query（regex 未錨定）"),
+    ("http://javten.com/video/12345/id4914771/slug", "降級成明文 http"),
+])
+def test_search_rejects_landing_outside_javten(scraper, landed, why):
+    """落地 URL 不是 https + javten.com/www.javten.com → 回 None，且**不得**呼叫 fetch。
+
+    mutation：把 host/scheme 檢查拿掉 → 這四個案例全部轉紅（fetch 會被呼叫）。
+    """
+    # 餵真 fixture：若白名單失效，fetch 會被呼叫且真的解析成功 → 斷言必紅（而不是靠
+    # MagicMock 解析失敗矇對，那樣是假綠）
+    transport = make_transport(landed, load_fixture(DELISTED_CASES[0].values[1]))
+    with patch(PATCH_TARGET, return_value=transport):
+        result = scraper.search("FC2-PPV-4914771")
+    assert result is None, f"{why}：不得被當成命中"
+    assert not transport.fetch.called, f"{why}：不得對非 javten 的 origin 發出 fetch"
+
+
+def test_search_still_accepts_www_subdomain(scraper):
+    """www.javten.com 是真實存在的合法落點（transport 層的 cross-origin 轉址測試就在用它），
+    白名單不得把它一起擋掉——否則站方哪天換 host，使用者整條來源就失效。"""
+    transport = make_transport(
+        "https://www.javten.com/video/2100971/id4914771/slug",
+        load_fixture(DELISTED_CASES[0].values[1]),
+    )
+    with patch(PATCH_TARGET, return_value=transport):
+        result = scraper.search("FC2-PPV-4914771")
+    assert result is not None, "www 子網域必須仍算命中"
+    transport.fetch.assert_called_once()
+
+
+# ============================================================
 # CD-118a-13 ①：CF 兩個例外原樣往外拋
 # ============================================================
 

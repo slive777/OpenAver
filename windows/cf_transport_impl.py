@@ -11,7 +11,9 @@ Design:
     from the GUI thread's perspective.  Only the FastAPI threadpool worker
     blocks on result_q.get(timeout=...).
   - fetch() unpacks the tuple (C1 contract) and detects CF challenge.
-  - begin_solve() is non-blocking: show → load_url only (no evaluate_js — CF page would block 20s; over18 set in fetch()/is_ready()).
+  - begin_solve() is show → load_url only (no evaluate_js — CF page would block 20s; over18 set in fetch()/is_ready()).
+    T6/F-2: for sites in _SITE_NAV_RESET it first bounces off about:blank, so it is
+    no longer strictly non-blocking — bounded by NAV_RESET_TIMEOUT_S (~0.1s in practice).
   - is_ready() is a fast non-blocking check: reads title + head HTML slice.
   - No blocking wait loop (C2: POC wait_for_ready is NOT ported here).
   - TASK-118a-T1: multi-site support lives entirely inside this class (per-site
@@ -64,6 +66,24 @@ SETTLE_TITLE_POLL_S = 0.05
 # Unknown keys are NOT in this table; callers must fail-closed (CfTransportUnavailable),
 # never silently fall back to True/False here.
 _SITE_AGE_GATE = {'javlibrary': True, 'fc-javten': False}
+
+# TASK-118a-T6 / F-2: WebView2 stops completing repeat navigations to the same
+# site in the same window. Measured on the real stack (POC8, javten.com):
+#   video page → load_url(/search)  → bridge ready +2.87s   ✓
+#   video page → load_url(/search)  → NEVER completes (12s timeout), never recovers
+#   about:blank                     → +0.08s, and the NEXT /search works again ✓
+#   about:blank → /search  ×3       → 3/3 green, 2.6–2.7s each
+# NavigationCompleted simply never fires for the second one — it is not a
+# Python-side deadlock (pywebview's _expose_lock measured unlocked, no stuck
+# threads; see TASK-118a-T6). The user-visible symptom without this hop: the CF
+# window pops up showing the previous page and sits there forever.
+#
+# Scoped per-site on purpose: javlibrary parks on its own origin and only ever
+# uses fetch(), so it does not hit this and does not need the extra hop.
+# Unknown keys default to False = unchanged behaviour.
+NAV_RESET_URL = 'about:blank'
+NAV_RESET_TIMEOUT_S = 2.0
+_SITE_NAV_RESET = {'javlibrary': False, 'fc-javten': True}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -315,6 +335,35 @@ class PyWebViewCfTransport:
                 return False
             time.sleep(min(SETTLE_TITLE_POLL_S, remaining))
 
+    def _reset_navigation(self, key: str) -> None:
+        """T6/F-2: bounce this site's window off about:blank before navigating.
+
+        No-op for sites not in _SITE_NAV_RESET (javlibrary keeps its exact
+        pre-T6 navigation sequence). Goes through _navigate() so D-0's rule
+        "_navigate is the sole writer of _origins" still holds.
+
+        On _origins, precisely: the caller overwrites it again on the very next
+        statement (_navigate(key, target)), so on the sequential path the
+        `about:` origin is never observable — do NOT read this hop as a
+        protection against a failed target navigation, it isn't one. Its only
+        real window is the bounded bridge wait below, during which a CONCURRENT
+        fetch() on the same key would see `about:` and correctly fail the INV-1
+        gate instead of JS-fetching against a blank page. That is the honest
+        fail-closed direction, not a designed feature.
+
+        The bridge wait is bounded and NON-fatal: about:blank settles in ~0.1s
+        on the real stack, and the caller's own bridge timeout is already the
+        upper bound, so a slow reset must not invent a new failure mode.
+        """
+        if not _SITE_NAV_RESET.get(key, False):
+            return
+        self._navigate(key, NAV_RESET_URL)
+        if not self._wait_bridge_ready(key, NAV_RESET_TIMEOUT_S):
+            logger.info(
+                "[CF-DIAG] nav reset → %s bridge not ready within %.1fs (site=%s); continuing anyway",
+                NAV_RESET_URL, NAV_RESET_TIMEOUT_S, key,
+            )
+
     def _event_states(self, key: str) -> str:
         """Non-blocking snapshot of the window's pywebview lifecycle events (diag)."""
         def g(name: str):
@@ -427,9 +476,15 @@ class PyWebViewCfTransport:
 
     def begin_solve(self, origin_url: str, cache_key: str = 'javlibrary') -> None:
         """
-        Non-blocking: show the window, navigate to the CF-challenged URL (or origin
-        as fallback), so the user sees the actual Cloudflare Turnstile challenge
-        immediately.  Returns immediately — does NOT wait for the user to solve.
+        Show the window and navigate to the CF-challenged URL (or origin as
+        fallback), so the user sees the actual Cloudflare Turnstile challenge
+        immediately.  Never waits for the user to solve.
+
+        T6/F-2: sites in _SITE_NAV_RESET get an about:blank hop first, so this is
+        bounded by NAV_RESET_TIMEOUT_S rather than strictly non-blocking (~0.1s in
+        practice). Without it begin_solve inherits the same WebView2 stall as
+        navigate_and_settle: real-machine log 2026-08-14 14:59:33 → 15:01:04 shows
+        the window sitting on the PREVIOUS page for 90s, never showing the challenge.
 
         0.9.9g: navigates to self._cf_urls[key] (the exact URL that triggered CF)
         when available, rather than origin_url.  JavLibrary's homepage (/ja/) is
@@ -448,6 +503,7 @@ class PyWebViewCfTransport:
         target = self._cf_urls.get(key) or origin_url
         logger.info("[CF-DIAG] begin_solve → show + load_url (site=%s, target=%s) %s", key, target, self._event_states(key))
         win.show()
+        self._reset_navigation(key)  # T6/F-2 — begin_solve stalls the same way
         self._navigate(key, target)
         # ROOT-CAUSE FIX (0.9.9c): deliberately NO evaluate_js here. Setting the
         # over18 cookie via evaluate_js right after navigating to a (CF-challenged)
@@ -455,7 +511,11 @@ class PyWebViewCfTransport:
         # which strands the bridge so EVERY later fetch/is_ready also throws (the
         # 0.9.9b "permanent break, must restart" repro). The over18 cookie is set in
         # fetch() and is_ready() once the page is actually ready. begin_solve stays
-        # purely show + navigate (both non-blocking @_shown_call; `shown` stays set).
+        # show + navigate only — no evaluate_js. T6/F-2 added the about:blank hop
+        # above, which waits on the bridge EVENT (bounded, NAV_RESET_TIMEOUT_S);
+        # that is not evaluate_js and cannot strand the bridge, but it does mean
+        # this method is "bounded", not "instantaneous" (see the Protocol docstring
+        # in core/cf_transport.py).
 
     def is_ready(self, cache_key: str = 'javlibrary') -> bool:
         """
@@ -557,8 +617,8 @@ class PyWebViewCfTransport:
 
         Four outcomes:
           1. Bridge ready, title nonempty, page is NOT a CF challenge →
-             return the final URL (get_current_url() only AFTER title
-             settles — a mid-redirect URL would fail the scraper match).
+             return the final URL, read from location.href (T6/F-1) and only
+             AFTER title settles — a mid-redirect URL would fail the scraper match.
           2. Bridge ready, page IS a CF challenge → record self._cf_urls[key]
              and raise CfChallengeRequired (do NOT return the URL).
           3. Bridge never becomes ready within NAVIGATE_BRIDGE_TIMEOUT_S →
@@ -583,6 +643,7 @@ class PyWebViewCfTransport:
             )
 
         logger.info("[CF-DIAG] navigate_and_settle → load_url (site=%s, url=%s)", key, url)
+        self._reset_navigation(key)  # T6/F-2
         self._navigate(key, url)
 
         # D-3: wait on the bridge-ready Event itself (bounded) — never evaluate_js
@@ -596,7 +657,7 @@ class PyWebViewCfTransport:
             raise CfChallengeRequired(f'navigate_and_settle: bridge not ready within {NAVIGATE_BRIDGE_TIMEOUT_S}s for {url} (site={key})')
 
         # Empty title = still navigating (is_ready() 0.9.9 positive guard).
-        # Must settle BEFORE get_current_url() — a mid-redirect URL would
+        # Must settle BEFORE reading the URL — a mid-redirect URL would
         # fail the scraper match and surface as "not found".
         if not self._wait_nonempty_title(win, SETTLE_TITLE_TIMEOUT_S):
             logger.info(
@@ -608,7 +669,24 @@ class PyWebViewCfTransport:
                 f'navigate_and_settle: empty title within {SETTLE_TITLE_TIMEOUT_S}s for {url} (site={key})'
             )
 
-        final_url = win.get_current_url() or url
+        # T6/F-1: location.href, NOT get_current_url(). Measured on the real
+        # stack (POC5): after the /search redirect chain settles, WebView2's
+        # get_current_url() still reports the URL we *requested* while
+        # location.href (and document.title) already hold the landed video page.
+        # Trusting get_current_url() made the scraper's hit predicate miss →
+        # the user searched a film that exists and the screen said "not found".
+        # The old `... or url` fallback substituted silently, which is precisely
+        # why that bug left no trace in the log — hence the warning below.
+        href = win.evaluate_js("location.href")
+        if isinstance(href, str) and href.strip():
+            final_url = href.strip()
+        else:
+            logger.warning(
+                "[CF-DIAG] navigate_and_settle → location.href unreadable (%r); falling back "
+                "to the requested URL, the hit check will likely miss (site=%s, url=%s)",
+                href, key, url,
+            )
+            final_url = url
         # D-0 (T1 review): the window is now settled on final_url, which a
         # redirect may have moved to a different origin than the one we asked
         # for. Re-record so fetch()'s origin gate compares against reality —
