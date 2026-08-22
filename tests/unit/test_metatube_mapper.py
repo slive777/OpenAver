@@ -205,13 +205,18 @@ def test_map_actors_none():
 # ============ TASK-113c-T3b: preview_cover_url（CD-113c-4／12／13） ============
 
 def test_map_movie_info_binds_preview_cover_url_from_base_url():
-    """base_url 顯式傳入 → preview_cover_url 出生時就綁定（DoD-1）"""
+    """base_url 顯式傳入 → preview_cover_url 出生時就綁定（DoD-1）
+
+    來源一致性（feature/metatube-image-proxy）：從 metatube 刮到的影片，
+    cover_url 也走 metatube 的 `/v1/images/primary/...` 代理端點取回，
+    避免本地直連被牆的源站圖片 URL。
+    """
     from core.metatube.mapper import map_movie_info
     info = _full_info()
     video = map_movie_info(info, base_url="http://192.168.1.100:8080")
     assert video.preview_cover_url != ""
     assert video.preview_cover_url.startswith("http://192.168.1.100:8080/v1/images/primary/FANZA/SONE-205?")
-    assert video.cover_url == "https://img.fanza.com/cover.jpg"
+    assert video.cover_url == video.preview_cover_url
 
 
 def test_map_movie_info_no_base_url_yields_empty_preview():
@@ -324,6 +329,65 @@ def test_preview_cover_url_implies_cover_url_nonempty():
                     f"preview_cover_url 非空但 cover_url 為空（違反不變式）："
                     f"info={info!r} base_url={base_url!r}"
                 )
+
+
+# ============ feature/metatube-image-proxy：劇照 sample_images 也走同一條路 ============
+
+def test_map_sample_images_proxied_with_base_url():
+    """base_url 顯式傳入 → sample_images 逐張改寫成 metatube 代理端點 URL（來源一致性）"""
+    from urllib.parse import urlparse, parse_qs
+    from core.metatube.mapper import map_movie_info
+    info = _full_info()
+    video = map_movie_info(info, base_url="http://192.168.1.100:8080")
+    assert len(video.sample_images) == 2
+    for proxied, original in zip(video.sample_images, info["preview_images"]):
+        parsed = urlparse(proxied)
+        assert parsed.path == "/v1/images/primary/FANZA/SONE-205"
+        qs = parse_qs(parsed.query)
+        assert qs["url"] == [original]
+        assert qs["ratio"] == ["0"]
+        assert qs["quality"] == ["100"]
+
+
+def test_map_sample_images_raw_without_base_url():
+    """未傳 base_url → sample_images 維持原始 URL（行為與修改前一致）"""
+    from core.metatube.mapper import map_movie_info
+    info = _full_info()
+    video = map_movie_info(info)
+    assert video.sample_images == ["https://img.fanza.com/s1.jpg", "https://img.fanza.com/s2.jpg"]
+
+
+def test_map_sample_images_per_item_fallback_to_raw():
+    """base_url 組不出代理（provider 需轉義）→ 逐張回退原始 URL，不整體空白"""
+    from core.metatube.mapper import map_movie_info
+    info = _full_info()
+    info["provider"] = "FAN ZA"
+    video = map_movie_info(info, base_url="http://192.168.1.100:8080")
+    assert video.sample_images == ["https://img.fanza.com/s1.jpg", "https://img.fanza.com/s2.jpg"]
+
+
+def test_map_sample_images_proxy_query_encoding_no_pollution():
+    """preview image 本身帶 ?token=...&expires=... → 代理 URL 的 url 參數逐字元等於原始
+    （CD-113c-13 同款防護延伸到劇照），且 ratio／quality 各恰好一次"""
+    from urllib.parse import urlparse, parse_qs
+    from core.metatube.mapper import map_movie_info
+    info = _full_info()
+    original = "https://img.fanza.com/s1.jpg?token=abc&expires=123"
+    info["preview_images"] = [original]
+    video = map_movie_info(info, base_url="http://192.168.1.100:8080")
+    qs = parse_qs(urlparse(video.sample_images[0]).query)
+    assert qs["url"] == [original]
+    assert len(qs["ratio"]) == 1
+    assert len(qs["quality"]) == 1
+
+
+def test_map_sample_images_empty_with_base_url():
+    """preview_images 缺失 + base_url → sample_images 為 []，不炸"""
+    from core.metatube.mapper import map_movie_info
+    info = _full_info()
+    info.pop("preview_images", None)
+    video = map_movie_info(info, base_url="http://192.168.1.100:8080")
+    assert video.sample_images == []
 
 
 # ============ clean_metatube_summary 邊界測試 ============

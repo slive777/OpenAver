@@ -16,18 +16,25 @@ _FC2_NOISE_RE = re.compile(
 )
 
 
-def _build_preview_cover_url(base_url: str, provider: str, number: str, cover_url: str) -> str:
-    """metatube 預覽端點 URL（CD-113c-4／12／13）。
+def _build_proxy_image_url(base_url: str, provider: str, number: str, image_url: str) -> str:
+    """metatube 圖片代理端點 URL（泛化建構器，形狀同 CD-113c-4／12／13）。
 
-    base_url 或 cover_url 任一空 → ''（沒有可預覽的東西）。
+    metatube 伺服器的 `/v1/images/primary/{provider}/{number}?url=<image>&ratio=0&quality=100`
+    是**通用伺服器端圖片代理**：`?url=` 存在時伺服器會用該 provider 的 Fetcher
+    在境外取回**任何**圖片 URL（封面、劇照 preview_images、thumb…）並原圖回傳
+    （`ratio=0`＝不裁切，`quality=100`＝原品質；實測 200 回真實 JPEG 原尺寸）。
+    本地 OpenAver 不直連被牆的源站 CDN——所有從 metatube 刮到的圖片走同一條路
+    取回（來源一致性，feature/metatube-image-proxy）。
+
+    base_url 或 image_url 任一空 → ''（沒有可代理的東西）。
     provider／number 若含 `quote(safe="")` 需要轉義的字元（非 ASCII／保留字）
-    → ''，不組出一個上線會被 T3a `_SAFE_PATH_SEGMENT` 擋下的 URL——讓前端
-    `preview_cover_url || cover` 的 fallback 自然接手，而不是讓使用者看到
-    一張穩定 403 的圖。T3a 的允許字元集與 `quote()` 的預設 safe 集合定義
-    相同（RFC 3986 unreserved），故「轉義前後是否相等」是判斷「會不會被
-    T3a 擋下」的精確 predicate，不是近似值（Opus 審核裁決 4）。
+    → ''，不組出一個上線會被 T3a `_SAFE_PATH_SEGMENT` 擋下的 URL——讓呼叫端
+    的 fallback 自然接手，而不是讓使用者看到一張穩定 403 的圖。T3a 的允許字元集
+    與 `quote()` 的預設 safe 集合定義相同（RFC 3986 unreserved），故「轉義前後
+    是否相等」是判斷「會不會被 T3a 擋下」的精確 predicate，不是近似值
+    （Opus 審核裁決 4）。
     """
-    if not base_url or not cover_url:
+    if not base_url or not image_url:
         return ""
 
     # ---- Codex PR review P1（2026-08-07）：base_url 的 userinfo 不得外流 ----
@@ -41,8 +48,8 @@ def _build_preview_cover_url(base_url: str, provider: str, number: str, cover_ur
     # 自動轉成 `Authorization: Basic` header）。
     #
     # 因此**不在這裡靜默剝掉帳密**：那會讓「預覽打不通」變成難以診斷的失敗。
-    # 一律回 ''，讓既有的 `preview_cover_url || cover` fallback 接手。真正的
-    # 連線路徑（`MetatubeHttpClient`）拿到的仍是完整 base_url，Basic Auth 不受影響。
+    # 一律回 ''，讓既有 fallback 接手。真正的連線路徑（`MetatubeHttpClient`）
+    # 拿到的仍是完整 base_url，Basic Auth 不受影響。
     #
     # query／fragment 一起擋是**同一個 guard 順手修掉的功能 bug**：下面是字串
     # 內插，`http://h:9/?x=1` 會組出 `http://h:9/?x=1/v1/images/...`——路徑掉進
@@ -50,13 +57,13 @@ def _build_preview_cover_url(base_url: str, provider: str, number: str, cover_ur
     parsed_base = urlparse(base_url)
     if parsed_base.username or parsed_base.password:
         logger.debug(
-            "preview URL 略過：metatube base_url 帶 userinfo（host=%s）",
+            "proxy URL 略過：metatube base_url 帶 userinfo（host=%s）",
             parsed_base.hostname,
         )
         return ""
     if parsed_base.query or parsed_base.fragment:
         logger.debug(
-            "preview URL 略過：metatube base_url 帶 query/fragment（host=%s）",
+            "proxy URL 略過：metatube base_url 帶 query/fragment（host=%s）",
             parsed_base.hostname,
         )
         return ""
@@ -65,8 +72,18 @@ def _build_preview_cover_url(base_url: str, provider: str, number: str, cover_ur
     number_enc = quote(number, safe="")
     if provider_enc != provider or number_enc != number:
         return ""
-    query = urlencode({"url": cover_url, "ratio": 0, "quality": 100})
+    query = urlencode({"url": image_url, "ratio": 0, "quality": 100})
     return f"{base_url.rstrip('/')}/v1/images/primary/{provider_enc}/{number_enc}?{query}"
+
+
+def _build_preview_cover_url(base_url: str, provider: str, number: str, cover_url: str) -> str:
+    """metatube 預覽端點 URL（封面特化 wrapper，CD-113c-4／12／13）。
+
+    cover_url 空時回 ''（沒有可預覽的東西），讓前端 `preview_cover_url || cover`
+    的 fallback 接手。建構與防護邏輯全在 `_build_proxy_image_url`（形狀相同），
+    這裡只負責綁定語義上的「預覽封面」參數位置。
+    """
+    return _build_proxy_image_url(base_url, provider, number, cover_url)
 
 
 def map_movie_info(info: dict, base_url: str = "") -> Video:
@@ -101,6 +118,22 @@ def map_movie_info(info: dict, base_url: str = "") -> Video:
     cover_url = info.get("cover_url", "")
     preview_cover_url = _build_preview_cover_url(base_url, provider, number, cover_url)
 
+    # 來源一致性：從 metatube 刮到的影片，封面也應走 metatube 取回，避免本地
+    # 直連被牆的源站圖片 URL 超時。preview_cover_url 是 metatube 伺服器的
+    # `/v1/images/primary/...` 代理端點；base_url 帶 userinfo/query 等無法組出
+    # 代理 URL 時 _build_preview_cover_url 返回 ''，此時回退原始 cover_url，
+    # 行為與修改前一致。
+    effective_cover_url = preview_cover_url or cover_url
+
+    # 來源一致性（續，feature/metatube-image-proxy）：劇照 preview_images →
+    # sample_images 同樣逐張改寫成 metatube 代理端點 URL，取回路徑與封面一致。
+    # 逐張獨立降級：某張組不出代理 URL（base_url 異常／provider 需轉義）時
+    # 該張回退原始 URL，不影響其他張。
+    raw_samples = info.get("preview_images") or []
+    sample_images = [
+        _build_proxy_image_url(base_url, provider, number, u) or u for u in raw_samples
+    ]
+
     return Video(
         number=number,
         title=info.get("title", ""),
@@ -110,16 +143,17 @@ def map_movie_info(info: dict, base_url: str = "") -> Video:
         series=info.get("series", ""),
         actresses=actresses,
         date=date,
-        cover_url=cover_url,
+        cover_url=effective_cover_url,
         preview_cover_url=preview_cover_url,
         tags=info.get("genres") or [],
         detail_url=info.get("homepage", ""),
         duration=runtime,
-        sample_images=info.get("preview_images") or [],
+        sample_images=sample_images,
         rating=score,
         summary=summary,
         source=f"metatube:{provider}",
-        # thumb_url / big_thumb_url / preview_video_url / preview_video_hls_url 不吸（defer，spec §6）
+        # thumb_url / big_thumb_url / preview_video_url / preview_video_hls_url 不吸（defer，spec §6）；
+        # actors 只映射名字（Actress model 無頭像欄位、nfo 只寫名字）——演員圖不在本改動範圍
     )
 
 
