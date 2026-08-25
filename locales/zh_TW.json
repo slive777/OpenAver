@@ -286,7 +286,7 @@
       "mt_connected_status": "✓ 已連線",
       "mt_edit_btn": "編輯",
       "mt_disconnect_btn": "中斷",
-      "mt_connected_tier_hint": "連線後所有 provider 預設停留在下方清單（未進入 Active Row），由你手動加入。連線後會自動測試所有 provider，連不到的會灰化並標示常見原因，可手動「重新測試」。",
+      "mt_connected_tier_hint": "連線後所有 provider 預設停留在下方清單（未進入 Active Row），由你手動加入。連線後會自動測試所有 provider，連不到的會灰化並標示常見原因，可手動「重新測試」。測試狀態不會自動更新，僅供參考——加入 Active Row 後刮削仍會照常試驗所有已啟用的 metatube 源。",
       "mt_provider_list_header": "Provider 清單",
       "mt_provider_list_expand_aria": "展開 Provider 清單",
       "mt_provider_list_collapse_aria": "收合 Provider 清單",
