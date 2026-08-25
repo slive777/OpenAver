@@ -946,7 +946,8 @@
       "toggle_info": "顯示/隱藏資訊 (S)",
       "play_video": "開啟影片",
       "play": "播放",
-      "enrich": "補資料"
+      "enrich": "補資料",
+      "rotate": "順時針旋轉封面 90°"
     },
     "toolbar": {
       "sort_prefix": "排序",
@@ -1078,6 +1079,11 @@
     "enrich": {
       "success": "補資料完成",
       "failed": "補資料失敗，請稍後再試"
+    },
+    "rotate": {
+      "confirm": "將封面順時針旋轉 90°（會直接覆寫原檔案，不可復原）？",
+      "success": "封面已旋轉",
+      "failed": "旋轉失敗，請稍後再試"
     },
     "video": {
       "delete": "從收藏移除",

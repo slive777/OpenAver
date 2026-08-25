@@ -45,6 +45,15 @@ class ManualFocalRequest(BaseModel):
     expected_cover_path: str
 
 
+class RotateCoverRequest(BaseModel):
+    """POST /video/rotate body：path（DB key）+ angle（順時針 90/180/270）+
+    expected_cover_path（cover compare-and-store，防旋轉期間封面被 rescan/rescrape
+    換掉——同 save-focal 的 PR#107 P2 模式）。"""
+    path: str
+    angle: int
+    expected_cover_path: str
+
+
 def _serialize_video(v, path_mappings: dict, enabled: bool = False) -> dict:
     """將 Video ORM 物件序列化為前端 JSON dict（列表端點與單筆端點共用）。
 
@@ -70,6 +79,7 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False) -> dict:
 
     return {
         "path": v.path,                                          # file:/// URI（開啟影片用）
+        "cover_path": v.cover_path,                              # file:/// URI（快捷旋轉 expected_cover_path / x-show gate 用，125-T1）
         "title": v.title,
         "original_title": v.original_title,
         "actresses": ','.join(v.actresses) if v.actresses else '',  # 逗號分隔字串
@@ -379,3 +389,66 @@ def set_manual_focal(req: ManualFocalRequest):
     except Exception as e:
         logger.error("存入手動焦點失敗: %s", e)
         return JSONResponse({"success": False, "error": "存入手動焦點失敗"}, status_code=500)
+
+
+@router.post("/video/rotate")
+def rotate_video_cover(req: RotateCoverRequest):
+    """快捷旋轉封面（順時針 90/180/270），物理寫回磁碟 jpg（Plex 直讀），
+    並重置 focal（座標基於舊方向失效，reset_focal_to_auto 後背景 worker 會重新偵測）。
+
+    流程與 save-focal 同構：path（DB key）解析 → scope guard → cover compare-and-store
+    （expected_cover_path 防旋轉期間封面被換）→ 旋轉寫回 → reset_focal_to_auto。
+    注意：**物理改圖不可逆**（覆蓋原封面），前端應以 toast/確認交付可逆性提示。
+    """
+    if req.angle not in (90, 180, 270):
+        return JSONResponse({"success": False, "error": "旋轉角度僅支援 90/180/270"}, status_code=400)
+
+    try:
+        db_path = get_db_path()
+        if not db_path.exists():
+            return JSONResponse({"success": False, "error": "找不到影片"}, status_code=404)
+
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+
+        row = repo.get_by_path(req.path)
+        if row is None:
+            return JSONResponse({"success": False, "error": "找不到影片"}, status_code=404)
+
+        config = load_config()
+        configured_dir_uris, _path_mappings = _get_configured_dirs(config)
+        in_scope = any(is_path_under_dir(row.path, uri) for uri in configured_dir_uris)
+        if not in_scope:
+            return JSONResponse({"success": False, "error": "此影片不在收藏範圍，無法旋轉封面"}, status_code=403)
+
+        # cover compare-and-store：封面被 rescan/rescrape 換掉 → 拒絕（舊封面座標/尺寸失效）
+        if row.cover_path != req.expected_cover_path:
+            return JSONResponse(
+                {"success": False, "error": "封面已變更，請重新開啟再試一次"},
+                status_code=409,
+            )
+        if not row.cover_path:
+            return JSONResponse({"success": False, "error": "此影片沒有封面可旋轉"}, status_code=400)
+
+        from core.organizer import rotate_cover
+
+        cover_fs = uri_to_local_fs_path(row.cover_path, {})
+        ok, new_size = rotate_cover(cover_fs, req.angle)
+        if not ok:
+            return JSONResponse({"success": False, "error": "封面旋轉失敗"}, status_code=500)
+
+        # 旋轉後 focal 座標失效 → 重置（清空 + crop_mode='auto' + focal_attempted_at=NULL，
+        # 背景 worker 會重新偵測新封面）
+        repo.reset_focal_to_auto(req.path)
+
+        # 縮圖快取失效（舊方向縮圖）
+        try:
+            thumbnail_cache.invalidate(req.path)
+        except Exception:
+            pass
+
+        return JSONResponse({"success": True, "size": list(new_size)})
+
+    except Exception as e:
+        logger.error("旋轉封面失敗: %s", e)
+        return JSONResponse({"success": False, "error": "旋轉封面失敗"}, status_code=500)

@@ -197,6 +197,10 @@ export function stateLightbox() {
 
         // Enrich 狀態 (T3)
         _enriching: false,
+        // 快捷旋轉 (125-T1)：封面旋轉預覽（0/90/180/270），✓ 保存時才寫盤
+        _rotatePreview: 0,
+        // 旋轉預覽前的容器 --lb-cover-ar 原值（恢復用；null=未記錄）
+        _originalCoverAr: null,
 
         // --- helper in return {} ---
 
@@ -1306,6 +1310,13 @@ export function stateLightbox() {
 
         // ✓ 確認：存手動焦點 → POST /video/save-focal，同參考 mutate targetVideo（lightbox + grid 即時對臉）。
         async confirmMask() {
+            // 125-T1 快捷旋轉：先檢查是否有旋轉預覽（_rotatePreview !== 0）。
+            // 有 → 本次「保存」= 執行封面旋轉（物理寫盤，focal 因方向改變必然失效，
+            // 由 API 端 reset_focal_to_auto）；無 → 走原 focal 座標保存流程。
+            if (this._rotatePreview !== 0) {
+                await this._saveRotatePreview();
+                return;
+            }
             // _maskFocalX null 只應發生在極短暫態（geometry 尚未解出）；openMask 一旦幾何解出即收斂
             // 為具體值（correction B），此處 null-guard 純防禦（幾何失敗 / identity 遺失等異常態才會觸發）。
             if (this._maskFocalX === null || this._maskFocalX === undefined || !this._maskTarget().identity) {
@@ -1400,11 +1411,16 @@ export function stateLightbox() {
 
         // ✗ 取消：純同步收尾，不寫 DB——force-detect 本就沒寫，✗ 天然無殘留（CD-2）。
         cancelMask() {
+            // 125-T1：✗ 放棄 = 同時清旋轉預覽（不寫盤）
+            this._rotatePreview = 0;
             this._maskTeardown();
         },
 
         // confirmMask/cancelMask 共用收尾：收 overlay + 解 resize listener + 解拖曳 listener。
         _maskTeardown() {
+            // 125-T1：遮罩收尾一律清旋轉預覽 + 恢復容器比例（防切片/異常路徑殘留）
+            this._rotatePreview = 0;
+            this._restoreCoverAspect();
             this._maskVisible = false;
             this._maskDragging = false;
             if (this._maskResizeHandler) {
@@ -1812,6 +1828,126 @@ export function stateLightbox() {
         },
 
         // --- Enrich 補資料 (T3) ---
+        previewRotate() {
+            // 125-T1 快捷旋轉（預覽模式）：累計順時針 90°，僅前端視覺旋轉（封面 img
+            // transform + 容器比例交換），不寫盤、不彈確認。真實寫盤由 confirmMask（✓ 保存）
+            // 在 _rotatePreview !== 0 時執行（_saveRotatePreview）；✗ 放棄由 cancelMask 清空。
+            if (!this.currentLightboxVideo || !this.currentLightboxVideo.cover_path) return;
+            this._rotatePreview = (this._rotatePreview + 90) % 360;
+            this._applyRotatePreviewAspect();
+        },
+
+        // 旋轉預覽時容器比例交換：90/270° → --lb-cover-ar 取倒數（豎圖配豎容器）；
+        // 180° → 原比例。首次旋轉記錄原值供取消/收尾恢復。
+        _applyRotatePreviewAspect() {
+            const box = this.$refs && this.$refs.lightboxCoverBox;
+            if (!box) return;
+            if (this._originalCoverAr === null) {
+                const v = parseFloat(box.style.getPropertyValue('--lb-cover-ar'));
+                this._originalCoverAr = Number.isFinite(v) && v > 0 ? v : null;
+            }
+            const base = this._originalCoverAr;
+            if (base === null) return;
+            const ar = (this._rotatePreview % 180 === 0) ? base : (1 / base);
+            box.style.setProperty('--lb-cover-ar', ar.toFixed(4));
+            // 圖 cover 填滿容器（旋轉 + 縮放）——「裁剪框 = 最終展示範圍」語意：
+            // 旋轉後的圖要填滿容器/框，而不是縮在中間。
+            this._applyRotateTransform();
+        },
+
+        // 旋轉預覽時 img cover 填滿容器：rotate(deg) scale(f)，f 使旋轉後圖填滿盒（cover 語意）。
+        _applyRotateTransform() {
+            const deg = this._rotatePreview;
+            if (deg === 0) {
+                this._clearRotateTransform();
+                return;
+            }
+            const box = this.$refs && this.$refs.lightboxCoverBox;
+            const img = this.$refs && this.$refs.lightboxCoverImg;
+            if (!box || !img) return;
+            const bw = box.offsetWidth, bh = box.offsetHeight;
+            const iw = img.offsetWidth, ih = img.offsetHeight;
+            if (!bw || !bh || !iw || !ih) return;
+            const rotatedW = (deg % 180 === 0) ? iw : ih;   // 旋轉後視覺寬
+            const rotatedH = (deg % 180 === 0) ? ih : iw;   // 旋轉後視覺高
+            const scale = Math.max(bw / rotatedW, bh / rotatedH);  // cover
+            const t = 'rotate(' + deg + 'deg) scale(' + scale.toFixed(4) + ')';
+            for (const ref of ['lightboxCoverImg', 'lightboxCoverFull']) {
+                const el = this.$refs && this.$refs[ref];
+                if (el) el.style.transform = t;
+            }
+        },
+
+        _clearRotateTransform() {
+            for (const ref of ['lightboxCoverImg', 'lightboxCoverFull']) {
+                const el = this.$refs && this.$refs[ref];
+                if (el) el.style.transform = '';
+            }
+        },
+
+        _restoreCoverAspect() {
+            const box = this.$refs && this.$refs.lightboxCoverBox;
+            if (box && this._originalCoverAr !== null) {
+                box.style.setProperty('--lb-cover-ar', this._originalCoverAr.toFixed(4));
+            }
+            this._originalCoverAr = null;
+            this._clearRotateTransform();
+        },
+
+        // 旋轉寫盤成功後強制重載封面兩層 img（base + overlay），cache-bust 繞過瀏覽器舊圖快取。
+        _reloadCoverImages() {
+            for (const ref of ['lightboxCoverImg', 'lightboxCoverFull']) {
+                const el = this.$refs && this.$refs[ref];
+                if (el && el.src) {
+                    const base = el.src.split('?')[0];
+                    el.src = base + (base.includes('?') ? '&' : '?') + 't=' + Date.now();
+                }
+            }
+        },
+
+        async _saveRotatePreview() {
+            // ✓ 保存旋轉預覽：調 /video/rotate 物理寫盤（順時針 _rotatePreview 度），
+            // API 端已做 cover compare-and-store + reset_focal_to_auto；成功後關閉遮罩、
+            // 清旋轉預覽、刷新影片資料。
+            const video = this.currentLightboxVideo;
+            if (!video || !video.path) {
+                this._maskTeardown();
+                this._rotatePreview = 0;
+                return;
+            }
+            const expected = this._maskExpectedCoverPath || video.cover_path;
+            try {
+                const resp = await fetch('/api/showcase/video/rotate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        path: video.path,
+                        angle: this._rotatePreview,
+                        expected_cover_path: expected,
+                    }),
+                });
+                const result = await resp.json();
+                if (result.success) {
+                    this._rotatePreview = 0;
+                    this._maskTeardown();
+                    await this.refreshVideoData(video);
+                    // 封面圖已物理旋轉但 cover_url path 不變 → 瀏覽器命中舊圖快取，
+                    // 強制重載兩層 img（cache-bust）讓界面顯示新方向 + 觸發 _setCoverAspect 更新容器比例
+                    this._reloadCoverImages();
+                    this.showToast(window.t('showcase.rotate.success'), 'success');
+                } else {
+                    this.showToast(result.error || window.t('showcase.rotate.failed'), 'error');
+                    // 409（封面已變更）等失敗：清預覽，讓使用者重開遮罩
+                    this._rotatePreview = 0;
+                    this._maskTeardown();
+                }
+            } catch (e) {
+                this.showToast(window.t('showcase.rotate.failed'), 'error');
+                this._rotatePreview = 0;
+                this._maskTeardown();
+            }
+        },
+
         async enrichVideo(video) {
             if (this._enriching) return;
             if (!video || !video.path) return;

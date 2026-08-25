@@ -1033,7 +1033,7 @@
                         <!-- Cover Image -->
                         <!-- T8(Codex P2): has-cover 旗標 — 僅有封面時才讓 ≤480px min-height:0 塌到圖盒；
                              無封面時保留 min-height 避免 cover 區塌成 0 高（補封面入口會壞）。 -->
-                        <div class="lightbox-cover" :class="{'has-cover': !!currentLightboxVideo?.cover_url}">
+                        <div class="lightbox-cover" x-ref="lightboxCoverBox" :class="{'has-cover': !!currentLightboxVideo?.cover_url}">
                             <!-- 56c-T3fix: magic 按鈕已搬至 .lightbox-content（與 .lightbox-close sibling 鏡射對稱）；sparkle-burst overlay 留在 .lightbox-cover 以便 inset:0 精準覆蓋封面區（不擴及 metadata） -->
                             <!-- 71-T6 blur-up: base 層=cover_url（快取開啟=小 webp 秒出、放大略糊；關閉=原圖）。
                                  撐容器尺寸；x-ref + @error 三態留 base（ghost-fly / 破圖偵測沿用 base src）。 -->
@@ -1109,6 +1109,15 @@
                                 <!-- 99a-T3：焦點編輯中的 ✓/✗，取代 98b 的窗內點擊 toggle。
                                      99a-T5：detect 期間（_maskDetecting）尚無可提交的拖曳結果——
                                      gate 收窄，等偵測 resolve 才顯示。 -->
+                                <!-- 快捷旋轉（125-T1）：順時針 90° 預覽（不寫盤，✓ 保存時才執行）。
+                                     與 ✓ 保存 / ✗ 放棄 同排（封面裁切預覽介面內）。 -->
+                                <button class="lb-action-btn"
+                                        x-show="_maskVisible && !_maskDetecting && !!currentLightboxVideo?.cover_path"
+                                        @click.stop="previewRotate()"
+                                        :data-tooltip="t('showcase.action.rotate')"
+                                        :aria-label="t('showcase.action.rotate')">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
                                 <button class="lb-action-btn lb-action-btn--success"
                                         x-show="_maskVisible && !_maskDetecting"
                                         @click.stop="confirmMask()"

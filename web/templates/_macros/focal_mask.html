@@ -13,7 +13,7 @@
                                  抓到 video→actress 切換會閃現一幀遮罩殘影（x-if 掛載時 _maskVisible 尚未
                                  被非同步 $watch 歸零）。詳見 showcase.html 女優分支內的 T2 待辦註解。 -->
                             <div class="lb-mask-overlay"
-                                 x-show="_maskVisible"
+                                 x-show="_maskVisible && (!_rotatePreview || _rotatePreview % 180 === 0)"
                                  @click.self="cancelMask()">
                                 <!-- 99a-T5→101b-T2（CD-2/CD-4a）：窗只在偵測完成（_maskDetecting 翻 false）
                                      後才第一次渲染；首幀即全幅，隨後由收斂補間滑到偵測終值——收斂全程
