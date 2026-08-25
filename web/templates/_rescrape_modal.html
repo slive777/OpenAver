@@ -83,7 +83,11 @@
                     :aria-disabled="s.available ? 'false' : 'true'"
                     :title="!s.available ? t('showcase.rescrape.offline_tooltip') : ''"
                     :disabled="rescrapeLoadingSource !== null && rescrapeLoadingSource !== s.id"
-                    @click="s.available ? rescrapeWithSource(s.id) : null">
+                    @click="rescrapeWithSource(s.id)">
+              {# 灰化（data-enabled/aria-disabled/title）僅為資訊性展示——可用性探測是
+                 連線/手動測試時的快照（feature/metatube-no-availability-gate：測試狀態
+                 不會自動更新，僅供參考），且 metatube server 每次 search 都並發廣播所有
+                 provider、無失敗快取。不可用的源照樣可選，刮削時照常試驗。 #}
               <span class="pill-spin" x-show="rescrapeLoadingSource === s.id"></span>
               <i class="bi bi-slash-circle slash-icn" x-show="rescrapeLoadingSource !== s.id" aria-hidden="true"></i>
               {# 品牌名（display_name_raw → display_name_key fallback；不走 i18n，CD-62-12） #}
