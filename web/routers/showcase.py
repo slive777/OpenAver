@@ -6,12 +6,14 @@ Showcase API 路由 - 影片展示資料端點
 - GET /api/showcase/video?path=   — 取得單筆影片資料（供 T3 enrich 後刷新卡片）
 """
 
+import io
 import os
 from urllib.parse import quote
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, File, Form, Query, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from PIL import Image
 
 from core.database import VideoRepository, get_db_path, init_db
 from core.path_utils import (
@@ -452,3 +454,79 @@ def rotate_video_cover(req: RotateCoverRequest):
     except Exception as e:
         logger.error("旋轉封面失敗: %s", e)
         return JSONResponse({"success": False, "error": "旋轉封面失敗"}, status_code=500)
+
+
+# ---- 封面手动替换（125-T2：仿女优换照，裁切预览界面内，保存覆盖原封面）----
+_UPLOAD_MAX_BYTES = 15 * 1024 * 1024
+_UPLOAD_MAX_PIXELS = 60_000_000
+
+
+@router.post("/video/replace-cover")
+def replace_video_cover(
+    path: str = Form(...),
+    file: UploadFile = File(...),
+):
+    """手动替换影片封面（multipart：path（DB key）+ file 图片）。
+
+    写入目标 = 现有 cover_path 指向的磁盘文件（{stem}.jpg，覆盖原封面——
+    Plex 直读同名 jpg）；图片统一转 JPEG 写盘。成功后重置 focal（新图坐标
+    失效，背景 worker 重测）+ 缩略图失效。文件系统级覆盖不可逆，前端以
+    预览-保存交互交付（与快捷旋转一致）。
+    """
+    try:
+        data = file.file.read()
+    except Exception:
+        return JSONResponse({"success": False, "error": "讀取上傳失敗"}, status_code=400)
+    if len(data) > _UPLOAD_MAX_BYTES:
+        return JSONResponse({"success": False, "error": "圖片太大（上限 15MB）"}, status_code=413)
+    try:
+        img = Image.open(io.BytesIO(data))
+        w, h = img.size
+        if w * h > _UPLOAD_MAX_PIXELS:
+            return JSONResponse({"success": False, "error": "圖片像素過大"}, status_code=413)
+        img.verify()
+    except Exception:
+        return JSONResponse({"success": False, "error": "不支援的圖片格式"}, status_code=415)
+
+    try:
+        db_path = get_db_path()
+        if not db_path.exists():
+            return JSONResponse({"success": False, "error": "找不到影片"}, status_code=404)
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+
+        row = repo.get_by_path(path)
+        if row is None:
+            return JSONResponse({"success": False, "error": "找不到影片"}, status_code=404)
+
+        config = load_config()
+        configured_dir_uris, _path_mappings = _get_configured_dirs(config)
+        in_scope = any(is_path_under_dir(row.path, uri) for uri in configured_dir_uris)
+        if not in_scope:
+            return JSONResponse({"success": False, "error": "此影片不在收藏範圍，無法替換封面"}, status_code=403)
+        if not row.cover_path:
+            return JSONResponse({"success": False, "error": "此影片沒有封面可替換"}, status_code=400)
+        # cover compare-and-store（同 save-focal/rotate）：封面被 rescan/rescrape 換掉 → 拒絕
+        if row.cover_path != expected_cover_path:
+            return JSONResponse(
+                {"success": False, "error": "封面已變更，請重新開啟再試一次"},
+                status_code=409,
+            )
+
+        cover_fs = uri_to_local_fs_path(row.cover_path, {})
+        # 重新解码（verify 后 image 对象已不可用）+ 先应用 EXIF Orientation（手機/相機豎拍圖）
+        with Image.open(io.BytesIO(data)) as src:
+            rgb = ImageOps.exif_transpose(src).convert("RGB")
+            rgb.save(cover_fs, "JPEG", quality=95)
+
+        # 新图 → focal 坐标失效，重置并让背景 worker 重测；缩略图失效
+        repo.reset_focal_to_auto(path)
+        try:
+            thumbnail_cache.invalidate(path)
+        except Exception:
+            pass
+
+        return JSONResponse({"success": True, "size": [rgb.size[0], rgb.size[1]]})
+    except Exception as e:
+        logger.error("替換封面失敗: %s", e)
+        return JSONResponse({"success": False, "error": "替換封面失敗"}, status_code=500)

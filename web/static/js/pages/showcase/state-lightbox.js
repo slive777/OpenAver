@@ -201,6 +201,9 @@ export function stateLightbox() {
         _rotatePreview: 0,
         // 旋轉預覽前的容器 --lb-cover-ar 原值（恢復用；null=未記錄）
         _originalCoverAr: null,
+        // 封面手动替换（125-T2）：本地预览 URL（blob），保存时才上传覆盖原封面
+        _replacePreviewUrl: null,
+        _replacePreviewProbe: null,
 
         // --- helper in return {} ---
 
@@ -1026,7 +1029,7 @@ export function stateLightbox() {
             }
             return {
                 obj: this.currentLightboxVideo,
-                imgEl: this.$refs.lightboxCoverFull,
+                imgEl: this._replacePreviewUrl ? (this.$refs && this.$refs.replaceCoverPreview) : this.$refs.lightboxCoverFull,
                 loaded: this._lbFullLoaded,
                 identity: this.currentLightboxVideo?.path,
                 ratio: '--poster-crop-ratio',
@@ -1310,6 +1313,11 @@ export function stateLightbox() {
 
         // ✓ 確認：存手動焦點 → POST /video/save-focal，同參考 mutate targetVideo（lightbox + grid 即時對臉）。
         async confirmMask() {
+            // 125-T2 封面手动替换：有本地替换预览 → 本次「保存」= 上传替换封面
+            if (this._replacePreviewUrl) {
+                await this._saveReplacePreview();
+                return;
+            }
             // 125-T1 快捷旋轉：先檢查是否有旋轉預覽（_rotatePreview !== 0）。
             // 有 → 本次「保存」= 執行封面旋轉（物理寫盤，focal 因方向改變必然失效，
             // 由 API 端 reset_focal_to_auto）；無 → 走原 focal 座標保存流程。
@@ -1411,15 +1419,25 @@ export function stateLightbox() {
 
         // ✗ 取消：純同步收尾，不寫 DB——force-detect 本就沒寫，✗ 天然無殘留（CD-2）。
         cancelMask() {
-            // 125-T1：✗ 放棄 = 同時清旋轉預覽（不寫盤）
+            // 125-T1/T2：✗ 放棄 = 同時清旋轉預覽 + 替換預覽（都不寫盤）
             this._rotatePreview = 0;
+            this._clearReplacePreview();
             this._maskTeardown();
+        },
+
+        _clearReplacePreview() {
+            if (this._replacePreviewUrl) {
+                URL.revokeObjectURL(this._replacePreviewUrl);
+                this._replacePreviewUrl = null;
+            }
+            this._replacePreviewProbe = null;
         },
 
         // confirmMask/cancelMask 共用收尾：收 overlay + 解 resize listener + 解拖曳 listener。
         _maskTeardown() {
-            // 125-T1：遮罩收尾一律清旋轉預覽 + 恢復容器比例（防切片/異常路徑殘留）
+            // 125-T1/T2：遮罩收尾一律清旋轉預覽 + 替換預覽 + 恢復容器比例
             this._rotatePreview = 0;
+            this._clearReplacePreview();
             this._restoreCoverAspect();
             this._maskVisible = false;
             this._maskDragging = false;
@@ -1466,6 +1484,10 @@ export function stateLightbox() {
             this._maskSession++;
             this._maskDetecting = false; // 98b P2 fix(二)：invalidate 時清偵測態，防舊 detect 的 spinner 漏進下個 session（Codex）
             this._maskVisible = false;
+            // 125-T1/T2：換片/關燈箱一併清旋轉預覽 + 替換預覽（防殘留蓋在下一片封面上）
+            this._rotatePreview = 0;
+            this._restoreCoverAspect();
+            this._clearReplacePreview();
             this._maskWinStyle = {};     // 98b-T6：清窗幾何避免殘留閃（下次 open 同步重算覆蓋）。
                                           // 99a-T5：恆 object，不可退回 '' string（見宣告處註解）。
             this._maskFocalX = null;     // 99a-T3：清 component-state 焦點，防下一片沿用上一片的拖曳結果
@@ -1902,6 +1924,94 @@ export function stateLightbox() {
                     const base = el.src.split('?')[0];
                     el.src = base + (base.includes('?') ? '&' : '?') + 't=' + Date.now();
                 }
+            }
+        },
+
+        selectReplaceCover() {
+            // 125-T2：打开本地文件选择（裁切预览界面内点「替换」触发）
+            const input = this.$refs && this.$refs.replaceCoverInput;
+            if (input) input.click();
+        },
+
+        onReplaceFileSelected(event) {
+            const file = event.target && event.target.files && event.target.files[0];
+            event.target.value = '';  // 允许重复选同一文件
+            if (!file || !this.currentLightboxVideo) return;
+            if (this._replacePreviewUrl) {
+                URL.revokeObjectURL(this._replacePreviewUrl);
+            }
+            this._replacePreviewUrl = URL.createObjectURL(file);
+            // 125-T2：新图方向自适应——容器比例 = 新图比例，裁剪框基于新图重算
+            //（竖图 → 窗贴合全宽；横图 → 标准横向右裁窗，可左右移动）。
+            this._initMaskGeometryForPreview();
+        },
+
+        // 读新图尺寸 → 容器比例 = 新图比例 → 重算裁剪框几何
+        //（用已加载的 probe 尺寸 + 容器 rect 直接算，不依赖预览层 img 的 naturalWidth 时序）
+        async _initMaskGeometryForPreview() {
+            const url = this._replacePreviewUrl;
+            if (!url) return;
+            const probe = new Image();
+            try {
+                await new Promise((res, rej) => { probe.onload = res; probe.onerror = rej; probe.src = url; });
+            } catch (e) {
+                return;
+            }
+            const nw = probe.naturalWidth, nh = probe.naturalHeight;
+            if (!nw || !nh) return;
+            this._replacePreviewProbe = probe;
+            const box = this.$refs && this.$refs.lightboxCoverBox;
+            if (box) box.style.setProperty('--lb-cover-ar', (nw / nh).toFixed(4));
+            // 等容器 reflow 后基于容器 rect 算窗口（竖图 → 窗贴合全宽；横图 → 标准横向窗）
+            requestAnimationFrame(() => this._computePreviewMaskWin());
+        },
+
+        _computePreviewMaskWin() {
+            const box = this.$refs && this.$refs.lightboxCoverBox;
+            const probe = this._replacePreviewProbe;
+            if (!box || !probe) return;
+            const rect = box.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            const gR = parseFloat(getComputedStyle(box).getPropertyValue('--poster-crop-ratio'));
+            if (!Number.isFinite(gR) || gR <= 0) return;
+            const winW = Math.min(rect.width, rect.height * gR);
+            this._maskFocalX = (rect.width - winW / 2) / rect.width;
+            this._maskWinStyle = computeMaskWinGeometry(rect.width, rect.height, gR, this._maskFocalX);
+        },
+
+        async _saveReplacePreview() {
+            // ✓ 保存替换封面：FormData 上传 → /video/replace-cover 覆盖原封面（{stem}.jpg）
+            const video = this.currentLightboxVideo;
+            const url = this._replacePreviewUrl;
+            if (!video || !video.path || !url) {
+                this._maskTeardown();
+                return;
+            }
+            try {
+                const blob = await fetch(url).then(r => r.blob());
+                const fd = new FormData();
+                fd.append('path', video.path);
+                fd.append('expected_cover_path', video.cover_path || '');
+                fd.append('file', blob, 'cover.jpg');
+                const resp = await fetch('/api/showcase/video/replace-cover', {
+                    method: 'POST',
+                    body: fd,
+                });
+                const result = await resp.json();
+                if (result.success) {
+                    URL.revokeObjectURL(url);
+                    this._replacePreviewUrl = null;
+                    this._maskTeardown();
+                    await this.refreshVideoData(video);
+                    this._reloadCoverImages();
+                    this.showToast(window.t('showcase.cover_replace.success'), 'success');
+                } else {
+                    this.showToast(result.error || window.t('showcase.cover_replace.failed'), 'error');
+                    this._maskTeardown();
+                }
+            } catch (e) {
+                this.showToast(window.t('showcase.cover_replace.failed'), 'error');
+                this._maskTeardown();
             }
         },
 

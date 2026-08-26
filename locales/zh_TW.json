@@ -947,7 +947,8 @@
       "play_video": "開啟影片",
       "play": "播放",
       "enrich": "補資料",
-      "rotate": "順時針旋轉封面 90°"
+      "rotate": "順時針旋轉封面 90°",
+      "replace_cover": "替換封面（選擇本地圖片）"
     },
     "toolbar": {
       "sort_prefix": "排序",
@@ -1161,6 +1162,10 @@
       "success": "劇照補抓完成",
       "fetch_failed": "補抓劇照失敗，請稍後再試",
       "multi_video_error": "此資料夾有其他影片，補抓劇照會污染其他片，請先將影片搬到獨立資料夾再試"
+    },
+    "cover_replace": {
+      "success": "封面已替換",
+      "failed": "替換封面失敗，請稍後再試"
     }
   },
   "help": {

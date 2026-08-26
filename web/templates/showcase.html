@@ -1040,6 +1040,7 @@
                             <img x-ref="lightboxCoverImg"
                                  :src="currentLightboxVideo?.cover_url"
                                  :alt="currentLightboxVideo?.number"
+                                 x-show="!_replacePreviewUrl"
                                  @load="_setCoverAspect($event)"
                                  @error="handleCoverError(currentLightboxVideo, $event)">
                             <!-- 71-T6 blur-up: overlay 層=cover_full_url（原圖）。@load 後 opacity 0→1 就地淡入蓋上 base；
@@ -1049,12 +1050,16 @@
                             <img class="lb-full"
                                  x-ref="lightboxCoverFull"
                                  :src="currentLightboxVideo?.cover_full_url"
+                                 x-show="!_replacePreviewUrl"
                                  @load="_lbFullLoaded=true"
                                  :class="{'lb-full-shown':_lbFullLoaded}"
                                  @error="_handleLbFullError($event)"
                                  alt=""
                                  aria-hidden="true">
                             <div class="lb-full-hint" x-show="_lbFullErrorPill && !_lbFullLoaded && !_maskVisible" x-cloak>{{ t('showcase.lightbox.cover_unavailable') }}</div>
+                            <!-- 125-T2：封面手动替换预览层（本地 blob 图，保存后才写盘） -->
+                            <img class="lb-replace-preview" x-ref="replaceCoverPreview" x-show="!!_replacePreviewUrl" x-cloak
+                                 :src="_replacePreviewUrl" alt="" aria-hidden="true">
                             <template x-if="!!currentLightboxVideo?.path && !_maskVisible && (currentLightboxVideo._badges || []).length">
                                 <div class="cover-badges">
                                     <template x-for="b in (currentLightboxVideo._badges || [])" :key="b.id">
@@ -1118,6 +1123,17 @@
                                         :aria-label="t('showcase.action.rotate')">
                                     <i class="bi bi-arrow-counterclockwise"></i>
                                 </button>
+                                <!-- 封面手动替换（125-T2）：选本地图预览，✓ 保存时上传覆盖原封面。 -->
+                                <button class="lb-action-btn"
+                                        x-show="_maskVisible && !_maskDetecting && !!currentLightboxVideo?.cover_path"
+                                        @click.stop="selectReplaceCover()"
+                                        :data-tooltip="t('showcase.action.replace_cover')"
+                                        :aria-label="t('showcase.action.replace_cover')">
+                                    <i class="bi bi-image"></i>
+                                </button>
+                                <input type="file" accept="image/*" class="hidden"
+                                       x-ref="replaceCoverInput"
+                                       @change="onReplaceFileSelected($event)">
                                 <button class="lb-action-btn lb-action-btn--success"
                                         x-show="_maskVisible && !_maskDetecting"
                                         @click.stop="confirmMask()"
