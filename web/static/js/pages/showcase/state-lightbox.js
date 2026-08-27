@@ -1918,11 +1918,14 @@ export function stateLightbox() {
 
         // 旋轉寫盤成功後強制重載封面兩層 img（base + overlay），cache-bust 繞過瀏覽器舊圖快取。
         _reloadCoverImages() {
+            // 125-T1/T2：封面物理變更後強制重載兩層 img（繞 max-age=86400 快取）。
+            // 注意 el.src 是絕對 URL（含 ?path=... query）——只追加 t= 參數，絕不能
+            // split('?')[0] 拆掉 path（否則 gallery/image 403 → 燈箱顯示「無圖片」）。
             for (const ref of ['lightboxCoverImg', 'lightboxCoverFull']) {
                 const el = this.$refs && this.$refs[ref];
-                if (el && el.src) {
-                    const base = el.src.split('?')[0];
-                    el.src = base + (base.includes('?') ? '&' : '?') + 't=' + Date.now();
+                if (el && el.src && el.src.indexOf('http') === 0) {
+                    const clean = el.src.split('#')[0];
+                    el.src = clean + (clean.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
                 }
             }
         },
