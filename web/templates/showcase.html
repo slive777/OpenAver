@@ -1125,7 +1125,7 @@
                                 </button>
                                 <!-- 封面手动替换（125-T2）：选本地图预览，✓ 保存时上传覆盖原封面。 -->
                                 <button class="lb-action-btn"
-                                        x-show="_maskVisible && !_maskDetecting && !!currentLightboxVideo?.cover_path"
+                                        x-show="_maskVisible && !_maskDetecting"
                                         @click.stop="selectReplaceCover()"
                                         :data-tooltip="t('showcase.action.replace_cover')"
                                         :aria-label="t('showcase.action.replace_cover')">
@@ -1190,7 +1190,7 @@
                                      _focalIconVisible() 的 per-image 門檻刻意不同——根因：影片只在 ≤899px 裁、
                                      女優牆全寬度都裁（見 plan-101d §2.2）。改任一邊前先讀那張表，別「對齊」成同一套。 -->
                                 <button class="lb-mask-btn"
-                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded && _posterModeActive()"
+                                        x-show="!!currentLightboxVideo?.path && (_lbFullLoaded || !currentLightboxVideo?.cover_full_url) && _posterModeActive()"
                                         @click="openMask()"
                                         :title="t('showcase.lightbox.mask_toggle')"
                                         :aria-label="t('showcase.lightbox.mask_toggle')">

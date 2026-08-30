@@ -8,6 +8,7 @@ Showcase API 路由 - 影片展示資料端點
 
 import io
 import os
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, Query, UploadFile
@@ -464,14 +465,14 @@ _UPLOAD_MAX_PIXELS = 60_000_000
 @router.post("/video/replace-cover")
 def replace_video_cover(
     path: str = Form(...),
+    expected_cover_path: str = Form(''),
     file: UploadFile = File(...),
 ):
     """手动替换影片封面（multipart：path（DB key）+ file 图片）。
 
     写入目标 = 现有 cover_path 指向的磁盘文件（{stem}.jpg，覆盖原封面——
     Plex 直读同名 jpg）；图片统一转 JPEG 写盘。成功后重置 focal（新图坐标
-    失效，背景 worker 重测）+ 缩略图失效。文件系统级覆盖不可逆，前端以
-    预览-保存交互交付（与快捷旋转一致）。
+    失效，背景 worker 重测）+ 缩略图失效。
     """
     try:
         data = file.file.read()
@@ -500,26 +501,39 @@ def replace_video_cover(
             return JSONResponse({"success": False, "error": "找不到影片"}, status_code=404)
 
         config = load_config()
-        configured_dir_uris, _path_mappings = _get_configured_dirs(config)
+        configured_dir_uris, path_mappings = _get_configured_dirs(config)
         in_scope = any(is_path_under_dir(row.path, uri) for uri in configured_dir_uris)
         if not in_scope:
             return JSONResponse({"success": False, "error": "此影片不在收藏範圍，無法替換封面"}, status_code=403)
-        if not row.cover_path:
-            return JSONResponse({"success": False, "error": "此影片沒有封面可替換"}, status_code=400)
-        # cover compare-and-store（同 save-focal/rotate）：封面被 rescan/rescrape 換掉 → 拒絕
-        if row.cover_path != expected_cover_path:
+
+        # cover compare-and-store（同 save-focal/rotate）：封面被 rescan/rescrape 換掉 → 拒絕。
+        # 空 cover_path（無封面影片）時 expected 亦為空，跳過比對（見下方「無封面→創建」分支）。
+        if row.cover_path and row.cover_path != expected_cover_path:
             return JSONResponse(
                 {"success": False, "error": "封面已變更，請重新開啟再試一次"},
                 status_code=409,
             )
 
-        cover_fs = uri_to_local_fs_path(row.cover_path, {})
-        # 重新解码（verify 后 image 对象已不可用）+ 先应用 EXIF Orientation（手機/相機豎拍圖）
+        if row.cover_path:
+            cover_fs = uri_to_local_fs_path(row.cover_path, path_mappings)
+        else:
+            # 無封面 → 以影片路徑推導封面目標（resolve_cover_target：同名 .jpg 優先，
+            # 與刮削產出同一規則，Plex 直讀同名 jpg）。寫盤後更新 DB cover_path。
+            from core.cover_layout import resolve_cover_target
+            video_fs = uri_to_local_fs_path(row.path, path_mappings)
+            if not video_fs or not os.path.isfile(video_fs):
+                return JSONResponse({"success": False, "error": "找不到影片檔案"}, status_code=404)
+            cover_fs = resolve_cover_target(str(Path(video_fs).with_suffix('')), 'off')
+            cover_dir = os.path.dirname(cover_fs)
+            if cover_dir and not os.path.isdir(cover_dir):
+                return JSONResponse({"success": False, "error": "封面目錄不存在"}, status_code=400)
         with Image.open(io.BytesIO(data)) as src:
             rgb = ImageOps.exif_transpose(src).convert("RGB")
             rgb.save(cover_fs, "JPEG", quality=95)
 
-        # 新图 → focal 坐标失效，重置并让背景 worker 重测；缩略图失效
+        if not row.cover_path:
+            # 建立新封面：以 file:/// URI 寫入 DB cover_path（與刮削產出同一形狀）
+            repo.update_cover_path(path, coerce_to_file_uri(cover_fs, path_mappings))
         repo.reset_focal_to_auto(path)
         try:
             thumbnail_cache.invalidate(path)

@@ -1058,7 +1058,10 @@ export function stateLightbox() {
             this._maskKind = this.currentLightboxActress ? 'actress' : 'video';
             if (!this._maskTarget().identity) return;
             // 98b-T6 防线：圖未就緒不開（按鈕也 gate _lbFullLoaded，此為 defense-in-depth）。
-            if (!this._maskTarget().loaded) return;
+            // 無封面例外（125b-T1）：cover_full_url 空 = DB 無封面 → 放行，讓使用者
+            // 透過遮罩界面的 🖼 上傳封面（detect-focal 對空 cover_path 回 400「找不到
+            // 封面檔案」，前端 toast 但不卡死——見 detect 流程 catch）。
+            if (!this._maskTarget().loaded && this.currentLightboxVideo?.cover_full_url) return;
 
             // 99a-T3：_maskFocalX 暫時設 null（幾何尚未解出的極短暫態，見 state 宣告處註解）。
             // _computeMaskWinStyle 讀到 null 即貼右裁基準（D2）——99a-T5：此值只作為「detect
@@ -1075,44 +1078,56 @@ export function stateLightbox() {
             // 既有註解：ratio 讀取受 static guard 錨定在 _computeMaskWinStyle 本體內，不可
             // 抽成共用 helper）。
             const gEl = this._maskTarget().imgEl;
-            if (!gEl || !gEl.naturalWidth) {
-                this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
-                return;
-            }
-            const gRect = gEl.getBoundingClientRect();
-            if (!gRect.width || !gRect.height) {
-                this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
-                return;
-            }
-            const gR = parseFloat(getComputedStyle(gEl).getPropertyValue(this._maskTarget().ratio));
-            if (!Number.isFinite(gR) || gR <= 0) {
-                this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
-                return;
-            }
-            if (this._maskKind === 'actress') {
-                // spec §3.4/§3.7-6：女優基準恆 3/4 置中（非右裁）。
-                this._maskFocalX = 0.5;
-            } else {
-                // Opus correction B：幾何一旦解出，_maskFocalX 收斂為具體數字（右裁基準 x），
-                // 不留 null 終態；`s` 成功即代表 el/rect/r 皆已驗證合法，這裡不需再驗一次。
-                const winW = Math.min(gRect.width, gRect.height * gR);
-                this._maskFocalX = (gRect.width - winW / 2) / gRect.width;
-            }
+            // 125b-T2：無封面例外（video 且 cover_full_url 空）→ 跳過 pre-flight 幾何檢查與
+            // 焦點偵測，遮罩直接以「待上傳」狀態打開（使用者直奔 🖼 上傳封面；detect-focal
+            // 對空 cover_path 恆 400「找不到封面檔案」，偵測在此無意義）。女優恆有圖，不適用。
+            const isNoCoverVideo = this._maskKind === 'video'
+                && !(this.currentLightboxVideo && this.currentLightboxVideo.cover_full_url);
+            // 125b-T2 修正：s 必須在 if 塊外宣告（const 是塊級作用域，塊外引用塊內
+            // const 恆 ReferenceError——上一版三元寫法未解決作用域，仍會崩）。
+            let s = null;
+            if (!isNoCoverVideo) {
+                if (!gEl || !gEl.naturalWidth) {
+                    this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
+                    return;
+                }
+                const gRect = gEl.getBoundingClientRect();
+                if (!gRect.width || !gRect.height) {
+                    this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
+                    return;
+                }
+                const gR = parseFloat(getComputedStyle(gEl).getPropertyValue(this._maskTarget().ratio));
+                if (!Number.isFinite(gR) || gR <= 0) {
+                    this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
+                    return;
+                }
+                if (this._maskKind === 'actress') {
+                    // spec §3.4/§3.7-6：女優基準恆 3/4 置中（非右裁）。
+                    this._maskFocalX = 0.5;
+                } else {
+                    // Opus correction B：幾何一旦解出，_maskFocalX 收斂為具體數字（右裁基準 x），
+                    // 不留 null 終態；`s` 成功即代表 el/rect/r 皆已驗證合法，這裡不需再驗一次。
+                    const winW = Math.min(gRect.width, gRect.height * gR);
+                    this._maskFocalX = (gRect.width - winW / 2) / gRect.width;
+                }
 
-            const s = this._computeMaskWinStyle();
-            if (!s) {
-                // 幾何算不出（rect=0 / naturalWidth=0 / ratio CSS var 讀不到 → NaN）→ 不開、
-                // 不留「全灰無窗」死態，toast 提示。兩個 ratio var（--poster-crop-ratio /
-                // --actress-crop-ratio）皆已定義於 theme.css :root，此處為防禦性 fallback。
-                this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
-                return;
+                s = this._computeMaskWinStyle();
+                if (!s) {
+                    // 幾何算不出（rect=0 / naturalWidth=0 / ratio CSS var 讀不到 → NaN）→ 不開、
+                    // 不留「全灰無窗」死態，toast 提示。兩個 ratio var（--poster-crop-ratio /
+                    // --actress-crop-ratio）皆已定義於 theme.css :root，此處為防禦性 fallback。
+                    this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
+                    return;
+                }
             }
 
             this._maskSession++;         // 98b P2 fix：新開 session，讓任何舊 session 的 await 後寫入失效
             this._maskDetecting = false; // 98b P2 fix(二)：清舊 session 遺留的偵測態——舊 detect await 的
                                          // finally 因 session 不符會**跳過**清 spinner，若不在此重置，新遮罩
                                          // 會頂著卡死的 spinner（Codex）。新 session 起手一律非偵測中。
-            this._maskWinStyle = s;      // 先設幾何（右裁基準，detect resolve 前 / 無臉時的 fallback 終值）
+            // 125b-T2 修正：無封面（isNoCoverVideo）時 `s` 未被賦值（pre-flight 幾何檢查被
+            // 跳過），此處不得引用——遮罩以初始空幾何打開（使用者直奔 🖼 上傳，無裁切窗）。
+            this._maskWinStyle = s || this._maskWinStyle;
 
             // D1（CD-1）：一律 force-detect，僅預覽、不寫 DB。偵測完成後若有臉，_maskFocalX 更新為
             // 偵測 x；無臉則維持右裁基準不變。99a-T5：.lb-mask-window 在 _maskDetecting 為真時不
@@ -1162,6 +1177,9 @@ export function stateLightbox() {
             }
 
             try {
+                // 125b-T2：無封面 → 跳過焦點偵測（detect-focal 對空 cover_path 恆 400），
+                // 直接走 finally 的 _maskStartSettle(false)（無臉基準，遮罩以待上傳態開啟）。
+                if (isNoCoverVideo) throw { _noCoverSkip: true };
                 const resp = await fetch(this._maskTarget().detectEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1196,7 +1214,8 @@ export function stateLightbox() {
                 }
             } catch (e) {
                 // 偵測失敗只 toast，_maskFocalX 維持右裁基準，不讓 UI 卡在半套態。
-                if (session === this._maskSession) {
+                // 125b-T2：無封面跳過偵測的 NoCoverSkipError 不 toast（遮罩正常開）。
+                if (session === this._maskSession && !(e && e._noCoverSkip)) {
                     this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
                 }
             } finally {
