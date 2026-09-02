@@ -1452,6 +1452,24 @@ class VideoRepository:
                 .replace('%', '\\%')
                 .replace('_', '\\_'))
 
+    def update_cover_path(self, path: str, cover_path: str) -> bool:
+        """只更新 cover_path 欄位（無封面影片手動上傳封面後寫入 DB，CD-125 補充）。
+
+        同 update_sample_images 單欄位 UPDATE 模式；focal 重置由呼叫端
+        （replace-cover endpoint）另行呼叫 reset_focal_to_auto，本方法只寫 cover_path。
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE videos SET cover_path = ?, updated_at = CURRENT_TIMESTAMP WHERE path = ?",
+                (cover_path, path),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
     def count_videos_in_folder(self, folder_uri_prefix: str) -> int:
         """計算「直接在此目錄下」的影片數（不含子目錄）。
         folder_uri_prefix 必須以 '/' 結尾，例如 'file:///A/'。

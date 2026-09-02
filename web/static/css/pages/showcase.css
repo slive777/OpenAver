@@ -4632,3 +4632,17 @@ body.sidebar-collapsed .showcase-footer {
 @media (max-width: 768px) {
     .lightbox-cover .cover-badges { top: 3.25rem; }
 }
+
+/* 125-T2：封面手动替换预览层（本地 blob 图）——独立于 .lb-full（其 opacity:0 blur-up），
+   始终可见、盖在封面之上。 */
+.lb-replace-preview {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    opacity: 1;
+    z-index: 1;   /* 封面 img 层，遮罩 overlay（z-index:2）之下——否则盖住裁剪框 */
+    pointer-events: none;
+}

@@ -12,7 +12,7 @@ import time
 import requests
 import html
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 from typing import Optional, Dict, Any, List, Tuple
 from urllib.parse import urlparse
 
@@ -495,6 +495,38 @@ def _poster_window_ratio(w: int, h: int) -> Optional[float]:
         return int(h / 1.5) / h
     else:
         return (w - int(w / 1.9)) / h
+
+
+def rotate_cover(cover_path: str, angle: int) -> tuple[bool, tuple[int, int]]:
+    """旋轉封面圖片（順時針 90/180/270）並**寫回原文件**（Plex 直讀磁碟 jpg）。
+
+    供快捷旋轉 API 呼叫；旋轉後調用方必須重置 focal（座標基於舊方向失效，
+    見 showcase.py 的 /video/rotate → repo.reset_focal_to_auto）。
+
+    Args:
+        cover_path: 封面檔案的 **FS 路徑**（非 file:/// URI）。
+        angle: 90 / 180 / 270（順時針）。
+
+    Returns:
+        (ok, new_size)：成功時 new_size 為旋轉後的 (w, h)；失敗 (False, (0, 0))。
+    """
+    if angle not in (90, 180, 270):
+        return False, (0, 0)
+    transpose_map = {
+        90: Image.ROTATE_270,   # Pillow ROTATE_90 是逆時針；順時針 90 = ROTATE_270
+        180: Image.ROTATE_180,
+        270: Image.ROTATE_90,
+    }
+    try:
+        with Image.open(cover_path) as img:
+            # 先應用 EXIF Orientation（若源圖帶旋轉標記，避免疊加錯向），再轉
+            img = ImageOps.exif_transpose(img)
+            rotated = img.transpose(transpose_map[angle])
+            rotated.save(cover_path, "JPEG", quality=95)
+            return True, rotated.size
+    except Exception as e:
+        logger.warning("封面旋轉失敗: %s", e)
+        return False, (0, 0)
 
 
 def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = '') -> bool:

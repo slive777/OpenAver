@@ -1065,13 +1065,14 @@
                         <!-- Cover Image -->
                         <!-- T8(Codex P2): has-cover 旗標 — 僅有封面時才讓 ≤480px min-height:0 塌到圖盒；
                              無封面時保留 min-height 避免 cover 區塌成 0 高（補封面入口會壞）。 -->
-                        <div class="lightbox-cover" :class="{'has-cover': !!currentLightboxVideo?.cover_url}">
+                        <div class="lightbox-cover" x-ref="lightboxCoverBox" :class="{'has-cover': !!currentLightboxVideo?.cover_url}">
                             <!-- 56c-T3fix: magic 按鈕已搬至 .lightbox-content（與 .lightbox-close sibling 鏡射對稱）；sparkle-burst overlay 留在 .lightbox-cover 以便 inset:0 精準覆蓋封面區（不擴及 metadata） -->
                             <!-- 71-T6 blur-up: base 層=cover_url（快取開啟=小 webp 秒出、放大略糊；關閉=原圖）。
                                  撐容器尺寸；x-ref + @error 三態留 base（ghost-fly / 破圖偵測沿用 base src）。 -->
                             <img x-ref="lightboxCoverImg"
                                  :src="currentLightboxVideo?.cover_url"
                                  :alt="currentLightboxVideo?.number"
+                                 x-show="!_replacePreviewUrl"
                                  @load="_setCoverAspect($event)"
                                  @error="handleCoverError(currentLightboxVideo, $event)">
                             <!-- 71-T6 blur-up: overlay 層=cover_full_url（原圖）。@load 後 opacity 0→1 就地淡入蓋上 base；
@@ -1081,12 +1082,16 @@
                             <img class="lb-full"
                                  x-ref="lightboxCoverFull"
                                  :src="currentLightboxVideo?.cover_full_url"
+                                 x-show="!_replacePreviewUrl"
                                  @load="_lbFullLoaded=true"
                                  :class="{'lb-full-shown':_lbFullLoaded}"
                                  @error="_handleLbFullError($event)"
                                  alt=""
                                  aria-hidden="true">
                             <div class="lb-full-hint" x-show="_lbFullErrorPill && !_lbFullLoaded && !_maskVisible" x-cloak>{{ t('showcase.lightbox.cover_unavailable') }}</div>
+                            <!-- 125-T2：封面手动替换预览层（本地 blob 图，保存后才写盘） -->
+                            <img class="lb-replace-preview" x-ref="replaceCoverPreview" x-show="!!_replacePreviewUrl" x-cloak
+                                 :src="_replacePreviewUrl" alt="" aria-hidden="true">
                             <template x-if="!!currentLightboxVideo?.path && !_maskVisible && (currentLightboxVideo._badges || []).length">
                                 <div class="cover-badges">
                                     <template x-for="b in (currentLightboxVideo._badges || [])" :key="b.id">
@@ -1141,6 +1146,26 @@
                                 <!-- 99a-T3：焦點編輯中的 ✓/✗，取代 98b 的窗內點擊 toggle。
                                      99a-T5：detect 期間（_maskDetecting）尚無可提交的拖曳結果——
                                      gate 收窄，等偵測 resolve 才顯示。 -->
+                                <!-- 快捷旋轉（125-T1）：順時針 90° 預覽（不寫盤，✓ 保存時才執行）。
+                                     與 ✓ 保存 / ✗ 放棄 同排（封面裁切預覽介面內）。 -->
+                                <button class="lb-action-btn"
+                                        x-show="_maskVisible && !_maskDetecting && !!currentLightboxVideo?.cover_path"
+                                        @click.stop="previewRotate()"
+                                        :data-tooltip="t('showcase.action.rotate')"
+                                        :aria-label="t('showcase.action.rotate')">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                                <!-- 封面手动替换（125-T2）：选本地图预览，✓ 保存时上传覆盖原封面。 -->
+                                <button class="lb-action-btn"
+                                        x-show="_maskVisible && !_maskDetecting"
+                                        @click.stop="selectReplaceCover()"
+                                        :data-tooltip="t('showcase.action.replace_cover')"
+                                        :aria-label="t('showcase.action.replace_cover')">
+                                    <i class="bi bi-image"></i>
+                                </button>
+                                <input type="file" accept="image/*" class="hidden"
+                                       x-ref="replaceCoverInput"
+                                       @change="onReplaceFileSelected($event)">
                                 <button class="lb-action-btn lb-action-btn--success"
                                         x-show="_maskVisible && !_maskDetecting"
                                         @click.stop="confirmMask()"
@@ -1197,7 +1222,7 @@
                                      _focalIconVisible() 的 per-image 門檻刻意不同——根因：影片只在 ≤899px 裁、
                                      女優牆全寬度都裁（見 plan-101d §2.2）。改任一邊前先讀那張表，別「對齊」成同一套。 -->
                                 <button class="lb-mask-btn"
-                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded && _posterModeActive()"
+                                        x-show="!!currentLightboxVideo?.path && (_lbFullLoaded || !currentLightboxVideo?.cover_full_url) && _posterModeActive()"
                                         @click="openMask()"
                                         :title="t('showcase.lightbox.mask_toggle')"
                                         :aria-label="t('showcase.lightbox.mask_toggle')">
