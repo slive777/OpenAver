@@ -1082,6 +1082,105 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 
 ---
 
+## US19: 片庫分析頁 ＋ 發行時年齡 ＋ 掃描頁數字點得開（v0.16.0 ~ v0.16.8 新增）
+
+**故事**：主人切到側欄新出現的「片庫分析」（頒獎台圖示）看整個片庫的分布——歷年片數、
+片商占比、女優 Top 20、標籤樹圖；點一根年份長條或一列女優，整頁縮成那個範圍再看一次，
+下半部深挖收藏女優發行時幾歲、導演／系列排行、每位女優歷年主要片商、誰其實散在很多家、
+選了女優之後她最常跟誰同片。同一批版本也讓瀏覽頁的封面牆與燈箱直接看得到收藏女優「拍
+這部片時幾歲」、掃描頁那些只給一個數字的地方點下去看得到清單，以及重刮視窗多一個「保留
+標題」的逃生口。
+
+### Setup
+
+- Dev server 已啟動，片庫非空（`GET /api/showcase/videos` 的 `total > 0`）。
+- 全程唯讀：不點「產生網頁」／整理／收藏／重刮送出／存檔／語系切換。
+- 片庫分析頁與發行時年齡都依賴「收藏女優有生日 + 照片」與「片有完整發行日」，dev DB
+  資料可能不齊；缺前提時該步驟回報 `N/A(precondition)` 並寫明缺什麼，不算 FAIL。
+
+### Steps
+
+1. **[MCP] Sidebar 導航**：`/showcase` 頁展開側欄，找「瀏覽」下方頒獎台圖示的新連結
+   （`nav.insights`，`href="/insights"`）→ 點擊
+   - **驗**：導向 `/insights`，`.insights-container[x-data="libraryInsights"]` 存在
+2. **[MCP] 常駐四格**：讀 `#tileCount .insights-tile-value`、`#tileYear`、`#tileFocus`
+   - **驗**：`#tileCount` 顯示非 `—` 的數字（`snapshotError` 為 false 時），下方有一行
+     「全庫 N 部」（`totalCountLabel()`）
+   - **驗**：`#tileYear`／`#tileFocus` 初始顯示淡色「全部」（`insights.all_years` /
+     `insights.all_focus`），非 raw i18n key
+3. **[MCP] 圖表渲染**：依序確認以下 echart 容器存在且有內容（`canvas` 或
+   `getBoundingClientRect().height > 0`）：`#yearsChart`、`#donutChart`、`#top20List .top20-row`
+   （count > 0）、`#tagsChart`、`#ageChart`、`#directorChart`、`#seriesChart`、
+   `.gantt-card .gantt-table`（或 `.gantt-empty` 若無資料）、`#row6 .solo-row`（或 `.solo-empty`）
+   - **驗**：至少 `#yearsChart`／`#donutChart`／`#top20List` 三者非空（片庫非空的前提下）
+   - 若某卡片顯示「沒有資料」（`insights.no_data`）而非空白/報錯，視為 PASS（資料真的沒有）
+4. **[MCP] 點年份長條設定焦點**：`#yearsChart` 內找一根長條點擊（ECharts canvas 點擊座標，
+   或退而求其次用 `dispatchAction` 驗證邏輯；若 canvas 座標點擊不可靠，記錄實際點法）
+   - **驗**：點擊後 `#tileYear` 顯示該年份數字、多一顆 `×` 清除鈕
+   - **驗**：點 `×`（`insights.clear_year`）→ `#tileYear` 回到「全部」
+5. **[MCP] 點 Top-20 列設定女優焦點**：`#top20List .top20-row:first-child` 點擊
+   - **驗**：`#tileFocus` 顯示該女優名字（`insights.focus_type_actress`）與 `×`
+   - **驗**：`#costarCard`（「與她同片」）從 `x-show` 隱藏變成可見，`#costarList` 有列或
+     顯示 empty 態
+   - **驗**：點 `#tileFocus` 的 `×`（`insights.clear_focus`）→ 焦點清除，`#costarCard` 隱藏
+6. **[MCP] 主要片商年表 年/年齡 toggle**：`.insights-gantt-toggle` 兩顆按鈕
+   - **驗**：預設 `year` 高亮（`is-on`），點「年齡」按鈕 → class 切到年齡那顆、
+     `.gantt-table` 內容改變（軸從年份換成歲數）或顯示 `.gantt-empty`
+   - 若 dev DB 沒有女優同時有生日又有主要片商年資料 → `N/A(precondition)`
+7. **[MCP] 選了年份卻沒有片**：選一個 `#tileYear` 年份，若該年份剛好焦點女優無片
+   - **驗**：受影響卡片顯示「這個期間沒有符合的片」（`insights.period_empty`），與
+     `insights.no_data`（全庫本來就沒資料）文字不同
+   - 若挑不到這種年份組合 → `N/A(precondition)`，記錄嘗試過的年份
+8. **[MCP] bfcache 回退**：從 `/insights` 點 sidebar 導到 `/showcase`，再用瀏覽器上一頁
+   （`browser_navigate_back` 或等效）回 `/insights`
+   - **驗**：圖表仍渲染（不是白頁或卡在載入中）
+9. **[MCP] Showcase 燈箱顯示發行時年齡**：`/showcase` 開一張有收藏女優（且該女優有生日）
+   的卡片燈箱，讀 `.lb-actress-core` 或女優名那一行
+   - **驗**：收藏女優名字後面出現 ` (NNy)` 格式
+   - 若 dev DB 找不到「收藏 + 有生日 + 完整發行日」的組合 → `N/A(precondition)`，寫明缺什麼
+10. **[MCP] Showcase 封面牆資訊展開顯示年齡**：同一張卡在牆上點眼睛（資訊展開）按鈕
+    - **驗**：卡片底下女優那一行同樣出現 ` (NNy)`（多人片）或單人片卡片底部女優名後出現
+      年齡（規則見 CHANGELOG 0.16.7）
+11. **[MCP] 掃描頁數字點得開**：`/scanner` 找「NFO 與封面都缺」／「缺 NFO」／「缺封面」／
+    「NFO 欄位不全」／「外部媒體管理器封面缺失」任一顯示中的數字（`.number-drilldown-number-btn`）
+    → 點擊
+    - **驗**：跳出 `.number-drilldown-popover`，內含標題、共幾部（`countLabel`）、清單列
+      （番號或檔名）、複製按鈕（`.number-drilldown-copy-btn`）
+    - **驗**：按 `Escape` → popover 關閉（`open === false`），焦點回到觸發鈕
+    - 不點複製按鈕的「複製」動作本身（避免寫剪貼簿造成不可預期副作用時打斷腳本）；若點了
+      只驗 toast 文案，不驗真的貼進系統剪貼簿
+    - 若掃描頁目前所有計數皆為 0（沒有缺件）→ `N/A(precondition)`
+12. **[MCP] 燈箱 ⚙ 進階重刮「保留標題」勾選**：`/showcase` 開一張卡燈箱 → 點 ⚙ →
+    輸入/沿用番號 → 點「自動」來源 pill 觸發預覽（讀取外部來源，非寫入）
+    - **驗**：預覽結果的標題與目前標題不同時，出現「保留標題：「〈目前標題〉」」勾選
+      （`showcase.rescrape.preserve_title`），**預設勾選**
+    - **完成**：按左上 ✗ 或 Esc 關閉，**不按確認 ✓**（避免寫入）
+    - 若外部來源查無結果、或標題剛好相同（勾選不出現）→ 記錄實際情況，不算 FAIL
+13. **[MCP] 說明頁批次搜尋 help 文字**：`/help` 找 `help.batch.add_folder` 對應段落
+    - **驗**：文字包含「只讀這一層」／「不往子資料夾找」的措辭（不是舊版「批次搜尋整個
+      資料夾（含子目錄）」），且不是 raw i18n key
+
+### 完成後 state
+
+- `/insights` 的年份／焦點已清除（step 4/5 有 clear）
+- 燈箱、重刮 dialog、掃描頁 popover 皆已關閉
+- 未寫入任何 DB／設定／剪貼簿
+
+### Regression 偵測點
+
+- `/insights` 進頁後圖表容器空白且無 `no_data`/`period_empty` 文案 → ECharts 初始化失敗或
+  資料契約壞了
+- 點年份/女優後 `#tileYear`/`#tileFocus` 沒有反應，或 `×` 按了焦點沒清 → 焦點狀態機壞了
+- 選了年份後長條數字被改成 0（而非用亮暗表示選取）→ 違反「數字永遠顯示完整歷年收藏」的設計
+- 從 `/showcase` bfcache 返回 `/insights` 白頁或圖表消失 → 上次載入中途離開的清理沒做好
+- 燈箱／封面牆年齡格式跑掉（不是 ` (NNy)`）、或兩位以上女優的封面牆卡片底部（眼睛關閉時）
+  誤顯示年齡 → 違反「多人時單獨一個歲數看不出是誰的」規則
+- 掃描頁數字 popover 點不開、或開了抓不到清單列 → `numberDrilldown` payload 契約壞了
+- 重刮預覽標題相同時仍顯示「保留標題」勾選 → `rescrapeShowPreserveTitle()` 判斷條件壞了
+- `/help` 批次搜尋段落仍寫「含子目錄」等舊文字 → i18n key 沒同步新行為
+
+---
+
 ## Appendix C: Capabilities Smoke（Optional, curl-only）
 
 > 純 curl/API 測試，非 browser user story，**不算 milestone 必跑**。

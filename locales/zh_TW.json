@@ -1329,7 +1329,7 @@
       "h6_pause": "暫停與繼續",
       "h6_generate_all": "批次整理",
       "h6_badge": "版本標記保留",
-      "add_folder": "<strong>拖入資料夾</strong>：自動掃描資料夾內的影片檔案",
+      "add_folder": "<strong>拖入資料夾</strong>：只讀這一層的影片，不往子資料夾找；整座片庫請到「列表生成」頁的「掃描資料夾」加入",
       "add_filter": "<strong>自動過濾</strong>：排除非影片檔與小於設定大小的檔案",
       "add_batch": "<strong>批次搜尋</strong>：每批 20 個檔案，並發 2 個請求",
       "add_progress": "<strong>進度顯示</strong>：即時顯示搜尋進度（如：處理 15/100）",

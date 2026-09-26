@@ -3,6 +3,7 @@
     "search": "搜索",
     "scanner": "列表生成",
     "showcase": "浏览",
+    "insights": "片库分析",
     "help": "说明",
     "help_title": "使用说明",
     "settings": "设置",
@@ -40,6 +41,13 @@
       "err_not_a_directory": "这不是文件夹",
       "err_permission_denied": "没有权限读取这个文件夹",
       "err_generic": "这个文件夹读不到"
+    },
+    "number_drilldown": {
+      "copy_button": "复制清单",
+      "copy_toast": "已复制 {count} 部",
+      "copy_failed": "复制失败，请手动选取清单文字复制",
+      "close": "关闭",
+      "count": "共 {count} 部"
     }
   },
   "desktop": {
@@ -72,6 +80,12 @@
       "query": "搜索番号、女优或拖入文件...",
       "tag": "标签名称",
       "actors": "演员名称（可用、，,分隔多人）"
+    },
+    "auto_pill": {
+      "tooltip": "点击选择来源"
+    },
+    "source_pill": {
+      "tooltip": "点击切换来源"
     },
     "action": {
       "search": "搜索",
@@ -122,8 +136,8 @@
       "explain_naming_prefix": "按「整理」才会改名、建文件夹、下载封面、写入 NFO，整理成：",
       "explain_naming_translate_suffix": "（标题使用翻译后的中文）",
       "explain_naming_link": "改规则 → 设置",
-      "favorite_note": "「我的最爱」是你常用的视频文件夹路径，不是女优最爱",
-      "explainer_partial": "输入局部番号如 IPZZ-03，可以一次搜索 030~039 整段。"
+      "explainer_partial": "输入局部番号如 IPZZ-03，可以一次搜索 030~039 整段。",
+      "favorite_note": "「我的最爱」是你常用的视频文件夹路径，不是女优最爱"
     },
     "error": {
       "hint": "请检查番号格式或稍后再试",
@@ -288,12 +302,6 @@
       "instruction": "请到 <strong>设置 → 高级刮削设置 → 版本标记</strong>，新增关键字并确认文件命名格式包含 <code class=\"badge badge-sm\">{suffix}</code> 变量。",
       "acknowledge": "了解",
       "go_settings": "前往设置"
-    },
-    "auto_pill": {
-      "tooltip": "点击选择来源"
-    },
-    "source_pill": {
-      "tooltip": "点击切换来源"
     }
   },
   "settings": {
@@ -389,20 +397,55 @@
       "copy": "复制",
       "copied": "已复制连接网址",
       "warning": "同一局域网（Wi-Fi / LAN）内的设备均可通过上方网址直接连接本机，请在受信任的网络环境下使用。如需外网访问，请自行配置 VPN（如 Tailscale）。",
+      "public_exposure": "检测到本机当前使用的网络地址并非局域网私有地址，可能已直接暴露在公开网络上。4 位密码在这种情况下不足以保护，请确认你的网络架构，或改用 VPN（如 Tailscale）连接。",
       "no_lan_ip": "无法自动获取本机局域网 IP，请在系统网络设置中查看本机 IP 后手动连接。",
+      "no_lan_ip_with_port": "无法自动获取本机局域网 IP，请在系统网络设置中查看本机 IP，再以「该 IP:{port}」连接。",
       "listener_down": "LAN 服务器未启动，请切换回单机模式后重新开启服务器模式。",
       "toggle_failed": "无法启动 LAN 服务器，请稍后再试。",
-      "autostart_failed": "重新启动后无法自动开启 LAN 服务器模式，请前往设置重新开启。",
-      "no_lan_ip_with_port": "无法自动获取本机局域网 IP，请在系统网络设置中查看本机 IP，再以「该 IP:{port}」连接。",
       "disable_failed": "无法关闭 LAN 服务器，请稍后再试。",
       "remote_only": "服务器模式只能在运行 OpenAver 的主机电脑上切换。",
-      "public_exposure": "检测到本机当前使用的网络地址并非局域网私有地址，可能已直接暴露在公开网络上。4 位密码在这种情况下不足以保护，请确认你的网络架构，或改用 VPN（如 Tailscale）连接。",
+      "autostart_failed": "重新启动后无法自动开启 LAN 服务器模式，请前往设置重新开启。",
       "warning_auth": "同一局域网（Wi-Fi / LAN）内的设备需要输入密码才能连接本机，请在信任的网络环境下使用。外网访问请自行配置 VPN（如 Tailscale）。"
+    },
+    "server_mode_confirm": {
+      "title": "切换服务器模式",
+      "title_on": "开启服务器模式？",
+      "body_on": "开启后，连接到同一个 Wi-Fi 或局域网的手机、平板、电脑，都可以用浏览器打开 OpenAver。目前没有账号密码保护，同一个 Wi-Fi 或局域网内的任何设备都能连入，请只在你完全信任的网络环境下使用。",
+      "body_off": "切回「单机」模式后，局域网设备将立即无法连接。确认切换？",
+      "confirm": "确认切换",
+      "confirm_on": "仍要开启",
+      "body_on_auth": "开启后，和这台电脑连到同一个 Wi-Fi 或局域网的手机、平板、电脑，都可以用浏览器打开 OpenAver。已设置密码保护，其他设备需要输入密码才能连入，请仍只在你信任的网络环境下使用。"
+    },
+    "access_auth": {
+      "label": "需要密码才能连接",
+      "pin_prefix": "密码",
+      "pin_label": "密码（4 位英文或数字，区分大小写）",
+      "save": "保存",
+      "reveal": "显示密码",
+      "saved": "密码设置已保存",
+      "save_failed": "密码设置保存失败，请稍后再试。",
+      "pin_invalid": "密码必须是 4 位英文或数字"
+    },
+    "switch_mode_confirm": {
+      "title": "切换媒体服务器模式",
+      "body": "切换到「{mode}」会移除当前 {count} 个只读来源及它们生成的媒体卡（你输出夹里的文件不会被删除），之后重新加入即可在新模式下重建。其他已打开的标签页请刷新后再操作。",
+      "cancel": "取消",
+      "confirm": "确认切换并移除",
+      "failed": "切换模式失败，请稍后再试。",
+      "generate_in_progress": "生成进行中，请等生成完成后再切换模式。",
+      "mode_off": "默认模式",
+      "mode_media": "Emby·Jellyfin·Kodi 模式"
     },
     "section": {
       "search": "搜索与刮削",
       "scraper_advanced": "高级刮削设置",
       "system": "系统设置"
+    },
+    "favorite_folder": {
+      "pick_from_scanner": "从 Scanner 文件夹选取",
+      "no_directories": "尚未设置 Scanner 文件夹",
+      "linked_text": "✓ 已联动 Scanner",
+      "not_linked_text": "⚠ 未联动 Scanner"
     },
     "search": {
       "uncensored_mode": "无码模式",
@@ -447,6 +490,10 @@
       "preview_empty_tag": "空值范例",
       "preview_prefix": "预览",
       "filename_format_label": "文件命名格式",
+      "nfo_title_format_label": "NFO 标题格式",
+      "nfo_title_format_help": "这一列只决定 NFO 里的标题（Jellyfin／Emby／Kodi 海报墙上看到的名字），不影响文件名、文件夹，也不影响 OpenAver 自己画面上显示的片名。",
+      "nfo_title_format_help_aria": "NFO 标题格式说明",
+      "nfo_title_format_preview_actor_missing_label": "演员资料缺失",
       "max_title_length_label": "标题长度限制",
       "unit_chars": "字符",
       "max_filename_length_label": "文件名长度限制",
@@ -457,6 +504,9 @@
       "path_length_help_line4": "macOS / Linux 不受此限制，但从 macOS/Linux 生成的长文件名移至未启用 LongPathsEnabled 的 Windows 仍可能失败。",
       "video_extensions_label": "视频扩展名",
       "video_extensions_hint": "以逗号分隔",
+      "focal_pill_label": "人脸自动对焦",
+      "focal_help": "无码封面会自动找脸并留在裁切框里；这一列可自行开关。关掉后扫描与灯箱的自动找脸都不跑，裁切框停在默认位置，自己拖一下就好。在你还没动过这个开关之前，如果连续两次侦测超过 5 秒没算完，我们会先帮你关起来；你动过之后就一切以你的设置为准。",
+      "focal_toggle_failed": "人脸自动对焦的设置没有保存下来，开关已退回原本的状态，请稍后再试。",
       "external_manager_label": "外部媒体管理器模式",
       "external_manager_off": "关闭（默认）",
       "external_manager_off_hint": "生成同名封面与 NFO（`{番号}.jpg`、`{番号}.nfo`），供 OpenAver 浏览页使用。NFO 任何媒体库都读得到；同名封面仅 Emby 能直接识别。",
@@ -508,9 +558,6 @@
       "min_size_hint": "0 = 不过滤",
       "tier_display": "列表显示默认",
       "also_showcase_note": "也是你浏览页（Showcase）的默认",
-      "export_section": "离线 HTML 导出（Windows 本机查看用）",
-      "export_notice": "此导出文件为 Windows 本机双击查看设计；macOS / Linux 请改用 app 浏览页。（成因：封面以 <code>file://</code> 嵌入，Mac 浏览器会拦截本机跨目录文件）",
-      "mode_export_only_note": "仅影响此导出文件（不影响 app Showcase）",
       "cover_badges_label": "封面属性标签",
       "cover_badges_note": "在封面左上角显示中文字幕／无码／4K 等标签（只影响显示，不改标签本身）",
       "cover_badges_legend": "＊AI：无码破解（AI 算法去码），LEAK：无码流出（母带外流）",
@@ -524,7 +571,10 @@
         "leaked": "无码流出（母带外流）",
         "4k": "4K",
         "vr": "VR"
-      }
+      },
+      "export_section": "离线 HTML 导出（Windows 本机查看用）",
+      "export_notice": "此导出文件为 Windows 本机双击查看设计；macOS / Linux 请改用 app 浏览页。（成因：封面以 <code>file://</code> 嵌入，Mac 浏览器会拦截本机跨目录文件）",
+      "mode_export_only_note": "仅影响此导出文件（不影响 app Showcase）"
     },
     "system": {
       "default_page_label": "启动时打开页面",
@@ -573,20 +623,20 @@
       "loading_models": "加载模型中...",
       "connecting": "连接中...",
       "testing": "测试中...",
+      "testing_translation": "测试翻译中...",
       "connection_failed": "无法连接",
+      "connect_failed": "连接失败",
       "no_models": "无可用模型",
       "n_models": "{count} 个模型",
+      "connected_n_models": "已连接，{count} 个模型",
+      "gemini_n_flash_models": "找到 {count} 个 Flash 模型",
       "enter_url": "请输入 URL",
       "enter_api_key": "请输入 API Key",
+      "enter_api_key_first": "请先输入 API Key",
       "select_model": "请先选择模型",
       "network_error": "✗ 网络错误，请稍后再试",
-      "connect_failed": "连接失败",
-      "connected_n_models": "已连接，{count} 个模型",
-      "enter_api_key_first": "请先输入 API Key",
-      "gemini_n_flash_models": "找到 {count} 个 Flash 模型",
-      "test_failed": "测试失败: {msg}",
-      "testing_translation": "测试翻译中...",
       "translation_success": "翻译测试成功！ ({translation})",
+      "test_failed": "测试失败: {msg}",
       "openai_connection_failed": "连接失败",
       "openai_http_error": "HTTP 请求失败",
       "openai_auth_failed": "认证失败，请检查 API Key",
@@ -600,41 +650,6 @@
       "openai_translate_failed": "翻译测试失败",
       "openai_unknown_response_format": "未知的响应格式",
       "ja_skip": "日文模式：跳过翻译"
-    },
-    "favorite_folder": {
-      "pick_from_scanner": "从 Scanner 文件夹选取",
-      "no_directories": "尚未设置 Scanner 文件夹",
-      "linked_text": "✓ 已联动 Scanner",
-      "not_linked_text": "⚠ 未联动 Scanner"
-    },
-    "server_mode_confirm": {
-      "title": "切换服务器模式",
-      "title_on": "开启服务器模式？",
-      "body_on": "开启后，连接到同一个 Wi-Fi 或局域网的手机、平板、电脑，都可以用浏览器打开 OpenAver。目前没有账号密码保护，同一个 Wi-Fi 或局域网内的任何设备都能连入，请只在你完全信任的网络环境下使用。",
-      "body_off": "切回「单机」模式后，局域网设备将立即无法连接。确认切换？",
-      "confirm": "确认切换",
-      "confirm_on": "仍要开启",
-      "body_on_auth": "开启后，和这台电脑连到同一个 Wi-Fi 或局域网的手机、平板、电脑，都可以用浏览器打开 OpenAver。已设置密码保护，其他设备需要输入密码才能连入，请仍只在你信任的网络环境下使用。"
-    },
-    "access_auth": {
-      "label": "需要密码才能连接",
-      "pin_prefix": "密码",
-      "pin_label": "密码（4 位英文或数字，区分大小写）",
-      "save": "保存",
-      "reveal": "显示密码",
-      "saved": "密码设置已保存",
-      "save_failed": "密码设置保存失败，请稍后再试。",
-      "pin_invalid": "密码必须是 4 位英文或数字"
-    },
-    "switch_mode_confirm": {
-      "title": "切换媒体服务器模式",
-      "body": "切换到「{mode}」会移除当前 {count} 个只读来源及它们生成的媒体卡（你输出夹里的文件不会被删除），之后重新加入即可在新模式下重建。其他已打开的标签页请刷新后再操作。",
-      "cancel": "取消",
-      "confirm": "确认切换并移除",
-      "failed": "切换模式失败，请稍后再试。",
-      "generate_in_progress": "生成进行中，请等生成完成后再切换模式。",
-      "mode_off": "默认模式",
-      "mode_media": "Emby·Jellyfin·Kodi 模式"
     }
   },
   "scanner": {
@@ -685,12 +700,12 @@
       "empty_line1": "尚未添加任何文件夹",
       "empty_line2": "点击上方按钮或拖曳文件夹至此",
       "remove_title": "移除",
-      "output_prefix": "输出:",
-      "settings_link": "设定",
-      "copy_path": "复制路径",
       "readonly_label": "只读",
       "output_path_label": "输出到",
       "output_path_placeholder": "这台能写入的输出夹（给 Emby／Jellyfin／Kodi 扫描，可放 NAS）...",
+      "output_prefix": "输出:",
+      "settings_link": "设定",
+      "copy_path": "复制路径",
       "cross_machine_hint": "（与上面「输出到」文件夹无关）strm 文件里写的是这台看到的只读来源视频路径。若播放的 Emby／Jellyfin／Kodi 在别台机器、看到的路径不同，请到设置页设路径替换规则。",
       "cross_machine_settings_link": "设置路径替换"
     },
@@ -735,6 +750,10 @@
       "missing_both_prefix": "NFO 和封面都缺:",
       "missing_nfo_prefix": "缺 NFO:",
       "missing_cover_prefix": "缺封面:",
+      "missing_both_tag": "都缺",
+      "missing_nfo_tag": "缺 NFO",
+      "missing_cover_tag": "缺封面",
+      "nfo_field_note_prefix": "缺：",
       "missing_suffix": "部",
       "missing_enrich_idle": "一键补全",
       "missing_enrich_loading": "补全中...",
@@ -769,7 +788,15 @@
       "log_disconnected": "连接中断",
       "missing_enrich_connection_failed": "连接失败: {message}",
       "missing_enrich_item_failed": "失败: {number} — {error}",
-      "missing_enrich_error_prefix": "错误: {message}"
+      "missing_enrich_error_prefix": "错误: {message}",
+      "missing_list_footnote": "不含已补过但查无结果的片，也不含看不出番号的片；要重试请打开灯箱 ⚙ 高级重刮。",
+      "nfo_field_title": "标题",
+      "nfo_field_date": "日期",
+      "nfo_field_actor": "演员",
+      "nfo_field_genre": "类别",
+      "nfo_field_maker": "片商",
+      "nfo_field_director": "导演",
+      "nfo_field_duration": "片长"
     },
     "alias": {
       "section_title": "女优名称管理",
@@ -808,20 +835,6 @@
       "toast_add_item_failed": "加入 {alias} 失败",
       "toast_add_item_failed_detail": "加入 {alias} 失败: {error}"
     },
-    "dirty_modal": {
-      "title": "尚未保存的更改",
-      "body": "您修改了文件夹列表但尚未生成网页，要如何处理？",
-      "cancel": "取消",
-      "discard": "放弃更改",
-      "save": "保存并离开"
-    },
-    "clear_cache_modal": {
-      "title": "清除视频缓存",
-      "body_prefix": "此操作将删除所有已缓存的视频元数据（共",
-      "body_suffix": "部），下次需重新扫描才能恢复。确定要清除吗？",
-      "cancel": "取消",
-      "confirm": "确认删除"
-    },
     "tag_alias": {
       "section_title": "Tag 别名管理",
       "collapse_title": "展开/收起",
@@ -856,11 +869,12 @@
         "remove_failed": "移除失败: {error}"
       }
     },
-    "leave_warning": {
-      "generating": "生成正在进行中，离开将会中断操作！",
-      "image_check": "图片检查进行中，离开将会中断！",
-      "folder_dirty": "您有未保存的文件夹变更",
-      "confirm": "{message}确定要离开吗？"
+    "dirty_modal": {
+      "title": "尚未保存的更改",
+      "body": "您修改了文件夹列表但尚未生成网页，要如何处理？",
+      "cancel": "取消",
+      "discard": "放弃更改",
+      "save": "保存并离开"
     },
     "readonly_confirm_modal": {
       "title": "设为只读来源？",
@@ -870,12 +884,60 @@
       "output_hint_offline": "当前为默认模式，产物会自动落在 App 内置的固定本地夹，不需要另外指定输出夹。",
       "output_hint_media_server": "当前为 Emby·Jellyfin·Kodi 模式，确认后会展开「输出到」栏位。请指定一个这台机器能写入的文件夹（可以是本机，也可以是挂载到这台的 NAS 共享）——不是只读来源本身。",
       "nas_hint": "想喂给 NAS 上的 Emby／Jellyfin／Kodi？默认模式只生成 OpenAver 自己浏览用的本地库、不会生成 .strm 快捷方式文件。若你要让媒体服务器扫这批片，请先到「设置」把模式切到 Emby·Jellyfin·Kodi 模式。"
+    },
+    "clear_cache_modal": {
+      "title": "清除视频缓存",
+      "body_prefix": "此操作将删除所有已缓存的视频元数据（共",
+      "body_suffix": "部），下次需重新扫描才能恢复。确定要清除吗？",
+      "cancel": "取消",
+      "confirm": "确认删除"
+    },
+    "leave_warning": {
+      "generating": "生成正在进行中，离开将会中断操作！",
+      "image_check": "图片检查进行中，离开将会中断！",
+      "folder_dirty": "您有未保存的文件夹变更",
+      "confirm": "{message}确定要离开吗？"
     }
   },
   "scraper": {
     "page_title": "刮削器",
     "heading": "JAV 刮削器",
     "body": "刮削功能开发中..."
+  },
+  "notif": {
+    "title": "通知",
+    "clear_all": "全部清空",
+    "empty": "目前没有通知",
+    "open": "打开通知",
+    "close": "关闭通知",
+    "dialog_label": "通知中心",
+    "scanner_started": "扫描开始",
+    "scanner_done": "扫描完成",
+    "scanner_done_with_errors": "扫描完成（部分失败）",
+    "scanner_failed": "扫描中断",
+    "scanner_cancelled": "扫描已取消",
+    "batch_enrich_started": "批量补完开始",
+    "batch_enrich_done": "批量补完完成",
+    "batch_enrich_done_with_errors": "批量补完（部分失败）",
+    "batch_enrich_failed": "批量补完中断",
+    "jl_cf_timeout": "JavLibrary CF 验证超时",
+    "update_available": "OpenAver 有新版本",
+    "auto_organize_summary": "定时整理",
+    "auto_organize_aborted": "定时整理已中止",
+    "auto_organize_folder_not_set": "定时整理：还没设置最爱文件夹",
+    "auto_organize_folder_unreachable": "定时整理：无法访问最爱文件夹",
+    "auto_organize_readonly": "定时整理：最爱文件夹是只读来源",
+    "auto_organize_failed": "定时整理失败，请查阅日志",
+    "wishlist_auto_removed": "书签自动更新",
+    "wishlist_reconcile_failed": "书签对账失败，请查阅日志",
+    "focal_auto_disabled": "找脸连续两次超时，已经先帮你关掉自动对焦。想对焦的话，在灯箱里自己拖曳就可以。",
+    "data_root_finalized": "数据位置已定版，备份时请把这个文件夹一起保留",
+    "data_root_recovered": "既有片库已保留，设置已重建为默认值：来源设置、跨机器路径映射、外部服务设置与界面偏好都需要重新设置"
+  },
+  "similar_mode": {
+    "button_aria_label": "探索相似视频",
+    "close": "关闭",
+    "fetch_failed": "加载失败"
   },
   "showcase": {
     "page_title": "视频浏览",
@@ -908,16 +970,50 @@
       "success": "已覆盖写入（封面 + NFO）",
       "fail": "重新刮削失败，请稍后再试。",
       "jl_desktop_only": "仅限桌面应用程序（standalone）可用",
+      "cf_window_restart": "这个来源的验证窗口没有启动成功，请重新启动 OpenAver 再试",
       "jl_cf_solving": "Cloudflare 验证中……通过后将自动继续",
       "versions_found": "找到 {count} 部同番号作品",
       "version_prev_aria": "上一个版本",
       "version_next_aria": "下一个版本",
       "adopt_version": "采用此版本",
       "adopt_switch_source": "替换此版本",
-      "cf_window_restart": "这个来源的验证窗口没有启动成功，请重新启动 OpenAver 再试"
+      "preserve_title": "保留目前标题：「{title}」"
     },
     "placeholder": {
       "search": "搜索番号、女优、标题..."
+    },
+    "pill": {
+      "dim_label": {
+        "actress": "女优",
+        "tag": "标签",
+        "maker": "片商",
+        "director": "导演",
+        "series": "系列",
+        "label": "厂牌",
+        "age": "年龄",
+        "height": "身高",
+        "cup": "罩杯",
+        "release": "发售日"
+      },
+      "title": "{dim}：{value}",
+      "remove_aria": "移除筛选：{value}",
+      "op": {
+        "eq": "等于",
+        "lte": "小于等于",
+        "gte": "大于等于",
+        "range": "自定义区间"
+      },
+      "editor": {
+        "range_min": "下限",
+        "range_max": "上限",
+        "from_year": "起始年",
+        "from_month": "起始月",
+        "to_year": "结束年",
+        "to_month": "结束月"
+      }
+    },
+    "filter": {
+      "pick_only": "只看精选"
     },
     "action": {
       "clear_search": "清除搜索",
@@ -954,10 +1050,14 @@
       "grid": "图片",
       "table": "详细",
       "list": "文字",
-      "actress": "女优模式",
-      "video": "视频模式",
       "cover": "完整封面",
-      "poster": "竖版海报"
+      "poster": "竖版海报",
+      "actress": "女优模式",
+      "video": "视频模式"
+    },
+    "search": {
+      "actress": "搜索女优名称...",
+      "video": "搜索番号、女优、标题..."
     },
     "unit": {
       "videos": "部",
@@ -965,7 +1065,8 @@
       "minutes_abbr": "分",
       "videos_count": " 部",
       "films": "部作品",
-      "actresses": "位女优"
+      "actresses": "位女优",
+      "age_suffix": "岁"
     },
     "status": {
       "total_prefix": "共",
@@ -974,12 +1075,12 @@
       "search_middle": "\" — 找到",
       "search_suffix": "部",
       "search_empty": "没有符合的视频",
-      "search_actresses_prefix": "找到 ",
-      "search_actresses_middle": " 位女优 \"",
-      "search_actresses_suffix": "\"",
       "pill_prefix": "符合",
       "pill_middle": "个条件的",
       "pill_suffix": "部",
+      "search_actresses_prefix": "找到 ",
+      "search_actresses_middle": " 位女优 \"",
+      "search_actresses_suffix": "\"",
       "pill_actresses_prefix": "符合",
       "pill_actresses_middle": "个条件的",
       "pill_actresses_suffix": "位",
@@ -1031,11 +1132,20 @@
       "alias_source_hint": "由 Scanner 同步",
       "mask_toggle": "封面裁切预览",
       "mask_detect_failed": "焦点检测失败，请稍后再试",
+      "mask_focal_too_slow_auto_disabled": "这张封面找脸花了超过 5 秒，已经先帮你关掉自动对焦。想调整位置直接拖就可以，随时能到设置开回来。",
+      "mask_focal_too_slow_hint": "找脸花了超过 5 秒。先用拖的会快一些——不想每次都等，可以到「设置 → 刮削行为 → 高级刮削设置」关掉自动对焦。",
       "mask_save_failed": "裁切设置保存失败，请稍后再试",
       "mask_cover_changed": "封面已变更，请重新打开裁切工具再试一次",
+      "cover_unavailable": "这部视频的封面现在读不到——可能是文件位置目前无法访问，或者封面文件本身不见了",
+      "cover_escape_hint": "找不到封面。可以把图片用视频文件名命名放在视频旁边（例：`ABC-123.mp4` → `ABC-123.jpg`），回 Scanner 页面按一次「生成网页」就会收进来；或按 ⚙ 手动指定番号重新刮。",
       "mask_confirm": "确认裁切位置",
-      "mask_cancel": "取消裁切调整",
-      "cover_unavailable": "这部视频的封面现在读不到——可能是文件位置目前无法访问，或者封面文件本身不见了"
+      "mask_cancel": "取消裁切调整"
+    },
+    "pick": {
+      "add_aria": "加入精选",
+      "remove_aria": "取消精选",
+      "save_failed": "精选保存失败，请稍后再试",
+      "chip_label": "★精选"
     },
     "gallery": {
       "prev": "上一张 (←)",
@@ -1059,21 +1169,17 @@
       "delete_modal": {
         "title": "从收藏移除这部视频",
         "body": "只会从数据库移除「{number}」这条记录。视频文件会保留在磁盘，不会被删除；若该文件仍在扫描目录内，下次扫描会重新被加回。",
+        "body_multipart": "这是分集视频（{tokens}），确认后会一并移除全部 {n} 段的记录——视频文件一样都留在磁盘上。",
         "cancel": "取消",
-        "confirm": "确认移除",
-        "body_multipart": "这是分集视频（{tokens}），确认后会一并移除全部 {n} 段的记录——视频文件一样都留在磁盘上。"
+        "confirm": "确认移除"
       },
       "delete_success": "已从收藏移除",
       "delete_failed": "移除失败，请稍后再试",
       "play_failed": "播放失败",
-      "part_count_fallback": "{n} 段",
-      "part_progress": "第 {current}／{total} 段",
       "player_unavailable": "这部视频现在放不出来——可能是文件位置拿不到，或者这个格式浏览器不支持",
-      "player_unavailable_format": "浏览器没办法播放这个文件——可能是这个格式不支持，也可能是文件本身坏了。可以试试电脑上的播放器（VLC／PotPlayer 等）"
-    },
-    "search": {
-      "actress": "搜索女优名称...",
-      "video": "搜索番号、女优、标题..."
+      "player_unavailable_format": "浏览器没办法播放这个文件——可能是这个格式不支持，也可能是文件本身坏了。可以试试电脑上的播放器（VLC／PotPlayer 等）",
+      "part_count_fallback": "{n} 段",
+      "part_progress": "第 {current}／{total} 段"
     },
     "actress": {
       "add": "+ 添加女优",
@@ -1092,10 +1198,24 @@
       "removeSuccess": "已从收藏移除",
       "empty": "尚未收藏任何女优",
       "emptyHint": "点击右上角 + 添加收藏",
+      "searchEmpty": "没有符合条件的女优",
       "search_films": "搜索相关视频",
       "addFavorite": "加入收藏",
       "favorited": "已收藏",
       "change_photo": "换照片",
+      "panel": {
+        "title": "从片库添加女优",
+        "search_placeholder": "搜索片库女优，或输入完整姓名添加",
+        "close": "关闭",
+        "loading": "载入中…",
+        "load_failed": "载入失败，请稍后再试",
+        "progress": "已显示 {n}／共 {m} 位",
+        "progress_all": "共 {m} 位",
+        "direct_add": "直接添加「{name}」",
+        "queued": "排队中",
+        "adding": "添加中…",
+        "add_failed": "添加失败，请再试一次"
+      },
       "picker": {
         "empty": "目前找不到候选照片",
         "empty_hint": "收藏视频越多，本机选项越丰富；也可直接替换文件夹中的图片",
@@ -1113,20 +1233,6 @@
         "upload_too_large": "图片太大（文件上限 10MB、尺寸上限 50M 像素）",
         "upload_bad_format": "不支持的图片格式",
         "upload_failed": "上传失败，请稍后再试"
-      },
-      "searchEmpty": "没有符合条件的女优",
-      "panel": {
-        "title": "从片库添加女优",
-        "search_placeholder": "搜索片库女优，或输入完整姓名添加",
-        "close": "关闭",
-        "loading": "载入中…",
-        "load_failed": "载入失败，请稍后再试",
-        "progress": "已显示 {n}／共 {m} 位",
-        "progress_all": "共 {m} 位",
-        "direct_add": "直接添加「{name}」",
-        "queued": "排队中",
-        "adding": "添加中…",
-        "add_failed": "添加失败，请再试一次"
       }
     },
     "samples": {
@@ -1135,49 +1241,11 @@
       "success": "剧照补抓完成",
       "fetch_failed": "补抓剧照失败，请稍后再试",
       "multi_video_error": "此文件夹有其他视频，补抓剧照会污染其他片，请先将视频移至独立文件夹再试"
-    },
-    "pill": {
-      "dim_label": {
-        "actress": "女优",
-        "tag": "标签",
-        "maker": "片商",
-        "director": "导演",
-        "series": "系列",
-        "label": "厂牌",
-        "age": "年龄",
-        "height": "身高",
-        "cup": "罩杯",
-        "release": "发售日"
-      },
-      "title": "{dim}：{value}",
-      "remove_aria": "移除筛选：{value}",
-      "op": {
-        "eq": "等于",
-        "lte": "小于等于",
-        "gte": "大于等于",
-        "range": "自定义区间"
-      },
-      "editor": {
-        "range_min": "下限",
-        "range_max": "上限",
-        "from_year": "起始年",
-        "from_month": "起始月",
-        "to_year": "结束年",
-        "to_month": "结束月"
-      }
-    },
-    "filter": {
-      "pick_only": "只看精选"
-    },
-    "pick": {
-      "add_aria": "加入精选",
-      "remove_aria": "取消精选",
-      "save_failed": "精选保存失败，请稍后再试",
-      "chip_label": "★精选"
     }
   },
   "help": {
     "hero": {
+      "copy_curl": "复制命令",
       "page_title": "使用说明",
       "subtitle": "JAV 视频元数据管理工具",
       "privacy": "🔒 纯本地应用程序，不收集用户数据",
@@ -1191,8 +1259,7 @@
       "auto_check_save_failed": "设置保存失败，请稍后再试",
       "ai_instruction": "粘贴给 AI 智能体即可操作 OpenAver",
       "ai_hint_unsupported": "不适用网页版聊天",
-      "ai_tools": "贴给 AI agent 就能操作 OpenAver — Claude Code · Cursor · Codex 等",
-      "copy_curl": "复制命令"
+      "ai_tools": "贴给 AI agent 就能操作 OpenAver — Claude Code · Cursor · Codex 等"
     },
     "agent_auth": {
       "title": "Agent Token",
@@ -1262,7 +1329,7 @@
       "h6_pause": "暂停与继续",
       "h6_generate_all": "批量整理",
       "h6_badge": "版本标记保留",
-      "add_folder": "<strong>拖入文件夹</strong>：自动扫描文件夹内的视频文件",
+      "add_folder": "<strong>拖入文件夹</strong>：只读这一层的视频，不往子文件夹找；整座片库请到「列表生成」页的「扫描文件夹」加入",
       "add_filter": "<strong>自动过滤</strong>：排除非视频文件与小于设定大小的文件",
       "add_batch": "<strong>批次搜索</strong>：每批 20 个文件，并发 2 个请求",
       "add_progress": "<strong>进度显示</strong>：即时显示搜索进度（如：处理 15/100）",
@@ -1343,15 +1410,15 @@
       "jellyfin_enable": "在<strong>设置页</strong>开启后，扫描时自动生成 <code>-poster.jpg</code> + <code>-fanart.jpg</code>",
       "jellyfin_canonical": "选了媒体管理器模式后<strong>不再另外生成同名封面</strong>——那张图会被 Jellyfin／Emby 优先读取，导致封面墙出现横版图。既有的片维持原本的封面位置（以免清掉你已调整过的对焦），要修正请自行删掉该片的同名封面后重新生成。",
       "jellyfin_showcase": "扫描完成后可至 <code>/showcase</code> 页面浏览生成结果",
-      "h6_multiversion": "同片多版本（流出 / 4K / 中文字幕）怎么在 Emby/Jellyfin 合并？",
-      "multiversion_intro": "多版本合并是 Emby 与 Jellyfin 共同支持的原生功能（同一套「文件夹名 - 标签」规则），不是哪一家独有。把同一片各版本放进以番号命名的文件夹，文件名都以文件夹名开头加「 - 标签」：",
-      "multiversion_rule1": "每个版本文件名<strong>必须以文件夹名开头</strong> + 「 - 标签」（空格-连字号-空格）",
-      "multiversion_rule2": "多版本与 cd1/cd2 多段<strong>不能同时用于同一部片</strong>（媒体服务器官方限制）",
       "h6_strm_deploy": "只读来源 + 让 Emby／Jellyfin／Kodi 扫到片（跨机器部署）",
       "strm_deploy_step1": "把只读网盘／NAS 共享挂到 OpenAver 这台后，在 Scanner 把该文件夹勾成「只读」——OpenAver 不会动里面任何文件（不搬移、不改名、不写入）。",
       "strm_deploy_step2": "在「输出到」指定一个<strong>这台能写入</strong>的文件夹（可以是挂载到这台的 NAS 可写共享）——生成的 <code>.strm</code>＋NFO＋封面会放这里，再让 Emby／Jellyfin／Kodi 指向它建媒体库。这个输出夹不是只读来源本身。",
       "strm_deploy_step3": "若播放的那台机器看到的只读来源路径跟 OpenAver 看到的不一样（例如 OpenAver 上是 <code>Z:\\115</code>、NAS 上是 <code>/volume1/115</code>），到<strong>设置页</strong>的「播放端路径替换」加一条对应规则，否则 <code>.strm</code> 会指向播放端找不到的路径。",
-      "strm_deploy_step4": "之后改了映射规则，既有的 <code>.strm</code> 会自动一次改写，不用重建整个媒体库。"
+      "strm_deploy_step4": "之后改了映射规则，既有的 <code>.strm</code> 会自动一次改写，不用重建整个媒体库。",
+      "h6_multiversion": "同片多版本（流出 / 4K / 中文字幕）怎么在 Emby/Jellyfin 合并？",
+      "multiversion_intro": "多版本合并是 Emby 与 Jellyfin 共同支持的原生功能（同一套「文件夹名 - 标签」规则），不是哪一家独有。把同一片各版本放进以番号命名的文件夹，文件名都以文件夹名开头加「 - 标签」：",
+      "multiversion_rule1": "每个版本文件名<strong>必须以文件夹名开头</strong> + 「 - 标签」（空格-连字号-空格）",
+      "multiversion_rule2": "多版本与 cd1/cd2 多段<strong>不能同时用于同一部片</strong>（媒体服务器官方限制）"
     },
     "showcase": {
       "title": "视频浏览 (Showcase)",
@@ -1371,6 +1438,24 @@
       "other_table_cols": "Table 模式新增「导演」和「片长」栏",
       "other_gallery": "Lightbox 可开启剧照浏览（点击「剧照」按钮）",
       "other_per_page": "每页显示数量可在<strong>设置页</strong>调整"
+    },
+    "similar": {
+      "title": "相似视频探索（规则式）",
+      "intro": "点 Lightbox 魔杖按钮 → 12 颗探索星辰绕主图排列；星辰依 tag 规则式相似度（IDF 加权 + 系列 / 片商 / 年份 / cast 多信号）排序，无需下载任何模型，开箱即用。",
+      "h6_what": "原理",
+      "what_principle": "主信号采用 IDF 加权 Jaccard — 罕见 tag 的命中加分更高；再结合系列 / 片商 / 年份 / cast 多信号综合评分。",
+      "what_crop": "系列完全相符时额外加成，让同系列视频优先浮上来。",
+      "what_diversity": "MMR diversity rerank（λ=0.7）让最终 12 颗结果兼顾相似度与多样性。",
+      "h6_use": "使用方式",
+      "use_lightbox": "在 Showcase 视频模式打开 Lightbox → 左上角魔杖按钮 <i class=\"bi bi-magic\"></i> → 进入星空模式",
+      "use_constellation": "12 颗星辰绕中央主图排列；点任一颗即「钻入」变成新主图，无止境探索",
+      "use_mobile": "手机（&lt; 768px）降级为主图下方 grid 显示前 4 张，不做星空动画",
+      "h6_beta": "使用限制",
+      "beta_uncensored": "对<strong>无码/FC2/老 compilation</strong> 等非标准排版封面，无 metadata 的视频会落入 Tier 3/4（随机补位），结果相关度较低",
+      "beta_compilation": "tag 越完整（系列 / 片商 / cast）相似度越准；tag 很少的视频建议先补完 NFO",
+      "h6_manage": "使用提示",
+      "manage_enable": "无需设置，开箱即用",
+      "manage_scanner": "新增视频后 Scanner「产生网页」时自动更新索引，无需手动操作"
     },
     "shortcuts": {
       "title": "快捷键",
@@ -1412,12 +1497,12 @@
       "manual_fc2_javten": "<strong>FC2-javten</strong>：民间备份站，接 FC2 官方站已下架的片。取得日文原题、封面、剧照、标签、卖家与评分；<strong>没有发售日</strong>（站方页面就没这个字段），标签是日文原文。",
       "default_source_set": "在设置页可将 <strong>JavBus</strong> 或 <strong>DMM</strong> 设为主要搜索来源",
       "default_source_effect": "选为主来源后，精确番号搜索会优先使用该来源的数据",
+      "fuzzy_always_on": "<strong>模糊搜索例外</strong>：用女优名／关键字做模糊搜索时，即使来源在「扫描来源」被停用，仍会按排序被用到（停用只影响番号精准搜索）",
       "dmm_fuzzy_trigger": "在搜索框输入日文女优名或片商名时，会同时触发 DMM 模糊搜索",
       "dmm_fuzzy_prereq": "前提：DMM 已启用（需设置 Proxy 或使用 <code>direct</code> 模式）",
       "proxy_direct_vpn": "如果您已连接日本 VPN 或本身位于日本，不需要另外设置 Proxy",
       "proxy_direct_how": "只要在设置页的 Proxy 栏输入 <code>direct</code>，即可直接启用 DMM 功能",
       "toggle_uncensored": "在<strong>设置页</strong>开启「无码模式」toggle，搜索时将优先使用无码来源",
-      "fuzzy_always_on": "<strong>模糊搜索例外</strong>：用女优名／关键字做模糊搜索时，即使来源在「扫描来源」被停用，仍会按排序被用到（停用只影响番号精准搜索）",
       "col_source": "来源",
       "col_format": "格式",
       "col_example": "范例"
@@ -1439,6 +1524,31 @@
       "h6_db": "性能提示",
       "db_hint": "并行搜索多个 metatube 来源时速度较慢，可在 metatube server 端改用 PostgreSQL 取代默认的 SQLite（属 metatube server 设置，非 OpenAver 设置）",
       "crossref_picker": "用高级搜索 picker 挑 metatube 单一来源 → 见「搜索功能」卡"
+    },
+    "server_mode": {
+      "title": "服务器模式 — 让手机/平板连进来",
+      "h6_what": "这是什么",
+      "what_single": "默认「单机」模式：只有这台电脑能用。",
+      "what_server": "切到「服务器」模式：同一个 Wi-Fi / 局域网内的手机、平板、其他电脑，可以用浏览器打开画面上显示的网址，浏览封面墙、在线看片、查番号。",
+      "what_where": "切换位置在「设置」页右上角的「单机 ｜ 服务器」胶囊。",
+      "h6_how": "怎么用",
+      "how_url": "切到「服务器」后，下方会出现一条连接网址（例如 <code>http://192.168.1.50:50123</code>）。",
+      "how_copy": "点「复制」把网址传到手机，或用浏览器内置「发送到其他设备」，在手机浏览器打开即可。",
+      "how_off": "切回「单机」就完全关闭对外，局域网设备立刻连不到。",
+      "h6_security": "安全提醒",
+      "security_lan": "仅限信任的 Wi-Fi / 局域网使用（本程序不设账号密码，LAN-only）。",
+      "security_lan_auth": "已设置密码保护，仅限信任的 Wi-Fi / 局域网使用（其他设备需要输入密码才能连入，agent 则需要 token）。",
+      "security_vpn": "需要外网访问请自行配置 VPN（如 Tailscale）；本程序不开放外网。",
+      "h6_firewall": "第一次开启会弹出防火墙，请点「允许」",
+      "firewall_allow": "第一次切到「服务器」时，Windows（或 macOS）会弹出防火墙询问是否允许网络访问 → 请点「<strong>允许 / Allow</strong>」。点一次就好，系统会记住。",
+      "firewall_why": "这是因为要让其他设备连进来，操作系统需要你授权（与 Plex 等局域网工具相同）。<strong>单机模式不会弹出。</strong>",
+      "h6_recover": "不小心点了「取消 / 拒绝」怎么恢复",
+      "recover_win_intro": "Windows 恢复步骤：",
+      "recover_win_1": "按 <code>Win + R</code>，输入 <code>wf.msc</code> 后 Enter，打开「Windows Defender 防火墙 高级安全性」。",
+      "recover_win_2": "左侧栏点「入站规则 (Inbound Rules)」。",
+      "recover_win_3": "找「程序」是 <code>python.exe</code>（或名称 Python / OpenAver）、「操作」为「阻止 (Block)」的规则，通常有两条（公用＋专用）。",
+      "recover_win_4": "右键删除这几条，重启 OpenAver，再切到「服务器」并点「允许」。",
+      "recover_mac": "macOS 恢复：系统设置 → 网络 → 防火墙 → 选项，找到本程序改成「允许传入连接」。"
     },
     "troubleshooting": {
       "title": "疑难排解",
@@ -1469,49 +1579,6 @@
       "version_load_failed": "无法载入",
       "check_update_failed": "检查失败，请稍后再试",
       "check_update_network_error": "无法连接，请稍后再试"
-    },
-    "similar": {
-      "title": "相似视频探索（规则式）",
-      "intro": "点 Lightbox 魔杖按钮 → 12 颗探索星辰绕主图排列；星辰依 tag 规则式相似度（IDF 加权 + 系列 / 片商 / 年份 / cast 多信号）排序，无需下载任何模型，开箱即用。",
-      "h6_what": "原理",
-      "what_principle": "主信号采用 IDF 加权 Jaccard — 罕见 tag 的命中加分更高；再结合系列 / 片商 / 年份 / cast 多信号综合评分。",
-      "what_crop": "系列完全相符时额外加成，让同系列视频优先浮上来。",
-      "what_diversity": "MMR diversity rerank（λ=0.7）让最终 12 颗结果兼顾相似度与多样性。",
-      "h6_use": "使用方式",
-      "use_lightbox": "在 Showcase 视频模式打开 Lightbox → 左上角魔杖按钮 <i class=\"bi bi-magic\"></i> → 进入星空模式",
-      "use_constellation": "12 颗星辰绕中央主图排列；点任一颗即「钻入」变成新主图，无止境探索",
-      "use_mobile": "手机（&lt; 768px）降级为主图下方 grid 显示前 4 张，不做星空动画",
-      "h6_beta": "使用限制",
-      "beta_uncensored": "对<strong>无码/FC2/老 compilation</strong> 等非标准排版封面，无 metadata 的视频会落入 Tier 3/4（随机补位），结果相关度较低",
-      "beta_compilation": "tag 越完整（系列 / 片商 / cast）相似度越准；tag 很少的视频建议先补完 NFO",
-      "h6_manage": "使用提示",
-      "manage_enable": "无需设置，开箱即用",
-      "manage_scanner": "新增视频后 Scanner「产生网页」时自动更新索引，无需手动操作"
-    },
-    "server_mode": {
-      "title": "服务器模式 — 让手机/平板连进来",
-      "h6_what": "这是什么",
-      "what_single": "默认「单机」模式：只有这台电脑能用。",
-      "what_server": "切到「服务器」模式：同一个 Wi-Fi / 局域网内的手机、平板、其他电脑，可以用浏览器打开画面上显示的网址，浏览封面墙、在线看片、查番号。",
-      "what_where": "切换位置在「设置」页右上角的「单机 ｜ 服务器」胶囊。",
-      "h6_how": "怎么用",
-      "how_url": "切到「服务器」后，下方会出现一条连接网址（例如 <code>http://192.168.1.50:50123</code>）。",
-      "how_copy": "点「复制」把网址传到手机，或用浏览器内置「发送到其他设备」，在手机浏览器打开即可。",
-      "how_off": "切回「单机」就完全关闭对外，局域网设备立刻连不到。",
-      "h6_security": "安全提醒",
-      "security_lan": "仅限信任的 Wi-Fi / 局域网使用（本程序不设账号密码，LAN-only）。",
-      "security_lan_auth": "已设置密码保护，仅限信任的 Wi-Fi / 局域网使用（其他设备需要输入密码才能连入，agent 则需要 token）。",
-      "security_vpn": "需要外网访问请自行配置 VPN（如 Tailscale）；本程序不开放外网。",
-      "h6_firewall": "第一次开启会弹出防火墙，请点「允许」",
-      "firewall_allow": "第一次切到「服务器」时，Windows（或 macOS）会弹出防火墙询问是否允许网络访问 → 请点「<strong>允许 / Allow</strong>」。点一次就好，系统会记住。",
-      "firewall_why": "这是因为要让其他设备连进来，操作系统需要你授权（与 Plex 等局域网工具相同）。<strong>单机模式不会弹出。</strong>",
-      "h6_recover": "不小心点了「取消 / 拒绝」怎么恢复",
-      "recover_win_intro": "Windows 恢复步骤：",
-      "recover_win_1": "按 <code>Win + R</code>，输入 <code>wf.msc</code> 后 Enter，打开「Windows Defender 防火墙 高级安全性」。",
-      "recover_win_2": "左侧栏点「入站规则 (Inbound Rules)」。",
-      "recover_win_3": "找「程序」是 <code>python.exe</code>（或名称 Python / OpenAver）、「操作」为「阻止 (Block)」的规则，通常有两条（公用＋专用）。",
-      "recover_win_4": "右键删除这几条，重启 OpenAver，再切到「服务器」并点「允许」。",
-      "recover_mac": "macOS 恢复：系统设置 → 网络 → 防火墙 → 选项，找到本程序改成「允许传入连接」。"
     },
     "update_modal": {
       "trigger_btn": "更新",
@@ -1549,36 +1616,60 @@
     "heading": "NFO 更新器",
     "body": "更新功能开发中..."
   },
-  "notif": {
-    "title": "通知",
-    "clear_all": "全部清空",
-    "empty": "目前没有通知",
-    "open": "打开通知",
-    "close": "关闭通知",
-    "dialog_label": "通知中心",
-    "scanner_started": "扫描开始",
-    "scanner_done": "扫描完成",
-    "scanner_done_with_errors": "扫描完成（部分失败）",
-    "scanner_failed": "扫描中断",
-    "batch_enrich_started": "批量补完开始",
-    "batch_enrich_done": "批量补完完成",
-    "batch_enrich_done_with_errors": "批量补完（部分失败）",
-    "batch_enrich_failed": "批量补完中断",
-    "jl_cf_timeout": "JavLibrary CF 验证超时",
-    "update_available": "OpenAver 有新版本",
-    "auto_organize_summary": "定时整理",
-    "auto_organize_aborted": "定时整理已中止",
-    "auto_organize_folder_not_set": "定时整理：还没设置最爱文件夹",
-    "auto_organize_folder_unreachable": "定时整理：无法访问最爱文件夹",
-    "auto_organize_readonly": "定时整理：最爱文件夹是只读来源",
-    "auto_organize_failed": "定时整理失败，请查阅日志",
-    "wishlist_auto_removed": "书签自动更新",
-    "wishlist_reconcile_failed": "书签对账失败，请查阅日志",
-    "scanner_cancelled": "扫描已取消"
-  },
-  "similar_mode": {
-    "button_aria_label": "探索相似视频",
-    "close": "关闭",
-    "fetch_failed": "加载失败"
+  "insights": {
+    "page_title": "片库分析",
+    "snapshot_error": "读取失败，请重新整理页面",
+    "unknown": "未知",
+    "no_data": "没有数据",
+    "period_empty": "这个期间没有符合的片",
+    "unit": "部",
+    "all_years": "全部年份",
+    "all_focus": "全部",
+    "clear_year": "清除年份",
+    "clear_focus": "清除焦点",
+    "focus_type_actress": "女优",
+    "focus_type_maker": "片商",
+    "row": {
+      "years": "年份",
+      "makers": "片商",
+      "actress_top20": "女优 Top 20",
+      "tags": "标签",
+      "age": "年龄",
+      "director": "导演",
+      "series": "系列",
+      "deep_dive": "深入：女优与片商",
+      "gantt": "主要片商年表",
+      "actress_distribution": "女优片商分布",
+      "costar": "与她同片"
+    },
+    "donut": {
+      "legend": "内圈 片商占比 · 外圈 主要片商作品／其他作品",
+      "other": "其他",
+      "unknown": "未知",
+      "library_wide": "全库"
+    },
+    "tags": {
+      "coverage": "涵盖 {pct}",
+      "almost_all": "几乎每部都有：",
+      "empty": "没有可显示的标签",
+      "tooltip": "{name}<br>片数 {count}<br>涵盖 {pct}"
+    },
+    "age": {
+      "median": "中位数 {age}"
+    },
+    "gantt": {
+      "age_label": "{age}岁",
+      "tooltip_main": "{label} · 收藏 {total} 部，其中 {maker} {count} 部",
+      "tooltip_dot": "{label} · 收藏 {total} 部",
+      "skipped_note": "{n} 位无生日资料已略过"
+    },
+    "solo": {
+      "count_label": "{n} 部 · {m} 家",
+      "other_title": "其他 {n} 家：{list}"
+    },
+    "costar": {
+      "count_label": "{n} 部"
+    },
+    "total_count": "全库 {n} 部"
   }
 }

@@ -3,6 +3,7 @@
     "search": "Search",
     "scanner": "Scanner",
     "showcase": "Showcase",
+    "insights": "Library Insights",
     "help": "Help",
     "help_title": "Help Guide",
     "settings": "Settings",
@@ -40,6 +41,13 @@
       "err_not_a_directory": "Not a folder",
       "err_permission_denied": "No permission to read this folder",
       "err_generic": "Cannot read this folder"
+    },
+    "number_drilldown": {
+      "copy_button": "Copy List",
+      "copy_toast": "Copied {count} videos",
+      "copy_failed": "Copy failed. Please manually select the list text to copy.",
+      "close": "Close",
+      "count": "{count} videos total"
     }
   },
   "desktop": {
@@ -72,6 +80,12 @@
       "query": "Search ID, actress or drop files...",
       "tag": "Tag name",
       "actors": "Actor names (separate with 、, or ,)"
+    },
+    "auto_pill": {
+      "tooltip": "Click to select source"
+    },
+    "source_pill": {
+      "tooltip": "Click to change source"
     },
     "action": {
       "search": "Search",
@@ -122,8 +136,8 @@
       "explain_naming_prefix": "Pressing \"Organize\" renames the file, creates the folder, downloads the cover, and writes the NFO — for example: ",
       "explain_naming_translate_suffix": "(using the Chinese-translated title)",
       "explain_naming_link": "Change rules → Settings",
-      "favorite_note": "\"Favorites\" is your frequently-used video folder path, not favorite actresses.",
-      "explainer_partial": "Enter a partial ID such as IPZZ-03 to search the whole 030–039 range at once."
+      "explainer_partial": "Enter a partial ID such as IPZZ-03 to search the whole 030–039 range at once.",
+      "favorite_note": "\"Favorites\" is your frequently-used video folder path, not favorite actresses."
     },
     "error": {
       "hint": "Please check the ID format or try again later",
@@ -288,12 +302,6 @@
       "instruction": "Go to <strong>Settings → Advanced Scrape Settings → Version Tags</strong>, add keywords and make sure the file naming format includes the <code class=\"badge badge-sm\">{suffix}</code> variable.",
       "acknowledge": "Got it",
       "go_settings": "Go to Settings"
-    },
-    "auto_pill": {
-      "tooltip": "Click to select source"
-    },
-    "source_pill": {
-      "tooltip": "Click to change source"
     }
   },
   "settings": {
@@ -389,20 +397,55 @@
       "copy": "Copy",
       "copied": "URL copied",
       "warning": "Any device on the same network (Wi-Fi / LAN) can access this machine via the URL above. Only use on trusted networks. For remote access, configure a VPN (e.g. Tailscale).",
+      "public_exposure": "This computer's current network address is not a private LAN address — it may be directly exposed to the public internet. A 4-character password is not enough protection in that situation. Please check your network setup, or connect over a VPN (such as Tailscale) instead.",
       "no_lan_ip": "Could not detect local LAN IP automatically. Check your system network settings for your IP and connect manually.",
+      "no_lan_ip_with_port": "Unable to detect local LAN IP automatically. Please check your IP in System Network Settings, then connect using that IP:{port}.",
       "listener_down": "LAN server is not running. Switch back to Local mode and re-enable Server mode.",
       "toggle_failed": "Failed to start LAN server. Please try again later.",
-      "autostart_failed": "LAN server mode could not start automatically after restart. Go to Settings to re-enable it.",
-      "no_lan_ip_with_port": "Unable to detect local LAN IP automatically. Please check your IP in System Network Settings, then connect using that IP:{port}.",
       "disable_failed": "Failed to stop the LAN server. Please try again later.",
       "remote_only": "Server mode can only be toggled from the host computer running OpenAver.",
-      "public_exposure": "This computer's current network address is not a private LAN address — it may be directly exposed to the public internet. A 4-character password is not enough protection in that situation. Please check your network setup, or connect over a VPN (such as Tailscale) instead.",
+      "autostart_failed": "LAN server mode could not start automatically after restart. Go to Settings to re-enable it.",
       "warning_auth": "Devices on the same Wi-Fi / LAN must enter the password to connect to this computer. Use only on networks you trust. For access from outside your network, set up a VPN (such as Tailscale) yourself."
+    },
+    "server_mode_confirm": {
+      "title": "Switch Server Mode",
+      "title_on": "Enable Server Mode?",
+      "body_on": "Once enabled, any phone, tablet, or computer on the same Wi-Fi or LAN can open OpenAver in a browser. There is no username/password protection — any device on the same network can connect. Only use this on networks you fully trust.",
+      "body_off": "After switching back to standalone mode, LAN devices will immediately lose access. Confirm switch?",
+      "confirm": "Confirm",
+      "confirm_on": "Enable Anyway",
+      "body_on_auth": "Once enabled, any phone, tablet, or computer on the same Wi-Fi or LAN can open OpenAver in a browser. Password protection is on, so other devices must enter the password to connect — still, only use this on networks you trust."
+    },
+    "access_auth": {
+      "label": "Require a password to connect",
+      "pin_prefix": "Password",
+      "pin_label": "Password (4 letters or digits, case-sensitive)",
+      "save": "Save",
+      "reveal": "Show password",
+      "saved": "Password settings saved",
+      "save_failed": "Could not save the password settings. Please try again later.",
+      "pin_invalid": "The password must be 4 letters or digits"
+    },
+    "switch_mode_confirm": {
+      "title": "Switch media server mode",
+      "body": "Switching to \"{mode}\" removes the current {count} read-only source(s) and the media cards they generated (files in your output folder are not deleted). Re-add them afterward to rebuild under the new mode. Reload any other open tabs before continuing.",
+      "cancel": "Cancel",
+      "confirm": "Switch and remove",
+      "failed": "Failed to switch mode. Please try again later.",
+      "generate_in_progress": "Generation in progress. Please wait for it to finish before switching modes.",
+      "mode_off": "Default mode",
+      "mode_media": "Emby / Jellyfin / Kodi mode"
     },
     "section": {
       "search": "Search & Scrape",
       "scraper_advanced": "Advanced Scrape Settings",
       "system": "System Settings"
+    },
+    "favorite_folder": {
+      "pick_from_scanner": "Pick from Scanner folders",
+      "no_directories": "No Scanner folders configured",
+      "linked_text": "✓ Linked to Scanner",
+      "not_linked_text": "⚠ Not linked to Scanner"
     },
     "search": {
       "uncensored_mode": "Uncensored Mode",
@@ -447,6 +490,10 @@
       "preview_empty_tag": "Empty value example",
       "preview_prefix": "Preview",
       "filename_format_label": "File Naming Format",
+      "nfo_title_format_label": "NFO Title Format",
+      "nfo_title_format_help": "This row only decides the title stored in the NFO (the name shown on the Jellyfin / Emby / Kodi poster wall) — it does not affect the filename, folder names, or the title shown on OpenAver's own screens.",
+      "nfo_title_format_help_aria": "NFO Title Format Help",
+      "nfo_title_format_preview_actor_missing_label": "Actress data missing",
       "max_title_length_label": "Title Length Limit",
       "unit_chars": "chars",
       "max_filename_length_label": "Filename Length Limit",
@@ -457,6 +504,9 @@
       "path_length_help_line4": "macOS / Linux have no such limit, but long filenames generated on macOS/Linux may still fail on Windows without LongPathsEnabled.",
       "video_extensions_label": "Video Extensions",
       "video_extensions_hint": "Comma-separated",
+      "focal_pill_label": "Auto Face Focus",
+      "focal_help": "Uncensored covers automatically detect the face and keep it inside the crop frame; this row lets you turn that off. When off, auto face detection stops running for both scanning and the lightbox, and the crop frame stays at its default position — just drag it yourself. Before you've touched this switch, if detection takes longer than 5 seconds twice in a row, we'll turn it off for you first; once you've changed it yourself, your setting is always respected.",
+      "focal_toggle_failed": "The Auto Face Focus setting wasn't saved — the switch has reverted to its previous state. Please try again later.",
       "external_manager_label": "External media-manager mode",
       "external_manager_off": "Off (default)",
       "external_manager_off_hint": "Writes a same-name cover and NFO (`{stem}.jpg`, `{stem}.nfo`) for OpenAver's own browser. The NFO is readable by any media server; the same-name cover is recognized directly only by Emby.",
@@ -508,9 +558,6 @@
       "min_size_hint": "0 = no filter",
       "tier_display": "List display defaults",
       "also_showcase_note": "Also the default for your Showcase page",
-      "export_section": "Offline HTML export (for local viewing on Windows)",
-      "export_notice": "This export file is designed for local double-click viewing on Windows; on macOS / Linux, use the app’s Showcase page instead. (Reason: covers are embedded via <code>file://</code>, which Mac browsers block for local cross-directory files.)",
-      "mode_export_only_note": "Affects only this export file (not the app’s Showcase)",
       "cover_badges_label": "Cover attribute badges",
       "cover_badges_note": "Show badges such as Subtitled / Uncensored / 4K in the top-left corner of covers (display only — your tags are not changed)",
       "cover_badges_legend": "* AI: AI-decensored, LEAK: leaked uncensored master",
@@ -524,7 +571,10 @@
         "leaked": "Leaked uncensored",
         "4k": "4K",
         "vr": "VR"
-      }
+      },
+      "export_section": "Offline HTML export (for local viewing on Windows)",
+      "export_notice": "This export file is designed for local double-click viewing on Windows; on macOS / Linux, use the app’s Showcase page instead. (Reason: covers are embedded via <code>file://</code>, which Mac browsers block for local cross-directory files.)",
+      "mode_export_only_note": "Affects only this export file (not the app’s Showcase)"
     },
     "system": {
       "default_page_label": "Default Page on Startup",
@@ -573,20 +623,20 @@
       "loading_models": "Loading models...",
       "connecting": "Connecting...",
       "testing": "Testing...",
+      "testing_translation": "Testing translation...",
       "connection_failed": "Connection failed",
+      "connect_failed": "Connection failed",
       "no_models": "No models available",
       "n_models": "{count} models",
+      "connected_n_models": "Connected, {count} models",
+      "gemini_n_flash_models": "Found {count} Flash models",
       "enter_url": "Enter URL",
       "enter_api_key": "Enter API Key",
+      "enter_api_key_first": "Enter API Key first",
       "select_model": "Select a model",
       "network_error": "✗ Network error",
-      "connect_failed": "Connection failed",
-      "connected_n_models": "Connected, {count} models",
-      "enter_api_key_first": "Enter API Key first",
-      "gemini_n_flash_models": "Found {count} Flash models",
-      "test_failed": "Test failed: {msg}",
-      "testing_translation": "Testing translation...",
       "translation_success": "Translation test passed! ({translation})",
+      "test_failed": "Test failed: {msg}",
       "openai_connection_failed": "Connection failed",
       "openai_http_error": "HTTP request failed",
       "openai_auth_failed": "Authentication failed, check API Key",
@@ -600,41 +650,6 @@
       "openai_translate_failed": "Translation test failed",
       "openai_unknown_response_format": "Unknown response format",
       "ja_skip": "Japanese mode: translation skipped"
-    },
-    "favorite_folder": {
-      "pick_from_scanner": "Pick from Scanner folders",
-      "no_directories": "No Scanner folders configured",
-      "linked_text": "✓ Linked to Scanner",
-      "not_linked_text": "⚠ Not linked to Scanner"
-    },
-    "server_mode_confirm": {
-      "title": "Switch Server Mode",
-      "title_on": "Enable Server Mode?",
-      "body_on": "Once enabled, any phone, tablet, or computer on the same Wi-Fi or LAN can open OpenAver in a browser. There is no username/password protection — any device on the same network can connect. Only use this on networks you fully trust.",
-      "body_off": "After switching back to standalone mode, LAN devices will immediately lose access. Confirm switch?",
-      "confirm": "Confirm",
-      "confirm_on": "Enable Anyway",
-      "body_on_auth": "Once enabled, any phone, tablet, or computer on the same Wi-Fi or LAN can open OpenAver in a browser. Password protection is on, so other devices must enter the password to connect — still, only use this on networks you trust."
-    },
-    "access_auth": {
-      "label": "Require a password to connect",
-      "pin_prefix": "Password",
-      "pin_label": "Password (4 letters or digits, case-sensitive)",
-      "save": "Save",
-      "reveal": "Show password",
-      "saved": "Password settings saved",
-      "save_failed": "Could not save the password settings. Please try again later.",
-      "pin_invalid": "The password must be 4 letters or digits"
-    },
-    "switch_mode_confirm": {
-      "title": "Switch media server mode",
-      "body": "Switching to \"{mode}\" removes the current {count} read-only source(s) and the media cards they generated (files in your output folder are not deleted). Re-add them afterward to rebuild under the new mode. Reload any other open tabs before continuing.",
-      "cancel": "Cancel",
-      "confirm": "Switch and remove",
-      "failed": "Failed to switch mode. Please try again later.",
-      "generate_in_progress": "Generation in progress. Please wait for it to finish before switching modes.",
-      "mode_off": "Default mode",
-      "mode_media": "Emby / Jellyfin / Kodi mode"
     }
   },
   "scanner": {
@@ -685,12 +700,12 @@
       "empty_line1": "No folders added yet",
       "empty_line2": "Click the button above or drag a folder here",
       "remove_title": "Remove",
-      "output_prefix": "Output:",
-      "settings_link": "Settings",
-      "copy_path": "Copy Path",
       "readonly_label": "Read-only",
       "output_path_label": "Output to",
       "output_path_placeholder": "A writable output folder on this machine (for Emby / Jellyfin / Kodi to scan; can be on a NAS)...",
+      "output_prefix": "Output:",
+      "settings_link": "Settings",
+      "copy_path": "Copy Path",
       "cross_machine_hint": "(Unrelated to the \"Output to\" folder above) The strm file contains the read-only source's video path as seen on this machine. If the Emby / Jellyfin / Kodi that plays it runs on another machine and sees a different path, set a path-mapping rule on the Settings page.",
       "cross_machine_settings_link": "Set path mapping"
     },
@@ -735,6 +750,10 @@
       "missing_both_prefix": "Missing NFO+Cover:",
       "missing_nfo_prefix": "Missing NFO:",
       "missing_cover_prefix": "Missing Cover:",
+      "missing_both_tag": "Both Missing",
+      "missing_nfo_tag": "Missing NFO",
+      "missing_cover_tag": "Missing Cover",
+      "nfo_field_note_prefix": "Missing: ",
       "missing_suffix": " videos",
       "missing_enrich_idle": "Enrich All",
       "missing_enrich_loading": "Enriching...",
@@ -769,7 +788,15 @@
       "log_disconnected": "Disconnected",
       "missing_enrich_connection_failed": "Connection failed: {message}",
       "missing_enrich_item_failed": "Failed: {number} — {error}",
-      "missing_enrich_error_prefix": "Error: {message}"
+      "missing_enrich_error_prefix": "Error: {message}",
+      "missing_list_footnote": "Excludes titles already retried with no result found, and titles whose ID can't be identified; to retry, open the lightbox ⚙ for an advanced re-scrape.",
+      "nfo_field_title": "Title",
+      "nfo_field_date": "Date",
+      "nfo_field_actor": "Actress",
+      "nfo_field_genre": "Genre",
+      "nfo_field_maker": "Maker",
+      "nfo_field_director": "Director",
+      "nfo_field_duration": "Duration"
     },
     "alias": {
       "section_title": "Actress Name Aliases",
@@ -808,20 +835,6 @@
       "toast_add_item_failed": "Failed to add {alias}",
       "toast_add_item_failed_detail": "Failed to add {alias}: {error}"
     },
-    "dirty_modal": {
-      "title": "Unsaved Changes",
-      "body": "You have modified the folder list but haven't generated the page yet. What would you like to do?",
-      "cancel": "Cancel",
-      "discard": "Discard Changes",
-      "save": "Save and Leave"
-    },
-    "clear_cache_modal": {
-      "title": "Clear Video Cache",
-      "body_prefix": "This will delete all cached video metadata (",
-      "body_suffix": " videos). You will need to re-scan next time. Are you sure?",
-      "cancel": "Cancel",
-      "confirm": "Delete"
-    },
     "tag_alias": {
       "section_title": "Tag Alias Management",
       "collapse_title": "Expand / Collapse",
@@ -856,11 +869,12 @@
         "remove_failed": "Remove failed: {error}"
       }
     },
-    "leave_warning": {
-      "generating": "Generation is in progress — leaving will abort it!",
-      "image_check": "Image check is in progress — leaving will interrupt it!",
-      "folder_dirty": "You have unsaved folder changes",
-      "confirm": "{message} Leave anyway?"
+    "dirty_modal": {
+      "title": "Unsaved Changes",
+      "body": "You have modified the folder list but haven't generated the page yet. What would you like to do?",
+      "cancel": "Cancel",
+      "discard": "Discard Changes",
+      "save": "Save and Leave"
     },
     "readonly_confirm_modal": {
       "title": "Set as a read-only source?",
@@ -870,12 +884,60 @@
       "output_hint_offline": "You are in Default mode. Output lands automatically in the app's built-in fixed local folder; no separate output folder is needed.",
       "output_hint_media_server": "You are in Emby / Jellyfin / Kodi mode. After confirming, an \"Output to\" field appears. Specify a folder this machine can write to (local, or a NAS share mounted on this machine) — not the read-only source itself.",
       "nas_hint": "Want to feed Emby / Jellyfin / Kodi on a NAS? Default mode only builds a local library for OpenAver's own browsing and does not create .strm shortcut files. To let a media server scan these titles, first switch the mode to Emby / Jellyfin / Kodi mode on the Settings page."
+    },
+    "clear_cache_modal": {
+      "title": "Clear Video Cache",
+      "body_prefix": "This will delete all cached video metadata (",
+      "body_suffix": " videos). You will need to re-scan next time. Are you sure?",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
+    "leave_warning": {
+      "generating": "Generation is in progress — leaving will abort it!",
+      "image_check": "Image check is in progress — leaving will interrupt it!",
+      "folder_dirty": "You have unsaved folder changes",
+      "confirm": "{message} Leave anyway?"
     }
   },
   "scraper": {
     "page_title": "Scraper",
     "heading": "JAV Scraper",
     "body": "Scraper feature under development..."
+  },
+  "notif": {
+    "title": "Notifications",
+    "clear_all": "Clear All",
+    "empty": "No notifications",
+    "open": "Open notifications",
+    "close": "Close notifications",
+    "dialog_label": "Notification Center",
+    "scanner_started": "Scan started",
+    "scanner_done": "Scan complete",
+    "scanner_done_with_errors": "Scan complete (some failures)",
+    "scanner_failed": "Scan interrupted",
+    "scanner_cancelled": "Scan cancelled",
+    "batch_enrich_started": "Batch enrich started",
+    "batch_enrich_done": "Batch enrich complete",
+    "batch_enrich_done_with_errors": "Batch enrich (some failures)",
+    "batch_enrich_failed": "Batch enrich interrupted",
+    "jl_cf_timeout": "JavLibrary CF challenge timed out",
+    "update_available": "A new version of OpenAver is available",
+    "auto_organize_summary": "Scheduled Organize",
+    "auto_organize_aborted": "Scheduled organize aborted",
+    "auto_organize_folder_not_set": "Scheduled organize: favorite folder not set yet",
+    "auto_organize_folder_unreachable": "Scheduled organize: favorite folder unreachable",
+    "auto_organize_readonly": "Scheduled organize: favorite folder is a read-only source",
+    "auto_organize_failed": "Scheduled organize failed, check the logs",
+    "wishlist_auto_removed": "Wishlist auto-updated",
+    "wishlist_reconcile_failed": "Wishlist reconciliation failed, check the logs",
+    "focal_auto_disabled": "Face detection timed out twice in a row, so we've turned off Auto Face Focus for you. If you want to adjust the position, just drag it yourself in the lightbox.",
+    "data_root_finalized": "The data location is now finalized — please keep this folder together when backing up.",
+    "data_root_recovered": "Your existing library has been kept, but settings were rebuilt to their defaults: source settings, cross-machine path mapping, external service settings, and interface preferences all need to be reconfigured."
+  },
+  "similar_mode": {
+    "button_aria_label": "Explore similar videos",
+    "close": "Close",
+    "fetch_failed": "Load failed"
   },
   "showcase": {
     "page_title": "Browse",
@@ -908,16 +970,50 @@
       "success": "Overwritten (cover + NFO)",
       "fail": "Re-scrape failed, please try again later.",
       "jl_desktop_only": "Available in standalone desktop app only",
+      "cf_window_restart": "This source's verification window failed to start. Please restart OpenAver and try again",
       "jl_cf_solving": "Cloudflare check in progress — will resume automatically once passed",
       "versions_found": "Found {count} title(s) with the same ID",
       "version_prev_aria": "Previous version",
       "version_next_aria": "Next version",
       "adopt_version": "Use this version",
       "adopt_switch_source": "Replace with this version",
-      "cf_window_restart": "This source's verification window failed to start. Please restart OpenAver and try again"
+      "preserve_title": "Keep current title: \"{title}\""
     },
     "placeholder": {
       "search": "Search ID, actress, title..."
+    },
+    "pill": {
+      "dim_label": {
+        "actress": "Actress",
+        "tag": "Tag",
+        "maker": "Maker",
+        "director": "Director",
+        "series": "Series",
+        "label": "Label",
+        "age": "Age",
+        "height": "Height",
+        "cup": "Cup",
+        "release": "Release Date"
+      },
+      "title": "{dim}: {value}",
+      "remove_aria": "Remove filter: {value}",
+      "op": {
+        "eq": "Equals",
+        "lte": "At most",
+        "gte": "At least",
+        "range": "Custom range"
+      },
+      "editor": {
+        "range_min": "Min",
+        "range_max": "Max",
+        "from_year": "From Year",
+        "from_month": "From Month",
+        "to_year": "To Year",
+        "to_month": "To Month"
+      }
+    },
+    "filter": {
+      "pick_only": "Picks only"
     },
     "action": {
       "clear_search": "Clear Search",
@@ -954,10 +1050,14 @@
       "grid": "Grid",
       "table": "Table",
       "list": "List",
-      "actress": "Actress Mode",
-      "video": "Video Mode",
       "cover": "Full Cover",
-      "poster": "Poster"
+      "poster": "Poster",
+      "actress": "Actress Mode",
+      "video": "Video Mode"
+    },
+    "search": {
+      "actress": "Search actress name...",
+      "video": "Search ID, actress, title..."
     },
     "unit": {
       "videos": "videos",
@@ -965,7 +1065,8 @@
       "minutes_abbr": "min",
       "videos_count": " videos",
       "films": " films",
-      "actresses": "actresses"
+      "actresses": "actresses",
+      "age_suffix": "y"
     },
     "status": {
       "total_prefix": "Total",
@@ -974,12 +1075,12 @@
       "search_middle": "\" — Found",
       "search_suffix": " videos",
       "search_empty": "No matching films",
-      "search_actresses_prefix": "Found ",
-      "search_actresses_middle": " actresses for \"",
-      "search_actresses_suffix": "\"",
       "pill_prefix": "Matching",
       "pill_middle": "filters —",
       "pill_suffix": "videos",
+      "search_actresses_prefix": "Found ",
+      "search_actresses_middle": " actresses for \"",
+      "search_actresses_suffix": "\"",
       "pill_actresses_prefix": "Matching",
       "pill_actresses_middle": "filters —",
       "pill_actresses_suffix": "actresses",
@@ -1031,11 +1132,20 @@
       "alias_source_hint": "Synced from Scanner",
       "mask_toggle": "Cover crop preview",
       "mask_detect_failed": "Focal detection failed. Please try again later.",
+      "mask_focal_too_slow_auto_disabled": "Detecting the face on this cover took longer than 5 seconds, so we've turned off Auto Face Focus for you. Just drag to adjust the position directly — you can turn it back on anytime in Settings.",
+      "mask_focal_too_slow_hint": "Detecting the face took longer than 5 seconds. Dragging it yourself will be faster — if you don't want to wait every time, you can turn off Auto Face Focus under \"Settings → Scraping → Advanced Scrape Settings.\"",
       "mask_save_failed": "Failed to save crop settings. Please try again later.",
       "mask_cover_changed": "Cover has changed. Please reopen the crop tool and try again.",
+      "cover_unavailable": "This cover can’t be loaded right now — the file location may be unreachable, or the cover file may be missing",
+      "cover_escape_hint": "Cover not found. You can name an image after the video's filename and place it next to the video (e.g. `ABC-123.mp4` → `ABC-123.jpg`), then go back to the Scanner page and click \"Generate\" once to pick it up — or click ⚙ to manually specify the ID and re-scrape.",
       "mask_confirm": "Confirm crop position",
-      "mask_cancel": "Cancel crop adjustment",
-      "cover_unavailable": "This cover can’t be loaded right now — the file location may be unreachable, or the cover file may be missing"
+      "mask_cancel": "Cancel crop adjustment"
+    },
+    "pick": {
+      "add_aria": "Add to picks",
+      "remove_aria": "Remove from picks",
+      "save_failed": "Failed to save pick, please try again",
+      "chip_label": "★ Pick"
     },
     "gallery": {
       "prev": "Previous (←)",
@@ -1059,21 +1169,17 @@
       "delete_modal": {
         "title": "Remove This Video from Collection",
         "body": "Only the database record for \"{number}\" will be removed. The video file will remain on disk and will not be deleted; if the file is still in a scanned folder, it will be added back on the next scan.",
+        "body_multipart": "This is a multi-part video ({tokens}). Confirming removes the records for all {n} parts — the video files all remain on disk.",
         "cancel": "Cancel",
-        "confirm": "Confirm Remove",
-        "body_multipart": "This is a multi-part video ({tokens}). Confirming removes the records for all {n} parts — the video files all remain on disk."
+        "confirm": "Confirm Remove"
       },
       "delete_success": "Removed from collection",
       "delete_failed": "Remove failed, please try again",
       "play_failed": "Playback failed",
-      "part_count_fallback": "{n} parts",
-      "part_progress": "Part {current} of {total}",
       "player_unavailable": "This video can’t be played right now — the file location may be unreachable, or the browser may not support this format",
-      "player_unavailable_format": "Your browser can’t play this file — the format may be unsupported, or the file itself may be damaged. Try a desktop player such as VLC or PotPlayer"
-    },
-    "search": {
-      "actress": "Search actress name...",
-      "video": "Search ID, actress, title..."
+      "player_unavailable_format": "Your browser can’t play this file — the format may be unsupported, or the file itself may be damaged. Try a desktop player such as VLC or PotPlayer",
+      "part_count_fallback": "{n} parts",
+      "part_progress": "Part {current} of {total}"
     },
     "actress": {
       "add": "+ Add Actress",
@@ -1092,10 +1198,24 @@
       "removeSuccess": "Removed from favorites",
       "empty": "No favorite actresses yet",
       "emptyHint": "Click + in the top right to add one",
+      "searchEmpty": "No matching actresses",
       "search_films": "Search related films",
       "addFavorite": "Add to favorites",
       "favorited": "Favorited",
       "change_photo": "Change Photo",
+      "panel": {
+        "title": "Add Actress from Library",
+        "search_placeholder": "Search library actresses, or type a full name to add",
+        "close": "Close",
+        "loading": "Loading…",
+        "load_failed": "Failed to load. Please try again later",
+        "progress": "Showing {n} of {m}",
+        "progress_all": "{m} total",
+        "direct_add": "Add “{name}” directly",
+        "queued": "Queued",
+        "adding": "Adding…",
+        "add_failed": "Failed to add. Please try again"
+      },
       "picker": {
         "empty": "No candidates found",
         "empty_hint": "More saved videos = more local options. You can also replace the image file directly.",
@@ -1113,20 +1233,6 @@
         "upload_too_large": "Image too large (max 10MB file, 50M pixels)",
         "upload_bad_format": "Unsupported image format",
         "upload_failed": "Upload failed. Please try again later."
-      },
-      "searchEmpty": "No matching actresses",
-      "panel": {
-        "title": "Add Actress from Library",
-        "search_placeholder": "Search library actresses, or type a full name to add",
-        "close": "Close",
-        "loading": "Loading…",
-        "load_failed": "Failed to load. Please try again later",
-        "progress": "Showing {n} of {m}",
-        "progress_all": "{m} total",
-        "direct_add": "Add “{name}” directly",
-        "queued": "Queued",
-        "adding": "Adding…",
-        "add_failed": "Failed to add. Please try again"
       }
     },
     "samples": {
@@ -1135,49 +1241,11 @@
       "success": "Stills fetched successfully",
       "fetch_failed": "Failed to fetch stills, please try again",
       "multi_video_error": "This folder contains other videos. Fetching stills here may affect them. Please move the video to its own folder first."
-    },
-    "pill": {
-      "dim_label": {
-        "actress": "Actress",
-        "tag": "Tag",
-        "maker": "Maker",
-        "director": "Director",
-        "series": "Series",
-        "label": "Label",
-        "age": "Age",
-        "height": "Height",
-        "cup": "Cup",
-        "release": "Release Date"
-      },
-      "title": "{dim}: {value}",
-      "remove_aria": "Remove filter: {value}",
-      "op": {
-        "eq": "Equals",
-        "lte": "At most",
-        "gte": "At least",
-        "range": "Custom range"
-      },
-      "editor": {
-        "range_min": "Min",
-        "range_max": "Max",
-        "from_year": "From Year",
-        "from_month": "From Month",
-        "to_year": "To Year",
-        "to_month": "To Month"
-      }
-    },
-    "filter": {
-      "pick_only": "Picks only"
-    },
-    "pick": {
-      "add_aria": "Add to picks",
-      "remove_aria": "Remove from picks",
-      "save_failed": "Failed to save pick, please try again",
-      "chip_label": "★ Pick"
     }
   },
   "help": {
     "hero": {
+      "copy_curl": "Copy Command",
       "page_title": "Help Guide",
       "subtitle": "JAV Metadata Management Tool",
       "privacy": "🔒 Local app only — no user data collected",
@@ -1191,8 +1259,7 @@
       "auto_check_save_failed": "Failed to save setting, please try again later",
       "ai_instruction": "Paste to AI agent to control OpenAver",
       "ai_hint_unsupported": "Not supported in web chat",
-      "ai_tools": "Paste to any AI agent to operate OpenAver — Claude Code · Cursor · Codex etc.",
-      "copy_curl": "Copy Command"
+      "ai_tools": "Paste to any AI agent to operate OpenAver — Claude Code · Cursor · Codex etc."
     },
     "agent_auth": {
       "title": "Agent Token",
@@ -1262,7 +1329,7 @@
       "h6_pause": "Pause & Resume",
       "h6_generate_all": "Batch Organize",
       "h6_badge": "Version Tag Preservation",
-      "add_folder": "<strong>Drop Folder</strong>: Automatically scans video files in the folder",
+      "add_folder": "<strong>Drop Folder</strong>: Only reads videos at this level, not subfolders; for your whole library, add it under \"Scan Folders\" on the Scanner page",
       "add_filter": "<strong>Auto Filter</strong>: Excludes non-video files and files below the size threshold",
       "add_batch": "<strong>Batch Search</strong>: 20 files per batch, 2 concurrent requests",
       "add_progress": "<strong>Progress Display</strong>: Real-time progress (e.g. Processing 15/100)",
@@ -1343,15 +1410,15 @@
       "jellyfin_enable": "Once enabled on the <strong>Settings page</strong>, scanning automatically generates <code>-poster.jpg</code> + <code>-fanart.jpg</code>",
       "jellyfin_canonical": "With a media-manager mode selected, OpenAver <strong>no longer writes a same-name cover file</strong> — Jellyfin / Emby prefer that file, which is what puts landscape images on the poster wall. Existing titles keep whatever cover location they already have (so manual focal crops are not wiped); to fix one, delete its same-name cover yourself and regenerate.",
       "jellyfin_showcase": "After scanning, browse results on the <code>/showcase</code> page",
-      "h6_multiversion": "Multi-version manual merge (native Emby / Jellyfin feature)",
-      "multiversion_intro": "Merging multiple versions of the same title (censored / uncensored leak / subtitled) into one entry with a version dropdown in Emby or Jellyfin is a feature both support natively (the same {folder name} - {label} rule), not exclusive to either. Just arrange the files manually as below:",
-      "multiversion_rule1": "Each version's filename <strong>must start with the folder name</strong> followed by \" - label\" (space, hyphen, space)",
-      "multiversion_rule2": "Multi-version and cd1/cd2 multipart <strong>cannot be used together on the same title</strong> (media server official limitation)",
       "h6_strm_deploy": "Read-only source + letting Emby / Jellyfin / Kodi find your titles (cross-machine setup)",
       "strm_deploy_step1": "After mounting the read-only cloud drive / NAS share on the OpenAver machine, check that folder as \"Read-only\" in the Scanner — OpenAver won't touch any file inside (no moving, renaming, or writing).",
       "strm_deploy_step2": "Under \"Output to,\" specify a folder <strong>this machine can write to</strong> (which can be a writable NAS share mounted on this machine) — the generated <code>.strm</code> + NFO + covers go here, and you point Emby / Jellyfin / Kodi at it to build the library. This output folder is not the read-only source itself.",
       "strm_deploy_step3": "If the machine that plays them sees the read-only source under a different path than OpenAver does (e.g. <code>Z:\\115</code> on OpenAver, <code>/volume1/115</code> on the NAS), add a matching rule under \"Playback-side path mapping\" on the <strong>Settings page</strong>; otherwise the <code>.strm</code> will point to a path the player can't find.",
-      "strm_deploy_step4": "If you later change the mapping rules, the existing <code>.strm</code> files are rewritten automatically in one pass — no need to rebuild the whole library."
+      "strm_deploy_step4": "If you later change the mapping rules, the existing <code>.strm</code> files are rewritten automatically in one pass — no need to rebuild the whole library.",
+      "h6_multiversion": "Multi-version manual merge (native Emby / Jellyfin feature)",
+      "multiversion_intro": "Merging multiple versions of the same title (censored / uncensored leak / subtitled) into one entry with a version dropdown in Emby or Jellyfin is a feature both support natively (the same {folder name} - {label} rule), not exclusive to either. Just arrange the files manually as below:",
+      "multiversion_rule1": "Each version's filename <strong>must start with the folder name</strong> followed by \" - label\" (space, hyphen, space)",
+      "multiversion_rule2": "Multi-version and cd1/cd2 multipart <strong>cannot be used together on the same title</strong> (media server official limitation)"
     },
     "showcase": {
       "title": "Video Browser (Showcase)",
@@ -1371,6 +1438,24 @@
       "other_table_cols": "Table mode adds 'Director' and 'Duration' columns",
       "other_gallery": "Lightbox can open sample image gallery (click 'Stills' button)",
       "other_per_page": "Items per page can be adjusted on the <strong>Settings page</strong>"
+    },
+    "similar": {
+      "title": "Similar Video Discovery (Rule-based)",
+      "intro": "Click the wand button in Lightbox → 12 discovery stars orbit the main cover; stars are ranked by rule-based tag similarity (IDF-weighted + series / maker / year / cast signals). No model downloads required — works out of the box.",
+      "h6_what": "How it works",
+      "what_principle": "Primary signal uses IDF-weighted Jaccard — rare tag matches score higher; combined with series / maker / year / cast multi-signal scoring.",
+      "what_crop": "Exact series match gets a bonus, bringing same-series videos to the top.",
+      "what_diversity": "MMR diversity rerank (λ=0.7) ensures the final 12 results balance similarity and variety.",
+      "h6_use": "How to use",
+      "use_lightbox": "Open Lightbox in Showcase video mode → click the wand button <i class=\"bi bi-magic\"></i> in the top-left → enter constellation mode",
+      "use_constellation": "12 stars orbit the central main cover; click any star to \"dive in\" and make it the new main — explore endlessly",
+      "use_mobile": "On mobile (&lt; 768px) falls back to a grid of the top 4 results below the main cover, without animation",
+      "h6_beta": "Limitations",
+      "beta_uncensored": "For <strong>uncensored / FC2 / old compilation</strong> covers with non-standard layouts, videos without metadata fall into Tier 3/4 (random fill) with lower relevance",
+      "beta_compilation": "More complete tags (series / maker / cast) means better accuracy; videos with few tags should have their NFO filled in first",
+      "h6_manage": "Tips",
+      "manage_enable": "No configuration needed — works out of the box",
+      "manage_scanner": "After adding videos, the index updates automatically when Scanner generates the webpage — no manual steps needed"
     },
     "shortcuts": {
       "title": "Keyboard Shortcuts",
@@ -1440,6 +1525,31 @@
       "db_hint": "Searching multiple metatube sources in parallel can be slow — consider switching your metatube server to PostgreSQL instead of the default SQLite (this is a metatube server setting, not an OpenAver setting).",
       "crossref_picker": "Use the Advanced Search picker to select a single metatube source → see the 'Search' card"
     },
+    "server_mode": {
+      "title": "Server Mode — Access from Phone/Tablet",
+      "h6_what": "What Is This",
+      "what_single": "Default \"standalone\" mode: only this computer can use it.",
+      "what_server": "Switch to \"server\" mode: phones, tablets, and other computers on the same Wi-Fi / LAN can open the URL shown on screen in a browser to browse covers, watch videos, and look up titles.",
+      "what_where": "The toggle is in the \"Standalone | Server\" capsule at the top right of the Settings page.",
+      "h6_how": "How to Use",
+      "how_url": "After switching to \"server\" mode, a connection URL will appear below (e.g. <code>http://192.168.1.50:50123</code>).",
+      "how_copy": "Tap \"Copy\" to send the URL to your phone, or use your browser's built-in \"Send to device\" feature, then open it in your mobile browser.",
+      "how_off": "Switching back to \"standalone\" fully closes external access — LAN devices disconnect immediately.",
+      "h6_security": "Security Notice",
+      "security_lan": "Use only on trusted Wi-Fi / LAN networks (no username/password protection, LAN-only).",
+      "security_lan_auth": "Password protection is on. Use only on trusted Wi-Fi / LAN networks (other devices must enter the password; agents need the token).",
+      "security_vpn": "For remote access, configure a VPN yourself (e.g. Tailscale); this app does not expose itself to the internet.",
+      "h6_firewall": "Firewall Prompt on First Launch",
+      "firewall_allow": "The first time you switch to \"server\" mode, Windows (or macOS) will show a firewall prompt asking whether to allow network access → click \"<strong>Allow</strong>\". You only need to do this once; the system will remember.",
+      "firewall_why": "This is required so other devices can connect — the OS needs your permission (same as Plex and similar LAN tools). <strong>Standalone mode will not trigger this prompt.</strong>",
+      "h6_recover": "Accidentally Clicked \"Cancel / Block\"?",
+      "recover_win_intro": "Steps to recover on Windows:",
+      "recover_win_1": "Press <code>Win + R</code>, type <code>wf.msc</code> and press Enter to open \"Windows Defender Firewall with Advanced Security\".",
+      "recover_win_2": "Click \"Inbound Rules\" in the left panel.",
+      "recover_win_3": "Find rules where \"Program\" is <code>python.exe</code> (or named Python / OpenAver) and \"Action\" is \"Block\" — typically two entries (Public + Private).",
+      "recover_win_4": "Right-click to delete those rules, restart OpenAver, then switch to \"server\" mode and click \"Allow\".",
+      "recover_mac": "macOS recovery: System Settings → Network → Firewall → Options, find this app and set it to \"Allow incoming connections\"."
+    },
     "troubleshooting": {
       "title": "Troubleshooting",
       "h6_crash": "App Won't Start / Crashes (Windows)",
@@ -1469,49 +1579,6 @@
       "version_load_failed": "Failed to load",
       "check_update_failed": "Check failed, please try again later",
       "check_update_network_error": "Network error, please try again later"
-    },
-    "similar": {
-      "title": "Similar Video Discovery (Rule-based)",
-      "intro": "Click the wand button in Lightbox → 12 discovery stars orbit the main cover; stars are ranked by rule-based tag similarity (IDF-weighted + series / maker / year / cast signals). No model downloads required — works out of the box.",
-      "h6_what": "How it works",
-      "what_principle": "Primary signal uses IDF-weighted Jaccard — rare tag matches score higher; combined with series / maker / year / cast multi-signal scoring.",
-      "what_crop": "Exact series match gets a bonus, bringing same-series videos to the top.",
-      "what_diversity": "MMR diversity rerank (λ=0.7) ensures the final 12 results balance similarity and variety.",
-      "h6_use": "How to use",
-      "use_lightbox": "Open Lightbox in Showcase video mode → click the wand button <i class=\"bi bi-magic\"></i> in the top-left → enter constellation mode",
-      "use_constellation": "12 stars orbit the central main cover; click any star to \"dive in\" and make it the new main — explore endlessly",
-      "use_mobile": "On mobile (&lt; 768px) falls back to a grid of the top 4 results below the main cover, without animation",
-      "h6_beta": "Limitations",
-      "beta_uncensored": "For <strong>uncensored / FC2 / old compilation</strong> covers with non-standard layouts, videos without metadata fall into Tier 3/4 (random fill) with lower relevance",
-      "beta_compilation": "More complete tags (series / maker / cast) means better accuracy; videos with few tags should have their NFO filled in first",
-      "h6_manage": "Tips",
-      "manage_enable": "No configuration needed — works out of the box",
-      "manage_scanner": "After adding videos, the index updates automatically when Scanner generates the webpage — no manual steps needed"
-    },
-    "server_mode": {
-      "title": "Server Mode — Access from Phone/Tablet",
-      "h6_what": "What Is This",
-      "what_single": "Default \"standalone\" mode: only this computer can use it.",
-      "what_server": "Switch to \"server\" mode: phones, tablets, and other computers on the same Wi-Fi / LAN can open the URL shown on screen in a browser to browse covers, watch videos, and look up titles.",
-      "what_where": "The toggle is in the \"Standalone | Server\" capsule at the top right of the Settings page.",
-      "h6_how": "How to Use",
-      "how_url": "After switching to \"server\" mode, a connection URL will appear below (e.g. <code>http://192.168.1.50:50123</code>).",
-      "how_copy": "Tap \"Copy\" to send the URL to your phone, or use your browser's built-in \"Send to device\" feature, then open it in your mobile browser.",
-      "how_off": "Switching back to \"standalone\" fully closes external access — LAN devices disconnect immediately.",
-      "h6_security": "Security Notice",
-      "security_lan": "Use only on trusted Wi-Fi / LAN networks (no username/password protection, LAN-only).",
-      "security_lan_auth": "Password protection is on. Use only on trusted Wi-Fi / LAN networks (other devices must enter the password; agents need the token).",
-      "security_vpn": "For remote access, configure a VPN yourself (e.g. Tailscale); this app does not expose itself to the internet.",
-      "h6_firewall": "Firewall Prompt on First Launch",
-      "firewall_allow": "The first time you switch to \"server\" mode, Windows (or macOS) will show a firewall prompt asking whether to allow network access → click \"<strong>Allow</strong>\". You only need to do this once; the system will remember.",
-      "firewall_why": "This is required so other devices can connect — the OS needs your permission (same as Plex and similar LAN tools). <strong>Standalone mode will not trigger this prompt.</strong>",
-      "h6_recover": "Accidentally Clicked \"Cancel / Block\"?",
-      "recover_win_intro": "Steps to recover on Windows:",
-      "recover_win_1": "Press <code>Win + R</code>, type <code>wf.msc</code> and press Enter to open \"Windows Defender Firewall with Advanced Security\".",
-      "recover_win_2": "Click \"Inbound Rules\" in the left panel.",
-      "recover_win_3": "Find rules where \"Program\" is <code>python.exe</code> (or named Python / OpenAver) and \"Action\" is \"Block\" — typically two entries (Public + Private).",
-      "recover_win_4": "Right-click to delete those rules, restart OpenAver, then switch to \"server\" mode and click \"Allow\".",
-      "recover_mac": "macOS recovery: System Settings → Network → Firewall → Options, find this app and set it to \"Allow incoming connections\"."
     },
     "update_modal": {
       "trigger_btn": "Update",
@@ -1549,36 +1616,60 @@
     "heading": "NFO Updater",
     "body": "Update feature under development..."
   },
-  "notif": {
-    "title": "Notifications",
-    "clear_all": "Clear All",
-    "empty": "No notifications",
-    "open": "Open notifications",
-    "close": "Close notifications",
-    "dialog_label": "Notification Center",
-    "scanner_started": "Scan started",
-    "scanner_done": "Scan complete",
-    "scanner_done_with_errors": "Scan complete (some failures)",
-    "scanner_failed": "Scan interrupted",
-    "batch_enrich_started": "Batch enrich started",
-    "batch_enrich_done": "Batch enrich complete",
-    "batch_enrich_done_with_errors": "Batch enrich (some failures)",
-    "batch_enrich_failed": "Batch enrich interrupted",
-    "jl_cf_timeout": "JavLibrary CF challenge timed out",
-    "update_available": "A new version of OpenAver is available",
-    "auto_organize_summary": "Scheduled Organize",
-    "auto_organize_aborted": "Scheduled organize aborted",
-    "auto_organize_folder_not_set": "Scheduled organize: favorite folder not set yet",
-    "auto_organize_folder_unreachable": "Scheduled organize: favorite folder unreachable",
-    "auto_organize_readonly": "Scheduled organize: favorite folder is a read-only source",
-    "auto_organize_failed": "Scheduled organize failed, check the logs",
-    "wishlist_auto_removed": "Wishlist auto-updated",
-    "wishlist_reconcile_failed": "Wishlist reconciliation failed, check the logs",
-    "scanner_cancelled": "Scan cancelled"
-  },
-  "similar_mode": {
-    "button_aria_label": "Explore similar videos",
-    "close": "Close",
-    "fetch_failed": "Load failed"
+  "insights": {
+    "page_title": "Library Insights",
+    "snapshot_error": "Failed to load. Please refresh the page.",
+    "unknown": "Unknown",
+    "no_data": "No data",
+    "period_empty": "No matching videos in this period",
+    "unit": "videos",
+    "all_years": "All Years",
+    "all_focus": "All",
+    "clear_year": "Clear Year",
+    "clear_focus": "Clear Focus",
+    "focus_type_actress": "Actress",
+    "focus_type_maker": "Maker",
+    "row": {
+      "years": "Year",
+      "makers": "Makers",
+      "actress_top20": "Top 20 Actresses",
+      "tags": "Tags",
+      "age": "Age",
+      "director": "Director",
+      "series": "Series",
+      "deep_dive": "Deep Dive: Actress & Maker",
+      "gantt": "Major Studio Timeline",
+      "actress_distribution": "Actress–Maker Distribution",
+      "costar": "Co-stars"
+    },
+    "donut": {
+      "legend": "Inner ring: maker share · Outer ring: major-maker videos / other videos",
+      "other": "Other",
+      "unknown": "Unknown",
+      "library_wide": "Library-wide"
+    },
+    "tags": {
+      "coverage": "Coverage {pct}",
+      "almost_all": "Almost every video has it:",
+      "empty": "No tags to display",
+      "tooltip": "{name}<br>{count} videos<br>Coverage {pct}"
+    },
+    "age": {
+      "median": "Median {age}"
+    },
+    "gantt": {
+      "age_label": "{age}y",
+      "tooltip_main": "{label} · {total} videos in your collection, {count} from {maker}",
+      "tooltip_dot": "{label} · {total} videos in your collection",
+      "skipped_note": "{n} with no birth date skipped"
+    },
+    "solo": {
+      "count_label": "{n} videos · {m} makers",
+      "other_title": "Other {n} makers: {list}"
+    },
+    "costar": {
+      "count_label": "{n} videos"
+    },
+    "total_count": "{n} videos in your library"
   }
 }

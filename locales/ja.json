@@ -3,6 +3,7 @@
     "search": "検索",
     "scanner": "リスト生成",
     "showcase": "ブラウズ",
+    "insights": "ライブラリ分析",
     "help": "ヘルプ",
     "help_title": "使い方",
     "settings": "設定",
@@ -40,6 +41,13 @@
       "err_not_a_directory": "これはフォルダではありません",
       "err_permission_denied": "このフォルダを読み取る権限がありません",
       "err_generic": "このフォルダを読み取れません"
+    },
+    "number_drilldown": {
+      "copy_button": "リストをコピー",
+      "copy_toast": "{count} 本をコピーしました",
+      "copy_failed": "コピーに失敗しました。リストのテキストを手動で選択してコピーしてください",
+      "close": "閉じる",
+      "count": "合計 {count} 本"
     }
   },
   "desktop": {
@@ -72,6 +80,12 @@
       "query": "番号、女優名またはファイルをドロップ...",
       "tag": "タグ名",
       "actors": "女優名（、，, で複数区切り可）"
+    },
+    "auto_pill": {
+      "tooltip": "クリックしてソースを選択"
+    },
+    "source_pill": {
+      "tooltip": "クリックしてソースを変更"
     },
     "action": {
       "search": "検索",
@@ -122,8 +136,8 @@
       "explain_naming_prefix": "「整理」を押すと、リネーム・フォルダ作成・表紙ダウンロード・NFO 書き込みが行われます。例：",
       "explain_naming_translate_suffix": "（タイトルは中国語訳を使用）",
       "explain_naming_link": "ルールを変更 → 設定",
-      "favorite_note": "「お気に入り」はよく使う動画フォルダのパスで、女優のお気に入りではありません",
-      "explainer_partial": "「IPZZ-03」のように途中まで入力すると、030〜039 をまとめて検索できます。"
+      "explainer_partial": "「IPZZ-03」のように途中まで入力すると、030〜039 をまとめて検索できます。",
+      "favorite_note": "「お気に入り」はよく使う動画フォルダのパスで、女優のお気に入りではありません"
     },
     "error": {
       "hint": "番号の形式を確認するか、しばらくしてから再試行してください",
@@ -288,12 +302,6 @@
       "instruction": "<strong>設定 → 高度なスクレイプ設定 → バージョンマーク</strong> でキーワードを追加し、ファイル命名形式に <code class=\"badge badge-sm\">{suffix}</code> 変数が含まれていることを確認してください。",
       "acknowledge": "了解",
       "go_settings": "設定へ"
-    },
-    "auto_pill": {
-      "tooltip": "クリックしてソースを選択"
-    },
-    "source_pill": {
-      "tooltip": "クリックしてソースを変更"
     }
   },
   "settings": {
@@ -389,20 +397,55 @@
       "copy": "コピー",
       "copied": "接続 URL をコピーしました",
       "warning": "同一ネットワーク（Wi-Fi / LAN）内のデバイスは上記の URL で本機に直接アクセスできます。信頼できるネットワーク環境でのみご使用ください。外部からのアクセスには VPN（例：Tailscale）を設定してください。",
+      "public_exposure": "このPCが現在使用しているネットワークアドレスがLANのプライベートアドレスではありません。インターネットに直接公開されている可能性があります。この状況では4文字のパスワードでは保護として不十分です。ネットワーク構成をご確認いただくか、VPN（Tailscale など）経由での接続に切り替えてください。",
       "no_lan_ip": "本機の LAN IP を自動取得できませんでした。システムのネットワーク設定で IP を確認し、手動で接続してください。",
+      "no_lan_ip_with_port": "ローカル LAN IP を自動取得できませんでした。システムのネットワーク設定で IP を確認し、「その IP:{port}」で接続してください。",
       "listener_down": "LAN サーバーが起動していません。ローカルモードに切り替えてから、サーバーモードを再度有効にしてください。",
       "toggle_failed": "LAN サーバーを起動できませんでした。しばらくしてから再試行してください。",
-      "autostart_failed": "再起動後に LAN サーバーモードを自動起動できませんでした。設定から再度有効にしてください。",
-      "no_lan_ip_with_port": "ローカル LAN IP を自動取得できませんでした。システムのネットワーク設定で IP を確認し、「その IP:{port}」で接続してください。",
       "disable_failed": "LAN サーバーを停止できませんでした。しばらくしてから再試行してください。",
       "remote_only": "サーバーモードは OpenAver を実行しているホストPCでのみ切り替えられます。",
-      "public_exposure": "このPCが現在使用しているネットワークアドレスがLANのプライベートアドレスではありません。インターネットに直接公開されている可能性があります。この状況では4文字のパスワードでは保護として不十分です。ネットワーク構成をご確認いただくか、VPN（Tailscale など）経由での接続に切り替えてください。",
+      "autostart_failed": "再起動後に LAN サーバーモードを自動起動できませんでした。設定から再度有効にしてください。",
       "warning_auth": "同じ Wi-Fi / LAN 上の端末からこのPCに接続するにはパスワードの入力が必要です。信頼できるネットワーク環境でご利用ください。外部ネットワークからのアクセスには、ご自身で VPN（Tailscale など）を設定してください。"
+    },
+    "server_mode_confirm": {
+      "title": "サーバーモードの切り替え",
+      "title_on": "サーバーモードを有効にしますか？",
+      "body_on": "有効にすると、同じ Wi-Fi またはLANに接続している端末（スマートフォン・タブレット・PC）からブラウザで OpenAver を開けるようになります。ユーザー名・パスワードによる保護はなく、同じネットワーク上の全ての端末が接続できます。完全に信頼できるネットワーク環境でのみ使用してください。",
+      "body_off": "「スタンドアロン」モードに戻すと、LAN デバイスはすぐに接続できなくなります。切り替えますか？",
+      "confirm": "切り替える",
+      "confirm_on": "有効にする",
+      "body_on_auth": "有効にすると、同じ Wi-Fi またはLANに接続している端末（スマートフォン・タブレット・PC）からブラウザで OpenAver を開けるようになります。パスワード保護が設定されているため、他の端末は接続時にパスワードの入力が必要です。それでも、信頼できるネットワーク環境でのみ使用してください。"
+    },
+    "access_auth": {
+      "label": "接続にパスワードを要求する",
+      "pin_prefix": "パスワード",
+      "pin_label": "パスワード（半角英数字4文字・大文字小文字を区別）",
+      "save": "保存",
+      "reveal": "パスワードを表示",
+      "saved": "パスワード設定を保存しました",
+      "save_failed": "パスワード設定を保存できませんでした。しばらくしてから再試行してください。",
+      "pin_invalid": "パスワードは半角英数字4文字で入力してください"
+    },
+    "switch_mode_confirm": {
+      "title": "メディアサーバーモードの切り替え",
+      "body": "「{mode}」に切り替えると、現在の読み取り専用ソース {count} 件とそれらが生成したメディアカードが削除されます（出力フォルダー内のファイルは削除されません）。切り替え後に再度追加すれば新しいモードで再構築できます。ほかに開いているタブは再読み込みしてから操作してください。",
+      "cancel": "キャンセル",
+      "confirm": "切り替えて削除",
+      "failed": "モードの切り替えに失敗しました。しばらくしてからもう一度お試しください。",
+      "generate_in_progress": "生成中です。生成が完了してからモードを切り替えてください。",
+      "mode_off": "デフォルトモード",
+      "mode_media": "Emby・Jellyfin・Kodi モード"
     },
     "section": {
       "search": "検索・スクレイプ",
       "scraper_advanced": "高度なスクレイプ設定",
       "system": "システム設定"
+    },
+    "favorite_folder": {
+      "pick_from_scanner": "Scanner のフォルダから選択",
+      "no_directories": "Scanner のフォルダが未設定です",
+      "linked_text": "✓ Scanner と連動済み",
+      "not_linked_text": "⚠ Scanner と未連動"
     },
     "search": {
       "uncensored_mode": "無修正モード",
@@ -447,6 +490,10 @@
       "preview_empty_tag": "空値の例",
       "preview_prefix": "プレビュー",
       "filename_format_label": "ファイル命名形式",
+      "nfo_title_format_label": "NFO タイトル形式",
+      "nfo_title_format_help": "この項目は NFO 内のタイトル（Jellyfin／Emby／Kodi のポスターウォールに表示される名前）だけを決めます。ファイル名やフォルダには影響せず、OpenAver 自身の画面に表示されるタイトルにも影響しません。",
+      "nfo_title_format_help_aria": "NFO タイトル形式の説明",
+      "nfo_title_format_preview_actor_missing_label": "出演者情報なし",
       "max_title_length_label": "タイトル長さ制限",
       "unit_chars": "文字",
       "max_filename_length_label": "ファイル名長さ制限",
@@ -457,6 +504,9 @@
       "path_length_help_line4": "macOS / Linux にはこの制限はありませんが、macOS/Linux で生成した長いファイル名を LongPathsEnabled が無効な Windows に移動すると失敗する場合があります。",
       "video_extensions_label": "動画拡張子",
       "video_extensions_hint": "カンマ区切り",
+      "focal_pill_label": "顔の自動フォーカス",
+      "focal_help": "無修正のカバーは自動で顔を検出し、切り抜き枠の中に収めます。この項目でオン・オフを切り替えられます。オフにすると、スキャン時とライトボックスでの自動顔検出はどちらも実行されず、切り抜き枠は初期位置のまま——自分でドラッグして調整してください。この設定をまだ一度も操作していない場合、検出が5秒を超えて連続2回終わらなければ、先にこちらでオフにしておきます。一度操作した後は、あなたの設定が常に優先されます。",
+      "focal_toggle_failed": "顔の自動フォーカスの設定が保存されませんでした。スイッチは元の状態に戻りました。しばらくしてからもう一度お試しください。",
       "external_manager_label": "外部メディアマネージャーモード",
       "external_manager_off": "オフ（既定）",
       "external_manager_off_hint": "同名のカバーと NFO（`{品番}.jpg`、`{品番}.nfo`）を生成し、OpenAver の閲覧ページで使用します。NFO はどのメディアサーバーでも読めます。同名カバーを直接認識できるのは Emby のみです。",
@@ -508,9 +558,6 @@
       "min_size_hint": "0 = フィルタなし",
       "tier_display": "リスト表示のデフォルト",
       "also_showcase_note": "ブラウズ（Showcase）のデフォルトにもなります",
-      "export_section": "オフライン HTML エクスポート（Windows ローカル閲覧用）",
-      "export_notice": "このエクスポートファイルは Windows でのローカル閲覧（ダブルクリック）向けです。macOS / Linux ではアプリのブラウズページをご利用ください。（理由：カバーが <code>file://</code> で埋め込まれており、Mac のブラウザはローカルの別ディレクトリのファイルをブロックします）",
-      "mode_export_only_note": "このエクスポートファイルのみに影響します（アプリの Showcase には影響しません）",
       "cover_badges_label": "カバーの属性バッジ",
       "cover_badges_note": "カバーの左上に「字幕」「無修正」「4K」などのバッジを表示します（表示のみ。タグ自体は変更しません）",
       "cover_badges_legend": "＊AI：AI による無修正化、LEAK：無修正マスターの流出",
@@ -524,7 +571,10 @@
         "leaked": "無修正マスター流出",
         "4k": "4K",
         "vr": "VR"
-      }
+      },
+      "export_section": "オフライン HTML エクスポート（Windows ローカル閲覧用）",
+      "export_notice": "このエクスポートファイルは Windows でのローカル閲覧（ダブルクリック）向けです。macOS / Linux ではアプリのブラウズページをご利用ください。（理由：カバーが <code>file://</code> で埋め込まれており、Mac のブラウザはローカルの別ディレクトリのファイルをブロックします）",
+      "mode_export_only_note": "このエクスポートファイルのみに影響します（アプリの Showcase には影響しません）"
     },
     "system": {
       "default_page_label": "起動時に開くページ",
@@ -573,20 +623,20 @@
       "loading_models": "モデル読込中...",
       "connecting": "接続中...",
       "testing": "テスト中...",
+      "testing_translation": "翻訳テスト中...",
       "connection_failed": "接続失敗",
+      "connect_failed": "接続失敗",
       "no_models": "利用可能なモデルなし",
       "n_models": "{count} モデル",
+      "connected_n_models": "接続済み、{count} モデル",
+      "gemini_n_flash_models": "{count} 個の Flash モデル",
       "enter_url": "URLを入力してください",
       "enter_api_key": "API Keyを入力してください",
+      "enter_api_key_first": "API Keyを入力してください",
       "select_model": "モデルを選択してください",
       "network_error": "✗ ネットワークエラー",
-      "connect_failed": "接続失敗",
-      "connected_n_models": "接続済み、{count} モデル",
-      "enter_api_key_first": "API Keyを入力してください",
-      "gemini_n_flash_models": "{count} 個の Flash モデル",
-      "test_failed": "テスト失敗: {msg}",
-      "testing_translation": "翻訳テスト中...",
       "translation_success": "翻訳テスト成功！ ({translation})",
+      "test_failed": "テスト失敗: {msg}",
       "openai_connection_failed": "接続失敗",
       "openai_http_error": "HTTPリクエスト失敗",
       "openai_auth_failed": "認証失敗、API Key を確認してください",
@@ -600,41 +650,6 @@
       "openai_translate_failed": "翻訳テスト失敗",
       "openai_unknown_response_format": "不明なレスポンス形式",
       "ja_skip": "日本語モード：翻訳スキップ"
-    },
-    "favorite_folder": {
-      "pick_from_scanner": "Scanner のフォルダから選択",
-      "no_directories": "Scanner のフォルダが未設定です",
-      "linked_text": "✓ Scanner と連動済み",
-      "not_linked_text": "⚠ Scanner と未連動"
-    },
-    "server_mode_confirm": {
-      "title": "サーバーモードの切り替え",
-      "title_on": "サーバーモードを有効にしますか？",
-      "body_on": "有効にすると、同じ Wi-Fi またはLANに接続している端末（スマートフォン・タブレット・PC）からブラウザで OpenAver を開けるようになります。ユーザー名・パスワードによる保護はなく、同じネットワーク上の全ての端末が接続できます。完全に信頼できるネットワーク環境でのみ使用してください。",
-      "body_off": "「スタンドアロン」モードに戻すと、LAN デバイスはすぐに接続できなくなります。切り替えますか？",
-      "confirm": "切り替える",
-      "confirm_on": "有効にする",
-      "body_on_auth": "有効にすると、同じ Wi-Fi またはLANに接続している端末（スマートフォン・タブレット・PC）からブラウザで OpenAver を開けるようになります。パスワード保護が設定されているため、他の端末は接続時にパスワードの入力が必要です。それでも、信頼できるネットワーク環境でのみ使用してください。"
-    },
-    "access_auth": {
-      "label": "接続にパスワードを要求する",
-      "pin_prefix": "パスワード",
-      "pin_label": "パスワード（半角英数字4文字・大文字小文字を区別）",
-      "save": "保存",
-      "reveal": "パスワードを表示",
-      "saved": "パスワード設定を保存しました",
-      "save_failed": "パスワード設定を保存できませんでした。しばらくしてから再試行してください。",
-      "pin_invalid": "パスワードは半角英数字4文字で入力してください"
-    },
-    "switch_mode_confirm": {
-      "title": "メディアサーバーモードの切り替え",
-      "body": "「{mode}」に切り替えると、現在の読み取り専用ソース {count} 件とそれらが生成したメディアカードが削除されます（出力フォルダー内のファイルは削除されません）。切り替え後に再度追加すれば新しいモードで再構築できます。ほかに開いているタブは再読み込みしてから操作してください。",
-      "cancel": "キャンセル",
-      "confirm": "切り替えて削除",
-      "failed": "モードの切り替えに失敗しました。しばらくしてからもう一度お試しください。",
-      "generate_in_progress": "生成中です。生成が完了してからモードを切り替えてください。",
-      "mode_off": "デフォルトモード",
-      "mode_media": "Emby・Jellyfin・Kodi モード"
     }
   },
   "scanner": {
@@ -685,12 +700,12 @@
       "empty_line1": "フォルダが追加されていません",
       "empty_line2": "上のボタンをクリックするかフォルダをドラッグ",
       "remove_title": "削除",
-      "output_prefix": "出力:",
-      "settings_link": "設定",
-      "copy_path": "パスをコピー",
       "readonly_label": "読み取り専用",
       "output_path_label": "出力先",
       "output_path_placeholder": "このマシンで書き込める出力フォルダー（Emby／Jellyfin／Kodi のスキャン用、NAS でも可）...",
+      "output_prefix": "出力:",
+      "settings_link": "設定",
+      "copy_path": "パスをコピー",
       "cross_machine_hint": "（上の「出力先」フォルダーとは無関係）strm ファイルには、このマシンから見た読み取り専用ソースの動画パスが書き込まれます。再生する Emby／Jellyfin／Kodi が別のマシンにあり、見えるパスが異なる場合は、設定ページでパス置換ルールを設定してください。",
       "cross_machine_settings_link": "パス置換を設定"
     },
@@ -735,6 +750,10 @@
       "missing_both_prefix": "NFO+カバー不足:",
       "missing_nfo_prefix": "NFO不足:",
       "missing_cover_prefix": "カバー不足:",
+      "missing_both_tag": "両方欠落",
+      "missing_nfo_tag": "NFO 欠落",
+      "missing_cover_tag": "カバー欠落",
+      "nfo_field_note_prefix": "欠落：",
       "missing_suffix": "本",
       "missing_enrich_idle": "一括補完",
       "missing_enrich_loading": "補完中...",
@@ -769,7 +788,15 @@
       "log_disconnected": "接続が切断されました",
       "missing_enrich_connection_failed": "接続に失敗しました: {message}",
       "missing_enrich_item_failed": "失敗: {number} — {error}",
-      "missing_enrich_error_prefix": "エラー: {message}"
+      "missing_enrich_error_prefix": "エラー: {message}",
+      "missing_list_footnote": "補完を試みたが見つからなかった作品、および品番を判別できない作品は含みません。再試行するにはライトボックスの ⚙ から高度な再スクレイプを行ってください。",
+      "nfo_field_title": "タイトル",
+      "nfo_field_date": "日付",
+      "nfo_field_actor": "出演者",
+      "nfo_field_genre": "ジャンル",
+      "nfo_field_maker": "メーカー",
+      "nfo_field_director": "監督",
+      "nfo_field_duration": "収録時間"
     },
     "alias": {
       "section_title": "女優名管理",
@@ -808,20 +835,6 @@
       "toast_add_item_failed": "{alias} の追加に失敗しました",
       "toast_add_item_failed_detail": "{alias} の追加に失敗しました: {error}"
     },
-    "dirty_modal": {
-      "title": "未保存の変更",
-      "body": "フォルダリストを変更しましたが、ページを生成していません。どうしますか？",
-      "cancel": "キャンセル",
-      "discard": "変更を破棄",
-      "save": "保存して終了"
-    },
-    "clear_cache_modal": {
-      "title": "動画キャッシュをクリア",
-      "body_prefix": "この操作はキャッシュされた全動画メタデータ（計",
-      "body_suffix": "本）を削除します。次回は再スキャンが必要です。よろしいですか？",
-      "cancel": "キャンセル",
-      "confirm": "削除する"
-    },
     "tag_alias": {
       "section_title": "Tag エイリアス管理",
       "collapse_title": "展開 / 折りたたむ",
@@ -856,11 +869,12 @@
         "remove_failed": "削除失敗: {error}"
       }
     },
-    "leave_warning": {
-      "generating": "生成が進行中です。移動すると中断されます！",
-      "image_check": "画像チェックが進行中です。移動すると中断されます！",
-      "folder_dirty": "保存していないフォルダの変更があります",
-      "confirm": "{message}移動してもよろしいですか？"
+    "dirty_modal": {
+      "title": "未保存の変更",
+      "body": "フォルダリストを変更しましたが、ページを生成していません。どうしますか？",
+      "cancel": "キャンセル",
+      "discard": "変更を破棄",
+      "save": "保存して終了"
     },
     "readonly_confirm_modal": {
       "title": "読み取り専用ソースに設定しますか？",
@@ -870,12 +884,60 @@
       "output_hint_offline": "現在はデフォルトモードです。生成物は App 内蔵の固定ローカルフォルダーに自動で保存されるため、出力フォルダーを別途指定する必要はありません。",
       "output_hint_media_server": "現在は Emby・Jellyfin・Kodi モードです。確認すると「出力先」欄が表示されます。このマシンで書き込めるフォルダー（ローカルでも、このマシンにマウントした NAS 共有でも可）を指定してください——読み取り専用ソースそのものではありません。",
       "nas_hint": "NAS 上の Emby／Jellyfin／Kodi に取り込ませたいですか？デフォルトモードでは OpenAver 自身の閲覧用ローカルライブラリのみを生成し、.strm ショートカットファイルは作成しません。メディアサーバーにこれらの作品をスキャンさせたい場合は、まず「設定」でモードを Emby・Jellyfin・Kodi モードに切り替えてください。"
+    },
+    "clear_cache_modal": {
+      "title": "動画キャッシュをクリア",
+      "body_prefix": "この操作はキャッシュされた全動画メタデータ（計",
+      "body_suffix": "本）を削除します。次回は再スキャンが必要です。よろしいですか？",
+      "cancel": "キャンセル",
+      "confirm": "削除する"
+    },
+    "leave_warning": {
+      "generating": "生成が進行中です。移動すると中断されます！",
+      "image_check": "画像チェックが進行中です。移動すると中断されます！",
+      "folder_dirty": "保存していないフォルダの変更があります",
+      "confirm": "{message}移動してもよろしいですか？"
     }
   },
   "scraper": {
     "page_title": "スクレイパー",
     "heading": "JAV スクレイパー",
     "body": "スクレイピング機能は開発中です..."
+  },
+  "notif": {
+    "title": "通知",
+    "clear_all": "すべてクリア",
+    "empty": "通知はありません",
+    "open": "通知を開く",
+    "close": "通知を閉じる",
+    "dialog_label": "通知センター",
+    "scanner_started": "スキャン開始",
+    "scanner_done": "スキャン完了",
+    "scanner_done_with_errors": "スキャン完了（一部失敗）",
+    "scanner_failed": "スキャン中断",
+    "scanner_cancelled": "スキャンをキャンセルしました",
+    "batch_enrich_started": "一括補完開始",
+    "batch_enrich_done": "一括補完完了",
+    "batch_enrich_done_with_errors": "一括補完（一部失敗）",
+    "batch_enrich_failed": "一括補完中断",
+    "jl_cf_timeout": "JavLibrary CF認証タイムアウト",
+    "update_available": "OpenAver の新しいバージョンがあります",
+    "auto_organize_summary": "定期整理",
+    "auto_organize_aborted": "定期整理を中止しました",
+    "auto_organize_folder_not_set": "定期整理：お気に入りフォルダが未設定です",
+    "auto_organize_folder_unreachable": "定期整理：お気に入りフォルダにアクセスできません",
+    "auto_organize_readonly": "定期整理：お気に入りフォルダは読み取り専用ソースです",
+    "auto_organize_failed": "定期整理に失敗しました。ログを確認してください",
+    "wishlist_auto_removed": "ブックマークを自動更新しました",
+    "wishlist_reconcile_failed": "ブックマークの照合に失敗しました。ログを確認してください",
+    "focal_auto_disabled": "顔検出が2回連続でタイムアウトしたため、自動フォーカスを先にオフにしました。位置を調整したい場合は、ライトボックスで自分でドラッグしてください。",
+    "data_root_finalized": "データの保存場所が確定しました。バックアップの際はこのフォルダも一緒に保持してください",
+    "data_root_recovered": "既存のライブラリはそのまま保持されましたが、設定はデフォルト値に再構築されました：ソース設定、クロスマシンのパスマッピング、外部サービス設定、インターフェース設定はすべて再設定が必要です"
+  },
+  "similar_mode": {
+    "button_aria_label": "類似動画を探索",
+    "close": "閉じる",
+    "fetch_failed": "読み込み失敗"
   },
   "showcase": {
     "page_title": "動画ブラウズ",
@@ -908,16 +970,50 @@
       "success": "上書きしました（カバー + NFO）",
       "fail": "再スクレイプに失敗しました。後でもう一度お試しください。",
       "jl_desktop_only": "デスクトップアプリ（standalone）のみ利用可能",
+      "cf_window_restart": "このソースの認証ウィンドウを起動できませんでした。OpenAver を再起動してからお試しください",
       "jl_cf_solving": "Cloudflare 認証中……通過後、自動的に続きます",
       "versions_found": "同じ品番の作品が {count} 件見つかりました",
       "version_prev_aria": "前のバージョン",
       "version_next_aria": "次のバージョン",
       "adopt_version": "このバージョンを採用",
       "adopt_switch_source": "このバージョンに置き換え",
-      "cf_window_restart": "このソースの認証ウィンドウを起動できませんでした。OpenAver を再起動してからお試しください"
+      "preserve_title": "現在のタイトルを保持：「{title}」"
     },
     "placeholder": {
       "search": "番号・女優名・タイトルを検索..."
+    },
+    "pill": {
+      "dim_label": {
+        "actress": "女優",
+        "tag": "タグ",
+        "maker": "メーカー",
+        "director": "監督",
+        "series": "シリーズ",
+        "label": "レーベル",
+        "age": "年齢",
+        "height": "身長",
+        "cup": "カップ",
+        "release": "発売日"
+      },
+      "title": "{dim}：{value}",
+      "remove_aria": "フィルターを削除：{value}",
+      "op": {
+        "eq": "一致",
+        "lte": "以下",
+        "gte": "以上",
+        "range": "範囲指定"
+      },
+      "editor": {
+        "range_min": "下限",
+        "range_max": "上限",
+        "from_year": "開始年",
+        "from_month": "開始月",
+        "to_year": "終了年",
+        "to_month": "終了月"
+      }
+    },
+    "filter": {
+      "pick_only": "★のみ表示"
     },
     "action": {
       "clear_search": "検索をクリア",
@@ -954,10 +1050,14 @@
       "grid": "グリッド",
       "table": "テーブル",
       "list": "リスト",
-      "actress": "女優モード",
-      "video": "動画モード",
       "cover": "カバー全体",
-      "poster": "縦型ポスター"
+      "poster": "縦型ポスター",
+      "actress": "女優モード",
+      "video": "動画モード"
+    },
+    "search": {
+      "actress": "女優名を検索...",
+      "video": "番号・女優名・タイトルを検索..."
     },
     "unit": {
       "videos": "本",
@@ -965,7 +1065,8 @@
       "minutes_abbr": "分",
       "videos_count": "本",
       "films": "作品",
-      "actresses": "人"
+      "actresses": "人",
+      "age_suffix": "歳"
     },
     "status": {
       "total_prefix": "全",
@@ -974,12 +1075,12 @@
       "search_middle": "\" の検索結果：",
       "search_suffix": "本",
       "search_empty": "該当する作品はありません",
-      "search_actresses_prefix": "見つかった ",
-      "search_actresses_middle": " 人 \"",
-      "search_actresses_suffix": "\"",
       "pill_prefix": "条件",
       "pill_middle": "件に一致：",
       "pill_suffix": "本",
+      "search_actresses_prefix": "見つかった ",
+      "search_actresses_middle": " 人 \"",
+      "search_actresses_suffix": "\"",
       "pill_actresses_prefix": "条件",
       "pill_actresses_middle": "件に一致：",
       "pill_actresses_suffix": "人",
@@ -1031,11 +1132,20 @@
       "alias_source_hint": "Scanner から同期",
       "mask_toggle": "カバーの切り抜きプレビュー",
       "mask_detect_failed": "焦点の検出に失敗しました。しばらくしてからもう一度お試しください。",
+      "mask_focal_too_slow_auto_disabled": "このカバーの顔検出に5秒以上かかったため、自動フォーカスを先にオフにしました。位置を調整したい場合は直接ドラッグしてください。いつでも設定から再度オンにできます。",
+      "mask_focal_too_slow_hint": "顔検出に5秒以上かかりました。ドラッグで調整する方が早い場合があります。毎回待ちたくない場合は「設定 → スクレイプ設定 → 高度なスクレイプ設定」で自動フォーカスをオフにできます。",
       "mask_save_failed": "切り抜き設定の保存に失敗しました。しばらくしてからもう一度お試しください。",
       "mask_cover_changed": "カバーが変更されました。切り抜きツールを開き直してもう一度お試しください。",
+      "cover_unavailable": "このカバー画像を読み込めません。ファイルの場所にアクセスできないか、カバー画像自体が失われている可能性があります",
+      "cover_escape_hint": "カバーが見つかりません。動画ファイル名と同じ名前で画像を動画の横に置くことができます（例：`ABC-123.mp4` → `ABC-123.jpg`）。Scanner ページに戻って「ページ生成」を一度押せば取り込まれます。または ⚙ で品番を手動指定して再スクレイプしてください。",
       "mask_confirm": "切り抜き位置を確定",
-      "mask_cancel": "切り抜き調整をキャンセル",
-      "cover_unavailable": "このカバー画像を読み込めません。ファイルの場所にアクセスできないか、カバー画像自体が失われている可能性があります"
+      "mask_cancel": "切り抜き調整をキャンセル"
+    },
+    "pick": {
+      "add_aria": "★を付ける",
+      "remove_aria": "★を外す",
+      "save_failed": "★の保存に失敗しました。後ほど再試行してください",
+      "chip_label": "★ ピック"
     },
     "gallery": {
       "prev": "前の画像 (←)",
@@ -1059,21 +1169,17 @@
       "delete_modal": {
         "title": "この動画をコレクションから削除",
         "body": "「{number}」のデータベースレコードのみ削除されます。動画ファイルはディスクに残り、削除されません。スキャン対象フォルダ内にある場合は次回スキャン時に再追加されます。",
+        "body_multipart": "これは分割動画（{tokens}）です。確認すると全 {n} パートのレコードがまとめて削除されます。動画ファイルはいずれもディスクに残ります。",
         "cancel": "キャンセル",
-        "confirm": "削除を確認",
-        "body_multipart": "これは分割動画（{tokens}）です。確認すると全 {n} パートのレコードがまとめて削除されます。動画ファイルはいずれもディスクに残ります。"
+        "confirm": "削除を確認"
       },
       "delete_success": "コレクションから削除しました",
       "delete_failed": "削除に失敗しました。後ほど再試行してください",
       "play_failed": "再生に失敗しました",
-      "part_count_fallback": "{n} パート",
-      "part_progress": "{current}／{total} パート目",
       "player_unavailable": "この動画は現在再生できません。ファイルの場所にアクセスできないか、この形式にブラウザが対応していない可能性があります",
-      "player_unavailable_format": "ブラウザではこのファイルを再生できません。形式が未対応か、ファイル自体が壊れている可能性があります。VLC や PotPlayer などのパソコン用プレーヤーをお試しください"
-    },
-    "search": {
-      "actress": "女優名を検索...",
-      "video": "番号・女優名・タイトルを検索..."
+      "player_unavailable_format": "ブラウザではこのファイルを再生できません。形式が未対応か、ファイル自体が壊れている可能性があります。VLC や PotPlayer などのパソコン用プレーヤーをお試しください",
+      "part_count_fallback": "{n} パート",
+      "part_progress": "{current}／{total} パート目"
     },
     "actress": {
       "add": "+ 女優を追加",
@@ -1092,10 +1198,24 @@
       "removeSuccess": "お気に入りから削除しました",
       "empty": "お気に入り女優がいません",
       "emptyHint": "右上の + をクリックして追加してください",
+      "searchEmpty": "該当する女優はいません",
       "search_films": "関連動画を検索",
       "addFavorite": "お気に入りに追加",
       "favorited": "お気に入り済み",
       "change_photo": "写真を変更",
+      "panel": {
+        "title": "ライブラリから女優を追加",
+        "search_placeholder": "ライブラリ内を検索、またはフルネームを入力して追加",
+        "close": "閉じる",
+        "loading": "読み込み中…",
+        "load_failed": "読み込みに失敗しました。しばらくしてからお試しください",
+        "progress": "{m} 人中 {n} 人を表示",
+        "progress_all": "全 {m} 人",
+        "direct_add": "「{name}」を直接追加",
+        "queued": "待機中",
+        "adding": "追加中…",
+        "add_failed": "追加に失敗しました。もう一度お試しください"
+      },
       "picker": {
         "empty": "候補写真が見つかりません",
         "empty_hint": "保存している動画が多いほど、ローカルの選択肢が増えます。",
@@ -1113,20 +1233,6 @@
         "upload_too_large": "画像が大きすぎます（ファイル上限 10MB、サイズ上限 50M ピクセル）",
         "upload_bad_format": "対応していない画像形式です",
         "upload_failed": "アップロードに失敗しました。しばらくしてからもう一度お試しください。"
-      },
-      "searchEmpty": "該当する女優はいません",
-      "panel": {
-        "title": "ライブラリから女優を追加",
-        "search_placeholder": "ライブラリ内を検索、またはフルネームを入力して追加",
-        "close": "閉じる",
-        "loading": "読み込み中…",
-        "load_failed": "読み込みに失敗しました。しばらくしてからお試しください",
-        "progress": "{m} 人中 {n} 人を表示",
-        "progress_all": "全 {m} 人",
-        "direct_add": "「{name}」を直接追加",
-        "queued": "待機中",
-        "adding": "追加中…",
-        "add_failed": "追加に失敗しました。もう一度お試しください"
       }
     },
     "samples": {
@@ -1135,49 +1241,11 @@
       "success": "サンプル画像を取得しました",
       "fetch_failed": "画像の取得に失敗しました。後でもう一度お試しください",
       "multi_video_error": "このフォルダに他の動画があります。画像を取得すると他の動画に影響します。動画を専用フォルダに移動してからお試しください。"
-    },
-    "pill": {
-      "dim_label": {
-        "actress": "女優",
-        "tag": "タグ",
-        "maker": "メーカー",
-        "director": "監督",
-        "series": "シリーズ",
-        "label": "レーベル",
-        "age": "年齢",
-        "height": "身長",
-        "cup": "カップ",
-        "release": "発売日"
-      },
-      "title": "{dim}：{value}",
-      "remove_aria": "フィルターを削除：{value}",
-      "op": {
-        "eq": "一致",
-        "lte": "以下",
-        "gte": "以上",
-        "range": "範囲指定"
-      },
-      "editor": {
-        "range_min": "下限",
-        "range_max": "上限",
-        "from_year": "開始年",
-        "from_month": "開始月",
-        "to_year": "終了年",
-        "to_month": "終了月"
-      }
-    },
-    "filter": {
-      "pick_only": "★のみ表示"
-    },
-    "pick": {
-      "add_aria": "★を付ける",
-      "remove_aria": "★を外す",
-      "save_failed": "★の保存に失敗しました。後ほど再試行してください",
-      "chip_label": "★ ピック"
     }
   },
   "help": {
     "hero": {
+      "copy_curl": "コマンドをコピー",
       "page_title": "使い方",
       "subtitle": "JAV メタデータ管理ツール",
       "privacy": "🔒 完全ローカル — ユーザーデータを収集しません",
@@ -1191,8 +1259,7 @@
       "auto_check_save_failed": "設定の保存に失敗しました。しばらくしてから再試行してください",
       "ai_instruction": "AIエージェントに貼り付けるだけでOpenAverを操作できます",
       "ai_hint_unsupported": "ウェブ版チャットには非対応",
-      "ai_tools": "AI エージェントに貼り付けて OpenAver を操作 — Claude Code · Cursor · Codex など",
-      "copy_curl": "コマンドをコピー"
+      "ai_tools": "AI エージェントに貼り付けて OpenAver を操作 — Claude Code · Cursor · Codex など"
     },
     "agent_auth": {
       "title": "Agent Token",
@@ -1262,7 +1329,7 @@
       "h6_pause": "一時停止と再開",
       "h6_generate_all": "一括整理",
       "h6_badge": "バージョンタグの保持",
-      "add_folder": "<strong>フォルダをドロップ</strong>：フォルダ内の動画ファイルを自動スキャン",
+      "add_folder": "<strong>フォルダをドロップ</strong>：この階層の動画だけを読み込み、サブフォルダは探しません。ライブラリ全体は「リスト生成」ページの「スキャンフォルダ」に追加してください",
       "add_filter": "<strong>自動フィルタ</strong>：動画以外のファイルや設定サイズ未満のファイルを除外",
       "add_batch": "<strong>バッチ検索</strong>：1 バッチ 20 ファイル、同時 2 リクエスト",
       "add_progress": "<strong>進捗表示</strong>：リアルタイム進捗表示（例：処理中 15/100）",
@@ -1343,15 +1410,15 @@
       "jellyfin_enable": "<strong>設定ページ</strong>で有効化後、スキャン時に自動で <code>-poster.jpg</code> + <code>-fanart.jpg</code> を生成",
       "jellyfin_canonical": "メディアマネージャーモードを選ぶと<strong>同名のカバー画像は生成されなくなります</strong>——そのファイルは Jellyfin／Emby が優先的に読み込むため、ポスターウォールに横長画像が並ぶ原因になります。既存の作品はカバーの場所をそのまま維持します（手動で調整したフォーカス位置を消さないため）。修正したい場合は該当作品の同名カバーを削除してから再生成してください。",
       "jellyfin_showcase": "スキャン完了後、<code>/showcase</code> ページで生成結果を閲覧可能",
-      "h6_multiversion": "同一作品の複数版（流出 / 4K / 字幕）を Emby/Jellyfin で結合するには？",
-      "multiversion_intro": "複数版の結合は Emby と Jellyfin がともにネイティブ対応する機能です（同じ「フォルダ名 - ラベル」規則）。各版を品番名のフォルダに入れ、ファイル名をフォルダ名で始め「 - ラベル」を付けます：",
-      "multiversion_rule1": "各版のファイル名は<strong>フォルダ名で始める必要があります</strong> + 「 - ラベル」（半角スペース-ハイフン-半角スペース）",
-      "multiversion_rule2": "複数版と cd1/cd2 分割は<strong>同一作品で併用できません</strong>（メディアサーバーの公式制限）",
       "h6_strm_deploy": "読み取り専用ソース + Emby／Jellyfin／Kodi に作品をスキャンさせる（マシンをまたぐ配置）",
       "strm_deploy_step1": "読み取り専用のオンラインストレージ／NAS 共有を OpenAver のマシンにマウントしたら、Scanner でそのフォルダーを「読み取り専用」にチェックします——OpenAver は中のファイルを一切変更しません（移動・リネーム・書き込みなし）。",
       "strm_deploy_step2": "「出力先」に<strong>このマシンで書き込める</strong>フォルダー（このマシンにマウントした NAS の書き込み可能な共有でも可）を指定します——生成される <code>.strm</code>＋NFO＋表紙がここに置かれ、それを Emby／Jellyfin／Kodi に指定してライブラリを作らせます。この出力フォルダーは読み取り専用ソースそのものではありません。",
       "strm_deploy_step3": "再生するマシンから見た読み取り専用ソースのパスが OpenAver から見たパスと異なる場合（例：OpenAver 上では <code>Z:\\115</code>、NAS 上では <code>/volume1/115</code>）、<strong>設定ページ</strong>の「再生側パスの置換」に対応するルールを1つ追加してください。そうしないと <code>.strm</code> が再生側で見つからないパスを指してしまいます。",
-      "strm_deploy_step4": "その後マッピングルールを変更すると、既存の <code>.strm</code> が一括で自動的に書き換えられ、ライブラリ全体を作り直す必要はありません。"
+      "strm_deploy_step4": "その後マッピングルールを変更すると、既存の <code>.strm</code> が一括で自動的に書き換えられ、ライブラリ全体を作り直す必要はありません。",
+      "h6_multiversion": "同一作品の複数版（流出 / 4K / 字幕）を Emby/Jellyfin で結合するには？",
+      "multiversion_intro": "複数版の結合は Emby と Jellyfin がともにネイティブ対応する機能です（同じ「フォルダ名 - ラベル」規則）。各版を品番名のフォルダに入れ、ファイル名をフォルダ名で始め「 - ラベル」を付けます：",
+      "multiversion_rule1": "各版のファイル名は<strong>フォルダ名で始める必要があります</strong> + 「 - ラベル」（半角スペース-ハイフン-半角スペース）",
+      "multiversion_rule2": "複数版と cd1/cd2 分割は<strong>同一作品で併用できません</strong>（メディアサーバーの公式制限）"
     },
     "showcase": {
       "title": "動画ブラウザ（Showcase）",
@@ -1371,6 +1438,24 @@
       "other_table_cols": "テーブルモードに「監督」と「再生時間」列を追加",
       "other_gallery": "Lightbox からサンプル画像ギャラリーを開く（「サンプル」ボタンをクリック）",
       "other_per_page": "1 ページの表示数は<strong>設定ページ</strong>で調整可能"
+    },
+    "similar": {
+      "title": "類似動画の探索（ルールベース）",
+      "intro": "Lightbox の魔法杖ボタンをクリック → 12 個の探索星が主画像を中心に並ぶ；星は tag のルールベース類似度（IDF 加重 + シリーズ / メーカー / 年 / cast 複合スコア）で並び替え、モデルのダウンロード不要ですぐ使える。",
+      "h6_what": "仕組み",
+      "what_principle": "主シグナルは IDF 加重 Jaccard — レアな tag のヒットはスコアが高くなる；さらにシリーズ / メーカー / 年 / cast の複合スコアで評価。",
+      "what_crop": "シリーズが完全一致の場合はボーナスが加算され、同シリーズの動画が優先表示される。",
+      "what_diversity": "MMR diversity rerank（λ=0.7）により、最終 12 個の結果は類似度と多様性を両立する。",
+      "h6_use": "使い方",
+      "use_lightbox": "Showcase の動画モードで Lightbox を開く → 左上の魔法杖ボタン <i class=\"bi bi-magic\"></i> → 星空モードへ",
+      "use_constellation": "12 個の星が中央の主画像を囲む；どれかをクリックすると「潜り込んで」新しい主画像になり、無限に探索できる",
+      "use_mobile": "スマートフォン（&lt; 768px）ではアニメーションなしで主画像下の grid に上位 4 枚を表示",
+      "h6_beta": "制限事項",
+      "beta_uncensored": "<strong>無修正 / FC2 / 旧 compilation</strong> などの非標準レイアウトのサムネイルや、metadata のない動画は Tier 3/4（ランダム補完）に分類され、関連性が低くなる",
+      "beta_compilation": "tag が多いほど（シリーズ / メーカー / cast）精度が上がる；tag が少ない動画は先に NFO を補完することを推奨",
+      "h6_manage": "使用ヒント",
+      "manage_enable": "設定不要、すぐ使える",
+      "manage_scanner": "動画追加後、Scanner で「ウェブページを生成」するとインデックスが自動更新される。手動操作不要"
     },
     "shortcuts": {
       "title": "キーボードショートカット",
@@ -1440,6 +1525,31 @@
       "db_hint": "複数の metatube ソースを並列検索すると速度が低下することがあります。metatube サーバー側でデフォルトの SQLite を PostgreSQL に切り替えると改善できます（metatube サーバーの設定であり、OpenAver の設定ではありません）",
       "crossref_picker": "高度な検索 picker で metatube の単一ソースを選択する方法 → 「検索機能」カードを参照"
     },
+    "server_mode": {
+      "title": "サーバーモード — スマートフォン/タブレットから接続",
+      "h6_what": "これは何ですか",
+      "what_single": "デフォルトの「スタンドアロン」モード：このPCだけが使用できます。",
+      "what_server": "「サーバー」モードに切り替えると、同じ Wi-Fi / LAN 上のスマートフォン・タブレット・他のPCが、画面に表示されたURLをブラウザで開いてカバーの閲覧・動画の視聴・タイトルの検索ができます。",
+      "what_where": "切り替えは設定ページ右上の「スタンドアロン ｜ サーバー」カプセルから行います。",
+      "h6_how": "使い方",
+      "how_url": "「サーバー」モードに切り替えると、接続URL（例：<code>http://192.168.1.50:50123</code>）が下部に表示されます。",
+      "how_copy": "「コピー」をタップしてURLをスマートフォンに送るか、ブラウザ内蔵の「デバイスに送信」機能を使って、スマートフォンのブラウザで開いてください。",
+      "how_off": "「スタンドアロン」に戻すと外部アクセスが完全に閉じられ、LAN デバイスはすぐに接続できなくなります。",
+      "h6_security": "セキュリティについて",
+      "security_lan": "信頼できる Wi-Fi / LAN ネットワークでのみ使用してください（ユーザー名・パスワード保護なし、LAN-only）。",
+      "security_lan_auth": "パスワード保護が設定されています。信頼できる Wi-Fi / LAN ネットワークでのみ使用してください（他の端末は接続時にパスワード、エージェントはトークンが必要です）。",
+      "security_vpn": "外部からのアクセスには VPN（Tailscale など）を自分で設定してください。このアプリはインターネットに公開されません。",
+      "h6_firewall": "初回起動時にファイアウォールの確認が表示されます",
+      "firewall_allow": "初めて「サーバー」モードに切り替えると、Windows（または macOS）がネットワークアクセスを許可するかどうかを確認するファイアウォールのダイアログを表示します → 「<strong>許可 / Allow</strong>」をクリックしてください。一度だけで、システムが記憶します。",
+      "firewall_why": "これは他の端末が接続できるように、OSによる認証が必要なためです（Plex などの LAN ツールと同様）。<strong>スタンドアロンモードでは表示されません。</strong>",
+      "h6_recover": "「キャンセル / ブロック」してしまった場合の対処法",
+      "recover_win_intro": "Windows での復元手順：",
+      "recover_win_1": "<code>Win + R</code> を押して <code>wf.msc</code> と入力し Enter を押すと、「Windows Defender ファイアウォール（セキュリティが強化された）」が開きます。",
+      "recover_win_2": "左側の「受信の規則 (Inbound Rules)」をクリックします。",
+      "recover_win_3": "「プログラム」が <code>python.exe</code>（または Python / OpenAver）で「操作」が「ブロック (Block)」のルールを探します。通常2件あります（パブリック＋プライベート）。",
+      "recover_win_4": "右クリックしてそれらのルールを削除し、OpenAver を再起動して「サーバー」モードに切り替え、「許可」をクリックします。",
+      "recover_mac": "macOS の復元：システム設定 → ネットワーク → ファイアウォール → オプション で、このアプリを「着信接続を許可」に変更します。"
+    },
     "troubleshooting": {
       "title": "トラブルシューティング",
       "h6_crash": "アプリが起動しない / クラッシュする（Windows）",
@@ -1469,49 +1579,6 @@
       "version_load_failed": "読み込み失敗",
       "check_update_failed": "確認に失敗しました。後でもう一度お試しください",
       "check_update_network_error": "ネットワークエラー。後でもう一度お試しください"
-    },
-    "similar": {
-      "title": "類似動画の探索（ルールベース）",
-      "intro": "Lightbox の魔法杖ボタンをクリック → 12 個の探索星が主画像を中心に並ぶ；星は tag のルールベース類似度（IDF 加重 + シリーズ / メーカー / 年 / cast 複合スコア）で並び替え、モデルのダウンロード不要ですぐ使える。",
-      "h6_what": "仕組み",
-      "what_principle": "主シグナルは IDF 加重 Jaccard — レアな tag のヒットはスコアが高くなる；さらにシリーズ / メーカー / 年 / cast の複合スコアで評価。",
-      "what_crop": "シリーズが完全一致の場合はボーナスが加算され、同シリーズの動画が優先表示される。",
-      "what_diversity": "MMR diversity rerank（λ=0.7）により、最終 12 個の結果は類似度と多様性を両立する。",
-      "h6_use": "使い方",
-      "use_lightbox": "Showcase の動画モードで Lightbox を開く → 左上の魔法杖ボタン <i class=\"bi bi-magic\"></i> → 星空モードへ",
-      "use_constellation": "12 個の星が中央の主画像を囲む；どれかをクリックすると「潜り込んで」新しい主画像になり、無限に探索できる",
-      "use_mobile": "スマートフォン（&lt; 768px）ではアニメーションなしで主画像下の grid に上位 4 枚を表示",
-      "h6_beta": "制限事項",
-      "beta_uncensored": "<strong>無修正 / FC2 / 旧 compilation</strong> などの非標準レイアウトのサムネイルや、metadata のない動画は Tier 3/4（ランダム補完）に分類され、関連性が低くなる",
-      "beta_compilation": "tag が多いほど（シリーズ / メーカー / cast）精度が上がる；tag が少ない動画は先に NFO を補完することを推奨",
-      "h6_manage": "使用ヒント",
-      "manage_enable": "設定不要、すぐ使える",
-      "manage_scanner": "動画追加後、Scanner で「ウェブページを生成」するとインデックスが自動更新される。手動操作不要"
-    },
-    "server_mode": {
-      "title": "サーバーモード — スマートフォン/タブレットから接続",
-      "h6_what": "これは何ですか",
-      "what_single": "デフォルトの「スタンドアロン」モード：このPCだけが使用できます。",
-      "what_server": "「サーバー」モードに切り替えると、同じ Wi-Fi / LAN 上のスマートフォン・タブレット・他のPCが、画面に表示されたURLをブラウザで開いてカバーの閲覧・動画の視聴・タイトルの検索ができます。",
-      "what_where": "切り替えは設定ページ右上の「スタンドアロン ｜ サーバー」カプセルから行います。",
-      "h6_how": "使い方",
-      "how_url": "「サーバー」モードに切り替えると、接続URL（例：<code>http://192.168.1.50:50123</code>）が下部に表示されます。",
-      "how_copy": "「コピー」をタップしてURLをスマートフォンに送るか、ブラウザ内蔵の「デバイスに送信」機能を使って、スマートフォンのブラウザで開いてください。",
-      "how_off": "「スタンドアロン」に戻すと外部アクセスが完全に閉じられ、LAN デバイスはすぐに接続できなくなります。",
-      "h6_security": "セキュリティについて",
-      "security_lan": "信頼できる Wi-Fi / LAN ネットワークでのみ使用してください（ユーザー名・パスワード保護なし、LAN-only）。",
-      "security_lan_auth": "パスワード保護が設定されています。信頼できる Wi-Fi / LAN ネットワークでのみ使用してください（他の端末は接続時にパスワード、エージェントはトークンが必要です）。",
-      "security_vpn": "外部からのアクセスには VPN（Tailscale など）を自分で設定してください。このアプリはインターネットに公開されません。",
-      "h6_firewall": "初回起動時にファイアウォールの確認が表示されます",
-      "firewall_allow": "初めて「サーバー」モードに切り替えると、Windows（または macOS）がネットワークアクセスを許可するかどうかを確認するファイアウォールのダイアログを表示します → 「<strong>許可 / Allow</strong>」をクリックしてください。一度だけで、システムが記憶します。",
-      "firewall_why": "これは他の端末が接続できるように、OSによる認証が必要なためです（Plex などの LAN ツールと同様）。<strong>スタンドアロンモードでは表示されません。</strong>",
-      "h6_recover": "「キャンセル / ブロック」してしまった場合の対処法",
-      "recover_win_intro": "Windows での復元手順：",
-      "recover_win_1": "<code>Win + R</code> を押して <code>wf.msc</code> と入力し Enter を押すと、「Windows Defender ファイアウォール（セキュリティが強化された）」が開きます。",
-      "recover_win_2": "左側の「受信の規則 (Inbound Rules)」をクリックします。",
-      "recover_win_3": "「プログラム」が <code>python.exe</code>（または Python / OpenAver）で「操作」が「ブロック (Block)」のルールを探します。通常2件あります（パブリック＋プライベート）。",
-      "recover_win_4": "右クリックしてそれらのルールを削除し、OpenAver を再起動して「サーバー」モードに切り替え、「許可」をクリックします。",
-      "recover_mac": "macOS の復元：システム設定 → ネットワーク → ファイアウォール → オプション で、このアプリを「着信接続を許可」に変更します。"
     },
     "update_modal": {
       "trigger_btn": "アップデート",
@@ -1549,36 +1616,60 @@
     "heading": "NFO アップデーター",
     "body": "更新機能は開発中です..."
   },
-  "notif": {
-    "title": "通知",
-    "clear_all": "すべてクリア",
-    "empty": "通知はありません",
-    "open": "通知を開く",
-    "close": "通知を閉じる",
-    "dialog_label": "通知センター",
-    "scanner_started": "スキャン開始",
-    "scanner_done": "スキャン完了",
-    "scanner_done_with_errors": "スキャン完了（一部失敗）",
-    "scanner_failed": "スキャン中断",
-    "batch_enrich_started": "一括補完開始",
-    "batch_enrich_done": "一括補完完了",
-    "batch_enrich_done_with_errors": "一括補完（一部失敗）",
-    "batch_enrich_failed": "一括補完中断",
-    "jl_cf_timeout": "JavLibrary CF認証タイムアウト",
-    "update_available": "OpenAver の新しいバージョンがあります",
-    "auto_organize_summary": "定期整理",
-    "auto_organize_aborted": "定期整理を中止しました",
-    "auto_organize_folder_not_set": "定期整理：お気に入りフォルダが未設定です",
-    "auto_organize_folder_unreachable": "定期整理：お気に入りフォルダにアクセスできません",
-    "auto_organize_readonly": "定期整理：お気に入りフォルダは読み取り専用ソースです",
-    "auto_organize_failed": "定期整理に失敗しました。ログを確認してください",
-    "wishlist_auto_removed": "ブックマークを自動更新しました",
-    "wishlist_reconcile_failed": "ブックマークの照合に失敗しました。ログを確認してください",
-    "scanner_cancelled": "スキャンをキャンセルしました"
-  },
-  "similar_mode": {
-    "button_aria_label": "類似動画を探索",
-    "close": "閉じる",
-    "fetch_failed": "読み込み失敗"
+  "insights": {
+    "page_title": "ライブラリ分析",
+    "snapshot_error": "読み込みに失敗しました。ページを再読み込みしてください",
+    "unknown": "不明",
+    "no_data": "データがありません",
+    "period_empty": "この期間に該当する作品はありません",
+    "unit": "本",
+    "all_years": "すべての年",
+    "all_focus": "すべて",
+    "clear_year": "年をクリア",
+    "clear_focus": "フォーカスをクリア",
+    "focus_type_actress": "女優",
+    "focus_type_maker": "メーカー",
+    "row": {
+      "years": "年別",
+      "makers": "メーカー",
+      "actress_top20": "女優 Top 20",
+      "tags": "タグ",
+      "age": "年齢",
+      "director": "監督",
+      "series": "シリーズ",
+      "deep_dive": "深掘り：女優とメーカー",
+      "gantt": "主要メーカー年表",
+      "actress_distribution": "女優×メーカー分布",
+      "costar": "共演者"
+    },
+    "donut": {
+      "legend": "内側：メーカー比率　外側：主要メーカー作品／その他作品",
+      "other": "その他",
+      "unknown": "不明",
+      "library_wide": "ライブラリ全体"
+    },
+    "tags": {
+      "coverage": "カバー率 {pct}",
+      "almost_all": "ほぼすべての作品にあります：",
+      "empty": "表示できるタグがありません",
+      "tooltip": "{name}<br>作品数 {count}<br>カバー率 {pct}"
+    },
+    "age": {
+      "median": "中央値 {age}"
+    },
+    "gantt": {
+      "age_label": "{age}歳",
+      "tooltip_main": "{label} ・ コレクション {total} 本、うち {maker} {count} 本",
+      "tooltip_dot": "{label} ・ コレクション {total} 本",
+      "skipped_note": "生年月日が不明な {n} 名はスキップされました"
+    },
+    "solo": {
+      "count_label": "{n} 本 ・ {m} 社",
+      "other_title": "その他 {n} 社：{list}"
+    },
+    "costar": {
+      "count_label": "{n} 本"
+    },
+    "total_count": "ライブラリ全体 {n} 本"
   }
 }
