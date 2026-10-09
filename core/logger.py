@@ -8,6 +8,7 @@ OpenAver 統一日誌模組
     logger.debug("除錯訊息")
 """
 import logging
+import re
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -15,6 +16,21 @@ from pathlib import Path
 # 全域設定
 _initialized = False
 _log_dir = None
+
+# URL 內的 user:pass@（proxy URL 格式錯誤時 requests/curl_cffi 例外訊息會帶完整 URL）
+# 貪婪吃到同一 token（無空白）最後一個 `@`，密碼含 `/` `'` `@` 都遮得掉；
+# 代價：路徑/query 含 `@` 的 URL 會被多遮，只影響 log 可讀性
+_URL_USERINFO = re.compile(r"(?i)\b([a-z][a-z0-9+.\-]*://)\S*@")
+
+
+class RedactingFormatter(logging.Formatter):
+    """遮蔽 log 輸出中的 URL 帳密。
+
+    用 Formatter 不用 Filter：traceback 在 format() 才附加，Filter 看不到。
+    """
+
+    def format(self, record):
+        return _URL_USERINFO.sub(r"\1***@", super().format(record))
 
 
 def setup_logging(log_dir: Path = None, console_level: int = logging.INFO):
@@ -54,7 +70,7 @@ def setup_logging(log_dir: Path = None, console_level: int = logging.INFO):
         encoding='utf-8'
     )
     file_handler.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter(
+    file_formatter = RedactingFormatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
@@ -73,7 +89,7 @@ def setup_logging(log_dir: Path = None, console_level: int = logging.INFO):
         safe_stream = sys.stdout  # fallback（IDE / 重定向時 buffer 可能不存在）
     console_handler = logging.StreamHandler(safe_stream)
     console_handler.setLevel(console_level)
-    console_formatter = logging.Formatter(
+    console_formatter = RedactingFormatter(
         '%(asctime)s - %(levelname)s - %(message)s',
         datefmt='%H:%M:%S'
     )
