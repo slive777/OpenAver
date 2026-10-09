@@ -9,9 +9,9 @@
 
 ### 1.1 有碼來源（CENSORED_SOURCES）
 
-| 來源 ID | 顯示名 | exact 番號 | keyword-fuzzy | prefix 範圍 | 需 proxy | 桌面限定 CF | 封面浮水印 | 備註 |
+| 來源 ID | 顯示名 | exact 番號 | keyword-fuzzy | prefix 範圍 | 可能需日本 IP | 桌面限定 CF | 封面浮水印 | 備註 |
 |---------|--------|-----------|---------------|------------|---------|------------|-----------|------|
-| `dmm` | DMM | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | GraphQL API；需日本 IP（VPN/proxy）；數位 PPV 新片優先；封面高畫質 |
+| `dmm` | DMM | ✅ | ✅ | ❌ | ⚠️ 依地區 | ❌ | ❌ | GraphQL API；部分地區需日本 IP（VPN/proxy）；數位 PPV 新片優先；封面高畫質 |
 | `javbus` | JavBus | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | 直打 detail URL；封面無浮水印但**僅右半裁切**；~~搜尋端點 `/search/` 已 404~~ → **2026-08-29 實測回 200、30 筆**（variant 探查於 spec-85 移除是產品決定，與端點死活無關，見 §2 與陷阱表） |
 | `jav321` | Jav321 | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | keyword 搜尋恆回空，故不入 FUZZY_SEARCH_SOURCES |
 | `javdb` | JavDB | ✅ | ❌ | ❌ | ❌ | ⚠️ | 網頁有／API 無 | 重複 keyword 呼叫觸發 Cloudflare ban，故不入 FUZZY_SEARCH_SOURCES；**網頁路徑封面有 `javdb.com` 浮水印；資料介面路徑無浮水印**（見 §5）|
@@ -19,7 +19,7 @@
 
 ### 1.2 無碼來源（UNCENSORED_SOURCES）
 
-| 來源 ID | 顯示名 | exact 番號 | keyword-fuzzy | prefix 範圍 | 需 proxy | 桌面限定 CF | 封面浮水印 | 備註 |
+| 來源 ID | 顯示名 | exact 番號 | keyword-fuzzy | prefix 範圍 | 可能需日本 IP | 桌面限定 CF | 封面浮水印 | 備註 |
 |---------|--------|-----------|---------------|------------|---------|------------|-----------|------|
 | `d2pass` | D2Pass | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；日期格式番號（caribbeancom / 1pondo 等） |
 | `heyzo` | HEYZO | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；HEYZO-XXXX 格式 |
@@ -34,7 +34,7 @@ core/scrapers/utils.py
   CENSORED_SOURCES    = ['dmm', 'javbus', 'jav321', 'javdb']  (+ javlibrary append)
   UNCENSORED_SOURCES  = ['d2pass', 'heyzo', 'fc2', 'avsox']  (+ fc-javten append)
   SOURCE_ORDER        = CENSORED_SOURCES + UNCENSORED_SOURCES  # 8 elem，不含 javlibrary
-  PROXY_SOURCES       = {'dmm'}
+  PROXY_SOURCES       = {'dmm'}  # 可能需日本 IP 的來源（依地區；非「必須有 proxy」），DMM 是否啟用只看來源膠囊
   FUZZY_SEARCH_SOURCES = ['javbus', 'dmm']
 ```
 
@@ -179,7 +179,7 @@ post-spec-85（T1c 解耦後）：standalone 函式，不再實例化 `JavBusScr
 | 來源 | 封面特性 | 推薦排序建議 |
 |------|----------|------------|
 | JavBus | 無浮水印，但右半裁切 | 排前（若可接受裁切）|
-| DMM | 無浮水印，全框高畫質 | 排前（需 proxy） |
+| DMM | 無浮水印，全框高畫質 | 排前（部分地區需日本 IP） |
 | Jav321 | 無浮水印，全框 | 排前 |
 | JavDB | 網頁路徑有 `javdb.com` 浮水印；資料介面路徑無浮水印、全框 | 排前（0.15.1 起 javdb 走資料介面優先 ⇒ 一般情況下拿到的是無浮水印那張；只有降級到網頁備援時才會帶浮水印）|
 

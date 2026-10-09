@@ -2651,6 +2651,23 @@ const RULES = [
     note: '[163a-T6b-no-intercept] 使用者 Proxy 空白時點重刮視窗的 DMM 膠囊要直接查詢，不得跳「請先設定代理」',
   },
 
+  // ---- [163a-T7] AC-12：說明頁／AI 描述／locale 不得再教人把 direct 填進 Proxy 欄；舊 help key 名不得回流 ----
+  ...[
+    'locales/zh_TW.json', 'locales/zh_CN.json', 'locales/ja.json', 'locales/en.json',
+    'web/templates/settings.html', 'web/templates/help.html', 'web/routers/capabilities.py',
+  ].flatMap((f) => [
+    {
+      file: f, kind: 'forbidden-string',
+      pattern: /<code>\s*direct\s*<\/code>|(?:輸入|输入)\s*(?:<code>)?direct\b|enter\s+direct\b|direct\s*と入力|Proxy\s+direct\s*模式|Proxy\s+Direct\s+Mode|Proxy\s+ダイレクトモード/i,
+      note: '[163a-T7-direct-fill] 使用者照說明把 direct 填進 Proxy 欄 → 欄位存成無效代理位址，DMM（或所選範圍內的來源）連線全部失敗；Proxy 留空＝系統代理，不需要任何特殊字樣',
+    },
+    {
+      file: f, kind: 'forbidden-string',
+      pattern: /\b(?:h6_proxy_direct|proxy_direct_vpn|proxy_direct_how|dmm_direct)\b/,
+      note: '[163a-T7-old-key] 舊 direct 小節的 help key 名回流 → 說明頁標題顯示原始 key 字樣，或舊 direct 教學譯文復活',
+    },
+  ]),
+
   // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已隨 163a-T6b 拔除）----
   // Scope A：clickActiveRowPill 函數體。⚠ Python 原始 regex 用 \Z（Python string-end anchor）+ re.DOTALL；
   // JS 無 \Z（\Z 在 JS regex 是字面 "Z"），faithful port 用 $（配合僅 's' flag、無 'm' flag，JS $ 即絕對字串結尾，等價 Python \Z）。
