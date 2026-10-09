@@ -31,6 +31,7 @@ from core.cf_transport import (
 from core.logger import get_logger
 from core.scrapers.base import BaseScraper
 from core.scrapers.models import Actress, Video
+from core.source_probe import VERIFIER_PROBE_HEADERS, ProbePlan, ProbeTarget
 
 # ──────────────────────────────────────────────────────────────
 # Module-level 常數（column 0）
@@ -339,6 +340,15 @@ class JavLibraryScraper(BaseScraper):
 
     def _get_source_name(self) -> str:
         return 'javlibrary'
+
+    def probe_plan(self, timeout):
+        """測試連線：GET 首頁（與搜尋同一個出口）；拿到 Cloudflare 驗證頁＝通，不叫驗證視窗。"""
+        session = self._new_session()
+
+        def send():
+            return session.get(
+                JAVLIBRARY_ORIGIN, headers=VERIFIER_PROBE_HEADERS, timeout=timeout, stream=True)
+        return ProbePlan([ProbeTarget('www.javlibrary.com', send, cf_challenge_ok=True)])
 
     def search(self, number: str) -> Optional[Video]:
         """

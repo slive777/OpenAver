@@ -21,6 +21,9 @@ export const REASON_KEY_MAP = {
     self_hosted: 'settings.sources.probe_reason_self_hosted',
     unknown: 'settings.sources.probe_reason_unknown',
     unprobeable: 'settings.sources.probe_reason_unprobeable',
+    proxy_auth_unsupported: 'settings.sources.probe_reason_proxy_auth_unsupported',
+    mac_system_proxy: 'settings.sources.probe_reason_mac_system_proxy',
+    verifier_not_started: 'settings.sources.probe_reason_verifier_not_started',
 };
 
 export const REASON_KEY_GENERIC = 'settings.sources.probe_reason_generic';

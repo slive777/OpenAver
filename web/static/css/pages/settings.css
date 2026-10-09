@@ -222,6 +222,11 @@
 }
 
 /* 163b：Proxy 區一行版型（欄位＋範圍切換＋說明；說明在所有寬度都獨佔下一行） */
+#settings-components .settings-form-row--proxy .row-label {
+    min-width: 0;
+    flex: 0 0 auto;
+}
+
 #settings-components .settings-form-row--proxy input {
     flex: 1 1 14rem;
     min-width: 0;

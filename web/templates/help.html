@@ -664,6 +664,7 @@
                 <li>{{ t('help.scraper.proxy_scope_how') }}</li>
                 <li>{{ t('help.scraper.proxy_scope_all_includes') }}</li>
                 <li>{{ t('help.scraper.proxy_scope_excludes') }}</li>
+                <li>{{ t('help.scraper.proxy_scope_verifier') }}</li>
             </ul>
 
             <h6 class="mt-4">{{ t('help.scraper.h6_probe') }}</h6>
@@ -672,7 +673,14 @@
                 <li>{{ t('help.scraper.probe_states') | safe }}</li>
                 <li>{{ t('help.scraper.probe_not_data') }}</li>
                 <li>{{ t('help.scraper.probe_no_images') }}</li>
+                <li>{{ t('help.scraper.probe_verifier') }}</li>
+                {% if is_windows_desktop %}
+                <li>{{ t('help.scraper.probe_skipped_windows') }}</li>
+                {% elif is_mac_desktop %}
+                <li>{{ t('help.scraper.probe_skipped_mac') }}</li>
+                {% else %}
                 <li>{{ t('help.scraper.probe_skipped') }}</li>
+                {% endif %}
             </ul>
 
             <h6 class="mt-4">{{ t('help.scraper.h6_toggle') }}</h6>

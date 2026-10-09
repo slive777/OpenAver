@@ -2677,6 +2677,16 @@ const RULES = [
     note: '[163b-T7a-no-proxy-url-in-windows] 驗證視窗要走哪個代理只能問 core.proxy_policy 的 cf_window_proxy；windows 層若自己讀代理設定欄位，就會繞過「僅 DMM／所有來源」的範圍判斷，使用者選「僅 DMM」卻發現 JavLibrary／FC2-javten 的視窗也被送進代理',
   })),
 
+  // ---- [163b-T7b] 重開提示的接線（node:test 看不到模板；外觀不守） ----
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="cfWindowProxyRestartNeeded"/,
+    note: '[163b-T7b-restart-hint-wired] 使用者存了新代理、提示永遠不出現 → 以為 JavLibrary／FC2-javten 已改走新代理，其實要重開 OpenAver 才會換',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /this\.cfWindowProxyRestartNeeded = result\.cf_window_proxy_restart_needed === true/,
+    note: '[163b-T7b-restart-hint-state] 使用者存了新代理、後端說要重開但前端沒讀到 → 提示不出現，以為已改走新代理',
+  },
+
   // ---- [163b-T3] 舊測試鈕與舊端點確實消失 ----
   {
     file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'testProxy',

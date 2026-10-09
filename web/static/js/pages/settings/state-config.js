@@ -76,6 +76,10 @@ export function stateConfig() {
         // 預設 '' 避免 :placeholder hydrate 前出現 undefined（FE-TIMING-07）
         resolvedGalleryOutputPath: '',
 
+        // PUT/GET /api/config 回應頂層欄位（response-only，不入 form／saveConfig payload）：
+        // 儲存後 JavLibrary／FC2-javten 驗證視窗要重開 OpenAver 才會改走新代理設定
+        cfWindowProxyRestartNeeded: false,
+
         // ===== i18n State =====
         locale: (window.__locale || 'zh-TW'),
 
@@ -666,6 +670,7 @@ export function stateConfig() {
                 const resp = await fetch('/api/config');
                 const result = await resp.json();
                 if (result.success) {
+                    this.cfWindowProxyRestartNeeded = result.cf_window_proxy_restart_needed === true;
                     const config = result.data;
 
                     // Search
@@ -1066,6 +1071,7 @@ export function stateConfig() {
                 });
                 const result = await resp.json();
                 if (result.success) {
+                    this.cfWindowProxyRestartNeeded = result.cf_window_proxy_restart_needed === true;
                     this.showToast(window.t('settings.toast.config_saved'), 'success');
                     // 更新快照（避免儲存後仍為 dirty）
                     this.savedState = JSON.parse(JSON.stringify(this.form));

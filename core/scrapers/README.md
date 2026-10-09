@@ -143,6 +143,7 @@ class BaseScraper(ABC):
   `requests.*(..., **self._proxy_kwargs())`；兩者都沿用注入的代理快照，不得另建不經代理的連線、不得讀目前設定
 - 每個 `send` 必須帶 `timeout=timeout`、`stream=True`（讀取上限與關閉由中央負責）
 - 樣本番號查無（404）算「連得到」時，在 target 上設 `ok_404=True`
+- 靠驗證視窗的來源（JavLibrary、FC2-javten）在 target 上設 `cf_challenge_ok=True`：拿到明確的 Cloudflare 驗證頁訊號（`cf-mitigated: challenge` 或頁面標記）算「連得到」；單純 `server: cloudflare` 的 403 仍算被擋。是否實測由 `core/source_probe.py` 的 `skip_reason` 依桌面種類與視窗可用性決定
 - 只放**查資料**的網域，不放封面／劇照圖床
 - scraper 只宣告、不做判讀；通／被擋／連不到的判讀在 `core/source_probe.py`
 

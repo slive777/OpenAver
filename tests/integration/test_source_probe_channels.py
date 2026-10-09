@@ -283,3 +283,108 @@ def test_probe_requests_carry_the_real_search_identity(client, canned):
 
     j321 = canned.requests_to('www.jav321.com')[0]
     assert j321.method == 'POST' and 'sn=' in j321.body
+
+
+# ── JavLibrary／FC2-javten（驗證視窗來源）────────────────────────────────────
+
+VERIFIER = ('javlibrary', 'fc-javten')
+VERIFIER_HOSTS = {'www.javlibrary.com', 'javten.com'}
+
+
+class _Sites:
+    def __init__(self, sites):
+        self._sites = list(sites)
+
+    def available_sites(self):
+        return list(self._sites)
+
+
+@pytest.fixture
+def verifier_env(monkeypatch):
+    """造桌面種類與視窗可用清單；結束還原 core.cf_transport 模組全域。"""
+    import core.cf_transport as cft
+    saved = cft._transport
+
+    def _set(kind, sites=VERIFIER):
+        monkeypatch.setattr('core.source_probe.desktop_kind', lambda: kind)
+        cft._transport = _Sites(sites)
+
+    try:
+        yield _set
+    finally:
+        cft._transport = saved
+
+
+def _vrow(client, sid, proxy_url='', scope='all'):
+    return _probe(client, proxy_url, scope, [sid])[sid]
+
+
+def test_verifier_probe_uses_search_route(client, rec, verifier_env):
+    """Windows 視窗可用：所有來源＋請求體代理 A → 兩家 host 在 A；僅 DMM → 改走系統代理。"""
+    verifier_env('windows')
+    _probe(client, rec.a, 'all', VERIFIER)
+    assert rec.a_hosts_() == VERIFIER_HOSTS, rec.a_hosts_()
+    assert rec.sys_hosts_() == set() and rec.b_hosts_() == set()
+
+
+def test_verifier_probe_scope_dmm_goes_system_proxy_not_snapshot_proxy(client, rec, verifier_env):
+    verifier_env('windows')
+    _probe(client, rec.a, 'dmm', VERIFIER)
+    assert rec.a_hosts_() == set(), rec.a_hosts_()
+    assert rec.sys_hosts_() == VERIFIER_HOSTS, rec.sys_hosts_()
+
+
+def test_verifier_probe_mac_has_zero_connections(client, rec, verifier_env):
+    """macOS 即使 transport 已註冊且兩家都列在可用清單：不連線、標未測。"""
+    verifier_env('mac')
+    results = _probe(client, rec.a, 'all', VERIFIER)
+    assert {(r['state'], r['reason']) for r in results.values()} == {('skipped', 'mac_system_proxy')}
+    assert rec.a_hosts_() == set() and rec.sys_hosts_() == set() and rec.b_hosts_() == set()
+
+
+def test_verifier_probe_dev_env_is_skipped_windows_verifier(client, canned):
+    canned.responder = None
+    results = _probe(client, '', 'all', VERIFIER)
+    assert {(r['state'], r['reason']) for r in results.values()} == {('skipped', 'windows_verifier')}
+    assert canned.seen == []
+
+
+@pytest.mark.parametrize('sid,host', [('javlibrary', 'www.javlibrary.com'), ('fc-javten', 'javten.com')])
+def test_verifier_challenge_page_is_ok_via_endpoint(client, canned, verifier_env, sid, host):
+    verifier_env('windows')
+    key = host.replace('.', '__')
+
+    canned.by_host(**{key: (200, {'cf-mitigated': 'challenge'}, b'x')})
+    row = _vrow(client, sid)
+    assert (row['state'], row['reason'], row['host']) == ('ok', 'ok', host)
+    # 探測請求帶瀏覽器樣的 header（避免被當機器人回單純 403）
+    ua = canned.requests_to(host)[0].headers.get('User-Agent', '')
+    assert ua.startswith('Mozilla/5.0') and 'requests' not in ua
+
+    canned.by_host(**{key: (403, {}, b'<title>Just a moment...</title>')})
+    assert _vrow(client, sid)['state'] == 'ok'
+
+    canned.by_host(**{key: (403, {'server': 'cloudflare'}, b'<html>1015</html>')})
+    row = _vrow(client, sid)
+    assert (row['state'], row['reason']) == ('blocked', 'cf_challenge')
+
+    canned.by_host(**{key: requests.exceptions.ProxyError('x')})
+    row = _vrow(client, sid)
+    assert (row['state'], row['reason']) == ('unreachable', 'proxy')
+
+
+def test_verifier_probe_auth_socks_is_skipped_without_connection(client, canned, verifier_env):
+    verifier_env('windows')
+    canned.by_host()
+    results = _probe(client, 'socks5://u:p@h.example:1', 'all', VERIFIER)
+    assert {(r['state'], r['reason']) for r in results.values()} == {('skipped', 'proxy_auth_unsupported')}
+    assert canned.seen == []
+
+
+def test_verifier_probe_unparseable_address_is_probed_not_auth_message(client, canned, verifier_env):
+    """位址少打 scheme：不說「不支援帶帳密 socks5」，照常實測（和其他八家一樣由連線結果決定）。"""
+    verifier_env('windows')
+    canned.by_host()
+    row = _vrow(client, 'javlibrary', 'h.example:1', 'all')
+    assert row['state'] != 'skipped' and row['reason'] != 'proxy_auth_unsupported'
+    assert canned.requests_to('www.javlibrary.com')

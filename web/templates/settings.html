@@ -419,8 +419,13 @@
                                 {{ t('settings.search.proxy_scope_dmm_hint') }}
                             </small>
                             <small class="settings-hint" x-show="form.proxyScope === 'all'">
-                                {{ t('settings.search.proxy_scope_all_hint') }}
+                                {% if is_mac_desktop %}{{ t('settings.search.proxy_scope_all_hint_mac') }}{% else %}{{ t('settings.search.proxy_scope_all_hint') }}{% endif %}
                             </small>
+                            {% if is_windows_desktop %}
+                            <small class="settings-hint" x-show="cfWindowProxyRestartNeeded">
+                                {{ t('settings.search.proxy_restart_hint') }}
+                            </small>
+                            {% endif %}
                         </div>
                     </div>
 

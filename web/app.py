@@ -652,6 +652,7 @@ def get_common_context(request: Request) -> dict:
         "merged_translations": merged_translations,
         "t": _t_bound,
         "is_windows_desktop": _is_windows_desktop(),
+        "is_mac_desktop": _is_mac_desktop(),
         "is_desktop": _is_windows_desktop() or _is_mac_desktop(),
         "is_synology": is_synology(),
     }

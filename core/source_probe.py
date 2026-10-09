@@ -8,8 +8,12 @@
 只吃呼叫端傳進來的 `ProxySettings` 快照（請求體組出的 frozen 物件）；
 整條探測路徑不碰已儲存的設定（I-3）。
 log 紀律：不記代理位址或例外原文（可能含 user:pass@），要記只記 reason code／id。
-頂層只 import 標準庫／requests／urllib3／core.proxy_policy；scraper 類別在
-`scraper_class_for()` 內才 import（BE-LINT-09 循環面）。
+頂層只 import 標準庫／requests／urllib3／core.proxy_policy／core.desktop_env／core.cf_transport；
+scraper 類別在 `scraper_class_for()` 內才 import（BE-LINT-09 循環面）。
+
+JavLibrary／FC2-javten（需要驗證視窗的來源）不再一律 skipped：依桌面種類（`desktop_kind()`）、
+個別視窗可用性（`get_cf_available_sites()`）與請求體代理規格（`cf_window_proxy(snap)`）決定
+實測或標未測；實測時拿到 Cloudflare 驗證頁算通（`ProbeTarget.cf_challenge_ok`）。
 """
 from __future__ import annotations
 
@@ -20,8 +24,10 @@ from typing import Callable, Literal, Optional
 import requests
 from urllib3.exceptions import NameResolutionError, ReadTimeoutError
 
+from core.cf_transport import get_cf_available_sites
+from core.desktop_env import desktop_kind
 from core.logger import get_logger
-from core.proxy_policy import ProxySettings, proxy_for, source_needs_jp_ip
+from core.proxy_policy import ProxySettings, cf_window_proxy, proxy_for, source_needs_jp_ip
 
 logger = get_logger('source_probe')
 
@@ -35,12 +41,22 @@ REASON_CODES = frozenset({
     'ok', 'cf_challenge', 'http_status', 'app_rejected',
     'proxy', 'timeout', 'tls', 'dns', 'network', 'error',
     'windows_verifier', 'self_hosted', 'unknown', 'unprobeable',
+    'proxy_auth_unsupported', 'mac_system_proxy', 'verifier_not_started',
 })
 
 MANUAL_ONLY_IDS = frozenset({'javlibrary', 'fc-javten'})
 BUILTIN_IDS = ('dmm', 'javbus', 'jav321', 'javdb', 'd2pass', 'heyzo', 'fc2', 'avsox')
 
 _CF_BODY_MARKERS = (b'just a moment', b'cf-browser-verification', b'challenge-platform')
+# 驗證視窗來源的探測請求用瀏覽器樣的 header（requests 預設 UA 會讓站方回單純 403 而假橘）
+VERIFIER_PROBE_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'ja-JP,ja;q=0.9,en;q=0.6',
+}
 _STATE_RANK = {'ok': 0, 'blocked': 1, 'unreachable': 2}
 
 
@@ -60,6 +76,7 @@ class ProbeTarget:
     ok_404: bool = False
     check: Optional[Callable[[ProbeResponse], bool]] = None
     read: Literal['head8k', 'full_capped'] = 'head8k'
+    cf_challenge_ok: bool = False  # 驗證視窗來源：拿到明確的 Cloudflare 驗證頁＝通
 
 
 @dataclass(frozen=True)
@@ -83,6 +100,18 @@ def _has_cf_marker(headers: dict, head: bytes) -> bool:
         return True
     low = head.lower()
     return any(m in low for m in _CF_BODY_MARKERS)
+
+
+def _has_body_marker(head: bytes) -> bool:
+    low = head.lower()
+    return any(m in low for m in _CF_BODY_MARKERS)
+
+
+def _is_challenge_signal(headers: dict, head: bytes) -> bool:
+    """明確的驗證頁訊號（單純 `server: cloudflare` 的 403 不算，可能是封鎖頁）。"""
+    if headers.get('cf-mitigated', '').lower() == 'challenge':
+        return True
+    return _has_body_marker(head)
 
 
 def classify_http(status: int, headers: dict, head: bytes, ok_404: bool) -> tuple:
@@ -165,6 +194,8 @@ def probe_target(target: ProbeTarget) -> ProbeOutcome:
     try:
         pr = read_response(target.send(), target.read, target.ok_404)
         state, reason = classify_http(pr.status, pr.headers_subset, pr.head, target.ok_404)
+        if target.cf_challenge_ok and reason == 'cf_challenge' and _is_challenge_signal(pr.headers_subset, pr.head):
+            state, reason = 'ok', 'ok'
         if (
             state == 'ok' and target.check is not None
             and target.read == 'full_capped' and pr.body_complete
@@ -182,7 +213,7 @@ def probe_target(target: ProbeTarget) -> ProbeOutcome:
 # ---------------------------------------------------------------- id 分類
 
 def scraper_class_for(source_id: str):
-    """八個內建 id → scraper 類別；lazy import（避免與 core.scrapers.base 頂層循環）。"""
+    """八個內建 id ＋ 兩個驗證視窗來源 → scraper 類別；lazy import（避免與 core.scrapers.base 頂層循環）。"""
     from core.scrapers.avsox import AVSOXScraper
     from core.scrapers.d2pass import D2PassScraper
     from core.scrapers.dmm import DMMScraper
@@ -191,18 +222,40 @@ def scraper_class_for(source_id: str):
     from core.scrapers.jav321 import JAV321Scraper
     from core.scrapers.javbus import JavBusScraper
     from core.scrapers.javdb import JavDBScraper
+    from core.scrapers.javlibrary import JavLibraryScraper
+    from core.scrapers.fc2_javten import FC2JavtenScraper
 
     return {
         'dmm': DMMScraper, 'javbus': JavBusScraper, 'jav321': JAV321Scraper,
         'javdb': JavDBScraper, 'd2pass': D2PassScraper, 'heyzo': HEYZOScraper,
         'fc2': FC2OfficialScraper, 'avsox': AVSOXScraper,
+        'javlibrary': JavLibraryScraper, 'fc-javten': FC2JavtenScraper,
     }[source_id]
 
 
-def skip_reason(source_id: str) -> Optional[str]:
-    """不探測的 id 分類（唯一一處）；內建 id 回 None。"""
-    if source_id in MANUAL_ONLY_IDS:
+def _verifier_skip_reason(source_id: str, snap: ProxySettings) -> Optional[str]:
+    """需要驗證視窗的來源：依桌面種類 → 視窗可用性 → 代理規格（先中先出）；None ＝ 進探測。
+
+    兩個獨立問題不得互推：桌面種類只問 `desktop_kind()`，這一家視窗現在能不能用只問
+    `get_cf_available_sites()`（`None`＝判不出來，視為不可用）。`snap` 一律用請求體快照。
+    """
+    kind = desktop_kind()
+    if kind is None:
         return 'windows_verifier'
+    if kind == 'mac':
+        return 'mac_system_proxy'
+    if source_id not in (get_cf_available_sites() or []):
+        return 'verifier_not_started'
+    spec = cf_window_proxy(snap)
+    if spec is not None and not spec.usable and spec.server:
+        return 'proxy_auth_unsupported'
+    return None
+
+
+def skip_reason(source_id: str, snap: ProxySettings) -> Optional[str]:
+    """不探測的 id 分類（唯一一處）；要探測回 None。"""
+    if source_id in MANUAL_ONLY_IDS:
+        return _verifier_skip_reason(source_id, snap)  # None ＝ 實測，不可落到下面的 unknown
     if source_id.startswith('metatube:'):
         return 'self_hosted'
     if source_id not in BUILTIN_IDS:
@@ -220,7 +273,7 @@ def build_jobs(snap: ProxySettings, source_ids: list) -> tuple:
     plans: dict = {}
     failed: list = []
     for source_id in source_ids:
-        reason = skip_reason(source_id)
+        reason = skip_reason(source_id, snap)
         if reason:
             skipped[source_id] = reason
             continue

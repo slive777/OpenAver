@@ -388,7 +388,9 @@ def test_run_probes_advice_only_when_blocked_and_source_needs_jp_ip(fake_classes
     assert rows['javdb']['state'] == 'unreachable' and rows['javdb']['advice'] is None
 
 
-def test_run_probes_skips_manual_only_and_metatube(fake_classes):
+def test_run_probes_skips_manual_only_and_metatube(fake_classes, monkeypatch):
+    """dev／NAS（desktop_kind 為 None）：兩家驗證視窗來源恆 skipped/windows_verifier。"""
+    monkeypatch.setattr('core.source_probe.desktop_kind', lambda: None)
     ids = ['javlibrary', 'fc-javten', 'metatube:x', 'zzz', 'dmm']
     rows = run_probes(ProxySettings(url=PROXY, scope='all'), ids)  # dmm: 假類別無 plan
     assert {i: (rows[i]['state'], rows[i]['reason']) for i in ids} == {
@@ -401,6 +403,149 @@ def test_run_probes_skips_manual_only_and_metatube(fake_classes):
     for r in rows.values():
         assert set(r) == SIX_KEYS
         assert (r['host'], r['status'], r['via_proxy'], r['advice']) == (None, None, False, None)
+
+
+def test_run_probes_verifier_sources_per_environment(fake_classes, monkeypatch):
+    """Windows 視窗可用 → 進探測；mac → 未測；視窗沒起來 → 未測。"""
+    plans, _ = fake_classes
+    for sid in ('javlibrary', 'fc-javten'):
+        plans[sid] = ProbePlan([ProbeTarget(sid, lambda: make_resp())])
+    ids = ['javlibrary', 'fc-javten']
+    snap = ProxySettings(url=PROXY, scope='all')
+    expect = {
+        ('windows', ('javlibrary', 'fc-javten')): ('ok', 'ok'),
+        ('mac', ('javlibrary', 'fc-javten')): ('skipped', 'mac_system_proxy'),
+        ('windows', ()): ('skipped', 'verifier_not_started'),
+    }
+    for (kind, sites), want in expect.items():
+        monkeypatch.setattr('core.source_probe.desktop_kind', lambda k=kind: k)
+        monkeypatch.setattr('core.source_probe.get_cf_available_sites', lambda s=sites: list(s))
+        rows = run_probes(snap, ids)
+        assert {(r['state'], r['reason']) for r in rows.values()} == {want}, (kind, sites)
+
+
+# ------------------------------------------------------------ 驗證視窗來源：skipped 環境表／判讀
+
+class _FakeTransport:
+    def __init__(self, sites):
+        self._sites = sites
+
+    def available_sites(self):
+        return list(self._sites)
+
+
+class _NoSitesTransport:
+    """沒有 available_sites 屬性：get_cf_available_sites() 回 None（判不出來）。"""
+
+
+@pytest.fixture
+def transport_env(monkeypatch):
+    """造 get_cf_available_sites() 的 []／部分／全／None；結束還原模組全域。"""
+    import core.cf_transport as cft
+    saved = cft._transport
+
+    def _set(transport):
+        cft._transport = transport
+
+    try:
+        yield _set
+    finally:
+        cft._transport = saved
+
+
+BOTH = ('javlibrary', 'fc-javten')
+SNAP_ALL = ProxySettings(url=PROXY, scope='all')
+SNAP_DMM = ProxySettings(url=PROXY, scope='dmm')
+SNAP_AUTH_ALL = ProxySettings(url='socks5://u:p@h.example:1', scope='all')
+SNAP_AUTH_DMM = ProxySettings(url='socks5://u:p@h.example:1', scope='dmm')
+SNAP_NOSCHEME_ALL = ProxySettings(url='h.example:1', scope='all')
+SNAP_SOCKS_ALL = ProxySettings(url='socks5://h.example:1', scope='all')
+
+
+@pytest.mark.parametrize('label,kind,transport,snap,expect', [
+    ('dev', None, _FakeTransport(BOTH), SNAP_ALL, ('windows_verifier',) * 2),
+    ('dev_no_transport', None, None, SNAP_ALL, ('windows_verifier',) * 2),
+    ('mac_all_sites', 'mac', _FakeTransport(BOTH), SNAP_ALL, ('mac_system_proxy',) * 2),
+    ('mac_no_transport', 'mac', None, SNAP_ALL, ('mac_system_proxy',) * 2),
+    ('win_empty', 'windows', _FakeTransport(()), SNAP_ALL, ('verifier_not_started',) * 2),
+    ('win_no_transport', 'windows', None, SNAP_ALL, ('verifier_not_started',) * 2),
+    ('win_unknown_sites', 'windows', _NoSitesTransport(), SNAP_ALL, ('verifier_not_started',) * 2),
+    ('win_only_javlibrary', 'windows', _FakeTransport(('javlibrary',)), SNAP_ALL,
+     (None, 'verifier_not_started')),
+    ('win_only_javten', 'windows', _FakeTransport(('fc-javten',)), SNAP_ALL,
+     ('verifier_not_started', None)),
+    ('win_all_http', 'windows', _FakeTransport(BOTH), SNAP_ALL, (None, None)),
+    ('win_all_socks_noauth', 'windows', _FakeTransport(BOTH), SNAP_SOCKS_ALL, (None, None)),
+    ('win_all_socks_auth', 'windows', _FakeTransport(BOTH), SNAP_AUTH_ALL,
+     ('proxy_auth_unsupported',) * 2),
+    ('win_scope_dmm_socks_auth', 'windows', _FakeTransport(BOTH), SNAP_AUTH_DMM, (None, None)),
+    ('win_blank_proxy', 'windows', _FakeTransport(BOTH), ProxySettings(url='', scope='all'),
+     (None, None)),
+    ('win_unparseable_address_still_probed', 'windows', _FakeTransport(BOTH), SNAP_NOSCHEME_ALL,
+     (None, None)),
+    ('win_not_started_beats_auth', 'windows', _FakeTransport(()), SNAP_AUTH_ALL,
+     ('verifier_not_started',) * 2),
+])
+def test_skip_reason_environment_table(monkeypatch, transport_env, label, kind, transport, snap, expect):
+    monkeypatch.setattr('core.source_probe.desktop_kind', lambda: kind)
+    transport_env(transport)
+    got = tuple(sp.skip_reason(sid, snap) for sid in BOTH)
+    assert got == expect, label
+
+
+def test_skip_reason_other_ids_unchanged_by_environment(monkeypatch, transport_env):
+    monkeypatch.setattr('core.source_probe.desktop_kind', lambda: 'windows')
+    transport_env(_FakeTransport(BOTH))
+    assert sp.skip_reason('metatube:x', SNAP_ALL) == 'self_hosted'
+    assert sp.skip_reason('zzz', SNAP_ALL) == 'unknown'
+    assert sp.skip_reason('dmm', SNAP_ALL) is None
+
+
+def test_skip_reason_uses_request_snapshot(monkeypatch, transport_env):
+    """畫面上的新代理（請求體快照）決定結果；已儲存的設定被讀到就炸。"""
+    import core.proxy_policy as pp
+    monkeypatch.setattr('core.source_probe.desktop_kind', lambda: 'windows')
+    transport_env(_FakeTransport(BOTH))
+
+    def _boom(*a, **k):
+        raise AssertionError('不得讀已儲存的設定')
+
+    monkeypatch.setattr(pp, 'current_settings', _boom)
+    assert sp.skip_reason('javlibrary', SNAP_AUTH_ALL) == 'proxy_auth_unsupported'
+    assert sp.skip_reason('javlibrary', SNAP_ALL) is None
+
+
+CF_SERVER = {'server': 'cloudflare'}
+
+
+@pytest.mark.parametrize('label,status,headers,body,flag,expect', [
+    ('mitigated_200', 200, {'cf-mitigated': 'challenge'}, b'x', True, ('ok', 'ok')),
+    ('mitigated_403', 403, {'cf-mitigated': 'challenge'}, b'x', True, ('ok', 'ok')),
+    ('body_just_a_moment_403', 403, {}, b'<title>Just a moment...</title>', True, ('ok', 'ok')),
+    ('body_jsd_503', 503, {}, JSD, True, ('ok', 'ok')),
+    ('plain_cf_403', 403, CF_SERVER, b'<html>error 1015</html>', True, ('blocked', 'cf_challenge')),
+    ('plain_403', 403, {}, b'forbidden', True, ('blocked', 'http_status')),
+    ('server_500', 500, {}, b'x', True, ('blocked', 'http_status')),
+    ('ok_200', 200, {}, b'x', True, ('ok', 'ok')),
+    ('flag_off_mitigated', 200, {'cf-mitigated': 'challenge'}, b'x', False, ('blocked', 'cf_challenge')),
+    ('flag_off_body', 403, {}, b'just a moment', False, ('blocked', 'cf_challenge')),
+])
+def test_verifier_cf_challenge_override_table(label, status, headers, body, flag, expect):
+    t = ProbeTarget('h.example', lambda: make_resp(status, headers, body), cf_challenge_ok=flag)
+    out = sp.probe_target(t)
+    assert (out.state, out.reason) == expect, label
+
+
+@pytest.mark.parametrize('exc,reason', [
+    (requests.exceptions.ProxyError('x'), 'proxy'),
+    (requests.exceptions.ConnectTimeout('x'), 'timeout'),
+    (requests.exceptions.ConnectionError('x'), 'network'),
+])
+def test_verifier_target_connection_failures_stay_unreachable(exc, reason):
+    def send():
+        raise exc
+    out = sp.probe_target(ProbeTarget('h.example', send, cf_challenge_ok=True))
+    assert (out.state, out.reason) == ('unreachable', reason)
 
 
 def test_run_probes_dedupes_ids_and_every_id_has_a_result(fake_classes):
