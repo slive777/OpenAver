@@ -3,7 +3,6 @@
 <script>
 window.__ADVANCED_SEARCH__ = {
     sources: {{ (config.sources or [])|tojson|safe }},
-    proxy_configured: {{ proxy_configured|default(false)|tojson|safe }},
     cf_transport_available: {{ cf_transport_available|default(false)|tojson|safe }},
     cf_sites: {{ cf_sites|default(none)|tojson|safe }}
 };

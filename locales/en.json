@@ -360,8 +360,7 @@
       "mt_probe_hint_reason3": "The source's metatube scraper has broken due to a site redesign (e.g. JAV321 / KIN8 — unrelated to your setup).",
       "mt_connect_failed": "Connection failed: {error}",
       "mt_promote_unavailable_warning": "This source is currently unreachable — it has been added to Active Row but may return no data",
-      "mt_probe_failed_pill_hint": "This source is currently unreachable — it may return no data after adding. Click 'Retest' to check again.",
-      "dmm_proxy_required_hint": "DMM requires a proxy to work — enable a proxy in Settings first"
+      "mt_probe_failed_pill_hint": "This source is currently unreachable — it may return no data after adding. Click 'Retest' to check again."
     },
     "advanced_search": {
       "metatube_keyword_hint": "Metatube sources do not support actress/keyword search — enter a full ID for best results.",

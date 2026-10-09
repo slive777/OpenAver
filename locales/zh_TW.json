@@ -360,8 +360,7 @@
       "mt_probe_hint_reason3": "該來源的 metatube scraper 已隨網站改版失效（如 JAV321 / KIN8，與你的環境無關）。",
       "mt_connect_failed": "連線失敗：{error}",
       "mt_promote_unavailable_warning": "此來源目前測不到，已加入主力集但可能抓不到資料",
-      "mt_probe_failed_pill_hint": "此來源目前測不到，加入後可能抓不到資料，可先點「重新測試」確認",
-      "dmm_proxy_required_hint": "DMM 需要 proxy 才能使用，請先在設定中開啟代理"
+      "mt_probe_failed_pill_hint": "此來源目前測不到，加入後可能抓不到資料，可先點「重新測試」確認"
     },
     "advanced_search": {
       "metatube_keyword_hint": "metatube 來源不支援女優/關鍵字搜尋，建議輸入完整番號。",
@@ -974,6 +973,9 @@
       "auto_source": "自動",
       "searching": "搜尋中…",
       "not_found": "找不到，換個番號或來源再試。",
+      "access_refused": "{source} 拒絕連線",
+      "access_unreachable": "{source} 連不到，請檢查網路或代理設定",
+      "access_advice_jp_ip": "部分地區需要日本 IP，可在 Proxy 欄設定",
       "offline_tooltip": "目前連不上，可到設定重新測試",
       "overwrite_warning": "覆蓋既有封面 + NFO（不可逆）",
       "confirm": "覆蓋寫入",

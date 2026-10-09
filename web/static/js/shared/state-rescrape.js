@@ -82,6 +82,7 @@ export function rescrapeState() {
         rescrapeLoadingSource: null,       // string | null（明確，:disabled 純 boolean）
         rescrapePreview: null,             // transient（CD-62-2）
         rescrapeNotFound: false,
+        rescrapeAccessError: null,         // {kind: 'refused'|'unreachable', source} | null；與 rescrapeNotFound 互斥
         rescrapeCandidates: [],            // CD-86-6：多版本候選陣列；單版本/非 javlib 為 []
         rescrapeVersionIdx: 0,             // 當前 preview 游標
         rescrapeCfWaiting: false,          // 70-T6: CF 等待態（polling 中）
@@ -112,6 +113,7 @@ export function rescrapeState() {
             this.rescrapeVersionIdx = 0;
             this.rescrapeLoadingSource = null;
             this.rescrapeNotFound = false;
+            this.rescrapeAccessError = null;
             this.rescrapePreserveTitle = true;
             this._rescrapeVideo = video;
             this._switchTarget = null;     // 62c-3：每次開窗先清；switch-source 入口由 openSwitchSourcePicker 隨後捕捉
@@ -173,15 +175,6 @@ export function rescrapeState() {
         },
 
         /**
-         * 63c-6 Surface 2：來源是否因 proxy 未設定而被封鎖。
-         * 使用 SSR bootstrap 注入的 proxy_configured（CD-63c-9），
-         * 不依賴 Settings Alpine scope 的 isDmmAvailable()（兩者 scope 隔離）。
-         */
-        isSourceProxyBlocked(s) {
-            return !!(s && s.requires_proxy && !(window.__ADVANCED_SEARCH__ && window.__ADVANCED_SEARCH__.proxy_configured));
-        },
-
-        /**
          * 118a-T9：這個 CF 來源在這台機器上有沒有活著的驗證視窗。
          *
          * cf_sites（per-site，T9 起）優先；不是陣列時 fall back 到 cf_transport_available
@@ -229,12 +222,49 @@ export function rescrapeState() {
         },
 
         /**
+         * 預覽失敗落點：後端標了被拒／連不到 → 紅字區塊；其餘（含未知字串）→ 找不到。兩者互斥。
+         */
+        _applyRescrapeFailure(data, sourceId) {
+            const kind = data && data.access_error;
+            if (kind === 'refused' || kind === 'unreachable') {
+                this.rescrapeNotFound = false;
+                this.rescrapeAccessError = { kind: kind, source: data.source || sourceId };
+                return;
+            }
+            this.rescrapeAccessError = null;
+            this.rescrapeNotFound = true;
+        },
+
+        /**
+         * 存取錯誤的紅字訊息（靜態 window.t 字面，i18n_lint 才掃得到）。
+         */
+        rescrapeAccessMessage(err) {
+            if (!err) return '';
+            if (err.kind === 'refused') {
+                return window.t('showcase.rescrape.access_refused', { source: this._resolveSourceName(err.source) });
+            }
+            if (err.kind === 'unreachable') {
+                return window.t('showcase.rescrape.access_unreachable', { source: this._resolveSourceName(err.source) });
+            }
+            return '';
+        },
+
+        /**
+         * 被拒且該來源標了 requires_proxy（DMM）才附建議句；不依狀態碼、不判地區。
+         */
+        rescrapeAccessAdvice(err) {
+            if (!err) return '';
+            const src = this.rescrapeSources.find(s => s.id === err.source);
+            return err.kind === 'refused' && src && src.requires_proxy === true ? window.t('showcase.rescrape.access_advice_jp_ip') : '';
+        },
+
+        /**
          * pill 點擊即搜（POST /api/rescrape/preview）。
          */
         async rescrapeWithSource(sourceId) {
             if (this.rescrapeLoadingSource !== null) return;          // 連點防護
             if (this.rescrapeCfWaiting) return;                       // 等待態不可重入（防 re-entry + UX）
-            if (!this.rescrapeNumber.trim()) { this.rescrapeNotFound = true; return; }
+            if (!this.rescrapeNumber.trim()) { this.rescrapeAccessError = null; this.rescrapeNotFound = true; return; }
             // Search 入口（62c-1）：無預覽卡，繞過 /api/rescrape/preview，直接走 B1 advancedSearch
             // 整包贏（GET /api/search?...&source=），結果進正常結果區，彈窗關閉（spec US5）。
             // CD-86-8 / T4：manual_only（javlibrary / fc-javten）不早 return，繼續走 fetch preview。
@@ -261,6 +291,7 @@ export function rescrapeState() {
                 return;
             }
             this.rescrapeNotFound = false;
+            this.rescrapeAccessError = null;
             this.rescrapeLoadingSource = sourceId;
             try {
                 const resp = await fetch('/api/rescrape/preview', {
@@ -340,7 +371,7 @@ export function rescrapeState() {
                         this.closeRescrape();
                         return;
                     }
-                    this.rescrapeNotFound = true;
+                    this._applyRescrapeFailure(data, sourceId);
                     return;
                 }
                 // Showcase（lightbox）/ search+javlib：找到 → 換頁 preview；找不到 → 留 pick
@@ -378,9 +409,10 @@ export function rescrapeState() {
                     this._rescrapeCommitSource = sourceId;
                     this.rescrapeStep = 'preview';
                 } else {
-                    this.rescrapeNotFound = true;
+                    this._applyRescrapeFailure(data, sourceId);
                 }
             } catch (e) {
+                this.rescrapeAccessError = null;
                 this.rescrapeNotFound = true;
             } finally {
                 this.rescrapeLoadingSource = null;
@@ -425,6 +457,7 @@ export function rescrapeState() {
             this.rescrapeCandidates = [];
             this.rescrapeVersionIdx = 0;
             this.rescrapeNotFound = false;
+            this.rescrapeAccessError = null;
         },
 
         /**
@@ -623,6 +656,7 @@ export function rescrapeState() {
             this.rescrapeCandidates = [];
             this.rescrapeVersionIdx = 0;
             this.rescrapeNotFound = false;
+            this.rescrapeAccessError = null;
             this.rescrapeLoadingSource = null;
             this._switchTarget = null;     // 62c-3：關窗清掉捕捉的 slot（switch-source 入口）
         },

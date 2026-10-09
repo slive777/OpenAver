@@ -622,10 +622,6 @@ def get_common_context(request: Request) -> dict:
         else:
             _src['routable'] = True
             _src['available'] = True
-    # 63c-3 / 63c-6：proxy 是否已設定（DMM requires_proxy 灰化 Surface 2 用，獨立 context key）
-    _proxy_url = (config.get('search') or {}).get('proxy_url') or ''
-    proxy_configured = len(_proxy_url) > 0
-
     # 70-T5：cf_transport_available — standalone 已 register → true；dev/server → false
     from core.cf_transport import get_cf_transport as _get_cf_transport
     _cf_transport_available = _get_cf_transport() is not None
@@ -641,7 +637,6 @@ def get_common_context(request: Request) -> dict:
     return {
         "request": request,
         "config": config,
-        "proxy_configured": proxy_configured,
         "cf_transport_available": _cf_transport_available,
         "cf_sites": _cf_sites,
         "lan_ip": get_lan_ip() if _server_mode else None,
@@ -747,7 +742,7 @@ async def settings_page(request: Request):
     context = get_common_context(request)
     context["page"] = "settings"
     # 用 get_common_context 已載入的那一份 config（:517 → context["config"]），不再讀第二次
-    # 磁碟——同一支函式裡的 proxy_configured / _server_mode 也是這個形狀。純 dict 運算，
+    # 磁碟——同一支函式裡的 _server_mode 也是這個形狀。純 dict 運算，
     # 不需要 asyncio.to_thread（BE-ASYNC-01 管的是阻塞 I/O，這行沒有）。
     context["focal_auto_enabled"] = not device_state.is_disabled_in(context["config"])
     return templates.TemplateResponse(request, "settings.html", context)

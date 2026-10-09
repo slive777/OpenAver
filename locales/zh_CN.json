@@ -360,8 +360,7 @@
       "mt_probe_hint_reason3": "该来源的 metatube scraper 已随网站改版失效（如 JAV321 / KIN8，与你的环境无关）。",
       "mt_connect_failed": "连接失败：{error}",
       "mt_promote_unavailable_warning": "此来源目前测不到，已加入主力集但可能抓不到数据",
-      "mt_probe_failed_pill_hint": "此来源目前测不到，加入后可能抓不到数据，可先点「重新测试」确认",
-      "dmm_proxy_required_hint": "DMM 需要 proxy 才能使用，请先在设置中开启代理"
+      "mt_probe_failed_pill_hint": "此来源目前测不到，加入后可能抓不到数据，可先点「重新测试」确认"
     },
     "advanced_search": {
       "metatube_keyword_hint": "metatube 来源不支持女优/关键字搜索，建议输入完整番号。",

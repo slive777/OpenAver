@@ -216,19 +216,6 @@
     background: var(--color-warning);
 }
 
-/* 63c-6: DMM requires_proxy — proxy 未設定時灰化（兩 surface 共用）。
-   opacity 對齊 .is-partsbin[data-available="false"] 慣例 (0.5)。
-   hover 不亮回，cursor 改 not-allowed 提示不可操作。 */
-.source-pill[data-proxy-required="true"] {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.source-pill[data-proxy-required="true"]:hover {
-    transform: none;
-    box-shadow: none;
-}
-
 /* ─── Action / loading modifiers (62a-2; click-to-rescrape pill, NOT drag) ───
  * Settings pill = drag (base cursor: grab). Rescrape-modal pill = click action.
  * `--action` flips the cursor to pointer + guards the lift against disabled/loading;

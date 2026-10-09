@@ -360,8 +360,7 @@
       "mt_probe_hint_reason3": "サイトリニューアルで metatube scraper が機能しなくなったソース（JAV321 / KIN8 など、お使いの環境とは無関係）。",
       "mt_connect_failed": "接続に失敗しました：{error}",
       "mt_promote_unavailable_warning": "このソースは現在到達不可ですが、Active Row に追加しました。データを取得できない可能性があります",
-      "mt_probe_failed_pill_hint": "このソースは現在到達不可です。追加後にデータを取得できない可能性があります。先に「再テスト」で確認することをお勧めします",
-      "dmm_proxy_required_hint": "DMM を使用するには Proxy が必要です。設定で Proxy を有効にしてください"
+      "mt_probe_failed_pill_hint": "このソースは現在到達不可です。追加後にデータを取得できない可能性があります。先に「再テスト」で確認することをお勧めします"
     },
     "advanced_search": {
       "metatube_keyword_hint": "Metatube ソースは女優 / キーワード検索に対応していません。完全な番号を入力することをお勧めします。",

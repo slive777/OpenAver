@@ -20,6 +20,15 @@ export function searchStateAdvancedPicker() {
             return window.__ADVANCED_SEARCH__ || { sources: [] };
         },
 
+        // 後端標了被拒／連不到 → 以介面語言組出訊息（含建議句）；否則回 ''
+        _advancedAccessText(data) {
+            const err = { kind: data && data.access_error, source: data && data.source };
+            const msg = this.rescrapeAccessMessage(err);
+            if (!msg) return '';
+            const advice = this.rescrapeAccessAdvice(err);
+            return advice ? msg + ' ' + advice : msg;
+        },
+
         // ===== 進階搜尋（非 stream，整包贏）=====
         /**
          * 以指定來源覆寫搜尋（單一來源整包贏）。
@@ -54,7 +63,7 @@ export function searchStateAdvancedPicker() {
                     return;
                 } else {
                     this._searchSnapshot = null;
-                    this.errorText = data.error || window.t('search.error.hint');
+                    this.errorText = this._advancedAccessText(data) || data.error || window.t('search.error.hint');
                     this.errorKind = 'advanced_search_failed';
                     this.pageState = 'error';
                     // OQ-3 軟提示 scaffold：metatube source + 非番號 query + 空結果（B1 無 metatube source 故不觸發）

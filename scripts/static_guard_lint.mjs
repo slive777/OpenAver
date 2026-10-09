@@ -2507,8 +2507,7 @@ const RULES = [
     note: '[118a-T9] builtin pill 的 @click（toast）未走 cfUnavailableMessageKey() — 點擊灰化膠囊會回到「僅限桌面應用程式」那句矛盾訊息',
   },
 
-  // ---- [TestMetatubePickerWiringGuard] 63c-3：進階 picker 接 metatube 真資料（proxy_configured 注入 / routable gate / metatube 分組未刪，5 個斷言） ----
-  { file: 'web/templates/_advanced_search_bootstrap.html', kind: 'required-string', pattern: 'proxy_configured:', note: '[TestMetatubePickerWiringGuard] test_bootstrap_injects_proxy_configured' },
+  // ---- [TestMetatubePickerWiringGuard] 63c-3：進階 picker 接 metatube 真資料（routable gate / metatube 分組未刪，4 個斷言） ----
   { file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'rescrapeMetatubeSources', note: '[TestMetatubePickerWiringGuard] test_state_rescrape_keeps_routable_gate — rescrapeMetatubeSources 存在' },
   { file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'routable === true', note: '[TestMetatubePickerWiringGuard] test_state_rescrape_keeps_routable_gate — routable gate 保留' },
   { file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "s.type === 'metatube'", note: '[TestMetatubePickerWiringGuard] test_state_rescrape_keeps_routable_gate — type === metatube filter' },
@@ -2591,37 +2590,74 @@ const RULES = [
     note: '[163a-T6a-no-intercept-tpl] 設定頁 DMM 膠囊不得因 Proxy 空白而灰化成像被停用',
   },
 
-  // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已由 96c css-guard CG-RO-02 覆蓋，本段不重建）----
+  // ---- [163a-T6b] 重刮視窗／搜尋頁 picker：被拒／連不到顯示紅字、拿掉「請先設定代理」攔截 ----
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'rescrapeAccessError = {',
+    stripLineComments: true,
+    note: '[163a-T6b-set] 使用者在重刮視窗指定 DMM、DMM 拒絕連線 → 要看到「拒絕連線」，不能只說「找不到」而讓人以為 DMM 沒這片',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'structure-count', pattern: 'this.rescrapeAccessError = null;', count: 7,
+    note: '[163a-T6b-reset] 使用者被拒後按「換來源」／關窗再開／改番號 → 紅字要消失；開窗、番號空白、送出前、查無 fallback、網路失敗 catch、回選單、關窗各清一次，少一處上一個來源的紅字就黏在畫面上',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "window.t('showcase.rescrape.access_refused'",
+    stripLineComments: true,
+    note: '[163a-T6b-msg] 使用者指定來源被拒 → 紅字要寫「拒絕連線」而不是「找不到」，才知道該查網路／代理',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "window.t('showcase.rescrape.access_unreachable'",
+    stripLineComments: true,
+    note: '[163a-T6b-msg] 使用者指定來源連不到 → 紅字要寫「連不到，請檢查網路或代理設定」',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "window.t('showcase.rescrape.access_advice_jp_ip'",
+    stripLineComments: true,
+    note: '[163a-T6b-msg] DMM 被拒 → 要多給「部分地區需要日本 IP」建議句',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'requires_proxy',
+    scope: { anchor: /rescrapeAccessAdvice\s*\([^)]*\)\s*\{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[163a-T6b-advice-gate] JavDB 等不需日本 IP 的來源被拒 → 不得被叫去設日本 IP 代理；建議句只依來源的 requires_proxy 屬性附加',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="rescrapeAccessError"/,
+    note: '[163a-T6b-modal-block] 來源被拒時重刮視窗要有紅字區塊，否則使用者按了沒反應、不知道要做什麼',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'rescrapeAccessMessage(rescrapeAccessError)',
+    note: '[163a-T6b-modal-block] 紅字區塊要顯示映射後的訊息文字',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: /@input="[^"]*rescrapeAccessError = null/,
+    note: '[163a-T6b-modal-reset] 使用者被拒後改番號 → 紅字要立刻消失，否則舊來源的錯誤蓋在新番號上',
+  },
+  {
+    file: 'web/static/js/pages/search/state/advanced-picker.js', kind: 'required-string', pattern: /errorText = this\._advancedAccessText\(data\)/,
+    stripLineComments: true,
+    note: '[163a-T6b-picker] 使用者在搜尋頁指定來源被拒 → 錯誤文字要走介面語言映射，不顯示後端寫死的中文',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: 'isSourceProxyBlocked',
+    note: '[163a-T6b-no-intercept] 使用者 Proxy 空白時點重刮視窗的 DMM 膠囊要直接查詢，不得被擋或沒反應',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'forbidden-string', pattern: 'isSourceProxyBlocked',
+    note: '[163a-T6b-no-intercept] 使用者 Proxy 空白時點重刮視窗的 DMM 膠囊要直接查詢，不得被擋或沒反應',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: 'dmm_proxy_required_hint',
+    note: '[163a-T6b-no-intercept] 使用者 Proxy 空白時點重刮視窗的 DMM 膠囊要直接查詢，不得跳「請先設定代理」',
+  },
+
+  // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已隨 163a-T6b 拔除）----
   // Scope A：clickActiveRowPill 函數體。⚠ Python 原始 regex 用 \Z（Python string-end anchor）+ re.DOTALL；
   // JS 無 \Z（\Z 在 JS regex 是字面 "Z"），faithful port 用 $（配合僅 's' flag、無 'm' flag，JS $ 即絕對字串結尾，等價 Python \Z）。
   {
     file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'window.confirm',
     scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
     note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_no_window_confirm — Scope A（\\Z→$ port）',
-  },
-  {
-    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: /isSourceProxyBlocked\s*\([^)]*\)\s*\{/,
-    note: '[TestDmmProxyRequiredGuard] test_state_rescrape_has_is_source_proxy_blocked — unscoped method-definition regex（同 T1 test_open_switch_source_picker_method_present 慣例）',
-  },
-  {
-    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'proxy_configured',
-    scope: /isSourceProxyBlocked\s*\([^)]*\)\s*\{([^}]+)\}/s,
-    note: '[TestDmmProxyRequiredGuard] test_state_rescrape_is_source_proxy_blocked_reads_proxy_configured — Scope C',
-  },
-  {
-    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'requires_proxy',
-    scope: /isSourceProxyBlocked\s*\([^)]*\)\s*\{([^}]+)\}/s,
-    note: '[TestDmmProxyRequiredGuard] test_state_rescrape_is_source_proxy_blocked_reads_proxy_configured — Scope C',
-  },
-  {
-    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: ':data-proxy-required',
-    scope: /x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
-    note: '[TestDmmProxyRequiredGuard] test_rescrape_modal_builtin_pill_has_data_proxy_required — Scope D（與 Picker64a Scope E 同一 regex，同一 target）',
-  },
-  {
-    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'isSourceProxyBlocked',
-    scope: /x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
-    note: '[TestDmmProxyRequiredGuard] test_rescrape_modal_builtin_pill_click_uses_is_source_proxy_blocked — Scope D',
   },
   {
     file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: 'window.confirm',
