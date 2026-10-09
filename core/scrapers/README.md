@@ -127,12 +127,24 @@ class BaseScraper(ABC):
     # 預設實作
     def validate_number(self, number: str) -> bool      # 正規式格式驗證
     def normalize_number(self, number: str) -> str      # 委派 normalize_number_impl()
+    def probe_plan(self, timeout) -> ProbePlan | None   # 測試連線通道宣告，預設 None（不可探測）
 ```
 
 `search()` 約定：
 - 回傳 `Video` 物件（命中）或 `None`（找不到）
 - 格式錯誤拋 `ValueError`；網路超時拋 `TimeoutError`
 - 不應 raise 其他未預期例外（caller 依 exception boundary 決定 fallback）
+
+`probe_plan()` 約定（設定頁「測試連線」用）：
+- 簽名 `probe_plan(self, timeout) -> ProbePlan | None`；預設 `None` ＝ 不可探測
+- `ProbePlan(targets, mode)`：`mode` 為 `'any'` 或 `'all'`——鏡像站用 `any`（任一通即通）、各自獨立網域用 `all`（全通才通）
+- `ProbeTarget(host, send, ok_404, check, read)`；`send()` 無參數，回該來源實際查詢通道的回應物件
+- `send` 依該來源實際的查詢通道，二擇一：用 scraper 自己的 Session（若有，例如 `_new_session()` 建的），或
+  `requests.*(..., **self._proxy_kwargs())`；兩者都沿用注入的代理快照，不得另建不經代理的連線、不得讀目前設定
+- 每個 `send` 必須帶 `timeout=timeout`、`stream=True`（讀取上限與關閉由中央負責）
+- 樣本番號查無（404）算「連得到」時，在 target 上設 `ok_404=True`
+- 只放**查資料**的網域，不放封面／劇照圖床
+- scraper 只宣告、不做判讀；通／被擋／連不到的判讀在 `core/source_probe.py`
 
 ### 4.2 normalize_number（`core/scrapers/utils.py:normalize_number_impl`）
 
