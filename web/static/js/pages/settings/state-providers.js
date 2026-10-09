@@ -53,8 +53,6 @@ export function stateProviders() {
         },
 
         async testProxy() {
-            if (!this.form.proxyUrl.trim()) return;
-
             this.testProxyLoading = true;
             this.proxyStatusOk = false;
             this.proxyStatus = window.t('settings.status.testing');

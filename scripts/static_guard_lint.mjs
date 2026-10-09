@@ -2534,38 +2534,70 @@ const RULES = [
     note: '[TestMetatubeB5RecommendedRemoved] test_zh_tw_no_recommended_label_keys — settings.sources 範圍內',
   },
 
+  // ---- [163a-T6a] 設定頁 Proxy 範圍切換／空白灰化／測試鈕／拿掉「請先設定代理」攔截 ----
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: "proxyScope: 'dmm'",
+    stripLineComments: true,
+    note: "[163a-T6a-init] 使用者開設定頁 → 範圍鈕要有預設值「僅 DMM」才不會一片空白（form 須宣告 proxyScope: 'dmm'）",
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'this.form.proxyScope = config.search?.proxy_scope',
+    stripLineComments: true,
+    note: '[163a-T6a-load] 使用者存過「所有來源」→ 重開設定頁要還原，否則再按儲存就悄悄改回「僅 DMM」',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'proxy_scope: this.form.proxyScope',
+    stripLineComments: true,
+    note: '[163a-T6a-save] 使用者選「所有來源」按儲存 → 設定檔要真的寫入，否則封面與女優照片仍不走代理',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'structure-count', pattern: /(?<![\w:-]):disabled="!form\.proxyUrl\.trim\(\)"/, count: 2,
+    note: '[163a-T6a-disabled] Proxy 欄空白時兩顆範圍鈕都要灰掉，否則畫面看似設了範圍、實際沒有代理可走',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="form\.proxyScope = 'dmm'"/,
+    note: "[163a-T6a-bind] 使用者按「僅 DMM」要真的切過去",
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="form\.proxyScope = 'all'"/,
+    note: "[163a-T6a-bind] 使用者按「所有來源」要真的切過去，否則 NAS 的封面與女優照片無法走代理",
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: '!form.proxyUrl.trim() || testProxyLoading',
+    note: '[163a-T6a-test-btn] 使用者欄位留空想按「測試 DMM」→ 按鈕不得因空白而灰掉（空白＝照系統代理測）',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-providers.js', kind: 'forbidden-string', pattern: 'if (!this.form.proxyUrl.trim()) return;',
+    note: '[163a-T6a-test-early-return] 欄位留空按測試鈕不得無聲早退（要送出請求並顯示結果）',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'isDmmAvailable',
+    note: '[163a-T6a-no-intercept-js] 使用者 Proxy 空白時點 DMM 膠囊要能開關，不得被「請先設定代理」攔住',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'requires_proxy',
+    note: '[163a-T6a-no-intercept-js] 使用者 Proxy 空白時點 DMM 膠囊要能開關，不得被「請先設定代理」攔住',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'dmm_proxy_required_hint',
+    note: '[163a-T6a-no-intercept-js] 使用者 Proxy 空白時點 DMM 膠囊要能開關，不得被「請先設定代理」攔住',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'isDmmAvailable',
+    note: '[163a-T6a-no-intercept-tpl] 設定頁 DMM 膠囊不得因 Proxy 空白而灰化成像被停用',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'data-proxy-required',
+    note: '[163a-T6a-no-intercept-tpl] 設定頁 DMM 膠囊不得因 Proxy 空白而灰化成像被停用',
+  },
+
   // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已由 96c css-guard CG-RO-02 覆蓋，本段不重建）----
   // Scope A：clickActiveRowPill 函數體。⚠ Python 原始 regex 用 \Z（Python string-end anchor）+ re.DOTALL；
   // JS 無 \Z（\Z 在 JS regex 是字面 "Z"），faithful port 用 $（配合僅 's' flag、無 'm' flag，JS $ 即絕對字串結尾，等價 Python \Z）。
   {
-    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'requires_proxy',
-    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
-    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_has_requires_proxy_intercept — Scope A（\\Z→$ port）',
-  },
-  {
-    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'isDmmAvailable',
-    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
-    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_has_requires_proxy_intercept — Scope A（\\Z→$ port）',
-  },
-  {
-    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'dmm_proxy_required_hint',
-    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
-    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_has_requires_proxy_intercept — Scope A（\\Z→$ port）',
-  },
-  {
     file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'window.confirm',
     scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
     note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_no_window_confirm — Scope A（\\Z→$ port）',
-  },
-  {
-    file: 'web/templates/settings.html', kind: 'required-string', pattern: ':data-proxy-required',
-    scope: /x-for="s in activeRowSources"[^>]*>.*?<div\s+class="source-pill"(.*?)role="option"/s,
-    note: '[TestDmmProxyRequiredGuard] test_settings_active_row_pill_has_data_proxy_required_binding — Scope B',
-  },
-  {
-    file: 'web/templates/settings.html', kind: 'required-string', pattern: 'isDmmAvailable',
-    scope: /x-for="s in activeRowSources"[^>]*>.*?<div\s+class="source-pill"(.*?)role="option"/s,
-    note: '[TestDmmProxyRequiredGuard] test_settings_active_row_pill_proxy_required_uses_is_dmm_available — Scope B',
   },
   {
     file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: /isSourceProxyBlocked\s*\([^)]*\)\s*\{/,
@@ -6061,13 +6093,6 @@ const RULES = [
   },
 
   // 162c: TestSettingsDmmProxyContract
-  {
-    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string',
-    pattern: 'proxyUrl',
-    scope: { anchor: /isDmmAvailable\s*\(\s*\)\s*\{/, braceBalanced: true },
-    stripLineComments: true,
-    note: '[lint-guard 162c-test_is_dmm_available_reads_proxy_url] isDmmAvailable 本體須讀 proxyUrl — 遷自 test_frontend_lint.py',
-  },
   {
     file: 'web/templates/settings.html', kind: 'structure-count',
     pattern: /(?<![\w:-])x-model="form\.proxyUrl"/,

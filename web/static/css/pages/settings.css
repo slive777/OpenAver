@@ -213,6 +213,20 @@
         white-space: normal;  /* 保險：覆寫任何 nowrap，整段正常換行非直條 */
     }
 
+    /* 163a：代理範圍列同 external-manager 的窄螢幕處理（segmented 不壓扁、hint 換下一列） */
+    #settings-components .settings-form-row--proxy-scope .settings-sources-segmented {
+        flex-shrink: 0;
+    }
+
+    #settings-components .settings-form-row--proxy-scope .settings-sources-segmented button {
+        white-space: nowrap;
+    }
+
+    #settings-components .settings-form-row--proxy-scope .settings-hint {
+        flex-basis: 100%;
+        white-space: normal;
+    }
+
     /* 81b-T2: 極窄屏 inline 串（ip:port + ⧉ + ?）放不下時降第二列，
        row1 = 標題+膠囊，row2 = ip:port+⧉+?，不橫向溢出 sticky header（AC-8）。 */
     #settings-components .settings-header-left .settings-server-inline {
@@ -692,9 +706,14 @@
                 box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
-#settings-components .settings-sources-segmented button:hover:not(.is-on) {
+#settings-components .settings-sources-segmented button:hover:not(.is-on, :disabled) {
     color: var(--text-primary);
     background: color-mix(in oklch, var(--surface-2) 50%, transparent);
+}
+
+#settings-components .settings-sources-segmented button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 #settings-components .settings-sources-segmented button.is-on {

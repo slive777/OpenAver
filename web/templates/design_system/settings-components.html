@@ -839,6 +839,7 @@
         右段「無碼模式」（<code>#sourcesUncensoredToggle</code>）關閉所有有碼來源。
         CSS scope：<code>#settings-components .settings-sources-segmented</code>（pill 白名單 §1 第 7 條）。
         <code>.is-on</code> 態玻璃高亮（backdrop-filter + shadow-2）。<code>prefers-reduced-motion</code> 停 transition。
+        <code>disabled</code> 態（opacity 0.45 + <code>cursor: not-allowed</code>，hover 不亮）用於 Proxy 欄空白時的代理範圍鈕。
     </p>
 
     <!-- scope 由外層 #settings-components wrapper 提供（見上） -->
@@ -853,11 +854,20 @@
         </div>
 
         <!-- 態二：無碼段亮（無碼段 .is-on） -->
-        <div>
+        <div style="margin-bottom: 1rem;">
             <small style="color: var(--text-muted); display: block; margin-bottom: 0.5rem;">態二：無碼段亮（uncensoredMode）</small>
             <div class="settings-sources-segmented" style="pointer-events: none;" aria-hidden="true">
                 <button type="button">全開</button>
                 <button type="button" class="is-on">無碼模式</button>
+            </div>
+        </div>
+
+        <!-- 態三：disabled（Proxy 欄空白時的範圍鈕；不加 pointer-events:none，hover 可見 not-allowed） -->
+        <div>
+            <small style="color: var(--text-muted); display: block; margin-bottom: 0.5rem;">態三：disabled（Proxy 欄空白，整組灰掉但仍標示選中）</small>
+            <div class="settings-sources-segmented">
+                <button type="button" class="is-on" disabled>僅 DMM</button>
+                <button type="button" disabled>所有來源</button>
             </div>
         </div>
     </div>

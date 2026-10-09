@@ -309,7 +309,6 @@
                                      'drop-target': dropTargetId === s.id,
                                  }"
                                  :data-enabled="pillVisualEnabled(s) ? 'true' : 'false'"
-                                 :data-proxy-required="(s.requires_proxy && !isDmmAvailable()) ? 'true' : 'false'"
                                  role="option"
                                  :aria-selected="s.enabled ? 'true' : 'false'"
                                  :aria-grabbed="_grabbedId === s.id ? 'true' : 'false'"
@@ -374,13 +373,43 @@
                                     placeholder="{{ t('settings.search.proxy_placeholder') }}">
                                 <button class="btn btn-sm btn-outline" type="button"
                                     @click="testProxy()"
-                                    :disabled="!form.proxyUrl.trim() || testProxyLoading">
+                                    :disabled="testProxyLoading">
                                     <span x-show="testProxyLoading" class="loading loading-spinner loading-sm"></span>
-                                    {{ t('settings.action.test') }}
+                                    {{ t('settings.search.test_dmm') }}
                                 </button>
                             </div>
                             <small class="settings-hint" x-show="proxyStatus" x-text="proxyStatus"
                                 :class="{ 'text-success': proxyStatusOk, 'text-error': proxyStatus && !proxyStatusOk && !testProxyLoading }"></small>
+                        </div>
+                    </div>
+
+                    <!-- 163a：代理範圍（Proxy 欄空白時整組灰掉）— 沿用 .settings-sources-segmented 元件 -->
+                    <div class="settings-form-row settings-form-row--proxy-scope">
+                        <label class="row-label">{{ t('settings.search.proxy_scope_label') }}</label>
+                        <div class="flex-1 flex items-center gap-3 flex-wrap">
+                            <div class="settings-sources-segmented" role="group"
+                                 aria-label="{{ t('settings.search.proxy_scope_label') }}">
+                                <button type="button"
+                                        :class="{ 'is-on': form.proxyScope === 'dmm' }"
+                                        :aria-pressed="(form.proxyScope === 'dmm') ? 'true' : 'false'"
+                                        :disabled="!form.proxyUrl.trim()"
+                                        @click="form.proxyScope = 'dmm'">
+                                    {{ t('settings.search.proxy_scope_dmm') }}
+                                </button>
+                                <button type="button"
+                                        :class="{ 'is-on': form.proxyScope === 'all' }"
+                                        :aria-pressed="(form.proxyScope === 'all') ? 'true' : 'false'"
+                                        :disabled="!form.proxyUrl.trim()"
+                                        @click="form.proxyScope = 'all'">
+                                    {{ t('settings.search.proxy_scope_all') }}
+                                </button>
+                            </div>
+                            <small class="settings-hint flex-1 min-w-0" x-show="form.proxyScope === 'dmm'">
+                                {{ t('settings.search.proxy_scope_dmm_hint') }}
+                            </small>
+                            <small class="settings-hint flex-1 min-w-0" x-show="form.proxyScope === 'all'">
+                                {{ t('settings.search.proxy_scope_all_hint') }}
+                            </small>
                         </div>
                     </div>
 
