@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import time
 import uuid
 from typing import Any, Optional
@@ -62,6 +63,46 @@ def _success_truthy(value: Any) -> bool:
     return bool(value) and value not in (0, "0", "false", "False")
 
 
+def _signed_get(host: str, path: str, params: dict, *, timeout, stream: bool = False, **proxy_kw):
+    """對單一 host 發一次簽章 GET（真搜尋與「測試連線」共用同一條請求形狀）。"""
+    # 每次嘗試重新簽名：簽名帶時間戳且有效期有限，主網域吃滿逾時後
+    # 沿用同一份簽名，鏡像那一趟可能拿到一個已經過期的簽名。
+    headers = {
+        "jdsignature": sign(),
+        "user-agent": _USER_AGENT,
+        "accept-language": "zh-TW",
+        "connection": "keep-alive",
+    }
+    # proxy_kw 為空時不傳 proxies（傳了會把系統代理靜默關掉）
+    return requests.get(
+        host + path,
+        params=params,
+        headers=headers,
+        timeout=timeout,
+        stream=stream,
+        **proxy_kw,
+    )
+
+
+def probe_query(number: str) -> dict:
+    """測試連線用的查詢參數：與真搜尋同一組公開參數。"""
+    query = dict(_PUBLIC_PARAMS)
+    query["device_uuid"] = _DEVICE_UUID
+    query.update({"q": number, "page": "1"})
+    return query
+
+
+def envelope_ok(pr) -> bool:
+    """測試連線的信封判斷：200 且是 JSON 物件且 success 為真（吃 core.source_probe.ProbeResponse）。"""
+    if pr.status != 200:
+        return False
+    try:
+        envelope = json.loads(pr.head)
+    except ValueError:
+        return False
+    return isinstance(envelope, dict) and _success_truthy(envelope.get("success"))
+
+
 def api_get(path: str, params: Optional[dict] = None, proxies: Optional[dict] = None) -> dict:
     """對 javdb App API 發 GET，回傳信封裡的 data（dict）；失敗一律 raise。"""
     query = dict(_PUBLIC_PARAMS)
@@ -73,22 +114,10 @@ def api_get(path: str, params: Optional[dict] = None, proxies: Optional[dict] = 
 
     for host in _API_HOSTS:
         url = host + path
-        # 每次嘗試重新簽名：簽名帶時間戳且有效期有限，主網域吃滿逾時後
-        # 沿用同一份簽名，鏡像那一趟可能拿到一個已經過期的簽名。
-        headers = {
-            "jdsignature": sign(),
-            "user-agent": _USER_AGENT,
-            "accept-language": "zh-TW",
-            "connection": "keep-alive",
-        }
         try:
-            # 未被 proxy policy 選中時不傳 proxies kwarg（傳了會把系統代理靜默關掉）；
-            # 選中（使用者的 Proxy 欄＋範圍涵蓋 javdb）才帶。
-            resp = requests.get(
-                url,
-                params=query,
-                headers=headers,
-                timeout=_TIMEOUT,
+            # 未被 proxy policy 選中時不傳 proxies kwarg；選中才帶。
+            resp = _signed_get(
+                host, path, query, timeout=_TIMEOUT,
                 **({"proxies": proxies} if proxies else {}),
             )
         except requests.exceptions.RequestException as e:

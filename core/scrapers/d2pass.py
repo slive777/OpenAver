@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 from .base import BaseScraper
 from .models import Video, Actress, ScraperConfig
 from .utils import rate_limit
+from core.source_probe import ProbePlan, ProbeTarget
 
 
 def _extract_spec_block(html_text: str, label: str) -> Optional[str]:
@@ -66,8 +67,27 @@ class D2PassScraper(BaseScraper):
             'Referer': 'https://www.1pondo.tv/',
         })
 
+    SAMPLE_IDS = {'1pondo': '012523_001', 'caribbeancom': '012523-001', '10musume': '012523_01'}
+
     def _get_source_name(self) -> str:
         return "d2pass"
+
+    def probe_plan(self, timeout):
+        """測試連線：三站各打一個樣本資源（Caribbeancom 打 www. 詳情頁，b. 的 JSON 端點恆 404）。"""
+        urls = {
+            '1pondo': self.SITES['1pondo'],
+            'caribbeancom': self.SITE_DETAIL_URL['caribbeancom'],
+            '10musume': self.SITES['10musume'],
+        }
+        targets = []
+        for site, template in urls.items():
+            url = template.format(id=self.SAMPLE_IDS[site])
+
+            def send(url=url):
+                return self._session.get(url, timeout=timeout, stream=True)
+            host = url.split('//', 1)[1].split('/', 1)[0]
+            targets.append(ProbeTarget(host, send, ok_404=True))
+        return ProbePlan(targets, mode='all')
 
     def normalize_number(self, number: str) -> str:
         """

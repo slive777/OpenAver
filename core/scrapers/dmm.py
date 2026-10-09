@@ -12,6 +12,7 @@ from .base import BaseScraper
 from .errors import SourceBlocked, SourceUnreachable
 from .models import Video, Actress, ScraperConfig
 from .utils import rate_limit
+from core.source_probe import ProbePlan, ProbeTarget
 
 
 # 出貨前綴表路徑（專案根目錄，依片商分組）
@@ -141,6 +142,12 @@ class DMMScraper(BaseScraper):
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         })
+
+    def probe_plan(self, timeout):
+        """測試連線：打查資料實際走的 graphql 端點（帶 session 的代理與 header）。"""
+        def send():
+            return self._session.post(self.API_URL, json={'query': '{ __typename }'}, timeout=timeout, stream=True)
+        return ProbePlan([ProbeTarget('api.video.dmm.co.jp', send)])
 
     def _get_source_name(self) -> str:
         return "dmm"

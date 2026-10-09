@@ -18,6 +18,7 @@ from core.logger import get_logger
 from .base import BaseScraper
 from .models import Actress, ScraperConfig, Video
 from .utils import rate_limit
+from core.source_probe import ProbePlan, ProbeTarget
 
 logger = get_logger(__name__)
 
@@ -47,8 +48,18 @@ class FC2OfficialScraper(BaseScraper):
             'Accept-Language': 'ja,en;q=0.9',
         })
 
+    SAMPLE_NUMBER = "1234567"
+
     def _get_source_name(self) -> str:
         return "fc2"
+
+    def probe_plan(self, timeout):
+        """測試連線：打樣本商品頁（真搜尋用的那條）。"""
+        url = f"{self.BASE_URL}/article/{self.SAMPLE_NUMBER}/?lang=ja"
+
+        def send():
+            return self._session.get(url, timeout=timeout, stream=True)
+        return ProbePlan([ProbeTarget('adult.contents.fc2.com', send, ok_404=True)])
 
     def _normalize_fc2_number(self, number: str) -> str:
         """

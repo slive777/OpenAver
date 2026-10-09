@@ -9,6 +9,7 @@ from .base import BaseScraper
 from .models import Video, Actress
 from .utils import rate_limit, strip_number_prefix
 from core.logger import get_logger
+from core.source_probe import ProbePlan, ProbeTarget
 
 logger = get_logger(__name__)
 
@@ -47,6 +48,7 @@ class JavBusScraper(BaseScraper):
     """
 
     BASE_URL = "https://www.javbus.com"
+    SAMPLE_NUMBER = "SONE-205"
 
     def __init__(self, config=None, lang: str = "zh-tw"):
         super().__init__(config)
@@ -73,6 +75,14 @@ class JavBusScraper(BaseScraper):
             "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
         })
+
+    def probe_plan(self, timeout):
+        """測試連線：打樣本詳情頁（沿用成套 Safari header，樣本頁 404 也算站台有回應）。"""
+        url = f"{self.BASE_URL}{self._get_lang_prefix()}/{self.SAMPLE_NUMBER}"
+
+        def send():
+            return self._session.get(url, timeout=timeout, stream=True)
+        return ProbePlan([ProbeTarget('www.javbus.com', send, ok_404=True)])
 
     def _get_source_name(self) -> str:
         return "javbus"
