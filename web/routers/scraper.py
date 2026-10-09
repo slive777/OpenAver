@@ -25,10 +25,11 @@ from core.enrich_contract import did_enrich_something, enrich_success, should_pr
 from core.organizer import organize_file
 from core.path_utils import to_file_uri, uri_to_fs_path, uri_to_local_fs_path, coerce_to_file_uri
 from core.scraper import (
-    search_jav, search_jav_single_source,
+    search_jav, search_jav_single_source, access_error_info,
     search_javlib_versions, fetch_javlib_by_detail_url, internal_nfo_carriers,
     smart_search, is_number_format,
 )
+from core.scrapers.errors import SourceBlocked, SourceUnreachable
 from core.source_config import validate_source_id
 from core.source_settings import is_uncensored_mode_effective
 from core.cf_transport import get_cf_transport, CfChallengeRequired, CfTransportUnavailable
@@ -401,7 +402,8 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
             )
         else:
             result = search_jav_single_source(
-                request.number, request.source, proxy_url
+                request.number, request.source, proxy_url,
+                surface_access_errors=True,
             )
 
         if result is None:
@@ -416,6 +418,9 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
         return {"success": False, "cf_needed": True, "cf_source": request.source}
     except CfTransportUnavailable:
         return {"success": False, "cf_unavailable": True}
+    except (SourceBlocked, SourceUnreachable) as e:
+        info = access_error_info(e, request.source)
+        return {"success": False, "access_error": info["access_error"], "source": request.source}
     except Exception:
         logger.exception("rescrape_preview_endpoint 失敗")
         return {"success": False, "error": "預覽搜尋失敗，請查閱日誌"}

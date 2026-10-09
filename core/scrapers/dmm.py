@@ -9,6 +9,7 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 from .base import BaseScraper
+from .errors import SourceBlocked, SourceUnreachable
 from .models import Video, Actress, ScraperConfig
 from .utils import rate_limit
 
@@ -522,7 +523,7 @@ class DMMScraper(BaseScraper):
             resp = self._session.post(self.API_URL, json=payload, timeout=10)
 
             if resp.status_code != 200:
-                return None
+                raise SourceBlocked(f"DMM: HTTP {resp.status_code}")
 
             data = resp.json()
             if not data.get('data') or not data['data'].get('legacySearchPPV'):
@@ -548,6 +549,12 @@ class DMMScraper(BaseScraper):
             # 子串相近的其他系列，例如 ERK-116 → gerk116）
             return None
 
+        except (SourceBlocked, SourceUnreachable):
+            raise
+        except requests.exceptions.JSONDecodeError:
+            return None  # 200 但 body 非 JSON：查無，不是連不到
+        except requests.RequestException as e:
+            raise SourceUnreachable(f"DMM: {type(e).__name__}") from e
         except Exception:
             return None
 
@@ -569,7 +576,7 @@ class DMMScraper(BaseScraper):
             )
 
             if response.status_code != 200:
-                return None
+                raise SourceBlocked(f"DMM: HTTP {response.status_code}")
 
             data = response.json()
 
@@ -637,8 +644,12 @@ class DMMScraper(BaseScraper):
 
             return video
 
-        except requests.Timeout as e:
-            raise TimeoutError(f"DMM API timeout for {content_id}") from e
+        except (SourceBlocked, SourceUnreachable):
+            raise
+        except requests.exceptions.JSONDecodeError:
+            return None  # 200 但 body 非 JSON：查無，不是連不到
+        except requests.RequestException as e:
+            raise SourceUnreachable(f"DMM: {type(e).__name__} (detail)") from e
         except Exception:
             return None
 

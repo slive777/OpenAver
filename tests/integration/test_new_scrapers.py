@@ -34,7 +34,7 @@ class TestProxyAPI:
         assert data["reason"] == "ok"
 
     def test_proxy_test_endpoint_403(self, client):
-        """Proxy 回傳 403 → success=False, reason='non_jp'"""
+        """DMM 回傳 403 → success=False, reason='refused'（假回應只驗接線）"""
         mock_resp = MagicMock()
         mock_resp.status_code = 403
 
@@ -44,7 +44,42 @@ class TestProxyAPI:
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
-        assert data["reason"] == "non_jp"
+        assert data["reason"] == "refused"
+        assert "拒絕連線" in data["message"]
+        assert "日本 IP" in data["message"]
+
+    def test_proxy_test_500_is_refused_too(self, client):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        with patch("requests.post", return_value=mock_resp):
+            data = client.post("/api/proxy/test", json={"proxy_url": "http://test:8080"}).json()
+        assert data["success"] is False
+        assert data["reason"] == "refused"
+
+    @pytest.mark.parametrize("body", [{"proxy_url": ""}, {"proxy_url": "   "}, {}])
+    def test_proxy_test_blank_uses_system_proxy(self, client, temp_config_path, body):
+        """空白／省略 → requests.post 不帶 proxies kwarg（系統代理），即使 live config 有值"""
+        from core.config import load_config, save_config
+        cfg = load_config()
+        cfg.setdefault("search", {})["proxy_url"] = "http://live:1111"
+        save_config(cfg)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        with patch("requests.post", return_value=mock_resp) as m:
+            data = client.post("/api/proxy/test", json=body).json()
+        assert data["success"] is True and data["reason"] == "ok"
+        assert "proxies" not in m.call_args.kwargs
+
+    def test_proxy_test_uses_body_snapshot_not_live_config(self, client, temp_config_path):
+        from core.config import load_config, save_config
+        cfg = load_config()
+        cfg.setdefault("search", {})["proxy_url"] = "http://live:1111"
+        save_config(cfg)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        with patch("requests.post", return_value=mock_resp) as m:
+            client.post("/api/proxy/test", json={"proxy_url": "http://body:2222"})
+        assert m.call_args.kwargs["proxies"] == {"http": "http://body:2222", "https": "http://body:2222"}
 
     def test_proxy_test_endpoint_timeout(self, client):
         """ConnectionError → success=False, reason='unreachable'"""

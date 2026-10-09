@@ -167,8 +167,8 @@ class TestDMMScraperIntegration:
         detail_resp = _make_mock_resp(status_code=200, json_data=DMM_DETAIL_RESPONSE)
 
         with patch.object(dmm_scraper._session, 'post', side_effect=[
-            _make_mock_resp(status_code=404),  # 補零第一試 → _fetch_by_id → 404
-            _make_mock_resp(status_code=404),  # 不補零第二試 → _fetch_by_id → 404
+            _make_mock_resp(status_code=200, json_data={"data": {"ppvContent": None}}),  # 補零第一試 → 查無
+            _make_mock_resp(status_code=200, json_data={"data": {"ppvContent": None}}),  # 不補零第二試 → 查無
             search_resp,                        # _search_content_id
             detail_resp,                        # _fetch_by_id(discovered_cid)
         ]), \

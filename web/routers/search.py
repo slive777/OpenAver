@@ -215,10 +215,13 @@ def search(
     elif mode == "exact":
         if source:
             # 指定來源搜索
-            from core.scraper import search_jav_single_source
+            from core.scraper import search_jav_single_source, access_error_info
+            from core.scrapers.errors import SourceBlocked, SourceUnreachable
             from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
             try:
-                data = search_jav_single_source(q, source, proxy_url=proxy_url)
+                data = search_jav_single_source(
+                    q, source, proxy_url=proxy_url, surface_access_errors=True,
+                )
             # CD-70c-4: search entry does NOT wire the interactive CF flow (no begin_solve,
             # no cf_needed). The JavLibrary pill is hidden in search context when
             # cf_transport_available is false (frontend isJlUnavailable), so this path is
@@ -240,6 +243,20 @@ def search(
                 return {
                     "success": False,
                     "error": "JavLibrary 僅限桌面應用程式（standalone）使用",
+                    "data": [],
+                    "total": 0,
+                    "mode": "exact",
+                    "has_more": False,
+                    "actress_profile": None,
+                }
+            except (SourceBlocked, SourceUnreachable) as e:
+                info = access_error_info(e, source)
+                logger.warning("search: %s source=%s q=%s", info["access_error"], source, q)
+                return {
+                    "success": False,
+                    "error": info["message"],
+                    "access_error": info["access_error"],
+                    "source": source,
                     "data": [],
                     "total": 0,
                     "mode": "exact",

@@ -22,7 +22,10 @@ from core.scrapers import (
     JavLibraryScraper,          # T3 新增
     Video
 )
+from core.scrapers.errors import SourceBlocked, SourceUnreachable
+from core.proxy_policy import source_needs_jp_ip
 from core.scrapers.utils import (
+    SOURCE_NAMES,
     extract_number as _new_extract_number,
     FUZZY_SEARCH_SOURCES,
     normalize_number_impl,
@@ -196,9 +199,15 @@ class _MetatubeShim:
 VALID_JAVBUS_LANGS = {'zh-tw', 'ja', 'en'}
 
 
-def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_lang: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def search_jav(
+    number: str, source: str = 'auto', proxy_url: str = '', javbus_lang: Optional[str] = None,
+    surface_access_errors: bool = False,
+) -> Optional[Dict[str, Any]]:
     """
     搜尋 JAV 資訊（向後相容函數）
+
+    surface_access_errors=True 時，explicit 單一來源遇到 SourceBlocked／SourceUnreachable
+    會往上拋（讓呼叫端分得出「被拒／連不到」與「查無」）；預設 False 維持吞掉。auto 不受影響。
     """
     all_data: Dict[str, Video] = {}
 
@@ -321,6 +330,8 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
                 from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
                 if isinstance(e, (CfChallengeRequired, CfTransportUnavailable)):
                     raise          # bubble 給 router，不 continue
+                if surface_access_errors and isinstance(e, (SourceBlocked, SourceUnreachable)):
+                    raise
                 # [CF-DIAG] DEBUG→INFO + 例外型別：explicit 分支是 JL 的唯一路徑
                 # （manual_only）。型別讓 40 分鐘重現能分辨 WebViewException（死窗）
                 # vs TimeoutError（靜默死亡）vs 其他——之前藏在 DEBUG 看不到。
@@ -358,9 +369,27 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
 
 def search_jav_single_source(
     number: str, source: str, proxy_url: str = '', javbus_lang: Optional[str] = None,
+    surface_access_errors: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """指定單一來源搜尋"""
-    return search_jav(number, source=source, proxy_url=proxy_url, javbus_lang=javbus_lang)
+    return search_jav(
+        number, source=source, proxy_url=proxy_url, javbus_lang=javbus_lang,
+        surface_access_errors=surface_access_errors,
+    )
+
+
+def access_error_info(exc: Exception, source: str) -> Dict[str, str]:
+    """SourceBlocked／SourceUnreachable → {access_error, source, message}（兩個端點共用）。"""
+    name = SOURCE_NAMES.get(source, source)
+    if not isinstance(exc, SourceBlocked):
+        return {
+            "access_error": "unreachable", "source": source,
+            "message": f"{name} 連不到，請檢查網路或代理設定",
+        }
+    message = f"{name} 拒絕連線"
+    if source_needs_jp_ip(source):
+        message += "。部分地區需要日本 IP，可在 Proxy 欄設定"
+    return {"access_error": "refused", "source": source, "message": message}
 
 
 def search_javlib_versions(number: str) -> List[Dict[str, Any]]:

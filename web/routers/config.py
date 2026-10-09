@@ -735,38 +735,39 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
 
 
 class ProxyTestRequest(BaseModel):
-    proxy_url: str
+    proxy_url: str = ''
 
 
 @router.post("/proxy/test")
 def test_proxy(request: ProxyTestRequest) -> dict:
-    """測試 Proxy 連線（透過 DMM GraphQL endpoint 驗證）"""
-    import requests
+    """測試 Proxy 連線（透過 DMM GraphQL endpoint 驗證）
 
-    is_direct = request.proxy_url.strip().lower() == 'direct'
-    if is_direct:
-        proxies = {'http': None, 'https': None}
-        success_message = "直連測試成功（DMM 可達）"
-        non_jp_message = "直連可達，但 DMM 回傳 403（非日本 IP，建議使用 Proxy）"
+    代理由請求體快照決定（不讀已儲存的設定）；空白 → 不傳 proxies，照系統代理／直接連線。
+    """
+    import requests
+    from core.proxy_policy import ProxySettings, proxy_for, source_needs_jp_ip
+
+    addr = proxy_for('source_query', source_id='dmm', settings=ProxySettings(url=request.proxy_url))
+    kwargs = {} if addr is None else {'proxies': {'http': addr, 'https': addr}}
+    if addr is None:
+        success_message = "未設定 Proxy，使用系統代理／直接連線，DMM 可達"
     else:
-        proxies = {'http': request.proxy_url, 'https': request.proxy_url}
         success_message = "Proxy 連線成功（DMM 可達）"
-        non_jp_message = "Proxy 連線成功，但 DMM 回傳 403（可能非日本 IP）"
 
     try:
         resp = requests.post(
             "https://api.video.dmm.co.jp/graphql",
             json={"query": "{ __typename }"},
             headers={"Content-Type": "application/json"},
-            proxies=proxies,
-            timeout=10
+            timeout=10,
+            **kwargs,
         )
         if resp.status_code == 200:
             return {"success": True, "reason": "ok", "message": success_message}
-        elif resp.status_code == 403:
-            return {"success": False, "reason": "non_jp", "message": non_jp_message}
-        else:
-            return {"success": False, "reason": "unexpected_status", "message": f"DMM 回傳異常狀態碼: {resp.status_code}"}
+        message = f"DMM 拒絕連線（狀態碼 {resp.status_code}）"
+        if source_needs_jp_ip('dmm'):
+            message += "。部分地區需要日本 IP，可在 Proxy 欄設定"
+        return {"success": False, "reason": "refused", "message": message}
     except requests.exceptions.Timeout:
         return {"success": False, "reason": "unreachable", "message": "連線失敗: 連線逾時"}
     except requests.exceptions.ConnectionError:
