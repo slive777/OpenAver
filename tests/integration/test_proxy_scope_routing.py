@@ -280,3 +280,191 @@ def test_scope_all_jav321_search_post_via_policy(recorders):
 
     assert recorders.pol_sources() == {'jav321'}, recorders.pol_hosts()
     assert recorders.sys_hosts() == set()
+
+
+# ── 非 scraper 連線（TASK-163a-T4）：封面／劇照／書籤封面／女優照片與四個女優來源 ──────
+
+_RELAY_BASE = 'http://metatube.test:8900'
+_RELAY_URL = _RELAY_BASE + '/v1/images/primary/ABC-123?url=https%3A%2F%2Fcdn.example.com%2Fa.jpg'
+
+
+def _clear_failed_hosts() -> None:
+    """organizer._failed_hosts 是模組級狀態：502 會把原址 host 記成失敗，後續格會跳過原址。"""
+    import core.organizer as org
+    with org._failed_hosts_lock:
+        org._failed_hosts.clear()
+
+
+@pytest.fixture
+def metatube_relay_connected():
+    from core.metatube.state import metatube_state
+    metatube_state.connect(_RELAY_BASE, '', [])
+    try:
+        yield
+    finally:
+        metatube_state.disconnect()
+
+
+@pytest.fixture
+def photo_dir(tmp_path, monkeypatch):
+    """actress_photo 下載前會 mkdir GFRIENDS_DIR：導到 tmp，不碰真實資料夾。"""
+    import core.actress_photo as ap
+    monkeypatch.setattr(ap, 'GFRIENDS_DIR', tmp_path / 'gfriends')
+    return tmp_path
+
+
+def _drive_organizer(tmp_path, url, fallback_url=''):
+    import core.organizer as org
+    _clear_failed_hosts()
+    with contextlib.suppress(Exception):
+        org.download_image(url, str(tmp_path / 'o.jpg'), fallback_url=fallback_url)
+
+
+def _drive_wishlist(url, fallback_url=''):
+    from core import wishlist_cover_cache as wcc
+    with contextlib.suppress(Exception):
+        wcc.download_and_save('ABC-123', url, fallback_url)
+
+
+def _drive_proxy_image(url):
+    from fastapi.testclient import TestClient
+    from web.app import app
+    with contextlib.suppress(Exception):
+        TestClient(app).get('/api/proxy-image', params={'url': url})
+
+
+def _drive_embed(url):
+    from web.routers.scanner import _embed_cover
+    with contextlib.suppress(Exception):
+        _embed_cover(url)
+
+
+def _drive_actress_photo(url):
+    from core.actress_photo import download_actress_photo
+    with contextlib.suppress(Exception):
+        download_actress_photo('テスト女優', url, 'graphis')
+
+
+def _drive_graphis():
+    from core.scrapers.actress.graphis import scrape_graphis_photo
+    with contextlib.suppress(Exception):
+        scrape_graphis_photo('テスト')
+
+
+def _drive_wiki_ja():
+    from core.scrapers.actress.wiki_ja import scrape_wiki_ja
+    with contextlib.suppress(Exception):
+        scrape_wiki_ja('テスト')
+
+
+def _drive_xcity():
+    from core.scrapers.actress.xcity import scrape_xcity
+    with contextlib.suppress(Exception):
+        scrape_xcity('テスト')
+
+
+def _drive_gfriends():
+    from core.scrapers.actress.gfriends import _check_gfriends_url
+    with contextlib.suppress(Exception):
+        _check_gfriends_url('7-S1', 'テスト')
+
+
+def _graphis_photo_host() -> str:
+    from core.image_host_policy import download_hosts_for
+    return sorted(download_hosts_for('graphis'))[0]
+
+
+def _sink_table():
+    """(sink 名, 驅動函式(tmp_path)->None, 該 sink 一定會連到的 host)。九個進入點。"""
+    gh = _graphis_photo_host()
+    return [
+        ('organizer.download_image',
+         lambda p: _drive_organizer(p, 'https://img-org.test/a.jpg'), 'img-org.test'),
+        ('wishlist_cover_cache.download_and_save',
+         lambda p: _drive_wishlist('https://img-wish.test/a.jpg'), 'img-wish.test'),
+        ('GET /api/proxy-image',
+         lambda p: _drive_proxy_image('https://pics.dmm.co.jp/a.jpg'), 'pics.dmm.co.jp'),
+        ('scanner._embed_cover',
+         lambda p: _drive_embed('https://img-embed.test/a.jpg'), 'img-embed.test'),
+        ('actress_photo.download_actress_photo',
+         lambda p: _drive_actress_photo(f'https://{gh}/a.jpg'), gh),
+        ('graphis.scrape_graphis_photo',
+         lambda p: _drive_graphis(),
+         'graphis.ne.jp'),
+        ('wiki_ja.scrape_wiki_ja',
+         lambda p: _drive_wiki_ja(),
+         'ja.wikipedia.org'),
+        ('xcity.scrape_xcity',
+         lambda p: _drive_xcity(),
+         'xcity.jp'),
+        ('gfriends._check_gfriends_url',
+         lambda p: _drive_gfriends(),
+         'cdn.jsdelivr.net'),
+    ]
+
+
+_SINK_IDS = [s[0] for s in _sink_table()]
+
+
+@pytest.mark.parametrize('scope', ['dmm', 'all', 'blank'])
+@pytest.mark.parametrize('idx', range(len(_SINK_IDS)), ids=_SINK_IDS)
+def test_every_sink_follows_scope(recorders, photo_dir, idx, scope):
+    """九個非 scraper 進入點：all → 只走 POL；dmm／Proxy 欄空白 → 只走系統代理。"""
+    _, drive, host = _sink_table()[idx]
+    write_search_config(
+        proxy_url='' if scope == 'blank' else recorders.pol,
+        scope='all' if scope == 'all' else 'dmm',
+    )
+    drive(photo_dir)
+
+    if scope == 'all':
+        assert host in recorders.pol_hosts(), (recorders.pol_hosts(), recorders.sys_hosts())
+        assert host not in recorders.sys_hosts()
+    else:
+        assert host in recorders.sys_hosts(), (recorders.pol_hosts(), recorders.sys_hosts())
+        assert host not in recorders.pol_hosts()
+
+
+@pytest.mark.parametrize('scope', ['dmm', 'all'])
+@pytest.mark.parametrize('position', ['wishlist_primary', 'organizer_fallback', 'proxy_image'])
+def test_metatube_relay_never_via_policy_proxy(
+    recorders, metatube_relay_connected, photo_dir, position, scope
+):
+    """metatube 中轉圖（區網）任何模式都不進外部代理；同一格的非中轉圖在 all 才走 POL。"""
+    write_search_config(proxy_url=recorders.pol, scope=scope)
+    plain_host = 'img-plain.test'
+    plain = f'https://{plain_host}/a.jpg'
+    if position == 'wishlist_primary':
+        _drive_wishlist(_RELAY_URL, plain)
+    elif position == 'organizer_fallback':
+        _drive_organizer(photo_dir, plain, fallback_url=_RELAY_URL)
+    else:
+        plain_host = 'pics.dmm.co.jp'
+        _drive_proxy_image(_RELAY_URL)
+        _drive_proxy_image(f'https://{plain_host}/a.jpg')
+
+    relay_host = 'metatube.test'
+    assert relay_host in recorders.sys_hosts(), (recorders.pol_hosts(), recorders.sys_hosts())
+    assert relay_host not in recorders.pol_hosts()
+    if scope == 'all':
+        assert plain_host in recorders.pol_hosts(), (recorders.pol_hosts(), recorders.sys_hosts())
+        assert plain_host not in recorders.sys_hosts()
+    else:
+        assert plain_host in recorders.sys_hosts(), (recorders.pol_hosts(), recorders.sys_hosts())
+        assert plain_host not in recorders.pol_hosts()
+
+
+def test_excluded_connections_never_asked_policy(recorders):
+    """「所有來源」：metatube 本體與 AI（Ollama）連線永遠照系統代理，Proxy 欄的位址一筆都收不到。"""
+    from core.metatube.client import MetatubeHttpClient
+    from fastapi.testclient import TestClient
+    from web.app import app
+
+    write_search_config(proxy_url=recorders.pol, scope='all')
+    with contextlib.suppress(Exception):
+        MetatubeHttpClient(_RELAY_BASE).list_providers()
+    with contextlib.suppress(Exception):
+        TestClient(app).get('/api/ollama/models', params={'url': 'http://ollama.test:11434'})
+
+    assert {'metatube.test', 'ollama.test'} <= recorders.sys_hosts(), recorders.sys_hosts()
+    assert recorders.pol_hosts() == set()

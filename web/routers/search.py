@@ -46,6 +46,7 @@ from core.source_settings import get_switchable_source_ids_ordered, is_uncensore
 from core.auto_organize_state import mark_manual_activity, request_abort, get_status
 from core.config import load_config, mutate_config
 from core.favorite_scan import resolve_favorite_folder
+from core.proxy_policy import proxy_kwargs
 from web import auto_organize_scheduler
 
 from core.scraper import (
@@ -103,7 +104,7 @@ def proxy_image(url: str = Query(..., description="圖片 URL")):
 
         # SSRF guard: 不跟隨 redirect（CD-113c-7）。白名單只驗原始 URL，
         # 若對方 30x 到內網，跟隨會繞過驗證。照抄 core/metatube/client.py。
-        resp = requests.get(url, headers=headers, timeout=10, allow_redirects=False)
+        resp = requests.get(url, headers=headers, timeout=10, allow_redirects=False, **proxy_kwargs('image', url=url))
         if 300 <= resp.status_code < 400:
             location = resp.headers.get("Location", "")
             try:

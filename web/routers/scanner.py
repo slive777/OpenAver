@@ -54,6 +54,7 @@ from core.source_settings import is_uncensored_mode_effective
 from pydantic import BaseModel
 from core.logger import get_logger
 from core.platform_info import DSM_PERMISSION_HINT, is_synology
+from core.proxy_policy import proxy_kwargs
 from web.routers.notifications import emit_notification as _emit_notif
 from core.wishlist_reconcile import reconcile_wishlist, format_wishlist_removed_message
 
@@ -1395,7 +1396,7 @@ def _embed_cover(img_ref: str, path_mappings: dict = None) -> str:
                     headers['Referer'] = referer
                     break
 
-            resp = requests.get(img_ref, headers=headers, timeout=15)
+            resp = requests.get(img_ref, headers=headers, timeout=15, **proxy_kwargs('image', url=img_ref))
             if resp.status_code != 200:
                 logger.warning('封面嵌入失敗 [HTTP %s] %s', resp.status_code, img_ref[:100])
                 return img_ref

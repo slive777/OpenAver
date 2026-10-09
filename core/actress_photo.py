@@ -16,6 +16,7 @@ from core.data_root import get_data_root
 from core.database.version_tracker import bump_showcase_revision
 from core.image_host_policy import download_hosts_for
 from core.logger import get_logger
+from core.proxy_policy import proxy_kwargs
 from core.organizer import sanitize_filename
 
 logger = get_logger(__name__)
@@ -111,7 +112,8 @@ def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool
         # SSRF guard: 不跟隨 redirect（CD-113c-7）。白名單只驗原始 URL，
         # 若對方 30x 到內網，跟隨會繞過驗證。照抄 core/metatube/client.py。
         resp = requests.get(
-            photo_url, headers=headers, timeout=15, allow_redirects=False
+            photo_url, headers=headers, timeout=15, allow_redirects=False,
+            **proxy_kwargs('actress'),
         )
 
         # 3xx 獨立分支：記 host-only log 後 return False，不走下方帶完整 URL 的失敗 log

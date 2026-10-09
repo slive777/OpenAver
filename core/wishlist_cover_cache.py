@@ -21,6 +21,7 @@ from PIL import Image
 from core.atomic_write import atomic_write
 from core.database import get_db_path
 from core.logger import get_logger
+from core.proxy_policy import proxy_kwargs
 from core.organizer import build_download_headers
 from core.scraper import normalize_number
 
@@ -48,7 +49,7 @@ def _fetch_image_bytes(url: str, timeout: float = 30) -> bytes | None:
         return None
     headers = build_download_headers(url)
     try:
-        resp = requests.get(url, headers=headers, timeout=timeout)
+        resp = requests.get(url, headers=headers, timeout=timeout, **proxy_kwargs('image', url=url))
     except requests.RequestException:
         logger.warning("wishlist cover fetch failed: url=%s", url)
         return None
