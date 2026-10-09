@@ -2668,6 +2668,15 @@ const RULES = [
     })),
   ),
 
+  // ---- [163b-T7a] windows/ 與 core/cf_transport.py 不得自己讀 Proxy 欄的設定值 ----
+  ...[
+    { dir: 'windows', ext: ['.py'], recursive: true },
+    'core/cf_transport.py',
+  ].map((target) => ({
+    file: target, kind: 'forbidden-string', pattern: 'proxy_url',
+    note: '[163b-T7a-no-proxy-url-in-windows] 驗證視窗要走哪個代理只能問 core.proxy_policy 的 cf_window_proxy；windows 層若自己讀代理設定欄位，就會繞過「僅 DMM／所有來源」的範圍判斷，使用者選「僅 DMM」卻發現 JavLibrary／FC2-javten 的視窗也被送進代理',
+  })),
+
   // ---- [163b-T3] 舊測試鈕與舊端點確實消失 ----
   {
     file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'testProxy',

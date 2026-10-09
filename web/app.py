@@ -46,6 +46,7 @@ from core.metatube.state import metatube_state as _mt_startup_state
 from core.access_auth import ensure_schema, load_snapshot, snapshot, verify_ticket
 from core import source_reachability
 from core.platform_info import is_synology
+from core.desktop_env import desktop_kind
 
 
 # 路徑設定
@@ -562,12 +563,12 @@ from web.lan_listener import get_lan_ip  # noqa: E402 — re-export for backward
 def _is_windows_desktop() -> bool:
     """True のみ Windows 桌面 App（feature/82 T4：OPENAVER_STANDALONE env + win32 雙重條件）。
     非桌面 / 非 Windows → False，Settings 中不渲染 close_action 下拉。"""
-    return os.environ.get("OPENAVER_STANDALONE") == "1" and sys.platform == "win32"
+    return desktop_kind() == "windows"
 
 
 def _is_mac_desktop() -> bool:
     """True 僅限 macOS 桌面 App（OPENAVER_STANDALONE=1 AND darwin）。"""
-    return os.environ.get("OPENAVER_STANDALONE") == "1" and sys.platform == "darwin"
+    return desktop_kind() == "mac"
 
 
 def get_common_context(request: Request) -> dict:

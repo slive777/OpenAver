@@ -9,6 +9,11 @@ Standalone init-order AST 守衛（CD-70c-1 + CD-70c-2 Layer 1 防回退）
   (c) jl_win.events.closing += _on_jl_closing 綁定存在，且 _on_jl_closing body
       含 jl_win.hide() + return False（CD-70c-2 Layer 1 close-intercept 不被靜默移除）
   (d) anti-rot: startup FunctionDef 仍存在於 main() 中（rename/move 使守衛響亮失敗）
+  (e) TASK-163b-T7a：視窗建立＋transport 註冊整段已抽成模組層 `_build_cf_windows`，
+      (a)(b) 的述詞改掃 helper 本體；main() 本體必須直屬呼叫 `_build_cf_windows(...)` 且
+      lineno < webview.start(...)；兩個驗證視窗改以「視窗標題」認人（標題是模組層常數，
+      述詞解析 Name -> 字串），不再依賴 `'about:blank'` 字面或 JAVLIBRARY_ORIGIN
+      （套用代理時 JL 也建在 about:blank、URL 是變數）。
 
 Mirror 慣例來自 tests/integration/test_async_offload_guard.py：
   Path.read_text() + ast.parse, NO import of the target module; plain pytest class.
@@ -30,6 +35,18 @@ def _find_main_func(tree: ast.Module) -> Optional[ast.FunctionDef]:
         if isinstance(node, ast.FunctionDef) and node.name == "main":
             return node
     return None
+
+
+def _find_build_cf_windows(tree: ast.Module) -> Optional[ast.FunctionDef]:
+    """Find the module-level `_build_cf_windows` FunctionDef (TASK-163b-T7a)."""
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "_build_cf_windows":
+            return node
+    return None
+
+
+def _is_build_cf_windows_call(call: ast.Call) -> bool:
+    return isinstance(call.func, ast.Name) and call.func.id == "_build_cf_windows"
 
 
 def _find_startup_in_main(main_node: ast.FunctionDef) -> Optional[ast.FunctionDef]:
@@ -60,50 +77,51 @@ def _is_webview_create_window_call(call: ast.Call) -> bool:
     )
 
 
-def _is_jl_create_window_call(call: ast.Call) -> bool:
-    """
-    True iff call is the JL webview.create_window(...), identified by EITHER of:
-      - first positional string arg contains 'JavLibrary'
-      - second positional arg is ast.Name(id='JAVLIBRARY_ORIGIN')
-
-    TASK-118a-T1 D-6: `hidden=True` was REMOVED from this discriminator. Once a
-    second (fc-javten) hidden window exists, `hidden=True` matches BOTH calls
-    and has lost all discriminating power — keeping it here would silently
-    make `len(jl_create_calls) == 1` fail to distinguish "found the JL call"
-    from "found some hidden call" (BE-TEST-05). `hidden=True` is now asserted
-    separately, on the specific call each discriminator already identified.
-    """
-    if not _is_webview_create_window_call(call):
-        return False
-    # Check first positional arg for 'JavLibrary' in the string
-    if call.args and isinstance(call.args[0], ast.Constant) and isinstance(call.args[0].value, str):
-        if "JavLibrary" in call.args[0].value:
-            return True
-    # Check second positional arg is Name(id='JAVLIBRARY_ORIGIN')
-    if len(call.args) >= 2 and isinstance(call.args[1], ast.Name) and call.args[1].id == "JAVLIBRARY_ORIGIN":
-        return True
-    return False
+def _module_string_constants(tree: ast.Module) -> dict[str, str]:
+    """Module-level `NAME = 'literal'` assignments (window titles live here, single source)."""
+    out: dict[str, str] = {}
+    for node in ast.iter_child_nodes(tree):
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            out[node.targets[0].id] = node.value.value
+    return out
 
 
-def _is_javten_create_window_call(call: ast.Call) -> bool:
-    """
-    True iff call is the fc-javten webview.create_window(...), identified by:
-      - second positional arg is the string literal constant 'about:blank'
+def _window_title_of(call: ast.Call, consts: dict[str, str]) -> str:
+    """First positional arg of create_window, resolving a module-level Name constant."""
+    if not call.args:
+        return ""
+    first = call.args[0]
+    if isinstance(first, ast.Constant) and isinstance(first.value, str):
+        return first.value
+    if isinstance(first, ast.Name):
+        return consts.get(first.id, "")
+    return ""
 
-    TASK-118a-T1 / CD-118a-4: the javten window is created eagerly (same
-    startup-time precedent as JL) but parked on about:blank until first use —
-    that string literal is this call's unique fingerprint (JL's second arg is
-    the JAVLIBRARY_ORIGIN Name, never a string constant).
+
+def _is_jl_create_window_call(call: ast.Call, consts: dict[str, str]) -> bool:
     """
-    if not _is_webview_create_window_call(call):
-        return False
-    if (
-        len(call.args) >= 2
-        and isinstance(call.args[1], ast.Constant)
-        and call.args[1].value == "about:blank"
-    ):
-        return True
-    return False
+    True iff call is the JL webview.create_window(...), identified by its WINDOW TITLE
+    (first positional arg — a literal or a module-level constant — contains 'JavLibrary').
+
+    TASK-118a-T1 D-6: `hidden=True` is NOT part of the discriminator (it matches both
+    CF windows; asserted separately per call, BE-TEST-05).
+    TASK-163b-T7a: the old second-arg fingerprints (JAVLIBRARY_ORIGIN Name / 'about:blank'
+    literal) are gone — with the proxy applied JL is also created on a variable URL /
+    'about:blank', which would make those predicates count 0 or 2.
+    """
+    return _is_webview_create_window_call(call) and "JavLibrary" in _window_title_of(call, consts)
+
+
+def _is_javten_create_window_call(call: ast.Call, consts: dict[str, str]) -> bool:
+    """True iff call is the fc-javten webview.create_window(...), identified by its window
+    title containing 'javten' (same title-based identification as JL)."""
+    return _is_webview_create_window_call(call) and "javten" in _window_title_of(call, consts)
 
 
 def _call_has_hidden_true(call: ast.Call) -> bool:
@@ -276,9 +294,12 @@ class TestStandaloneInitOrderGuard:
         assert startup_node is not None, "startup() not found inside main()"
 
         calls_in_startup = _collect_calls_in_node(startup_node)
-        violations = [c for c in calls_in_startup if _is_register_cf_transport_call(c)]
+        violations = [
+            c for c in calls_in_startup
+            if _is_register_cf_transport_call(c) or _is_build_cf_windows_call(c)
+        ]
         assert not violations, (
-            f"register_cf_transport() found inside startup() at line(s) "
+            f"register_cf_transport()/_build_cf_windows() found inside startup() at line(s) "
             f"{[c.lineno for c in violations]} — "
             "it must be moved to main() body BEFORE webview.start() (CD-70c-1)"
         )
@@ -296,7 +317,10 @@ class TestStandaloneInitOrderGuard:
         assert startup_node is not None, "startup() not found inside main()"
 
         calls_in_startup = _collect_calls_in_node(startup_node)
-        wv_creates_in_startup = [c for c in calls_in_startup if _is_webview_create_window_call(c)]
+        wv_creates_in_startup = [
+            c for c in calls_in_startup
+            if _is_webview_create_window_call(c) or _is_build_cf_windows_call(c)
+        ]
         assert not wv_creates_in_startup, (
             f"webview.create_window() found inside startup() at line(s) "
             f"{[c.lineno for c in wv_creates_in_startup]} — "
@@ -305,33 +329,46 @@ class TestStandaloneInitOrderGuard:
 
     def test_register_cf_transport_before_webview_start(self):
         """
-        (b) register_cf_transport(...) must appear in main() body AND its lineno
-        must be < min lineno of all webview.start(...) calls.
+        (b) register_cf_transport(...) must live in the _build_cf_windows helper body, and
+        main() must call that helper BEFORE webview.start(...) (TASK-163b-T7a: the register
+        call moved into the helper, so the ordering is carried by the helper call).
+
+        mutation: move the `_build_cf_windows(...)` call after webview.start → red.
         """
+        tree, _ = self._parse()
+        helper = _find_build_cf_windows(tree)
+        assert helper is not None, "_build_cf_windows() not found in standalone.py"
+        register_calls = [
+            c for c in _collect_direct_calls_in_main_body(helper) if _is_register_cf_transport_call(c)
+        ]
+        assert register_calls, (
+            "register_cf_transport() not found in _build_cf_windows() body — "
+            "must be registered before webview.start() (CD-70c-1)"
+        )
+        main_node = _find_main_func(tree)
+        assert main_node is not None, "main() not found"
+        direct_calls = _collect_direct_calls_in_main_body(main_node)
+        build_calls = [c for c in direct_calls if _is_build_cf_windows_call(c)]
+        start_calls = [c for c in direct_calls if _is_webview_start_call(c)]
+        assert len(build_calls) == 1, f"expected exactly 1 _build_cf_windows() in main(), found {len(build_calls)}"
+        assert start_calls, "webview.start() not found in main() body"
+        assert build_calls[0].lineno < min(c.lineno for c in start_calls), (
+            "_build_cf_windows() (which registers the CF transport) must be called BEFORE "
+            "webview.start() in main() (CD-70c-1)"
+        )
+
+    def test_build_cf_windows_called_in_main_before_webview_start(self):
+        """TASK-163b-T7a [A2-7 ③]: main() body has a direct `_build_cf_windows(...)` call whose
+        lineno < the first webview.start(...) — and it does not sit inside startup()."""
         tree, _ = self._parse()
         main_node = _find_main_func(tree)
         assert main_node is not None, "main() not found"
-
         direct_calls = _collect_direct_calls_in_main_body(main_node)
-
-        register_calls = [c for c in direct_calls if _is_register_cf_transport_call(c)]
+        build_calls = [c for c in direct_calls if _is_build_cf_windows_call(c)]
         start_calls = [c for c in direct_calls if _is_webview_start_call(c)]
-
-        assert register_calls, (
-            "register_cf_transport() not found in main() body — "
-            "must be present before webview.start() (CD-70c-1)"
-        )
-        assert start_calls, (
-            "webview.start() not found in main() body — "
-            "guard cannot verify ordering (unexpected refactor?)"
-        )
-
-        min_register_line = min(c.lineno for c in register_calls)
-        min_start_line = min(c.lineno for c in start_calls)
-        assert min_register_line < min_start_line, (
-            f"register_cf_transport() (line {min_register_line}) must appear "
-            f"BEFORE webview.start() (line {min_start_line}) in main() (CD-70c-1)"
-        )
+        assert len(build_calls) == 1, f"expected exactly 1 _build_cf_windows() call in main(), found {len(build_calls)}"
+        assert start_calls, "webview.start() not found in main() body"
+        assert build_calls[0].lineno < min(c.lineno for c in start_calls)
 
     def test_cf_transport_constructed_with_initial_origins(self):
         """PyWebViewCfTransport(...) 必須帶第二個引數（initial_urls 種子）。
@@ -347,8 +384,8 @@ class TestStandaloneInitOrderGuard:
         驗「有沒有傳」，不驗傳了什麼。
         """
         tree, _ = self._parse()
-        main_node = _find_main_func(tree)
-        assert main_node is not None, "main() not found"
+        main_node = _find_build_cf_windows(tree)
+        assert main_node is not None, "_build_cf_windows() not found"
 
         ctors = [
             c for c in ast.walk(main_node)
@@ -356,10 +393,11 @@ class TestStandaloneInitOrderGuard:
             and isinstance(c.func, ast.Name)
             and c.func.id == "PyWebViewCfTransport"
         ]
-        assert ctors, "PyWebViewCfTransport(...) not found in main()"
+        assert ctors, "PyWebViewCfTransport(...) not found in _build_cf_windows()"
         for c in ctors:
+            has_seed = len(c.args) >= 2 or any(k.arg == "initial_urls" for k in c.keywords)
             n = len(c.args) + len(c.keywords)
-            assert n >= 2, (
+            assert has_seed, (
                 "PyWebViewCfTransport() 必須帶第二個引數（initial origins 種子）—— "
                 "少了它，javlibrary 的 _origins 永遠是 None，使用者每個 session 第一次查 "
                 f"JavLibrary 都會被多彈一次 CF 視窗；實際引數數={n}"
@@ -368,8 +406,8 @@ class TestStandaloneInitOrderGuard:
     def test_jl_create_window_before_webview_start(self):
         """
         (b) The JL-specific webview.create_window(...) (identified by 'JavLibrary' in
-        first arg, or JAVLIBRARY_ORIGIN as second positional arg) must appear in
-        main() body with lineno < min lineno of any webview.start(...), AND that
+        window title; TASK-163b-T7a) must appear in the _build_cf_windows
+        helper, which main() calls with lineno < min lineno of any webview.start(...), AND that
         call must carry hidden=True.
 
         Fix (P2): previously used min() over ALL create_window calls, which always
@@ -386,22 +424,29 @@ class TestStandaloneInitOrderGuard:
         tree, _ = self._parse()
         main_node = _find_main_func(tree)
         assert main_node is not None, "main() not found"
+        helper = _find_build_cf_windows(tree)
+        assert helper is not None, "_build_cf_windows() not found"
+        consts = _module_string_constants(tree)
 
+        jl_create_calls = [
+            c for c in _collect_direct_calls_in_main_body(helper) if _is_jl_create_window_call(c, consts)
+        ]
         direct_calls = _collect_direct_calls_in_main_body(main_node)
-        jl_create_calls = [c for c in direct_calls if _is_jl_create_window_call(c)]
         start_calls = [c for c in direct_calls if _is_webview_start_call(c)]
+        build_calls = [c for c in direct_calls if _is_build_cf_windows_call(c)]
+        assert len(build_calls) == 1, "main() must call _build_cf_windows() exactly once"
 
         assert len(jl_create_calls) == 1, (
-            f"Expected exactly 1 JL webview.create_window() call in main() body "
-            f"(identified by 'JavLibrary' title / JAVLIBRARY_ORIGIN), "
+            f"Expected exactly 1 JL webview.create_window() call in _build_cf_windows() body "
+            f"(identified by its 'JavLibrary' window title), "
             f"found {len(jl_create_calls)} — guard cannot verify ordering (CD-70c-1)"
         )
         assert start_calls, "webview.start() not found in main() body"
 
         jl_create_line = jl_create_calls[0].lineno
         min_start_line = min(c.lineno for c in start_calls)
-        assert jl_create_line < min_start_line, (
-            f"JL webview.create_window() (line {jl_create_line}) must appear "
+        assert build_calls[0].lineno < min_start_line, (
+            f"_build_cf_windows() (creates the JL window, line {jl_create_line}) must be called "
             f"BEFORE webview.start() (line {min_start_line}) in main() (CD-70c-1)"
         )
         assert _call_has_hidden_true(jl_create_calls[0]), (
@@ -412,8 +457,8 @@ class TestStandaloneInitOrderGuard:
     def test_javten_create_window_before_webview_start(self):
         """
         TASK-118a-T1 / CD-118a-4: the fc-javten webview.create_window(...)
-        (identified by second positional arg == 'about:blank') must appear in
-        main() body with lineno < min lineno of any webview.start(...), AND
+        (identified by its window title; TASK-163b-T7a) must appear in the
+        _build_cf_windows helper, which main() calls before webview.start(...), AND
         that call must carry hidden=True.
 
         D-6: this is a SEPARATE, explicitly-named assertion from the JL one
@@ -424,23 +469,30 @@ class TestStandaloneInitOrderGuard:
         tree, _ = self._parse()
         main_node = _find_main_func(tree)
         assert main_node is not None, "main() not found"
+        helper = _find_build_cf_windows(tree)
+        assert helper is not None, "_build_cf_windows() not found"
+        consts = _module_string_constants(tree)
 
+        javten_create_calls = [
+            c for c in _collect_direct_calls_in_main_body(helper) if _is_javten_create_window_call(c, consts)
+        ]
         direct_calls = _collect_direct_calls_in_main_body(main_node)
-        javten_create_calls = [c for c in direct_calls if _is_javten_create_window_call(c)]
         start_calls = [c for c in direct_calls if _is_webview_start_call(c)]
+        build_calls = [c for c in direct_calls if _is_build_cf_windows_call(c)]
+        assert len(build_calls) == 1, "main() must call _build_cf_windows() exactly once"
 
         assert len(javten_create_calls) == 1, (
-            f"Expected exactly 1 fc-javten webview.create_window() call in main() body "
-            f"(identified by second positional arg == 'about:blank'), "
+            f"Expected exactly 1 fc-javten webview.create_window() call in _build_cf_windows() body "
+            f"(identified by its window title), "
             f"found {len(javten_create_calls)} — guard cannot verify ordering (CD-118a-4)"
         )
         assert start_calls, "webview.start() not found in main() body"
 
         javten_create_line = javten_create_calls[0].lineno
         min_start_line = min(c.lineno for c in start_calls)
-        assert javten_create_line < min_start_line, (
-            f"fc-javten webview.create_window() (line {javten_create_line}) must appear "
-            f"BEFORE webview.start() (line {min_start_line}) in main() (CD-118a-4)"
+        assert build_calls[0].lineno < min_start_line, (
+            f"_build_cf_windows() (creates the fc-javten window, line {javten_create_line}) must be "
+            f"called BEFORE webview.start() (line {min_start_line}) in main() (CD-118a-4)"
         )
         assert _call_has_hidden_true(javten_create_calls[0]), (
             f"fc-javten webview.create_window() (line {javten_create_line}) must carry "
@@ -461,13 +513,15 @@ class TestStandaloneInitOrderGuard:
         must go red.
         """
         tree, _ = self._parse()
-        main_node = _find_main_func(tree)
-        assert main_node is not None, "main() not found"
+        helper = _find_build_cf_windows(tree)
+        assert helper is not None, "_build_cf_windows() not found"
+        consts = _module_string_constants(tree)
 
-        direct_calls = _collect_direct_calls_in_main_body(main_node)
-        javten_create_calls = [c for c in direct_calls if _is_javten_create_window_call(c)]
+        javten_create_calls = [
+            c for c in _collect_direct_calls_in_main_body(helper) if _is_javten_create_window_call(c, consts)
+        ]
         assert len(javten_create_calls) == 1, (
-            f"Expected exactly 1 fc-javten webview.create_window() in main() body, "
+            f"Expected exactly 1 fc-javten webview.create_window() in _build_cf_windows() body, "
             f"found {len(javten_create_calls)}"
         )
 
@@ -497,13 +551,15 @@ class TestStandaloneInitOrderGuard:
         mutation: drop JL's inner try (back to the shared outer one) → red.
         """
         tree, _ = self._parse()
-        main_node = _find_main_func(tree)
-        assert main_node is not None, "main() not found"
+        helper = _find_build_cf_windows(tree)
+        assert helper is not None, "_build_cf_windows() not found"
+        consts = _module_string_constants(tree)
 
-        direct_calls = _collect_direct_calls_in_main_body(main_node)
-        jl_create_calls = [c for c in direct_calls if _is_jl_create_window_call(c)]
+        jl_create_calls = [
+            c for c in _collect_direct_calls_in_main_body(helper) if _is_jl_create_window_call(c, consts)
+        ]
         assert len(jl_create_calls) == 1, (
-            f"Expected exactly 1 JavLibrary webview.create_window() in main() body, "
+            f"Expected exactly 1 JavLibrary webview.create_window() in _build_cf_windows() body, "
             f"found {len(jl_create_calls)}"
         )
 

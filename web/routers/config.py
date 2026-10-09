@@ -57,6 +57,7 @@ from core.readonly_assets import _write_strm  # noqa: PLC2701 — .strm 重寫�
 from core.source_config import MAX_ENABLED_SOURCES
 from core.translate_service import LANGUAGE_PROMPTS
 from core.platform_info import is_synology
+from core.proxy_policy import cf_window_proxy_restart_needed
 
 logger = get_logger(__name__)
 
@@ -93,6 +94,7 @@ def get_config() -> dict:
             ),
             "data_root": str(get_data_root()),
         },
+        "cf_window_proxy_restart_needed": cf_window_proxy_restart_needed(),
     }
 
 
@@ -190,7 +192,7 @@ def update_config(config: AppConfig) -> dict:
 
             mutate_config(_write_preserving_server_owned)
             _reset_translate_service()  # 重置翻譯服務，讓新配置生效
-            return {"success": True, "message": "設定已儲存"}
+            return {"success": True, "message": "設定已儲存", "cf_window_proxy_restart_needed": cf_window_proxy_restart_needed()}
         except Exception as e:
             logger.error("儲存設定失敗: %s", e)
             return {"success": False, "error": "儲存設定失敗"}
