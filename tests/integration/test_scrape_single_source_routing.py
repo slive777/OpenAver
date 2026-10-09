@@ -2,7 +2,6 @@
 
 CD-147d-7：無 metadata 時依 is_number_format 守門分流 smart_search / search_jav。
 """
-from core.config import load_config
 from core.scraper import extract_number, is_number_format
 from core.scrapers.utils import resolve_route_target
 
@@ -62,7 +61,6 @@ class TestScrapeSingleSourceRouting:
         mocker.patch(
             "web.routers.scraper.is_uncensored_mode_effective", return_value=False
         )
-        expected_proxy = load_config().get("search", {}).get("proxy_url", "")
 
         mock_smart = mocker.patch(
             "web.routers.scraper.smart_search",
@@ -83,7 +81,6 @@ class TestScrapeSingleSourceRouting:
         mock_smart.assert_called_once()
         kwargs = mock_smart.call_args.kwargs
         assert kwargs.get("uncensored_mode") is False
-        assert kwargs.get("proxy_url") == expected_proxy
         assert mock_smart.call_args.args[0] == "SONE-205"
         mock_search.assert_not_called()
 
@@ -111,7 +108,6 @@ class TestScrapeSingleSourceRouting:
         mocker.patch(
             "web.routers.scraper.is_uncensored_mode_effective", return_value=False
         )
-        expected_proxy = load_config().get("search", {}).get("proxy_url", "")
 
         mock_smart = mocker.patch("web.routers.scraper.smart_search")
         mock_search = mocker.patch(
@@ -129,7 +125,7 @@ class TestScrapeSingleSourceRouting:
         )
         assert resp.status_code == 200
 
-        mock_search.assert_called_once_with("深田えいみ", proxy_url=expected_proxy)
+        mock_search.assert_called_once_with("深田えいみ")
         mock_smart.assert_not_called()
 
     def test_illegal_format_search_jav_none_returns_not_found(self, client, mocker):

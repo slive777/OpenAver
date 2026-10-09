@@ -108,7 +108,7 @@ class TestFourFileRoundStatistics:
 
         config = make_config(fav_dir)
 
-        def fake_smart_search(number, uncensored_mode=False, proxy_url=""):
+        def fake_smart_search(number, uncensored_mode=False):
             return [{"number": number, "title": f"title-{number}", "actors": []}]
 
         def fake_organize_file(file_path, metadata, cfg):
@@ -337,7 +337,7 @@ class TestAbortOrdering:
         mocker.patch("core.auto_organize.list_favorite_video_files",
                       return_value=[str(f1), str(f2)])
         mocker.patch("core.auto_organize.smart_search",
-                      side_effect=lambda number, uncensored_mode=False, proxy_url="": [{"number": number, "title": "t", "actors": []}])
+                      side_effect=lambda number, uncensored_mode=False: [{"number": number, "title": "t", "actors": []}])
         organize_mock = mocker.patch("core.auto_organize.organize_file",
                                       return_value=default_organize_success())
         mocker.patch("core.auto_organize.reconcile_wishlist", return_value=[])
@@ -367,7 +367,7 @@ class TestAbortOrdering:
         mocker.patch("core.auto_organize.list_favorite_video_files",
                       return_value=[str(f1), str(f2)])
         mocker.patch("core.auto_organize.smart_search",
-                      side_effect=lambda number, uncensored_mode=False, proxy_url="": [{"number": number, "title": "t", "actors": []}])
+                      side_effect=lambda number, uncensored_mode=False: [{"number": number, "title": "t", "actors": []}])
         mocker.patch("core.auto_organize.organize_file", return_value=default_organize_success())
         mocker.patch("core.auto_organize.reconcile_wishlist", return_value=[])
 
@@ -411,7 +411,7 @@ class TestNoneCallablesMeanNeverAbort:
 
         config = make_config(fav_dir)
         mocker.patch("core.auto_organize.smart_search",
-                      side_effect=lambda number, uncensored_mode=False, proxy_url="": [{"number": number, "title": "t", "actors": []}])
+                      side_effect=lambda number, uncensored_mode=False: [{"number": number, "title": "t", "actors": []}])
         organize_mock = mocker.patch("core.auto_organize.organize_file",
                                       return_value=default_organize_success())
         mocker.patch("core.auto_organize.reconcile_wishlist", return_value=[])
@@ -555,7 +555,7 @@ class TestMemoryHitNotAnEvent:
 
         search_mock = mocker.patch(
             "core.auto_organize.smart_search",
-            side_effect=lambda number, uncensored_mode=False, proxy_url="": [] if number == "NEW-001" else None,
+            side_effect=lambda number, uncensored_mode=False: [] if number == "NEW-001" else None,
         )
         organize_mock = mocker.patch("core.auto_organize.organize_file")
         mocker.patch("core.auto_organize.reconcile_wishlist", return_value=[])

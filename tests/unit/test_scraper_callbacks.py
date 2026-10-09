@@ -293,7 +293,6 @@ class TestSearchActressResultCallback:
              patch('core.scraper._dmm_keyword_search_progressive',
                    return_value=[{'number': 'SONE-100', 'actors': ['三上悠亜']}]) as mock_dmm:
             results = search_actress('三上悠亜', limit=20,
-                                     proxy_url='http://proxy:8080',
                                      result_callback=result_callback)
 
         # DMM must have been called (fallback ran)
@@ -570,7 +569,7 @@ class TestDisabledSourceRouting:
         searched = []
         fc2_result = {'number': 'FC2-PPV-123', 'title': 'FC2'}
 
-        def fake_search_jav(num, source='auto', proxy_url='', javbus_lang=None):
+        def fake_search_jav(num, source='auto', javbus_lang=None):
             searched.append(source)
             return fc2_result if source == 'fc2' else None
 

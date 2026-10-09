@@ -63,7 +63,6 @@ class TestDMMProgressiveFacade:
              patch('core.scrapers.dmm.rate_limit'):
             results = search_actress(
                 "三上悠亜",
-                proxy_url="http://proxy:8080",
                 result_callback=mock_result_callback,
             )
 
@@ -91,7 +90,6 @@ class TestDMMProgressiveFacade:
              patch('core.scrapers.dmm.rate_limit'):
             results = search_actress(
                 "三上悠亜",
-                proxy_url="http://proxy:8080",
             )
 
         # Results order must match seed order (SONE-205 first, SONE-300 second)

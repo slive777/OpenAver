@@ -7,10 +7,6 @@ scrapers/models.py:46 實際 key 為 'tags' → VideoInfo.genre 永遠空字串 
 NFO `<genre>` 欄位空白（用戶可見）。
 
 策略：捕獲傳給 HTMLGenerator.generate() 的 VideoInfo 物件，直接斷言 .genre 內容。
-
-也包含 proxy_url 傳遞守衛（Problem-A regression guard）：
-DB-miss 路徑的 smart_search 呼叫必須帶入從 config['search']['proxy_url'] 讀取的值，
-否則 DMM 在有 proxy 設定時不會被啟用。
 """
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -134,92 +130,6 @@ class TestScannerGenerateFromIdsTags:
         assert len(videos) == 1
         # DB-hit 走 v.tags（list）→ ','.join
         assert videos[0].genre == 'DB標籤'
-
-
-class TestScannerGenerateFromIdsProxyUrl:
-    """Problem-A regression guard: DB-miss 路徑的 smart_search 必須透傳 proxy_url。
-
-    若移除 proxy_url kwarg，DMM scraper 在有 proxy 設定時不會被啟用，
-    導致有 proxy 的用戶搜尋結果缺少 DMM 資料（靜默 bug，難以察覺）。
-    """
-
-    def _make_config(self, output_dir: str, proxy_url: str = '') -> dict:
-        return {
-            "gallery": {"output_dir": output_dir, "path_mappings": {}},
-            "general": {"theme": "light"},
-            "search": {"proxy_url": proxy_url},
-        }
-
-    def test_db_miss_passes_proxy_url_to_smart_search(self, client, monkeypatch, tmp_path):
-        """DB-miss 路徑：smart_search 必須以 proxy_url kwarg 呼叫，且值與 config 一致。"""
-        mock_repo = MagicMock()
-        mock_repo.get_by_numbers.return_value = {}  # DB miss
-
-        mock_generator = MagicMock()
-        output_dir = tmp_path / "output"
-        output_dir.mkdir()
-
-        expected_proxy = 'http://proxy.example.com:1080'
-        monkeypatch.setattr(
-            "web.routers.scanner.load_config",
-            lambda: self._make_config(str(output_dir), proxy_url=expected_proxy),
-        )
-
-        scraper_result = {
-            'number': 'PRED-400',
-            'title': 'Proxy Test Title',
-            'date': '2026-04-01',
-            'tags': [],
-        }
-
-        with patch('web.routers.scanner.VideoRepository', return_value=mock_repo), \
-             patch('web.routers.scanner.HTMLGenerator', return_value=mock_generator), \
-             patch('web.routers.scanner.smart_search', return_value=[scraper_result]) as mock_smart_search:
-            response = client.post(
-                '/api/gallery/generate-from-ids',
-                json={'numbers': ['PRED-400']},
-            )
-
-        assert response.status_code == 200
-        mock_smart_search.assert_called_once()
-        _, kwargs = mock_smart_search.call_args
-        assert 'proxy_url' in kwargs, (
-            "smart_search が proxy_url kwarg を受け取っていません — "
-            "DMM が有効化されない恐れがあります"
-        )
-        assert kwargs['proxy_url'] == expected_proxy, (
-            f"期望 proxy_url={expected_proxy!r}, 實際={kwargs['proxy_url']!r}"
-        )
-
-    def test_db_miss_empty_proxy_url_still_passes_kwarg(self, client, monkeypatch, tmp_path):
-        """proxy_url 為空字串時仍必須傳入 kwarg（不可省略），值為空字串。"""
-        mock_repo = MagicMock()
-        mock_repo.get_by_numbers.return_value = {}
-
-        mock_generator = MagicMock()
-        output_dir = tmp_path / "output"
-        output_dir.mkdir()
-
-        monkeypatch.setattr(
-            "web.routers.scanner.load_config",
-            lambda: self._make_config(str(output_dir), proxy_url=''),
-        )
-
-        scraper_result = {'number': 'PRED-401', 'title': 'No Proxy', 'date': '2026-04-02', 'tags': []}
-
-        with patch('web.routers.scanner.VideoRepository', return_value=mock_repo), \
-             patch('web.routers.scanner.HTMLGenerator', return_value=mock_generator), \
-             patch('web.routers.scanner.smart_search', return_value=[scraper_result]) as mock_smart_search:
-            response = client.post(
-                '/api/gallery/generate-from-ids',
-                json={'numbers': ['PRED-401']},
-            )
-
-        assert response.status_code == 200
-        mock_smart_search.assert_called_once()
-        _, kwargs = mock_smart_search.call_args
-        assert 'proxy_url' in kwargs
-        assert kwargs['proxy_url'] == ''
 
 
 class TestScannerGenerateUsesResolveGalleryOutputPath:

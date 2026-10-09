@@ -61,7 +61,13 @@ def _run_canary(source: str, scraper, note: str = "", method: str = "search") ->
             # Feed the exception instance (not None) so classify_one row 1 -> skip.
             results.append(classify_one(e, None, number, source))
             continue
-        except (SourceUnreachable, SourceBlocked):
+        except (SourceUnreachable, SourceBlocked) as e:
+            if source == "dmm" and isinstance(e, SourceBlocked):
+                # DMM 站方拒絕＝非日本線路（地區限制），不是站壞了：DMM 探針任何 HTTP
+                # 回應都算可達，走下面的 video=None 會被判成 row-4 fail（紅燈誤報）。
+                print(f"[canary] dmm/{number} 被站方拒絕（非日本線路）: {e} → skip")
+                results.append("skip")
+                continue
             # Transport-level failure (CF ban / cannot connect). Until 0.15.1 these
             # were swallowed into `None` inside javdb's `_get_html`; typed exceptions
             # (TASK-132a-T2) made them escape `search()` and blow straight past the

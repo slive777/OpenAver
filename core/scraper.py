@@ -200,7 +200,7 @@ VALID_JAVBUS_LANGS = {'zh-tw', 'ja', 'en'}
 
 
 def search_jav(
-    number: str, source: str = 'auto', proxy_url: str = '', javbus_lang: Optional[str] = None,
+    number: str, source: str = 'auto', javbus_lang: Optional[str] = None,
     surface_access_errors: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """
@@ -368,12 +368,12 @@ def search_jav(
 
 
 def search_jav_single_source(
-    number: str, source: str, proxy_url: str = '', javbus_lang: Optional[str] = None,
+    number: str, source: str, javbus_lang: Optional[str] = None,
     surface_access_errors: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """指定單一來源搜尋"""
     return search_jav(
-        number, source=source, proxy_url=proxy_url, javbus_lang=javbus_lang,
+        number, source=source, javbus_lang=javbus_lang,
         surface_access_errors=surface_access_errors,
     )
 
@@ -660,7 +660,6 @@ def _fuzzy_one(
     query: str,
     limit: int,
     offset: int,
-    proxy_url: str,
     status_callback: Optional[Callable[[str, str], None]],
     result_callback: Optional[Callable[[int, Any], None]],
     discovery_only: bool = False,
@@ -700,7 +699,6 @@ def _fuzzy_search_chain(
     query: str,
     limit: int = 20,
     offset: int = 0,
-    proxy_url: str = '',
     status_callback: Optional[Callable[[str, str], None]] = None,
     result_callback: Optional[Callable[[int, Any], None]] = None,
     discovery_only: bool = False,
@@ -718,7 +716,7 @@ def _fuzzy_search_chain(
             continue  # 不可達，跳過（不算 dispatched）
         cb = result_callback if not first_dispatched else None
         results = _fuzzy_one(
-            source, query, limit, offset, proxy_url, status_callback, cb,
+            source, query, limit, offset, status_callback, cb,
             discovery_only=discovery_only,
         )
         first_dispatched = True  # 第一個實際發動後，後續 seed 不送
@@ -733,7 +731,6 @@ def search_actress(
     offset: int = 0,
     status_callback: Optional[Callable[[str, str], None]] = None,
     result_callback: Optional[Callable[[int, Any], None]] = None,
-    proxy_url: str = '',
     discovery_only: bool = False,
 ) -> List[Dict[str, Any]]:
     """女優搜尋 — thin wrapper delegating to _fuzzy_search_chain."""
@@ -741,7 +738,6 @@ def search_actress(
         name,
         limit=limit,
         offset=offset,
-        proxy_url=proxy_url,
         status_callback=status_callback,
         result_callback=result_callback,
         discovery_only=discovery_only,
@@ -801,7 +797,7 @@ def _get_uncensored_sources(search_term: str) -> list[str]:
     return mt_pick + builtin
 
 
-def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, proxy_url: str = '', result_callback: Optional[Callable[[int, Any], None]] = None, discovery_only: bool = False) -> List[Dict[str, Any]]:  # noqa: C901 — 無碼/有碼兩條搜尋鏈並存於同一函式；CD-65-7 已明文交代無碼模式模糊搜尋「預期回空」的設計語意，拆分會把這段語意說明從呼叫點剝離、增加誤讀風險
+def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, result_callback: Optional[Callable[[int, Any], None]] = None, discovery_only: bool = False) -> List[Dict[str, Any]]:  # noqa: C901 — 無碼/有碼兩條搜尋鏈並存於同一函式；CD-65-7 已明文交代無碼模式模糊搜尋「預期回空」的設計語意，拆分會把這段語意說明從呼叫點剝離、增加誤讀風險
     """
     智慧搜尋：自動判斷搜尋類型並執行
 
@@ -837,7 +833,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         for unc_source in unc_sources:
             if status_callback:
                 status_callback(unc_source, 'searching')
-            result = search_jav(search_term, source=unc_source, proxy_url=proxy_url)
+            result = search_jav(search_term, source=unc_source)
             if result:
                 break
 
@@ -862,7 +858,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         for unc_source in unc_sources:
             if status_callback:
                 status_callback(unc_source, 'searching')
-            result = search_jav(search_term, source=unc_source, proxy_url=proxy_url)
+            result = search_jav(search_term, source=unc_source)
             if result:
                 break
         results = [result] if result else []
@@ -884,7 +880,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
             if status_callback:
                 status_callback(sid, 'searching')
             try:
-                res = search_jav_single_source(query, sid, proxy_url=proxy_url)
+                res = search_jav_single_source(query, sid)
                 if res:
                     res['_mode'] = 'exact'
                     if status_callback:
@@ -914,7 +910,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
              # Fallback to actress（不透傳 result_callback：prefix 的 seed 已送出，
              # actress fallback 不可送第二個 seed，避免 slot index 錯位）
              if status_callback: status_callback('mode', 'actress')
-             results = search_actress(query, limit=limit, status_callback=status_callback, proxy_url=proxy_url)
+             results = search_actress(query, limit=limit, status_callback=status_callback)
              if results: mode = 'actress'
 
         if not results:
@@ -936,7 +932,6 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
             query,
             limit=limit,
             offset=offset,
-            proxy_url=proxy_url,
             status_callback=status_callback,
             result_callback=result_callback if not discovery_only else None,
             discovery_only=discovery_only,

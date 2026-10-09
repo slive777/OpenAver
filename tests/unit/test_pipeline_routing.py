@@ -115,15 +115,14 @@ class TestPipeline:
         mock_heyzo.assert_called()
 
     def test_dmm_top1_when_proxy(self):
-        """DMM first in enabled order + proxy_url → cascade 直打 DMM 命中，javbus 不被呼叫。
+        """DMM first in enabled order → cascade 直打 DMM 命中，javbus 不被呼叫。
 
         新 cascade（spec-85 B1，CD-85-1）：依 get_enabled_source_ids 優先序串接直打，
         DMM 排第一 → cascade 直打 DMM → 命中 → early-return，javbus 不被試到。
         """
-        from unittest.mock import ANY
         mock_result = {'number': 'SONE-205', 'title': 'T', '_source': 'dmm'}
 
-        def _single_source(number, source, proxy_url=''):
+        def _single_source(number, source):
             if source == 'dmm':
                 return mock_result
             return None
@@ -133,12 +132,12 @@ class TestPipeline:
              patch('core.scraper.search_jav_single_source', side_effect=_single_source) as mock_ss:
             mock_mt.availability_map.return_value = {}
             mock_mt.routing_availability_map.return_value = {}
-            results = smart_search("SONE-205", proxy_url="http://proxy:8080")
+            results = smart_search("SONE-205")
 
         assert len(results) == 1
         assert results[0]['_mode'] == 'exact'
         assert results[0]['_source'] == 'dmm'
-        mock_ss.assert_called_once_with('SONE-205', 'dmm', proxy_url=ANY)
+        mock_ss.assert_called_once_with('SONE-205', 'dmm')
 
     def test_uncensored_mode_fast_path_fc2(self):
         """uncensored_mode=True + FC2 前綴 → D2PassScraper 不被呼叫"""
@@ -169,7 +168,7 @@ class TestPipeline:
              patch('core.scraper.merge_results') as mock_merge:
             mock_mt.availability_map.return_value = {}
             mock_mt.routing_availability_map.return_value = {}
-            results = smart_search("SONE-205", proxy_url="")
+            results = smart_search("SONE-205")
 
         assert results == []
         mock_merge.assert_not_called()
@@ -205,7 +204,7 @@ class TestPipeline:
              patch.object(AVSOXScraper, 'search', return_value=None), \
              patch.object(D2PassScraper, 'search', return_value=None), \
              patch('core.scrapers.dmm.rate_limit'):
-            result = search_jav("SONE-205", proxy_url="http://proxy:8080")
+            result = search_jav("SONE-205")
 
         assert result['_source'] == 'dmm'
 
@@ -243,7 +242,7 @@ class TestPipeline:
              patch.object(FC2OfficialScraper, 'search', return_value=None), \
              patch.object(AVSOXScraper, 'search', return_value=None), \
              patch('core.scrapers.dmm.rate_limit'):
-            result = search_jav("SONE-205", proxy_url="http://proxy:8080")
+            result = search_jav("SONE-205")
 
         assert result['_source'] == 'javbus'
 
@@ -264,7 +263,7 @@ class TestPipeline:
              patch.object(JavBusScraper, 'get_ids_from_search', return_value=['SONE-205']), \
              patch('core.scraper.search_jav', return_value=mock_video.to_legacy_dict()), \
              patch.object(JavDBScraper, 'search_by_keyword', return_value=[]):
-            results = search_actress("未歩なな", limit=1, proxy_url='')
+            results = search_actress("未歩なな", limit=1)
 
         # DMM must NOT be called when the DMM capsule is off
         mock_dmm_kw.assert_not_called()
@@ -285,7 +284,6 @@ class TestPipeline:
             results = search_actress(
                 "未歩なな",
                 limit=10,
-                proxy_url='http://test-proxy:8080',
             )
 
         mock_dmm_kw.assert_called_once()
@@ -311,7 +309,6 @@ class TestPipeline:
             results = search_actress(
                 "未歩なな",
                 limit=10,
-                proxy_url='http://test-proxy:8080',
             )
 
         mock_dmm_kw.assert_called_once()
@@ -485,7 +482,7 @@ class TestFuzzyGuard:
              patch('core.scraper.get_all_source_ids_ordered', return_value=['javbus', 'dmm']), \
              patch.object(JavBusScraper, 'get_ids_from_search', return_value=['SONE-205']) as mock_jb, \
              patch('core.scraper.search_jav', return_value={'number': 'SONE-205', 'title': 'Test', 'source': 'javbus'}):
-            results = search_actress("テスト", limit=1, proxy_url='')
+            results = search_actress("テスト", limit=1)
 
         # javbus must be called even though get_enabled_source_ids returned []
         mock_jb.assert_called()
@@ -529,11 +526,10 @@ class TestCascadeExactBranch:
         assert_called_once_with('HMN-706', 'dmm', ...) 轉 RED（javbus 也被試了）。
         """
         from core.scraper import smart_search
-        from unittest.mock import ANY
 
         mock_result = {'number': 'HMN-706', 'title': 'T', '_source': 'dmm'}
 
-        def _single_source(number, source, proxy_url=''):
+        def _single_source(number, source):
             if source == 'dmm':
                 return mock_result
             return None
@@ -548,16 +544,15 @@ class TestCascadeExactBranch:
         assert len(results) == 1
         assert results[0]['_source'] == 'dmm'
         assert results[0]['_mode'] == 'exact'
-        mock_ss.assert_called_once_with('HMN-706', 'dmm', proxy_url=ANY)
+        mock_ss.assert_called_once_with('HMN-706', 'dmm')
 
     def test_firstsource_fastpath_hit_javbus(self):
         """enabled=['javbus','dmm']，javbus 命中 → 只呼叫 javbus、不呼叫 dmm。"""
         from core.scraper import smart_search
-        from unittest.mock import ANY
 
         mock_result = {'number': 'HMN-706', 'title': 'T', '_source': 'javbus'}
 
-        def _single_source(number, source, proxy_url=''):
+        def _single_source(number, source):
             if source == 'javbus':
                 return mock_result
             return None
@@ -572,7 +567,7 @@ class TestCascadeExactBranch:
         assert len(results) == 1
         assert results[0]['_source'] == 'javbus'
         assert results[0]['_mode'] == 'exact'
-        mock_ss.assert_called_once_with('HMN-706', 'javbus', proxy_url=ANY)
+        mock_ss.assert_called_once_with('HMN-706', 'javbus')
 
     def test_fastpath_sequential_miss_then_hit(self):
         """enabled=['dmm','javbus']，dmm miss → javbus 命中 → call_count==2。
@@ -583,7 +578,7 @@ class TestCascadeExactBranch:
 
         mock_result = {'number': 'HMN-706', 'title': 'T', '_source': 'javbus'}
 
-        def _single_source(number, source, proxy_url=''):
+        def _single_source(number, source):
             if source == 'javbus':
                 return mock_result
             return None  # dmm miss
@@ -608,7 +603,7 @@ class TestCascadeExactBranch:
 
         mock_result = {'number': 'HMN-706', 'title': 'T', '_source': 'javbus'}
 
-        def _single_source(number, source, proxy_url=''):
+        def _single_source(number, source):
             if source == 'dmm':
                 raise Exception('timeout')
             return mock_result
@@ -672,7 +667,7 @@ class TestCascadeExactBranch:
         hit_calls = []
         mock_result = {'number': 'HMN-706', 'title': 'T', '_source': 'dmm'}
 
-        def _single_source(number, source, proxy_url=''):
+        def _single_source(number, source):
             return mock_result if source == 'dmm' else None
 
         with patch('core.scraper.get_enabled_source_ids', return_value=['dmm', 'javbus']), \

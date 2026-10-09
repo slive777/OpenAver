@@ -43,17 +43,17 @@ def _resolved_proxies(scraper, url="https://api.video.dmm.co.jp/graphql"):
 class TestDmmRespectsSystemProxy:
     """CD-134-6／F4：direct 模式尊重系統代理（環境變數，三象限，斷言值互不相同）"""
 
-    def test_empty_proxy_url_trust_env_true(self):
-        """proxy_url='' → trust_env=True（尊重系統代理，CD-134-6／F4 反轉後的新契約）"""
+    def test_no_proxy_trust_env_true(self):
+        """無代理設定 → trust_env=True（尊重系統代理，CD-134-6／F4 反轉後的新契約）"""
         scraper = DMMScraper(_NO_PROXY)
         assert scraper._session.trust_env is True, \
-            "proxy_url='' 時 trust_env 必須為 True（尊重系統代理，見 spec-134 F4）"
+            "無代理設定 時 trust_env 必須為 True（尊重系統代理，見 spec-134 F4）"
 
-    def test_empty_proxy_url_proxies_empty(self):
-        """proxy_url='' → session.proxies 為空（交由 requests 依系統環境決定）"""
+    def test_no_proxy_proxies_empty(self):
+        """無代理設定 → session.proxies 為空（交由 requests 依系統環境決定）"""
         scraper = DMMScraper(_NO_PROXY)
         assert not scraper._session.proxies, \
-            "proxy_url='' 時 session.proxies 必須為空"
+            "無代理設定 時 session.proxies 必須為空"
 
     def test_env_https_proxy_is_respected(self, clean_proxy_env):
         """HTTPS_PROXY 有設 → 解析結果含該 proxy"""
@@ -142,7 +142,7 @@ class TestDMMScraperIntegration:
         """Proxy 欄空白時 session.proxies 不被設定（直連模式）"""
         scraper = DMMScraper(_NO_PROXY)
         assert not scraper._session.proxies, \
-            "proxy_url='' 時 session.proxies 不應被設定"
+            "無代理設定 時 session.proxies 不應被設定"
 
     def test_dmm_cache_hit(self, dmm_scraper):
         """前綴表命中時不呼叫 search query（detail query + probe query，不超過 2 次）"""

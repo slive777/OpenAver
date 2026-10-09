@@ -72,7 +72,7 @@ class TestFuzzyChain:
         with patch.object(JavBusScraper, 'get_ids_from_search', return_value=[]) as mock_jb, \
              patch('core.scraper._dmm_keyword_search_progressive',
                    return_value=[{'number': 'MIDE-100', 'source': 'dmm'}]) as mock_dmm:
-            results = _fuzzy_search_chain("some actress", proxy_url='http://proxy:8080')
+            results = _fuzzy_search_chain("some actress")
 
         mock_jb.assert_called()          # javbus reached but returned empty
         mock_dmm.assert_called_once()    # dmm reached and hit
@@ -94,7 +94,7 @@ class TestFuzzyChain:
                           return_value=['SONE-205']) as mock_jb, \
              patch('core.scraper.search_jav',
                    return_value=_make_dict("javbus", "SONE-205")):
-            results = _fuzzy_search_chain("三上悠亜", proxy_url='')
+            results = _fuzzy_search_chain("三上悠亜")
 
         mock_dmm.assert_not_called()  # DMM bypassed — capsule off
         mock_jb.assert_called()
@@ -116,7 +116,7 @@ class TestFuzzyChain:
                           side_effect=[['TEST-001'], []]) as mock_jb, \
              patch('core.scraper.search_jav',
                    return_value=_make_dict("javbus", "TEST-001")):
-            results = _fuzzy_search_chain("actress", proxy_url='')
+            results = _fuzzy_search_chain("actress")
 
         mock_avsox.assert_not_called()
         mock_jb.assert_called()
@@ -136,7 +136,7 @@ class TestFuzzyChain:
                           side_effect=[['SONE-111'], []]) as mock_jb, \
              patch('core.scraper.search_jav',
                    return_value=_make_dict("javbus", "SONE-111")):
-            results = _fuzzy_search_chain("actress", proxy_url='')
+            results = _fuzzy_search_chain("actress")
 
         mock_jb.assert_called()
         assert len(results) >= 1
@@ -155,7 +155,7 @@ class TestFuzzyChain:
                           side_effect=[['FC2-TEST'], []]) as mock_jb, \
              patch('core.scraper.search_jav',
                    return_value=_make_dict("javbus", "FC2-TEST")):
-            results = _fuzzy_search_chain("actress", proxy_url='')
+            results = _fuzzy_search_chain("actress")
 
         mock_fc2.assert_not_called()
         mock_jb.assert_called()
@@ -178,7 +178,7 @@ class TestFuzzyChain:
                           side_effect=[['SONE-001'], []]) as mock_jb, \
              patch('core.scraper.search_jav',
                    return_value=_make_dict("javbus", "SONE-001")):
-            results = _fuzzy_search_chain("actress", proxy_url='')
+            results = _fuzzy_search_chain("actress")
 
         mock_jb.assert_called()
         assert len(results) >= 1
@@ -191,7 +191,7 @@ class TestFuzzyChain:
         monkeypatch.setattr("core.scraper.get_all_source_ids_ordered",
                             lambda: ['heyzo', 'fc2'])
 
-        results = _fuzzy_search_chain("actress", proxy_url='')
+        results = _fuzzy_search_chain("actress")
         assert results == []
 
     # ---- 8. seed 只由第一個實際發動源送 ----
@@ -217,7 +217,6 @@ class TestFuzzyChain:
                    return_value=_make_dict("javbus", "SONE-205")):
             results = _fuzzy_search_chain(
                 "三上悠亜",
-                proxy_url='',
                 result_callback=mock_result_callback,
             )
 
@@ -241,7 +240,7 @@ class TestFuzzyChain:
              patch('core.scraper.search_jav',
                    return_value=_make_dict("javbus", "SONE-205")), \
              patch('core.scrapers.dmm.rate_limit'):
-            results = _fuzzy_search_chain("actress", proxy_url='http://proxy:8080')
+            results = _fuzzy_search_chain("actress")
 
         mock_dmm.assert_called_once()  # DMM called but returned nothing
         mock_jb.assert_called()        # JavBus tried as next
@@ -256,7 +255,7 @@ class TestFuzzyChain:
                             lambda: ['javdb'])
 
         with patch.object(JavDBScraper, 'search_by_keyword', return_value=[]) as mock_javdb:
-            results = _fuzzy_search_chain("actress", proxy_url='')
+            results = _fuzzy_search_chain("actress")
 
         mock_javdb.assert_not_called()  # javdb filtered out by FUZZY_SEARCH_SOURCES intersection
         assert results == []
@@ -291,8 +290,8 @@ class TestFuzzyChain:
         assert results[0] == {'number': 'TEST-001', 'title': ''}
 
     # ---- 14. 迴歸：DMM 排第一 + proxy + discovery_only=True → DMM 不呼叫，回 javbus stubs ----
-    def test_dmm_first_proxy_set_discovery_only_skips_dmm(self, monkeypatch):
-        """Regression: DMM first in Active Row + proxy_url set + discovery_only=True
+    def test_dmm_first_discovery_only_skips_dmm(self, monkeypatch):
+        """Regression: DMM first in Active Row + discovery_only=True
         → DMMScraper.search_by_keyword_with_ids must NOT be called;
         result must be javbus stub list [{'number': ..., 'title': ''}]."""
         from core.scraper import search_actress
@@ -305,7 +304,6 @@ class TestFuzzyChain:
                           side_effect=[['SONE-999'], []]):
             results = search_actress(
                 "三上悠亜",
-                proxy_url='http://proxy:8080',  # DMM reachable
                 discovery_only=True,
             )
 
@@ -425,7 +423,7 @@ class TestFuzzyDmmSource:
         )
 
         # 膠囊開（autouse fixture）所以 DMM 閘放行
-        results = _fuzzy_search_chain("actress", proxy_url='http://proxy:8080')
+        results = _fuzzy_search_chain("actress")
 
         assert len(results) == 1, f"Expected 1 result, got {results}"
         assert results[0]['_source'] == 'dmm', \

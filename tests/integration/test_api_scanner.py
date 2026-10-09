@@ -2244,7 +2244,7 @@ class TestGenerateReadonlyBridge:
     mock patch target = web.routers.scanner.produce_source（T-2 import 落點）。
     """
 
-    def _readonly_config(self, tmp_path, sources, proxy_url="http://proxy:8080"):
+    def _readonly_config(self, tmp_path, sources):
         """組一份 config：sources 為 [(readonly, output_path 或 None), ...]。"""
         output_dir = tmp_path / "html_out"
         output_dir.mkdir(exist_ok=True)
@@ -2264,7 +2264,7 @@ class TestGenerateReadonlyBridge:
                 "path_mappings": {},
                 "min_size_mb": 0,
             },
-            "search": {"proxy_url": proxy_url},
+            "search": {"proxy_url": ""},
             "general": {"theme": "light"},
             "scraper": {"video_extensions": [".mp4"]},
         }
@@ -2274,7 +2274,7 @@ class TestGenerateReadonlyBridge:
         out = str(tmp_path / "out")
         return ProduceResult(source_path=str(tmp_path / "src0"), output_path=out, **kw)
 
-    # 1. 分流互斥（正向）：readonly → produce_source 呼叫一次，args + proxy_url kwarg 正確
+    # 1. 分流互斥（正向）：readonly → produce_source 呼叫一次，args 正確
     def test_readonly_source_calls_produce_source_once(self, client, tmp_path, monkeypatch, mocker):
         cfg = self._readonly_config(tmp_path, [(True, str(tmp_path / "out0"))])
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: cfg)
@@ -2292,8 +2292,6 @@ class TestGenerateReadonlyBridge:
         assert call.args[1] is cfg
         from core.database import VideoRepository
         assert isinstance(call.args[2], VideoRepository)
-        # proxy_url kwarg 正確傳入
-        assert call.kwargs["proxy_url"] == "http://proxy:8080"
         # TASK-90b-T3: production 路徑（真的 client.get 打 /api/gallery/generate handler）
         # 現在會傳入 handler 建立的 cancel_event.is_set（bound method），不再是寫死的 None——
         # 斷言它是 callable 且確實是 threading.Event 的 is_set bound method，而非零參數
@@ -2341,7 +2339,7 @@ class TestGenerateReadonlyBridge:
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: cfg)
         mocker.patch("web.routers.scanner.get_db_path", return_value=tmp_path / "test.db")
 
-        def side_effect(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None, force=False, reachable=True, strm_mappings_getter=None):
+        def side_effect(source, config, repo, *, on_progress=None, should_abort=None, force=False, reachable=True, strm_mappings_getter=None):
             from core.readonly_producer import ProduceResult
             if source.path == str(tmp_path / "src0"):
                 on_progress(ProduceOutcome(source_uri="uri1", status="created", number="ABC-001"))
@@ -2408,7 +2406,7 @@ class TestGenerateReadonlyBridge:
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: cfg)
         mocker.patch("web.routers.scanner.get_db_path", return_value=tmp_path / "test.db")
 
-        def side_effect(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None, force=False, reachable=True, strm_mappings_getter=None):
+        def side_effect(source, config, repo, *, on_progress=None, should_abort=None, force=False, reachable=True, strm_mappings_getter=None):
             if source.path == str(tmp_path / "src0"):
                 raise ValueError("boom (迴圈前 normalize/列檔/DB 逃出)")
             return ProduceResult(source_path=source.path, output_path=source.output_path, created=3)
@@ -2440,7 +2438,7 @@ class TestGenerateReadonlyBridge:
 
         written_uri = to_file_uri(str(tmp_path / "src0" / "worker_written.mp4"))
 
-        def side_effect(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None, force=False, reachable=True, strm_mappings_getter=None):
+        def side_effect(source, config, repo, *, on_progress=None, should_abort=None, force=False, reachable=True, strm_mappings_getter=None):
             # 在 worker frame 用傳入的 repo 寫一筆（per-call 連線）
             repo.upsert(Video(path=written_uri, number="WK-001", title="worker",
                               mtime=1.0, nfo_mtime=0.0))

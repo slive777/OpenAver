@@ -1598,40 +1598,6 @@ class TestReadonlyEnrichResultShapeParity:
         }
 
 
-# ── F4: enrich endpoint 從 config["search"] 取 proxy_url ─────
-
-class TestEnrichEndpointReadsSearchConfig:
-    def test_proxy_url_taken_from_search_config(self, client, mocker):
-        """F4: proxy_url 應從 config['search'] 取，不從 config['scraper'] 取"""
-        captured_calls = []
-
-        def fake_enrich(**kwargs):
-            captured_calls.append(kwargs)
-            return _ok_result()
-
-        mocker.patch("web.routers.scraper.enrich_single", side_effect=fake_enrich)
-        mocker.patch("web.routers.scraper.load_config", return_value={
-            "search": {
-                "proxy_url": "http://proxy.test:8888",
-            },
-            "scraper": {
-                # 舊的錯誤區段（不應從這裡讀）
-                "proxy_url": "http://wrong.proxy:9999",
-            },
-        })
-
-        client.post("/api/enrich-single", json={
-            "file_path": "/video/SONE-205.mp4",
-            "number": "SONE-205",
-        })
-
-        assert captured_calls, "enrich_single 應被呼叫"
-        call_kwargs = captured_calls[0]
-        assert call_kwargs.get("proxy_url") == "http://proxy.test:8888", (
-            f"proxy_url 應從 config['search'] 取得，實際: {call_kwargs.get('proxy_url')}"
-        )
-
-
 # ── T2: source / javbus_lang 參數傳遞 ────────────────────────────────────────
 
 class TestSourceJavbusLangParams:

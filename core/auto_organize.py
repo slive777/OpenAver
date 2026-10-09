@@ -108,7 +108,6 @@ def run_one_round(
         )
         return {"folder_unreachable": True}
 
-    proxy_url = config.get('search', {}).get('proxy_url', '')
     uncensored_mode = is_uncensored_mode_effective(config)  # 整輪只算一次（DoD-7 慣例）
     scraper_config = config.get('scraper', {})
     translate_config = config.get('translate', {})
@@ -173,9 +172,9 @@ def run_one_round(
                 continue
 
         if is_number_format(number) or uncensored_mode:
-            results = smart_search(number, uncensored_mode=uncensored_mode, proxy_url=proxy_url)  # CD-144-4：逐字同手動批次
+            results = smart_search(number, uncensored_mode=uncensored_mode)  # CD-144-4：逐字同手動批次
         else:
-            _r = search_jav(number, proxy_url=proxy_url)
+            _r = search_jav(number)
             results = [_r] if _r else []
         if not results:
             if _remember_failure('not_found', upper_number, number):
