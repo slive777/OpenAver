@@ -637,7 +637,6 @@
       "enter_api_key": "API Keyを入力してください",
       "enter_api_key_first": "API Keyを入力してください",
       "select_model": "モデルを選択してください",
-      "network_error": "✗ ネットワークエラー",
       "translation_success": "翻訳テスト成功！ ({translation})",
       "test_failed": "テスト失敗: {msg}",
       "openai_connection_failed": "接続失敗",

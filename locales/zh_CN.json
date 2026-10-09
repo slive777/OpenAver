@@ -637,7 +637,6 @@
       "enter_api_key": "请输入 API Key",
       "enter_api_key_first": "请先输入 API Key",
       "select_model": "请先选择模型",
-      "network_error": "✗ 网络错误，请稍后再试",
       "translation_success": "翻译测试成功！ ({translation})",
       "test_failed": "测试失败: {msg}",
       "openai_connection_failed": "连接失败",

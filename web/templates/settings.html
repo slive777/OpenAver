@@ -360,33 +360,13 @@
                         <span>{{ t('settings.sources.warn_all_disabled') }}</span>
                     </div>
 
-                    <!-- 64e-3: proxy row 搬至 metatube toggle 正上方（CD-64-E5 方案 B 整行 move，貼近 DMM 來源 + 連線區） -->
-                    <div class="settings-form-row">
-                        <label class="row-label">
-                            Proxy
-                            <small class="settings-hint">{{ t('settings.search.proxy_dmm_hint') }}</small>
-                        </label>
-                        <div class="flex-1 flex flex-col gap-1">
-                            <div class="variable-input-group">
-                                <input type="text" class="input input-bordered input-sm flex-1"
-                                    x-model="form.proxyUrl"
-                                    placeholder="{{ t('settings.search.proxy_placeholder') }}">
-                                <button class="btn btn-sm btn-outline" type="button"
-                                    @click="testProxy()"
-                                    :disabled="testProxyLoading">
-                                    <span x-show="testProxyLoading" class="loading loading-spinner loading-sm"></span>
-                                    {{ t('settings.search.test_dmm') }}
-                                </button>
-                            </div>
-                            <small class="settings-hint" x-show="proxyStatus" x-text="proxyStatus"
-                                :class="{ 'text-success': proxyStatusOk, 'text-error': proxyStatus && !proxyStatusOk && !testProxyLoading }"></small>
-                        </div>
-                    </div>
-
-                    <!-- 163a：代理範圍（Proxy 欄空白時整組灰掉）— 沿用 .settings-sources-segmented 元件 -->
-                    <div class="settings-form-row settings-form-row--proxy-scope">
-                        <label class="row-label">{{ t('settings.search.proxy_scope_label') }}</label>
-                        <div class="flex-1 flex items-center gap-3 flex-wrap">
+                    <!-- 64e-3: proxy row 搬至 metatube toggle 正上方；163b：欄位＋範圍切換＋說明合成一列 -->
+                    <div class="settings-form-row settings-form-row--proxy">
+                        <label class="row-label">Proxy</label>
+                        <div class="flex-1 flex flex-wrap items-center gap-3">
+                            <input type="text" class="input input-bordered input-sm"
+                                x-model="form.proxyUrl"
+                                placeholder="{{ t('settings.search.proxy_placeholder') }}">
                             <div class="settings-sources-segmented" role="group"
                                  aria-label="{{ t('settings.search.proxy_scope_label') }}">
                                 <button type="button"
@@ -404,10 +384,10 @@
                                     {{ t('settings.search.proxy_scope_all') }}
                                 </button>
                             </div>
-                            <small class="settings-hint flex-1 min-w-0" x-show="form.proxyScope === 'dmm'">
+                            <small class="settings-hint" x-show="form.proxyScope === 'dmm'">
                                 {{ t('settings.search.proxy_scope_dmm_hint') }}
                             </small>
-                            <small class="settings-hint flex-1 min-w-0" x-show="form.proxyScope === 'all'">
+                            <small class="settings-hint" x-show="form.proxyScope === 'all'">
                                 {{ t('settings.search.proxy_scope_all_hint') }}
                             </small>
                         </div>

@@ -2562,14 +2562,6 @@ const RULES = [
     note: "[163a-T6a-bind] 使用者按「所有來源」要真的切過去，否則 NAS 的封面與女優照片無法走代理",
   },
   {
-    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: '!form.proxyUrl.trim() || testProxyLoading',
-    note: '[163a-T6a-test-btn] 使用者欄位留空想按「測試 DMM」→ 按鈕不得因空白而灰掉（空白＝照系統代理測）',
-  },
-  {
-    file: 'web/static/js/pages/settings/state-providers.js', kind: 'forbidden-string', pattern: 'if (!this.form.proxyUrl.trim()) return;',
-    note: '[163a-T6a-test-early-return] 欄位留空按測試鈕不得無聲早退（要送出請求並顯示結果）',
-  },
-  {
     file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'isDmmAvailable',
     note: '[163a-T6a-no-intercept-js] 使用者 Proxy 空白時點 DMM 膠囊要能開關，不得被「請先設定代理」攔住',
   },
@@ -2675,6 +2667,28 @@ const RULES = [
       note: '[163b-T1-no-live-read] 使用者輸入新代理不按儲存就按測試 → 探測若讀了已儲存的設定，結果反映的是舊代理，且畫面完全看不出來',
     })),
   ),
+
+  // ---- [163b-T3] 舊測試鈕與舊端點確實消失 ----
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'testProxy',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'settings.search.test_dmm',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: '/api/proxy/test',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
+  {
+    file: { dir: 'web/static/js', ext: ['.js'], recursive: true }, kind: 'forbidden-string', pattern: '/api/proxy/test',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
+  {
+    file: { dir: 'web/static/js', ext: ['.js'], recursive: true }, kind: 'forbidden-string', pattern: 'testProxy',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
 
   // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已隨 163a-T6b 拔除）----
   // Scope A：clickActiveRowPill 函數體。⚠ Python 原始 regex 用 \Z（Python string-end anchor）+ re.DOTALL；

@@ -14,7 +14,6 @@
 - GET    /api/config/format-variables   — 取得刮削路徑/檔名格式可用變數
 - GET    /api/ollama/models             — 取得 Ollama 可用模型列表
 - POST   /api/ollama/test               — 測試 Ollama 模型是否能正常回應
-- POST   /api/proxy/test                — 測試 Proxy 連線（透過 DMM 驗證）
 """
 
 from fastapi import APIRouter, HTTPException, Request
@@ -732,45 +731,3 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
     except Exception as e:
         logger.error("測試 Ollama 模型失敗: %s", e)
         return {"success": False, "error": "測試模型失敗"}
-
-
-class ProxyTestRequest(BaseModel):
-    proxy_url: str = ''
-
-
-@router.post("/proxy/test")
-def test_proxy(request: ProxyTestRequest) -> dict:
-    """測試 Proxy 連線（透過 DMM GraphQL endpoint 驗證）
-
-    代理由請求體快照決定（不讀已儲存的設定）；空白 → 不傳 proxies，照系統代理／直接連線。
-    """
-    import requests
-    from core.proxy_policy import ProxySettings, proxy_for, source_needs_jp_ip
-
-    addr = proxy_for('source_query', source_id='dmm', settings=ProxySettings(url=request.proxy_url))
-    kwargs = {} if addr is None else {'proxies': {'http': addr, 'https': addr}}
-    if addr is None:
-        success_message = "未設定 Proxy，使用系統代理／直接連線，DMM 可達"
-    else:
-        success_message = "Proxy 連線成功（DMM 可達）"
-
-    try:
-        resp = requests.post(
-            "https://api.video.dmm.co.jp/graphql",
-            json={"query": "{ __typename }"},
-            headers={"Content-Type": "application/json"},
-            timeout=10,
-            **kwargs,
-        )
-        if resp.status_code == 200:
-            return {"success": True, "reason": "ok", "message": success_message}
-        message = f"DMM 拒絕連線（狀態碼 {resp.status_code}）"
-        if source_needs_jp_ip('dmm'):
-            message += "。部分地區需要日本 IP，可在 Proxy 欄設定"
-        return {"success": False, "reason": "refused", "message": message}
-    except requests.exceptions.Timeout:
-        return {"success": False, "reason": "unreachable", "message": "連線失敗: 連線逾時"}
-    except requests.exceptions.ConnectionError:
-        return {"success": False, "reason": "unreachable", "message": "連線失敗: 無法連線到目標主機"}
-    except Exception:
-        return {"success": False, "reason": "unreachable", "message": "連線失敗: 請檢查輸入格式"}

@@ -637,7 +637,6 @@
       "enter_api_key": "Enter API Key",
       "enter_api_key_first": "Enter API Key first",
       "select_model": "Select a model",
-      "network_error": "✗ Network error",
       "translation_success": "Translation test passed! ({translation})",
       "test_failed": "Test failed: {msg}",
       "openai_connection_failed": "Connection failed",
