@@ -60,3 +60,29 @@ export function summarizeProbe(results) {
     }
     return { ok, total };
 }
+
+// ---- 163b-T4b：膠囊上的狀態點／原因句檢視 ----
+
+export const PROBE_ICON_MAP = {
+    ok: 'bi-check-circle-fill',
+    blocked: 'bi-exclamation-triangle-fill',
+    unreachable: 'bi-x-octagon-fill',
+    skipped: 'bi-dash-circle',
+};
+
+export const ADVICE_KEY_MAP = {
+    jp_ip: 'settings.sources.probe_advice_jp_ip',
+};
+
+/** 結果 → 檢視資料；非四態回 null（不折成任何一態，BE-DATA-11）。 */
+export function describeProbe(result) {
+    const r = result || {};
+    if (!Object.hasOwn(PROBE_ICON_MAP, r.state)) return null;
+    return {
+        state: r.state,
+        icon: PROBE_ICON_MAP[r.state],
+        stateKey: STATE_KEY_MAP[r.state],
+        reasonKey: REASON_KEY_MAP[r.reason] ?? REASON_KEY_GENERIC,
+        adviceKey: ADVICE_KEY_MAP[r.advice] ?? null,
+    };
+}

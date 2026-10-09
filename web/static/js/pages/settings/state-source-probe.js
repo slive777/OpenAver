@@ -1,5 +1,6 @@
 import {
     acceptProbeResponse,
+    describeProbe,
     buildProbeKey,
     pickProbeIds,
     summarizeProbe,
@@ -15,7 +16,7 @@ export function stateSourceProbe() {
         srcProbeStatus: 'idle',   // 'idle' | 'running'
         srcProbeResults: {},      // 以來源 id 字串為鍵，整包重新賦值
         srcProbeGen: 0,
-        srcProbeTipId: null,      // 消費端在 T4b
+        srcProbeTipId: null,      // 原因句指向哪顆（T4b 消費）
 
         get srcProbeKey() {
             return buildProbeKey(this.form.proxyUrl, this.form.proxyScope, this.sources);
@@ -23,6 +24,35 @@ export function stateSourceProbe() {
 
         get srcProbeSummary() {
             return summarizeProbe(this.srcProbeResults);
+        },
+
+        // ---- 163b-T4b 檢視：只讀 srcProbeResults、只寫 srcProbeTipId ----
+        srcProbeIcon(id) {
+            const d = describeProbe(this.srcProbeResults[id]);
+            return d ? 'bi ' + d.icon : '';
+        },
+
+        srcProbeLine(id) {
+            const d = describeProbe(this.srcProbeResults[id]);
+            if (!d) return '';
+            const params = { state: window.t(d.stateKey), reason: window.t(d.reasonKey) };
+            if (d.adviceKey) {
+                return window.t('settings.sources.probe_line_advice', { ...params, advice: window.t(d.adviceKey) });
+            }
+            return window.t('settings.sources.probe_line', params);
+        },
+
+        get srcProbeTipText() {
+            const id = this.srcProbeTipId;
+            if (id === null) return '';
+            const line = this.srcProbeLine(id);
+            if (!line) return '';
+            const src = this.sources.find((x) => x.id === id);
+            return window.t('settings.sources.probe_tip', { name: src ? src.display_name : id, line });
+        },
+
+        toggleSrcProbeTip(id) {
+            this.srcProbeTipId = this.srcProbeTipId === id ? null : id;
         },
 
         // 唯一遞增世代處；冪等、對 idle 狀態無其他副作用

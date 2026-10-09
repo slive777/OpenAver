@@ -51,3 +51,10 @@ def test_state_map_and_fixed_keys_exist_in_zh_tw():
     ]
     bad = [k for k in keys if not _zh_has(k)]
     assert not bad, f'zh_TW 缺 key: {bad}'
+
+
+def test_advice_map_values_exist_in_zh_tw():
+    cells = _cells('ADVICE_KEY_MAP')
+    assert cells, 'ADVICE_KEY_MAP 沒有任何格'
+    bad = [v for v in cells.values() if not _zh_has(v)]
+    assert not bad, f'zh_TW 缺 key: {bad}'

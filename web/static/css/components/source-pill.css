@@ -161,6 +161,52 @@
     border-radius: var(--radius-pill);
 }
 
+/* 163b-T4b：測試連線狀態點（膠囊末端）與原因句。四態形狀由 bi 圖示區分，顏色僅輔助。 */
+.source-pill-probe {
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    background: none;
+    border: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.source-pill-probe:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-pill);
+}
+
+.source-pill-probe[data-state="ok"] {
+    color: var(--color-success);
+}
+
+.source-pill-probe[data-state="blocked"] {
+    color: var(--color-warning);
+}
+
+.source-pill-probe[data-state="unreachable"] {
+    color: var(--color-error);
+}
+
+.source-pill-probe[data-state="skipped"] {
+    color: var(--text-secondary);
+}
+
+.source-pill-probe-tip {
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.source-pill-probe-tip:empty {
+    display: none;
+}
+
 /* Parts Bin pill — click-to-promote affordance.
    TASK-partsbin-staged-affordance: cursor pointer on all partsbin pills (available or not)
    reflects click-to-promote semantics. The previous --pill-accent tint override is removed —

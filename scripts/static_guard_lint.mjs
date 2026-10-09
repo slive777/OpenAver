@@ -2713,6 +2713,31 @@ const RULES = [
     note: '[163b-T4a-watch-wired] 使用者測完後改了 Proxy 欄、範圍或膠囊開關 → 沒接線舊結果會一直留著，以為新設定已驗過（node:test 看不到模板）',
   },
 
+  // ---- [163b-T4b] 膠囊上的狀態點與原因句：接線釘子（node:test 看不到模板；外觀不守） ----
+  ...[
+    ['dot-click-stop', '@click.stop="toggleSrcProbeTip(s.id)"', '使用者點狀態點想看原因 → 沒擋冒泡會把這顆膠囊翻成停用、結果被清空，且悄悄改了來源設定'],
+    ['dot-enter-stop', '@keydown.enter.stop', '鍵盤使用者 Tab 到狀態點按 Enter 想看原因 → 沒擋冒泡會翻膠囊開關、全部點消失'],
+    ['dot-space-stop', '@keydown.space.stop', '鍵盤使用者在狀態點按空白想看原因 → 沒擋冒泡會讓膠囊進入抓取排序或翻開關'],
+    ['dot-no-drag', '@mousedown.prevent', '使用者想點狀態點看原因、按住時手稍微移動 → 沒取消 mousedown 會變成拖曳整顆膠囊，放到別顆上就把來源順序存檔了，原因句也沒出來'],
+    ['dot-type-button', 'type="button"', '使用者點一下狀態點 → 漏寫 type 會送出整份設定表單，沒按儲存卻存了'],
+    ['dot-gated', 'x-show="srcProbeIcon(s.id)"', '測試前或改設定後 → 沒有結果的膠囊不該掛著空白點，否則以為新設定已驗過'],
+  ].map(([tag, literal, why]) => ({
+    file: 'web/templates/settings.html', kind: 'required-string',
+    pattern: new RegExp('(?<![\\w:-])' + literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    scope: /<button\b[^>]*class="source-pill-probe"[^>]*>/s,
+    note: `[163b-T4b-${tag}] ${why}`,
+  })),
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-text="srcProbeTipText"/,
+    scope: /<[a-z]+\b[^>]*class="source-pill-probe-tip"[^>]*>/s,
+    note: '[163b-T4b-tip-wired] 手機或鍵盤使用者點了狀態點 → 膠囊列下方沒有原因句，只知道「被擋」不知道原因與日本 IP 建議',
+  },
+  ...['locales/zh_TW.json', 'web/static/js/pages/settings/source-probe-logic.js', 'web/templates/settings.html'].flatMap((file) =>
+    ['地區限制', '區域封鎖'].map((word) => ({
+      file, kind: 'forbidden-string', pattern: word,
+      note: '[163b-T4b-no-region-claim] javdb App 通道被拒絕時畫面斷言「' + word + '」→ 使用者去換 IP，其實換 IP 沒用',
+    }))),
+
   // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已隨 163a-T6b 拔除）----
   // Scope A：clickActiveRowPill 函數體。⚠ Python 原始 regex 用 \Z（Python string-end anchor）+ re.DOTALL；
   // JS 無 \Z（\Z 在 JS regex 是字面 "Z"），faithful port 用 $（配合僅 's' flag、無 'm' flag，JS $ 即絕對字串結尾，等價 Python \Z）。

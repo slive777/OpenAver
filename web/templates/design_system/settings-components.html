@@ -773,6 +773,62 @@
   &lt;i class="bi bi-slash-circle slash-icn" aria-hidden="true"&gt;&lt;/i&gt;
   &lt;span class="pill-name"&gt;UnreachableProvider&lt;/span&gt;
 &lt;/div&gt;</code></pre>
+
+    <h4 style="margin-top: 1.5rem;">測試連線狀態點</h4>
+    <p class="ds-desc">
+        設定頁按「測試連線」後，每顆被測的膠囊末端出現一個狀態點。四態以<strong>形狀</strong>區分
+        （勾圈／驚嘆三角／叉八角／虛線圈），顏色只是輔助；點一下（或 Tab＋Enter／空白）在膠囊列下方顯示原因句。
+    </p>
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+            <div class="source-pill" data-enabled="true">
+                <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+                <span class="pill-name">JavBus</span>
+                <button type="button" class="source-pill-probe" data-state="ok" title="通：連線正常" aria-label="通：連線正常">
+                    <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="source-pill" data-enabled="true">
+                <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+                <span class="pill-name">DMM</span>
+                <button type="button" class="source-pill-probe" data-state="blocked" title="被擋：站方拒絕了請求" aria-label="被擋：站方拒絕了請求">
+                    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="source-pill" data-enabled="true">
+                <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+                <span class="pill-name">JavDB</span>
+                <button type="button" class="source-pill-probe" data-state="unreachable" title="連不到：連線逾時" aria-label="連不到：連線逾時">
+                    <i class="bi bi-x-octagon-fill" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="source-pill" data-enabled="true">
+                <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+                <span class="pill-name">JavLibrary</span>
+                <button type="button" class="source-pill-probe" data-state="skipped" title="未測：需要 Windows 驗證視窗，不在這裡測" aria-label="未測：需要 Windows 驗證視窗，不在這裡測">
+                    <i class="bi bi-dash-circle" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+        <p class="source-pill-probe-tip">DMM：被擋：站方拒絕了請求（部分地區需要日本 IP，可在 Proxy 欄設定）</p>
+    </div>
+
+    <pre class="ds-code"><code>&lt;!-- 狀態點：data-state = ok / blocked / unreachable / skipped --&gt;
+&lt;button type="button" class="source-pill-probe" data-state="ok"&gt;
+  &lt;i class="bi bi-check-circle-fill" aria-hidden="true"&gt;&lt;/i&gt;
+&lt;/button&gt;
+&lt;button type="button" class="source-pill-probe" data-state="blocked"&gt;
+  &lt;i class="bi bi-exclamation-triangle-fill" aria-hidden="true"&gt;&lt;/i&gt;
+&lt;/button&gt;
+&lt;button type="button" class="source-pill-probe" data-state="unreachable"&gt;
+  &lt;i class="bi bi-x-octagon-fill" aria-hidden="true"&gt;&lt;/i&gt;
+&lt;/button&gt;
+&lt;button type="button" class="source-pill-probe" data-state="skipped"&gt;
+  &lt;i class="bi bi-dash-circle" aria-hidden="true"&gt;&lt;/i&gt;
+&lt;/button&gt;
+
+&lt;!-- 原因句（aria-live，內容空時自動隱藏）--&gt;
+&lt;p class="source-pill-probe-tip"&gt;DMM：被擋：站方拒絕了請求&lt;/p&gt;</code></pre>
 </div>
 
 <!-- Cover Attribute Pills（設定頁封面屬性膠囊列，TASK-121d-T5） -->
