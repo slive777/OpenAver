@@ -48,6 +48,11 @@ def test_state_map_and_fixed_keys_exist_in_zh_tw():
         'settings.sources.probe_btn',
         'settings.sources.probe_summary',
         'settings.sources.probe_failed',
+        'settings.sources.probe_line',
+        'settings.sources.probe_line_advice',
+        'settings.sources.probe_line_host',
+        'settings.sources.probe_line_host_advice',
+        'settings.sources.probe_tip',
     ]
     bad = [k for k in keys if not _zh_has(k)]
     assert not bad, f'zh_TW 缺 key: {bad}'

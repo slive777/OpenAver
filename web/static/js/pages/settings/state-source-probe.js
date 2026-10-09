@@ -35,11 +35,19 @@ export function stateSourceProbe() {
         srcProbeLine(id) {
             const d = describeProbe(this.srcProbeResults[id]);
             if (!d) return '';
-            const params = { state: window.t(d.stateKey), reason: window.t(d.reasonKey) };
-            if (d.adviceKey) {
-                return window.t('settings.sources.probe_line_advice', { ...params, advice: window.t(d.adviceKey) });
+            const state = window.t(d.stateKey);
+            const reason = window.t(d.reasonKey);
+            const advice = d.adviceKey ? window.t(d.adviceKey) : '';
+            if (d.host && d.adviceKey) {
+                return window.t('settings.sources.probe_line_host_advice', { state, host: d.host, reason, advice });
             }
-            return window.t('settings.sources.probe_line', params);
+            if (d.host) {
+                return window.t('settings.sources.probe_line_host', { state, host: d.host, reason });
+            }
+            if (d.adviceKey) {
+                return window.t('settings.sources.probe_line_advice', { state, reason, advice });
+            }
+            return window.t('settings.sources.probe_line', { state, reason });
         },
 
         get srcProbeTipText() {

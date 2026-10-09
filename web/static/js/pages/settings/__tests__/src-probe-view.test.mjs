@@ -129,3 +129,26 @@ test('view methods never write results or generation', () => {
   assert.equal(fake.srcProbeResults, resultsRef);
   assert.equal(fake.srcProbeGen, 0);
 });
+
+test('srcProbeLine names the host only for blocked or unreachable results', () => {
+  const { fake } = makeFake({
+    dmm: { state: 'blocked', reason: 'http_status', host: 'caribbeancom.com' },
+    javlibrary: { state: 'ok', reason: 'ok', host: 'javlibrary.com' },
+  });
+  fake.srcProbeResults = {
+    ...fake.srcProbeResults,
+    a: { state: 'unreachable', reason: 'timeout', host: 'h2.example', advice: 'jp_ip' },
+    b: { state: 'skipped', reason: 'self_hosted', host: 'x.example' },
+    c: { state: 'blocked', reason: 'http_status' },
+    d: { state: 'blocked', reason: 'http_status', host: '' },
+  };
+  assert.ok(fake.srcProbeLine('dmm').includes('caribbeancom.com'));
+  assert.ok(fake.srcProbeLine('a').includes('h2.example'));
+  assert.ok(fake.srcProbeLine('a').includes('probe_advice_jp_ip'));
+  assert.ok(!fake.srcProbeLine('javlibrary').includes('javlibrary.com'));
+  assert.ok(!fake.srcProbeLine('b').includes('x.example'));
+  for (const id of ['c', 'd']) {
+    const line = fake.srcProbeLine(id);
+    assert.ok(!line.includes('undefined') && !line.includes('null') && !line.includes('host'));
+  }
+});

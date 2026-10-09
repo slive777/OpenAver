@@ -354,6 +354,8 @@
       "probe_reason_generic": "原因不明",
       "probe_line": "{state}：{reason}",
       "probe_line_advice": "{state}：{reason}（{advice}）",
+      "probe_line_host": "{state}（{host}）：{reason}",
+      "probe_line_host_advice": "{state}（{host}）：{reason}（{advice}）",
       "probe_tip": "{name}：{line}",
       "probe_advice_jp_ip": "部分地區需要日本 IP，可在 Proxy 欄設定",
       "cap_exceeded_title": "已達啟用上限",

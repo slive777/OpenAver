@@ -84,5 +84,6 @@ export function describeProbe(result) {
         stateKey: STATE_KEY_MAP[r.state],
         reasonKey: REASON_KEY_MAP[r.reason] ?? REASON_KEY_GENERIC,
         adviceKey: ADVICE_KEY_MAP[r.advice] ?? null,
+        host: (r.state === 'blocked' || r.state === 'unreachable') && r.host ? String(r.host) : null,
     };
 }
