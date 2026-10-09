@@ -2690,6 +2690,29 @@ const RULES = [
     note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
   },
 
+  // ---- [163b-T4a] 測試連線只在按下時跑：唯一 fetch、唯一入口、模板接線 ----
+  // 目錄規則不加 recursive：__tests__/ 不被掃，行為測試才能呼叫測試入口方法。
+  {
+    file: 'web/static/js/pages/settings/state-source-probe.js', kind: 'structure-count', pattern: '/api/sources/probe', count: 1,
+    note: '[163b-T4a-fetch-once] 使用者按一次「測試連線」→ 若分片裡呼叫兩次，代理與 IP 多吃一倍流量且兩輪結果互相覆蓋（註解也不得寫出端點字面，structure-count 不剝 .js 註解）',
+  },
+  {
+    file: { dir: 'web/static/js/pages/settings', ext: ['.js'], exclude: ['state-source-probe.js'] }, kind: 'forbidden-string', pattern: '/api/sources/probe',
+    note: '[163b-T4a-no-stray-fetch] 使用者只是開設定頁或改設定，沒按「測試連線」→ 若別處偷呼叫探測端點，十個來源網站會被連一輪（走他的代理與 IP）',
+  },
+  {
+    file: { dir: 'web/static/js/pages/settings', ext: ['.js'], exclude: ['state-source-probe.js'] }, kind: 'forbidden-string', pattern: 'runSrcProbe',
+    note: '[163b-T4a-no-stray-run] 使用者只是開設定頁或改設定，沒按「測試連線」→ 若別處呼叫測試入口方法，來源網站會被偷偷連一輪',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'structure-count', pattern: /(?<![\w:-])@click="runSrcProbe\(\)"/, count: 1,
+    note: '[163b-T4a-run-once-tpl] 使用者按「測試連線」→ 模板裡只能有這一個入口；少了鈕沒反應，多了別處也會觸發探測',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'structure-count', pattern: "$watch('srcProbeKey', () => clearSrcProbe())", count: 1,
+    note: '[163b-T4a-watch-wired] 使用者測完後改了 Proxy 欄、範圍或膠囊開關 → 沒接線舊結果會一直留著，以為新設定已驗過（node:test 看不到模板）',
+  },
+
   // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已隨 163a-T6b 拔除）----
   // Scope A：clickActiveRowPill 函數體。⚠ Python 原始 regex 用 \Z（Python string-end anchor）+ re.DOTALL；
   // JS 無 \Z（\Z 在 JS regex 是字面 "Z"），faithful port 用 $（配合僅 's' flag、無 'm' flag，JS $ 即絕對字串結尾，等價 Python \Z）。

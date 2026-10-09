@@ -254,7 +254,8 @@
 
                     <!-- ===== Section 2 — Active Row (Zone A) — 61c-1 structure ===== -->
                     <!-- Batch bar: segmented 全開|無碼 control (64e-2) -->
-                    <div class="settings-sources-batchbar">
+                    <div class="settings-sources-batchbar"
+                         x-init="$watch('srcProbeKey', () => clearSrcProbe())">
                         <div class="settings-sources-batchbar-left">
                             <div class="settings-sources-segmented">
                                 <button type="button"
@@ -274,6 +275,16 @@
                             </div>
                         </div>
                         <div class="settings-sources-batchbar-right">
+                            <button type="button" class="btn btn-sm btn-outline" id="sourcesProbeBtn"
+                                    @click="runSrcProbe()"
+                                    :disabled="srcProbeStatus === 'running'">
+                                <span x-show="srcProbeStatus === 'running'" class="loading loading-spinner loading-sm"></span>
+                                <span x-show="srcProbeStatus !== 'running'">{{ t('settings.sources.probe_btn') }}</span>
+                                <span x-show="srcProbeStatus === 'running'">{{ t('settings.status.testing') }}</span>
+                            </button>
+                            <small class="settings-sources-probe-summary" aria-live="polite"
+                                   x-show="srcProbeSummary.total > 0" x-cloak
+                                   x-text="window.t('settings.sources.probe_summary', { ok: srcProbeSummary.ok, total: srcProbeSummary.total })"></small>
                             <span class="settings-sources-counter popover-anchor" x-data="helpPopover">
                                 <span>{{ t('settings.sources.counter_prefix') }}</span>
                                 <strong x-text="enabledCount"></strong>

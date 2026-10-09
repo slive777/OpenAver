@@ -451,7 +451,15 @@
 #settings-components .settings-sources-batchbar-right {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 0.5rem;
+}
+
+#settings-components .settings-sources-probe-summary {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
 }
 
 /* ─── Cap counter (tabular-nums prevents digit jitter on toggle) ─── */
