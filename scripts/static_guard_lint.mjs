@@ -2668,6 +2668,14 @@ const RULES = [
     },
   ]),
 
+  // ---- [163b-T1] 探測路徑只准吃請求體快照，不得讀已儲存的設定 ----
+  ...['core/source_probe.py', 'web/routers/source_probe.py'].flatMap((f) =>
+    ['load_config', 'current_settings'].map((word) => ({
+      file: f, kind: 'forbidden-string', pattern: word,
+      note: '[163b-T1-no-live-read] 使用者輸入新代理不按儲存就按測試 → 探測若讀了已儲存的設定，結果反映的是舊代理，且畫面完全看不出來',
+    })),
+  ),
+
   // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已隨 163a-T6b 拔除）----
   // Scope A：clickActiveRowPill 函數體。⚠ Python 原始 regex 用 \Z（Python string-end anchor）+ re.DOTALL；
   // JS 無 \Z（\Z 在 JS regex 是字面 "Z"），faithful port 用 $（配合僅 's' flag、無 'm' flag，JS $ 即絕對字串結尾，等價 Python \Z）。

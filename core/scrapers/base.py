@@ -1,9 +1,12 @@
 """BaseScraper 抽象類"""
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from .models import Video, ScraperConfig
 from core.scrapers.utils import is_lenient_number, normalize_number_impl
 from core.proxy_policy import new_session, proxy_kwargs
+
+if TYPE_CHECKING:
+    from core.source_probe import ProbePlan
 
 
 class BaseScraper(ABC):
@@ -33,6 +36,10 @@ class BaseScraper(ABC):
             'source_query', source_id=self.source_name,
             settings=self.config.proxy_settings,
         )
+
+    def probe_plan(self, timeout) -> "Optional[ProbePlan]":
+        """宣告「測試連線」要探測哪些目標；None ＝不可探測（判讀由 core.source_probe 負責）。"""
+        return None
 
     @abstractmethod
     def _get_source_name(self) -> str:
