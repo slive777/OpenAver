@@ -5,6 +5,7 @@ import pytest
 
 import core.scrapers.dmm as dmm_module
 from core.scrapers.dmm import DMMScraper
+from core.proxy_policy import ProxySettings
 from core.scrapers.models import ScraperConfig, Video
 
 LOG_SNIPPET = "搜尋 API 查無結果"
@@ -14,7 +15,7 @@ LOG_SNIPPET = "搜尋 API 查無結果"
 def dmm_scraper(monkeypatch):
     monkeypatch.setattr(dmm_module, "_shipped_table_cache", {})
     monkeypatch.setattr(dmm_module, "rate_limit", lambda *a, **kw: None)
-    return DMMScraper(ScraperConfig(proxy_url="http://test-proxy:8080"))
+    return DMMScraper(ScraperConfig(proxy_settings=ProxySettings(url="http://test-proxy:8080")))
 
 
 def test_step3_miss_logs_debug_with_number(dmm_scraper, caplog, monkeypatch):

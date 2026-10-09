@@ -58,7 +58,7 @@ class D2PassScraper(BaseScraper):
 
     def __init__(self, config: Optional[ScraperConfig] = None):
         super().__init__(config)
-        self._session = requests.Session()
+        self._session = self._new_session()
         self._session.headers.update({
             'User-Agent': self.config.user_agent,
             'Accept': 'application/json, text/plain, */*',

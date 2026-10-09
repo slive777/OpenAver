@@ -10,6 +10,7 @@ import pytest
 
 import core.scrapers.dmm as dmm_module
 from core.scrapers.dmm import DMMScraper, _flatten_shipped_table
+from core.proxy_policy import ProxySettings
 from core.scrapers.models import ScraperConfig
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -23,7 +24,7 @@ def _reset_prefix_hint_caches(monkeypatch):
 
 
 def _scraper() -> DMMScraper:
-    return DMMScraper(ScraperConfig(proxy_url=""))
+    return DMMScraper(ScraperConfig(proxy_settings=ProxySettings(url="")))
 
 
 # ── DoD 1 碰撞 ───────────────────────────────────────────────────────────────

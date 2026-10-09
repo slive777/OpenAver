@@ -14,6 +14,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 @pytest.fixture(autouse=True)
+def _dmm_capsule_off(monkeypatch):
+    """預設 DMM 膠囊關：這份檔的案例走 JavBus 路徑，不要依賴本機 config（BE-TEST-01 使用端 patch）。"""
+    monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: False)
+
+
+@pytest.fixture(autouse=True)
 def _no_request_delay(monkeypatch):
     """本檔把 REQUEST_DELAY 歸零（只影響本檔）：外站呼叫都已 mock，節流秒數
     沒有驗證對象，不歸零只是白等。"""
@@ -273,6 +279,7 @@ class TestSearchActressResultCallback:
 
         monkeypatch.setattr("core.scraper.get_all_source_ids_ordered",
                             lambda: ['javbus', 'dmm'])
+        monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: True)
 
         callback_calls = []
 

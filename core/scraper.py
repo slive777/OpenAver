@@ -20,7 +20,7 @@ from core.scrapers import (
     FC2OfficialScraper, FC2JavtenScraper, AVSOXScraper,
     D2PassScraper, HEYZOScraper, DMMScraper,
     JavLibraryScraper,          # T3 新增
-    Video, ScraperConfig
+    Video
 )
 from core.scrapers.utils import (
     extract_number as _new_extract_number,
@@ -33,7 +33,7 @@ from core.scrapers.utils import (
 from core.maker_mapping import get_maker_by_prefix
 from core.source_merger import merge_results
 from core.source_config import validate_source_id
-from core.source_settings import get_enabled_source_ids, get_all_source_ids_ordered
+from core.source_settings import get_enabled_source_ids, get_all_source_ids_ordered, is_source_enabled
 
 # 63c metatube routing imports（CD-63c-1 / CD-63c-2 / CD-63c-3）
 from core.metatube.client import MetatubeHttpClient, pick_movie_result
@@ -193,20 +193,6 @@ class _MetatubeShim:
 
 # ============ 核心搜尋函數 ============
 
-def _is_dmm_enabled(proxy_url: str) -> bool:
-    """空字串 → False；'direct' / 真 proxy → True"""
-    return bool(proxy_url and proxy_url.strip())
-
-
-def _dmm_proxy_url(proxy_url: str) -> str:
-    """'direct'（大小寫不敏感）→ ''（直連）；其他 → 原值"""
-    if not proxy_url:
-        return ''
-    if proxy_url.strip().lower() == 'direct':
-        return ''
-    return proxy_url
-
-
 VALID_JAVBUS_LANGS = {'zh-tw', 'ja', 'en'}
 
 
@@ -225,9 +211,6 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
         logger.warning(f"[Search] 未知來源: {source}")
         return None
 
-    # DMM 需要日本 IP（proxy 或 direct），有啟用才建立
-    dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url)) if _is_dmm_enabled(proxy_url) else None
-
     # javbus_lang 校驗 + config fallback（auto 與 explicit javbus 共用）
     if javbus_lang is not None and javbus_lang not in VALID_JAVBUS_LANGS:
         logger.warning("[Search] 無效的 javbus_lang: %s，fallback 到 config", javbus_lang)
@@ -236,11 +219,11 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
 
     # 來源 id → scraper factory（無參數 callable，回 scraper instance list）。
     # DMM 與 JavBus 是攜帶 closure 參數的特例：
-    #   - dmm：proxy-gated，dmm_config 為 None（無 proxy）時回 []（不建立）。
+    #   - dmm：一律建立（開關看膠囊；代理由 proxy policy 決定）。
     #   - javbus：帶校驗後的 lang。
     # explicit 指定來源與 auto fan-out 共用同一份定義。
     source_to_scraper = {
-        'dmm': lambda: [DMMScraper(dmm_config)] if dmm_config else [],
+        'dmm': lambda: [DMMScraper()],
         'javbus': lambda: [JavBusScraper(lang=_javbus_lang)],
         'jav321': lambda: [JAV321Scraper()],
         'javdb': lambda: [JavDBScraper()],
@@ -666,8 +649,7 @@ def _fuzzy_one(
     if source == 'dmm':
         if status_callback:
             status_callback('dmm', 'searching')
-        dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url))
-        dmm_scraper = DMMScraper(dmm_config)
+        dmm_scraper = DMMScraper()
         result = _dmm_keyword_search_progressive(
             dmm_scraper, query, limit, status_callback, result_callback, offset=offset
         )
@@ -703,7 +685,7 @@ def _fuzzy_search_chain(
     chain = [s for s in get_all_source_ids_ordered() if s in FUZZY_SEARCH_SOURCES]
     first_dispatched = False
     for source in chain:
-        if source == 'dmm' and not _is_dmm_enabled(proxy_url):
+        if source == 'dmm' and not is_source_enabled('dmm'):
             continue  # 不可達，跳過（不算 dispatched）
         cb = result_callback if not first_dispatched else None
         results = _fuzzy_one(

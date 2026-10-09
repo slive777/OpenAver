@@ -62,7 +62,7 @@ def _success_truthy(value: Any) -> bool:
     return bool(value) and value not in (0, "0", "false", "False")
 
 
-def api_get(path: str, params: Optional[dict] = None) -> dict:
+def api_get(path: str, params: Optional[dict] = None, proxies: Optional[dict] = None) -> dict:
     """對 javdb App API 發 GET，回傳信封裡的 data（dict）；失敗一律 raise。"""
     query = dict(_PUBLIC_PARAMS)
     query["device_uuid"] = _DEVICE_UUID
@@ -82,12 +82,14 @@ def api_get(path: str, params: Optional[dict] = None) -> dict:
             "connection": "keep-alive",
         }
         try:
-            # 絕對不傳 proxies：傳了就等於把使用者的系統代理靜默關掉。
+            # 未被 proxy policy 選中時不傳 proxies kwarg（傳了會把系統代理靜默關掉）；
+            # 選中（使用者的 Proxy 欄＋範圍涵蓋 javdb）才帶。
             resp = requests.get(
                 url,
                 params=query,
                 headers=headers,
                 timeout=_TIMEOUT,
+                **({"proxies": proxies} if proxies else {}),
             )
         except requests.exceptions.RequestException as e:
             last_error = SourceUnreachable(str(e))
@@ -128,16 +130,16 @@ def api_get(path: str, params: Optional[dict] = None) -> dict:
     raise SourceUnreachable("JavDB API unreachable")
 
 
-def api_search(keyword: str) -> list[dict]:
+def api_search(keyword: str, proxies: Optional[dict] = None) -> list[dict]:
     """回搜尋結果清單；查無回 []（不是錯誤，不 raise）。"""
-    data = api_get(_SEARCH_PATH, {"q": keyword, "page": "1"})
+    data = api_get(_SEARCH_PATH, {"q": keyword, "page": "1"}, **({"proxies": proxies} if proxies else {}))
     movies = data.get("movies")
     return movies if isinstance(movies, list) else []
 
 
-def api_movie_detail(movie_id: str) -> dict:
+def api_movie_detail(movie_id: str, proxies: Optional[dict] = None) -> dict:
     """回詳情 movie 物件；形狀不對就 raise SourceUnreachable。"""
-    data = api_get(_DETAIL_PATH.format(movie_id=movie_id))
+    data = api_get(_DETAIL_PATH.format(movie_id=movie_id), **({"proxies": proxies} if proxies else {}))
     movie = data.get("movie")
     if not isinstance(movie, dict):
         raise SourceUnreachable(f"movie detail missing for id={movie_id}")
@@ -279,9 +281,11 @@ def _assert_image_urls_proxyable(video: Video) -> None:
             )
 
 
-def fetch_video(number: str) -> Optional[Video]:
+def fetch_video(number: str, proxies: Optional[dict] = None) -> Optional[Video]:
     """依番號查詢影片並映射成 Video 物件；查無或無效回傳 None。"""
-    movies = api_search(number)
+    # 未選中時上游不多帶 proxies kwarg（保住既有呼叫簽名）
+    _pk = {"proxies": proxies} if proxies else {}
+    movies = api_search(number, **_pk)
     movie = None
     for m in (movies or [])[:5]:
         if isinstance(m, dict) and _match_movie(m, number):
@@ -291,7 +295,7 @@ def fetch_video(number: str) -> Optional[Video]:
     if not movie or not movie.get("id"):
         return None
 
-    detail = api_movie_detail(str(movie["id"]))
+    detail = api_movie_detail(str(movie["id"]), **_pk)
     video = _to_video(detail, number)
     if video.title or video.cover_url:
         _assert_image_urls_proxyable(video)

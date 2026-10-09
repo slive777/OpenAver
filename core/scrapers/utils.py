@@ -18,7 +18,8 @@ DEFAULT_HEADERS = {
 
 
 def get_html(url: str, timeout: int = DEFAULT_TIMEOUT,
-             headers: Optional[dict[str, str]] = None, cookies: Optional[dict[str, str]] = None) -> Optional[str]:
+             headers: Optional[dict[str, str]] = None, cookies: Optional[dict[str, str]] = None,
+             proxies: Optional[dict] = None) -> Optional[str]:
     """
     GET 請求獲取 HTML
 
@@ -27,6 +28,7 @@ def get_html(url: str, timeout: int = DEFAULT_TIMEOUT,
         timeout: 超時秒數
         headers: 自訂 headers
         cookies: Cookies
+        proxies: 代理（proxy policy 選中才傳；None = 不帶 kwarg）
 
     Returns:
         HTML 文本，失敗返回 None
@@ -36,7 +38,7 @@ def get_html(url: str, timeout: int = DEFAULT_TIMEOUT,
         if headers:
             h.update(headers)
 
-        resp = requests.get(url, headers=h, cookies=cookies, timeout=timeout)
+        resp = requests.get(url, headers=h, cookies=cookies, timeout=timeout, **({'proxies': proxies} if proxies else {}))
         resp.encoding = resp.apparent_encoding
 
         if resp.status_code == 200:
@@ -47,7 +49,7 @@ def get_html(url: str, timeout: int = DEFAULT_TIMEOUT,
 
 
 def post_html(url: str, data: Optional[dict[str, object]] = None, timeout: int = DEFAULT_TIMEOUT,
-              headers: Optional[dict[str, str]] = None) -> Optional[str]:
+              headers: Optional[dict[str, str]] = None, proxies: Optional[dict] = None) -> Optional[str]:
     """
     POST 請求獲取 HTML
 
@@ -56,6 +58,7 @@ def post_html(url: str, data: Optional[dict[str, object]] = None, timeout: int =
         data: POST 資料
         timeout: 超時秒數
         headers: 自訂 headers
+        proxies: 代理（選中才傳）
 
     Returns:
         HTML 文本，失敗返回 None
@@ -65,7 +68,7 @@ def post_html(url: str, data: Optional[dict[str, object]] = None, timeout: int =
         if headers:
             h.update(headers)
 
-        resp = requests.post(url, data=data, headers=h, timeout=timeout)
+        resp = requests.post(url, data=data, headers=h, timeout=timeout, **({'proxies': proxies} if proxies else {}))
         resp.encoding = resp.apparent_encoding
 
         if resp.status_code == 200:

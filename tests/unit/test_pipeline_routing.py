@@ -23,6 +23,12 @@ def _no_rate_limit(monkeypatch):
     monkeypatch.setattr("core.scraper.time.sleep", lambda *a: None)
 
 
+@pytest.fixture(autouse=True)
+def _dmm_capsule(monkeypatch):
+    """DMM 開關看膠囊（BE-TEST-01：patch 使用端）。預設開；測「關」的案例自行改 False。"""
+    monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: True)
+
+
 # ============================================================
 # Helper
 # ============================================================
@@ -241,9 +247,10 @@ class TestPipeline:
 
         assert result['_source'] == 'javbus'
 
-    def test_fuzzy_chain_dmm_no_proxy_falls_through(self):
-        """DMM 排第一 + 無 proxy → 跳過 DMM，fallback 到 javbus（新鏈行為）"""
+    def test_fuzzy_chain_dmm_capsule_off_falls_through(self, monkeypatch):
+        """DMM 排第一 + DMM 膠囊關 → 跳過 DMM，fallback 到 javbus（新鏈行為）"""
         from core.scraper import search_actress
+        monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: False)
         # ⚠️ 從「使用端 binding」取 JavDBScraper，不從定義端（139-T1b）：
         # test_javdb_cainfo.py 會 importlib.reload(core.scrapers.javdb)，reload 後定義端是
         # 新的 class 物件，而 core/scraper.py 仍持有舊的 ⇒ patch 打在新的上、被測程式跑的是
@@ -259,12 +266,12 @@ class TestPipeline:
              patch.object(JavDBScraper, 'search_by_keyword', return_value=[]):
             results = search_actress("未歩なな", limit=1, proxy_url='')
 
-        # DMM must NOT be called when proxy_url is empty
+        # DMM must NOT be called when the DMM capsule is off
         mock_dmm_kw.assert_not_called()
         assert len(results) >= 1
 
     def test_search_actress_dmm_routing(self):
-        """DMM 排第一 + proxy 有效 → DMM search_by_keyword_with_ids 先被呼叫，JavBus 不呼叫"""
+        """DMM 排第一 + DMM 膠囊開 → DMM search_by_keyword_with_ids 先被呼叫，JavBus 不呼叫"""
         from core.scraper import search_actress
 
         mock_video = _make_video("dmm", "SONE-205")
@@ -288,7 +295,7 @@ class TestPipeline:
         assert results[0]['source'] == 'dmm'
 
     def test_search_actress_dmm_fallback_to_javbus(self):
-        """DMM 排第一 + proxy 有效 + DMM 無結果 → fallback 到 JavBus"""
+        """DMM 排第一 + DMM 膠囊開 + DMM 無結果 → fallback 到 JavBus"""
         from core.scraper import search_actress
         # ⚠️ 從「使用端 binding」取 JavDBScraper，不從定義端（139-T1b）：
         # test_javdb_cainfo.py 會 importlib.reload(core.scrapers.javdb)，reload 後定義端是

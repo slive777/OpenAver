@@ -61,7 +61,7 @@ class JAV321Scraper(BaseScraper):
         try:
             # POST 搜尋
             search_url = 'https://www.jav321.com/search'
-            html = post_html(search_url, data={'sn': number}, timeout=self.config.timeout)
+            html = post_html(search_url, data={'sn': number}, timeout=self.config.timeout, **self._proxy_kwargs())
 
             if not html:
                 return None
@@ -78,7 +78,7 @@ class JAV321Scraper(BaseScraper):
                     return None
 
                 detail_url = urljoin('https://www.jav321.com', str(link.get('href')))
-                dh = get_html(detail_url, timeout=self.config.timeout)
+                dh = get_html(detail_url, timeout=self.config.timeout, **self._proxy_kwargs())
                 detail_html = dh if dh else ""
                 
                 if not detail_html:
@@ -224,7 +224,7 @@ class JAV321Scraper(BaseScraper):
         """
         try:
             search_url = 'https://www.jav321.com/search'
-            html = post_html(search_url, data={'sn': keyword}, timeout=self.config.timeout)
+            html = post_html(search_url, data={'sn': keyword}, timeout=self.config.timeout, **self._proxy_kwargs())
 
             if not html:
                 return []

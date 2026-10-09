@@ -134,17 +134,12 @@ class DMMScraper(BaseScraper):
 
     def __init__(self, config: Optional[ScraperConfig] = None):
         super().__init__(config)
-        self._session = requests.Session()
+        self._session = self._new_session()
         self._session.headers.update({
             'User-Agent': self.config.user_agent,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         })
-        if self.config.proxy_url:
-            self._session.proxies = {
-                'http': self.config.proxy_url,
-                'https': self.config.proxy_url,
-            }
 
     def _get_source_name(self) -> str:
         return "dmm"
@@ -318,7 +313,7 @@ class DMMScraper(BaseScraper):
     def _fetch_tags_from_html(self, content_id: str) -> list[str]:
         """
         從 DMM 商品頁 HTML 抓取 genres（ジャンル）。
-        使用同一 session（已設定 proxy），傳 age_check_done=1 cookie 繞過年齡驗證。
+        使用同一 session（代理由 proxy policy 決定），傳 age_check_done=1 cookie 繞過年齡驗證。
 
         兩種解析策略：
         1. JSON-LD VideoObject.genre（較快）

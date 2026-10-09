@@ -153,3 +153,17 @@ def is_uncensored_mode_effective(config: dict) -> bool:
     if not isinstance(search, dict):
         return False
     return bool(search.get('uncensored_mode_enabled', False))
+
+
+def is_source_enabled(source_id: str) -> bool:
+    """`config.sources[]` 該項 `enabled is True` → True；缺項／壞形狀 → False。
+
+    DMM 開關的單一真理來源（膠囊），與 Proxy 欄是否填寫無關（TASK-163a-T3a）。
+    """
+    sources = load_config().get('sources', [])
+    if not isinstance(sources, list):
+        return False
+    return any(
+        isinstance(s, dict) and s.get('id') == source_id and s.get('enabled') is True
+        for s in sources
+    )

@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from core.scrapers.dmm import DMMScraper
+from core.proxy_policy import ProxySettings
 from core.scrapers.models import ScraperConfig
 
 
@@ -87,7 +88,7 @@ class TestDMMProbePayloadVariables:
     def dmm_scraper(self, monkeypatch):
         import core.scrapers.dmm as dmm_module
         monkeypatch.setattr(dmm_module, "_shipped_table_cache", {})
-        config = ScraperConfig(proxy_url="http://test-proxy:8080")
+        config = ScraperConfig(proxy_settings=ProxySettings(url="http://test-proxy:8080"))
         return DMMScraper(config)
 
     def test_probe_genres_sends_id_variable(self, dmm_scraper):

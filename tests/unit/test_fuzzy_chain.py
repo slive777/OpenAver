@@ -47,6 +47,13 @@ def _no_rate_limit(monkeypatch):
     monkeypatch.setattr("core.scraper.time.sleep", lambda *a: None)
 
 
+@pytest.fixture(autouse=True)
+def _dmm_capsule(monkeypatch):
+    """DMM 開關看膠囊（BE-TEST-01：patch 使用端 core.scraper.is_source_enabled）。
+    預設膠囊開；要測「膠囊關」的案例自己再 setattr 成 False。"""
+    monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: True)
+
+
 # ============================================================
 # TestFuzzyChain — 13 boundary conditions
 # ============================================================
@@ -72,10 +79,12 @@ class TestFuzzyChain:
         assert len(results) == 1
         assert results[0]['source'] == 'dmm'  # order-driven: javbus empty → dmm hit
 
-    # ---- 2. DMM 排第一但無 proxy → 跳過，繼續到 javbus ----
-    def test_dmm_first_no_proxy_falls_through_to_javbus(self, monkeypatch):
-        """DMM 排第一 + proxy_url='' → DMM 不呼叫，javbus 命中"""
+    # ---- 2. DMM 排第一但膠囊關 → 跳過，繼續到 javbus ----
+    def test_dmm_first_capsule_off_falls_through_to_javbus(self, monkeypatch):
+        """DMM 排第一 + DMM 膠囊關 → DMM 不呼叫，javbus 命中"""
         from core.scraper import _fuzzy_search_chain
+
+        monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: False)
 
         monkeypatch.setattr("core.scraper.get_all_source_ids_ordered",
                             lambda: ['dmm', 'javbus', 'jav321', 'javdb'])
@@ -87,7 +96,7 @@ class TestFuzzyChain:
                    return_value=_make_dict("javbus", "SONE-205")):
             results = _fuzzy_search_chain("三上悠亜", proxy_url='')
 
-        mock_dmm.assert_not_called()  # DMM bypassed — no proxy
+        mock_dmm.assert_not_called()  # DMM bypassed — capsule off
         mock_jb.assert_called()
         assert len(results) >= 1
         assert results[0]['source'] == 'javbus'
@@ -187,8 +196,10 @@ class TestFuzzyChain:
 
     # ---- 8. seed 只由第一個實際發動源送 ----
     def test_seed_sent_exactly_once_by_first_dispatched_source(self, monkeypatch):
-        """order=['dmm','javbus']，proxy=''（DMM 被跳過）→ seed 由 javbus 送，恰好 1 次"""
+        """order=['dmm','javbus']，DMM 膠囊關（DMM 被跳過）→ seed 由 javbus 送，恰好 1 次"""
         from core.scraper import _fuzzy_search_chain
+
+        monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: False)
 
         monkeypatch.setattr("core.scraper.get_all_source_ids_ordered",
                             lambda: ['dmm', 'javbus', 'jav321', 'javdb'])
@@ -413,7 +424,7 @@ class TestFuzzyDmmSource:
             lambda *a, **kw: [{'number': 'STARS-001', 'source': 'dmm'}],
         )
 
-        # proxy_url non-empty so _is_dmm_enabled passes
+        # 膠囊開（autouse fixture）所以 DMM 閘放行
         results = _fuzzy_search_chain("actress", proxy_url='http://proxy:8080')
 
         assert len(results) == 1, f"Expected 1 result, got {results}"

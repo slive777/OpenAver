@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from core.scrapers.dmm import DMMScraper, _flatten_shipped_table
+from core.proxy_policy import ProxySettings
 from core.scrapers.models import ScraperConfig
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -185,7 +186,7 @@ class TestCrawlFixtureHitRate:
         groups = _load_fixture()
         assert len(groups) == 335
 
-        scraper = DMMScraper(ScraperConfig(proxy_url=""))
+        scraper = DMMScraper(ScraperConfig(proxy_settings=ProxySettings(url="")))
         hit = miss = unparseable = 0
         for entry in groups:
             prefix, num = scraper._parse_number(entry["authNum"])

@@ -186,25 +186,6 @@ def _ensure_repo_on_path() -> None:
         sys.path.insert(0, root)
 
 
-def _configured_dmm_proxy() -> str:
-    """讀設定頁的 DMM 代理；沒設定、或設定讀不起來，一律回 `""`（直連）。
-
-    刻意吞掉所有例外：這支腳本的契約是「無論如何都要印得出東西」，
-    不能因為 config 壞了就 traceback（同 D1 / DoD 6）。
-    """
-    _ensure_repo_on_path()
-    try:
-        from core.config import load_config
-        from core.scraper import _dmm_proxy_url
-
-        # 借用產品端的同一支判斷（`core/scraper.py` 也是這樣取），不在這裡重寫一份：
-        # 空字串與 "direct"（大小寫不敏感）都要收斂成 ""，而那個規則只有它知道。
-        raw = (load_config().get("search") or {}).get("proxy_url") or ""
-        return _dmm_proxy_url(raw)
-    except Exception:
-        return ""
-
-
 def fetch_latest_cids(limit: int = SAMPLE_LIMIT) -> tuple[list[str] | None, bool]:
     """打一次 legacySearchPPV（不帶 queryWord）。
 
@@ -215,14 +196,9 @@ def fetch_latest_cids(limit: int = SAMPLE_LIMIT) -> tuple[list[str] | None, bool
     _ensure_repo_on_path()
     import requests
     from core.scrapers.dmm import DMMScraper
-    from core.scrapers.models import ScraperConfig
 
-    # 設定頁若填了 DMM 代理就跟著走，否則直連（2026-08-29 branch review P2）。
-    # Why：DMM 在產品端是 proxy-gated（`core/scraper.py` 無 proxy_url 就不建立這個來源），
-    # 所以「會用 DMM 的人」一定在設定頁填了東西。裸 `DMMScraper()` 只吃環境變數，
-    # 在那種機器上量到的是**另一條網路路徑**——不是它平常在走的那條。
-    # 反過來沒填也照樣跑得動（本檔的設計場景就是「無 VPN 跑得完」，CD-134-8）。
-    scraper = DMMScraper(ScraperConfig(proxy_url=_configured_dmm_proxy()))
+    # 代理由 proxy policy 依設定頁決定（Proxy 欄＋範圍）；沒填就直連／照系統代理。
+    scraper = DMMScraper()
     payload = {
         "query": LATEST_QUERY,
         "variables": {

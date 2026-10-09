@@ -2,6 +2,8 @@
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
+from core.proxy_policy import ProxySettings
+
 
 class Actress(BaseModel):
     """女優資訊"""
@@ -73,4 +75,6 @@ class ScraperConfig(BaseModel):
         default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         description="User-Agent"
     )
-    proxy_url: str = Field(default="", description="HTTP proxy URL (for DMM)")
+    proxy_settings: Optional[ProxySettings] = Field(
+        default=None, description="代理設定；None = 由 proxy_policy 讀 live config"
+    )

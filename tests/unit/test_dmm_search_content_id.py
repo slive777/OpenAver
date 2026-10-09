@@ -6,6 +6,7 @@ import pytest
 
 import core.scrapers.dmm as dmm_module
 from core.scrapers.dmm import DMMScraper
+from core.proxy_policy import ProxySettings
 from core.scrapers.models import ScraperConfig, Video
 
 LOG_SNIPPET = "搜尋 API 查無結果"
@@ -36,7 +37,7 @@ def dmm_scraper(monkeypatch):
     import core.scrapers.dmm as dmm_module
 
     monkeypatch.setattr(dmm_module, "rate_limit", lambda *a, **kw: None)
-    return DMMScraper(ScraperConfig(proxy_url="http://test-proxy:8080"))
+    return DMMScraper(ScraperConfig(proxy_settings=ProxySettings(url="http://test-proxy:8080")))
 
 
 def test_learn_prefix_and_save_prefix_hint_removed():

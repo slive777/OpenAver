@@ -37,6 +37,12 @@ def _make_video(source: str, number: str = "TEST-001") -> Video:
 # Tests
 # ============================================================
 
+@pytest.fixture(autouse=True)
+def _dmm_capsule(monkeypatch):
+    """DMM 開關看膠囊（BE-TEST-01 使用端 patch）：本檔案例都預期 DMM 被呼叫。"""
+    monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: True)
+
+
 class TestDMMProgressiveFacade:
     """DMM progressive SSE facade tests"""
 

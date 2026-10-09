@@ -220,7 +220,8 @@ class JavDBScraper(BaseScraper):
 
         _ca = _cainfo_override_bytes()
         extra = {"curl_options": {CurlOpt.CAINFO: _ca}} if _ca is not None else {}
-        _proxies = _resolve_proxies(url)
+        _pk = self._proxy_kwargs()
+        _proxies = _pk.get('proxies') or _resolve_proxies(url)
 
         try:
             response = curl_requests.get(
@@ -271,7 +272,7 @@ class JavDBScraper(BaseScraper):
         查無回 None；傳輸失敗照 B6 拋 SourceUnreachable / SourceBlocked
         （由 search() 攔下並降級，見 CD-132b-5）。
         """
-        return javdb_api.fetch_video(number)
+        return javdb_api.fetch_video(number, **self._proxy_kwargs())
 
     def search_via_html(self, number: str) -> Optional[Video]:
         """走網頁解析。呼叫端必須傳入已正規化的番號。

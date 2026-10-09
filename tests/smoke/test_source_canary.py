@@ -272,15 +272,8 @@ def test_javdb_api_canary():
         )
 
 
-# ========== dmm (proxy-gated, 4-way) ==========
+# ========== dmm (4-way) ==========
 
 def test_dmm_canary():
-    from core.config import load_config
-    from core.scraper import _dmm_proxy_url, _is_dmm_enabled
-    from core.scrapers.models import ScraperConfig
-
-    raw = (load_config().get("search") or {}).get("proxy_url") or ""
-    if not _is_dmm_enabled(raw):
-        pytest.skip("dmm proxy 未設定")
-    scraper = DMMScraper(ScraperConfig(proxy_url=_dmm_proxy_url(raw)))
+    scraper = DMMScraper()
     _run_canary("dmm", scraper)
