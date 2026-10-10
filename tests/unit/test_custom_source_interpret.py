@@ -403,6 +403,37 @@ def test_run_tests_mismatch_url_has_no_userinfo():
     assert "u:p@" not in mismatch.url and "?id=1" in mismatch.url
 
 
+def _userinfo_routes():
+    import re
+    target = "https://alice:secret@single-og.example/x"
+    body = re.sub(r'(og:image"\s+content=")[^"]*', r'\1/cover.jpg', _txt("single-og"))
+    assert 'content="/cover.jpg"' in body
+    return target, {SOG: redirect(target), target: page(body)}
+
+
+def test_run_tests_mismatch_actual_has_no_userinfo_from_relative_image():
+    _, routes = _userinfo_routes()
+    results = run_tests(_with_cases((("cover", "WRONG"),)), CFG, FakeTransport(routes))
+    mismatch = results[0].mismatches[0]
+    assert mismatch.key == "cover"
+    assert "alice:secret@" not in repr(results[0].mismatches)
+    assert mismatch.actual == ["https://single-og.example/cover.jpg"] or mismatch.actual == "https://single-og.example/cover.jpg"
+
+
+def test_expect_values_with_userinfo_are_sanitized():
+    got = interpret._public_value(["https://a:b@h.example/x?q=1", "plain", 3])
+    assert got == ["https://h.example/x?q=1", "plain", 3]
+    assert interpret._public_value("http://a:b@h.example/") == "http://h.example/"
+
+
+def test_extracted_images_have_no_userinfo_but_page_still_fetched_with_it():
+    target, routes = _userinfo_routes()
+    transport = FakeTransport(routes)
+    result = scrape(_spec("single-og"), "SONE-205", CFG, transport)
+    assert result.items[0].fields["cover"] == "https://single-og.example/cover.jpg"
+    assert target in transport.calls
+
+
 def test_scrape_detail_applies_not_found_when_for_single_stage():
     marker = "<h1"
     assert marker in _txt("single-og") and marker in _txt("two-step-detail-a")

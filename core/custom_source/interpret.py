@@ -244,6 +244,15 @@ _CHECKS = {
 }
 
 
+def _public_value(value):
+    """mismatch 的 expected/actual：http(s) 字串去帳密（防其他欄位外流）。"""
+    if isinstance(value, (list, tuple)):
+        return [_public_value(v) for v in value]
+    if isinstance(value, str) and value.lower().startswith(("http://", "https://")) and "@" in value:
+        return public_url(value) or value
+    return value
+
+
 def _check_expect(key, expected, fields):
     name, suffix = _KEY_RE.fullmatch(key).groups()
     actual = fields.get(name)
@@ -251,7 +260,7 @@ def _check_expect(key, expected, fields):
     if suffix == "_max":
         actual = len(actual) if isinstance(actual, list) else None
     ok = actual is not None and _CHECKS[suffix](actual, want)
-    return None if ok else (want, actual)
+    return None if ok else (_public_value(want), _public_value(actual))
 
 
 def _host_of(url):

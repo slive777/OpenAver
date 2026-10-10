@@ -237,6 +237,17 @@ def test_to_video_strips_userinfo_keeps_query():
     assert video.detail_url == "https://s.example/a?id=1"
 
 
+def test_to_video_images_from_credentialed_page_have_no_userinfo():
+    from core.custom_source.extract import extract_fields
+    from core.custom_source.schema import Field
+    html = '<img class="c" src="/c.jpg"><a class="s" href="/s1.jpg">x</a>'
+    fields = [Field("cover", "css", ".c", "src", False, ()), Field("sample_images", "css", ".s", "href", True, ())]
+    out = extract_fields(html, "https://u:p@s.example/a?id=1", fields)
+    video = _scraper()._to_video(ScrapedItem("https://u:p@s.example/a?id=1", out), "SONE-205")
+    assert video.cover_url == "https://s.example/c.jpg"
+    assert video.sample_images == ["https://s.example/s1.jpg"]
+
+
 def test_parse_empty_maps_to_source_parse_empty(monkeypatch):
     _fake_scrape(monkeypatch, _err("parse_empty"))
     with pytest.raises(SourceParseEmpty) as ei:
