@@ -97,10 +97,12 @@ def _search_hits(page, step, values):
     hits = []
     for link in parse_html(page.text).select(step.results.css):
         href = (link.get("href") or "").strip()
-        url = urljoin(page.final_url, href) if href else ""
-        if urlparse(url).scheme not in ("http", "https") or url in hits:
+        try:
+            url = urljoin(page.final_url, href) if href else ""
+            web = urlparse(url).scheme in ("http", "https")
+        except ValueError:
             continue
-        if _link_matches(keep, href, link.get_text(" ", strip=True)):
+        if web and url not in hits and _link_matches(keep, href, link.get_text(" ", strip=True)):
             hits.append(url)
     return hits
 
@@ -188,9 +190,7 @@ def _guarded(spec, number, config, transport, work):
     if re.fullmatch(spec.number_pattern, canon) is None:
         return ScrapeResult("skipped")
     try:
-        if transport is None:
-            transport = make_transport(spec.fetch, f"custom:{spec.id}", config)
-        return work(canon, transport)
+        return work(canon, transport or make_transport(spec.fetch, f"custom:{spec.id}", config))
     except FetchError as exc:
         return ScrapeResult("error", reason=exc.reason, http_status=exc.http_status)
     except Exception:

@@ -111,6 +111,7 @@ def test_result_links_filtered_by_href_or_text():
         '<h3 class="entry-title"><a href="/v/12345">SONE-205 text hit</a></h3>'
         '<h3 class="entry-title"><a href="/v/999">unrelated</a></h3>'
         '<h3 class="entry-title"><a href="javascript:void(0)">SONE-205 script</a></h3>'
+        '<h3 class="entry-title"><a href="https://[">SONE-205 malformed</a></h3>'
     )
     routes = {TWO + "SONE-205": page(html),
               "https://two-step.example/v/sone-205-x/": _pg("two-step-detail-a.html"),
@@ -139,11 +140,9 @@ def test_number_mismatch_candidate_dropped():
     spec = _spec("candidates")
     body = _txt("two-step-detail-a.html")
     other = page(body.replace("SONE-205", "SONE-999"))
-    # 三個候選頁都是別的番號 -> 全丟棄
     routes = {CAND.replace("205", "206") + s: _pg("two-step-detail-a.html") for s in ("c/", "uc/", "/")}
     result, _ = _run(spec, "SONE-206", routes)
     assert result.status == "not_found"
-    # 一個相符、一個不符 -> 只留相符
     result, _ = _run(spec, "SONE-205", {CAND + "c/": _pg("two-step-detail-a.html"), CAND + "uc/": other, CAND + "/": page("", 404)})
     assert result.status == "ok"
     assert [i.detail_url for i in result.items] == [CAND + "c/"]
@@ -252,6 +251,7 @@ def test_transport_unavailable_and_unexpected_never_raise(monkeypatch):
 @pytest.mark.parametrize("c_route, uc_route, status, reason, count", [
     (_pg("two-step-detail-a.html"), page("", 500), "ok", None, 1),
     (page("", 500), _pg("two-step-detail-a.html"), "ok", None, 1),
+    (_pg("two-step-detail-a.html"), redirect("https://["), "ok", None, 1),
     (page(""), _pg("two-step-detail-a.html"), "ok", None, 1),
     (page("", 500), page("", 500), "error", "http_status", 0),
     (page("", 404), page("", 500), "error", "http_status", 0),

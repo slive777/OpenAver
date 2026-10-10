@@ -149,7 +149,10 @@ def fetch_page(url, transport, config):
             if redirects >= MAX_REDIRECTS:
                 raise FetchError("redirect_limit")
             redirects += 1
-            url = urljoin(url, raw.location)
+            try:
+                url = urljoin(url, raw.location)
+            except ValueError:
+                raise FetchError("blocked_target") from None
             continue
         if raw.status not in _DATA_STATUSES:
             raise FetchError("http_status", http_status=raw.status)
