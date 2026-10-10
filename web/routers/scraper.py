@@ -606,6 +606,55 @@ def _reconcile_wishlist_after_write() -> None:
         )
 
 
+def _check_refresh_full_overwrite_guard(request, config, path_mappings, resolved_write_cover) -> None:
+    # CD-62-4 分裂陷阱智慧防呆：refresh_full + overwrite=false 時，若這組設定不會寫出任何
+    # sidecar（NFO/cover）卻仍 _db_upsert，就是純分裂。一個 sidecar「會寫」需 write 旗標開 + 檔案缺
+    # （此分支 overwrite 已為 false，既有檔不覆寫）。兩者皆不會寫 → 擋；任一會寫則放行（quick-enrich
+    # 缺封面零回歸）。涵蓋 write_nfo/write_cover 皆 false 的純 DB-only 路徑（Codex P1）。
+    # write_extrafanart 刻意排除：_write_extrafanart 只補缺的（既有檔一律不覆寫，CD-127c-1）且只在 scraper 回
+    # sample_images 才寫；若 scraper 無 samples → 零磁碟寫出但 _db_upsert 照跑 = 分裂，
+    # 故不得計入「保證會寫 sidecar」；補劇照請用 /api/scraper/fetch-samples（Codex PR#47 round-2 P2）。
+    # 在 try 之前 raise，避免被下方 except Exception 吞成籠統 200。
+    if request.mode == "refresh_full" and not request.overwrite_existing:
+        # 72d-P2A：外部圖寫出機會也是合法的寫出路徑（72b-T6 加入 external_manager 後守衛未同步）
+        # P2-5（feature/112a Stage 2 review）：resolve_nfo_cover_paths 的 external_manager
+        # 參數 T3 之前是 stub（resolve_cover_target 不讀它），但提前於此傳真值——
+        # 一來讓 T3 三步規則落地時零呼叫端改動即可生效，二來避免留一段「簽名已加、
+        # 呼叫端仍傳預設值」的窗口期看起來像已接線。上移到 resolve_nfo_cover_paths
+        # 呼叫之前，純屬計算順序調整，不改變下面既有邏輯。
+        external_manager = config.get("scraper", {}).get("external_manager", "off")
+        nfo_path, cover_path = resolve_nfo_cover_paths(
+            request.file_path, path_mappings, external_manager
+        )
+        will_write_nfo = request.write_nfo and not os.path.exists(nfo_path)
+        will_write_cover = not should_preserve_cover(
+            resolved_write_cover, request.overwrite_existing, os.path.exists(cover_path)
+        )
+        # Codex PR review P1（pre-existing，早於 112）：guard 必須與實際寫出者
+        # （core/enricher.py::_write_external_images 的 STEM_IMAGE_MODES 白名單，
+        # core/enricher.py:270）同一套判準，不能用 `!= "off"` 當 proxy——非法值
+        # （如 "plex"）不在白名單內，_write_external_images 對它是 no-op（回
+        # {"poster": False, "fanart": False}，零檔案寫出），但 `!= "off"` 仍判真，
+        # 導致 guard 誤信「有機會寫出」而放行，實際卻磁碟／DB 兩頭都不寫，正是
+        # 這道 guard 要擋的分裂（BE-CONFIG-03：正向白名單，fail-closed）。
+        if external_manager in STEM_IMAGE_MODES:
+            stem = os.path.splitext(uri_to_local_fs_path(request.file_path, path_mappings))[0]
+            poster_path = stem + "-poster.jpg"
+            fanart_path = stem + "-fanart.jpg"
+            # 底圖存在 + 至少一張外部圖缺 → _write_external_images 有寫出機會
+            cover_exists_on_disk = os.path.exists(cover_path)
+            will_write_external = resolved_write_cover and cover_exists_on_disk and (
+                not os.path.exists(poster_path) or not os.path.exists(fanart_path)
+            )
+        else:
+            will_write_external = False
+        if not will_write_nfo and not will_write_cover and not will_write_external:
+            raise HTTPException(
+                status_code=400,
+                detail="refresh_full + overwrite_existing=false 在此設定下不會寫出任何 NFO/封面，只會更新 DB 造成與磁碟分裂；請開 overwrite_existing、確保 NFO/封面有實際寫入，或補劇照請改用 /api/scraper/fetch-samples",
+            )
+
+
 @router.post("/enrich-single")
 def enrich_single_endpoint(request: EnrichRequest) -> dict:
     config = load_config()
@@ -693,52 +742,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             logger.exception("enrich_single_endpoint readonly 改道失敗")
             return asdict(_readonly_enrich_failure("enrich 處理失敗，請查閱日誌", "error"))
 
-    # CD-62-4 分裂陷阱智慧防呆：refresh_full + overwrite=false 時，若這組設定不會寫出任何
-    # sidecar（NFO/cover）卻仍 _db_upsert，就是純分裂。一個 sidecar「會寫」需 write 旗標開 + 檔案缺
-    # （此分支 overwrite 已為 false，既有檔不覆寫）。兩者皆不會寫 → 擋；任一會寫則放行（quick-enrich
-    # 缺封面零回歸）。涵蓋 write_nfo/write_cover 皆 false 的純 DB-only 路徑（Codex P1）。
-    # write_extrafanart 刻意排除：_write_extrafanart 只補缺的（既有檔一律不覆寫，CD-127c-1）且只在 scraper 回
-    # sample_images 才寫；若 scraper 無 samples → 零磁碟寫出但 _db_upsert 照跑 = 分裂，
-    # 故不得計入「保證會寫 sidecar」；補劇照請用 /api/scraper/fetch-samples（Codex PR#47 round-2 P2）。
-    # 在 try 之前 raise，避免被下方 except Exception 吞成籠統 200。
-    if request.mode == "refresh_full" and not request.overwrite_existing:
-        # 72d-P2A：外部圖寫出機會也是合法的寫出路徑（72b-T6 加入 external_manager 後守衛未同步）
-        # P2-5（feature/112a Stage 2 review）：resolve_nfo_cover_paths 的 external_manager
-        # 參數 T3 之前是 stub（resolve_cover_target 不讀它），但提前於此傳真值——
-        # 一來讓 T3 三步規則落地時零呼叫端改動即可生效，二來避免留一段「簽名已加、
-        # 呼叫端仍傳預設值」的窗口期看起來像已接線。上移到 resolve_nfo_cover_paths
-        # 呼叫之前，純屬計算順序調整，不改變下面既有邏輯。
-        external_manager = config.get("scraper", {}).get("external_manager", "off")
-        nfo_path, cover_path = resolve_nfo_cover_paths(
-            request.file_path, path_mappings, external_manager
-        )
-        will_write_nfo = request.write_nfo and not os.path.exists(nfo_path)
-        will_write_cover = not should_preserve_cover(
-            resolved_write_cover, request.overwrite_existing, os.path.exists(cover_path)
-        )
-        # Codex PR review P1（pre-existing，早於 112）：guard 必須與實際寫出者
-        # （core/enricher.py::_write_external_images 的 STEM_IMAGE_MODES 白名單，
-        # core/enricher.py:270）同一套判準，不能用 `!= "off"` 當 proxy——非法值
-        # （如 "plex"）不在白名單內，_write_external_images 對它是 no-op（回
-        # {"poster": False, "fanart": False}，零檔案寫出），但 `!= "off"` 仍判真，
-        # 導致 guard 誤信「有機會寫出」而放行，實際卻磁碟／DB 兩頭都不寫，正是
-        # 這道 guard 要擋的分裂（BE-CONFIG-03：正向白名單，fail-closed）。
-        if external_manager in STEM_IMAGE_MODES:
-            stem = os.path.splitext(uri_to_local_fs_path(request.file_path, path_mappings))[0]
-            poster_path = stem + "-poster.jpg"
-            fanart_path = stem + "-fanart.jpg"
-            # 底圖存在 + 至少一張外部圖缺 → _write_external_images 有寫出機會
-            cover_exists_on_disk = os.path.exists(cover_path)
-            will_write_external = resolved_write_cover and cover_exists_on_disk and (
-                not os.path.exists(poster_path) or not os.path.exists(fanart_path)
-            )
-        else:
-            will_write_external = False
-        if not will_write_nfo and not will_write_cover and not will_write_external:
-            raise HTTPException(
-                status_code=400,
-                detail="refresh_full + overwrite_existing=false 在此設定下不會寫出任何 NFO/封面，只會更新 DB 造成與磁碟分裂；請開 overwrite_existing、確保 NFO/封面有實際寫入，或補劇照請改用 /api/scraper/fetch-samples",
-            )
+    _check_refresh_full_overwrite_guard(request, config, path_mappings, resolved_write_cover)
 
     try:
         scraper_data = None
