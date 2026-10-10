@@ -66,9 +66,10 @@ def test_upload_description_has_four_things(client):
     d = t["description"]
     assert "https://github.com/slive777/OpenAver/blob/main/docs/custom-sources.md" in d
     assert "自己撰寫" in d
-    assert "設定頁打開" in d
-    assert "啟用不在 API" in d
-    for w in ("請求", "合法", "預設關閉"):
+    assert "驗收通過即自動啟用" in d
+    assert "重新整理" in d
+    assert "AI 沒有啟用端點" in d
+    for w in ("請求", "合法", "未驗證"):
         assert w in d
     assert "Content-Type: text/plain" in t["example"]
     assert "--data-binary" in t["example"]
@@ -99,4 +100,4 @@ def test_source_description_mentions_custom_id(client, name):
     desc = _tool(client.get("/api/capabilities").json(), name)["input_schema"]["properties"]["source"]["description"]
     assert "custom:<id>" in desc
     assert "驗收" in desc
-    assert "設定頁" in desc
+    assert "已啟用" in desc

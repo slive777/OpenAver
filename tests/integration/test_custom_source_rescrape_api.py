@@ -84,8 +84,7 @@ def _ready(env, sid, text, enable=True):
     put_source(env, sid, text)
     sha = registry.load_one(sid).sha256
     assert state.record_result(sid, sha, "passed", {"total": 1, "failed": 0, "cases": []}, state.get_gen(sid))
-    if enable:
-        assert state.set_enabled(sid, True, sha)
+    assert state.set_enabled(sid, bool(enable), sha)  # 通過即啟用（165-T16），未啟用要明確關閉
 
 
 def _yaml(text, sid, old):

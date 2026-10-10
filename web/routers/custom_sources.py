@@ -14,7 +14,7 @@ from core.custom_source.service import ServiceError
 router = APIRouter(prefix="/api", tags=["custom_sources"])
 
 MAX_BODY_BYTES = 256 * 1024
-UPLOAD_NEXT = "請呼叫驗收；通過後請使用者到設定頁打開"
+UPLOAD_NEXT = "請呼叫驗收；通過即自動啟用，請使用者重新整理搜尋頁／瀏覽頁"
 _ERROR_TEXT = {
     "data_root_not_ready": "資料根尚未就緒，請先完成資料根設定",
     "verify_busy": "另一個來源正在驗收，請稍後再試",

@@ -14,8 +14,8 @@ router = APIRouter(prefix="/api", tags=["capabilities"])
 
 
 _CUSTOM_SOURCES_DOC_URL = "https://github.com/slive777/OpenAver/blob/main/docs/custom-sources.md"
-_CUSTOM_SOURCES_ENABLE_NOTE = "驗收通過後請使用者到設定頁打開；啟用不在 API，AI 無法代為啟用。"
-_CUSTOM_SOURCE_ID_NOTE = "也可填 `custom:<id>`（使用者自訂來源）：須已上傳、驗收通過，且使用者已在設定頁打開，三者缺一都會被拒絕。"
+_CUSTOM_SOURCES_ENABLE_NOTE = "驗收通過即自動啟用（使用者可在設定頁關掉；同內容重驗不會把使用者關掉的再打開），請使用者重新整理搜尋頁／瀏覽頁；啟用／關閉端點不在 API，AI 沒有啟用端點。"
+_CUSTOM_SOURCE_ID_NOTE = "也可填 `custom:<id>`（使用者自訂來源）：須已上傳、驗收通過，且已啟用（驗收通過即啟用），三者缺一都會被拒絕。"
 
 
 _TOOLS: list[dict] = [
@@ -984,7 +984,7 @@ _TOOLS: list[dict] = [
             "同 id 再傳＝覆蓋，狀態重設且自動關閉。"
             "這份 YAML 可由 AI 自己撰寫；格式說明見（網址單獨一行）：\n"
             + _CUSTOM_SOURCES_DOC_URL
-            + "\n風險：之後的驗收與重刮都會對該站發請求，內容與合法性由撰寫者負責；上傳本身不執行程式碼，來源預設關閉。\n"
+            + "\n風險：之後的驗收與重刮都會對該站發請求，內容與合法性由撰寫者負責；上傳本身不執行程式碼；上傳後的來源是未驗證狀態，驗收通過才自動啟用。\n"
             + _CUSTOM_SOURCES_ENABLE_NOTE
         ),
         "method": "POST",
@@ -1012,7 +1012,7 @@ _TOOLS: list[dict] = [
         "name": "custom_source_verify",
         "description": (
             "驗收一個已上傳的自訂來源：同步等待，會對該站發請求（每案最多 25 秒、整次最多 180 秒），一次只能驗一個。"
-            "回傳每條案例通過與否，失敗案例附預期／實際／網址。會對外站發出請求，須經使用者確認。"
+            "回傳每條案例通過與否與 enabled，失敗案例附預期／實際／網址；通過即自動啟用（失敗則關閉）。會對外站發出請求，須經使用者確認。"
         ),
         "method": "POST",
         "path": "/api/custom-sources/{id}/verify",

@@ -102,7 +102,7 @@ def test_record_result_persists_to_disk(env):
     assert _record(SID, SHA_A, "passed", _result(_cases(2), total=2))
     entry = json.loads(cfg_path.read_text(encoding="utf-8"))["custom_sources"][SID]
     assert entry["sha256"] == SHA_A and entry["status"] == "passed"
-    assert entry["enabled"] is False
+    assert entry["enabled"] is True  # 首次通過即啟用（165-T16 翻案）
     assert isinstance(entry["verified_at"], int)
     assert entry["last_result"]["total"] == 2
 
@@ -182,16 +182,34 @@ def test_truncation_cases_mismatches_and_value_length(env):
     assert m["expected"] == str(["a", "b"])
 
 
-def test_failed_result_forces_disabled_and_passed_keeps_only_same_sha(env):
-    _record(SID, SHA_A, "passed")
-    assert state.set_enabled(SID, True, SHA_A) is True
-    _record(SID, SHA_A, "passed")  # 同雜湊重驗：保留 enabled
+def test_first_pass_auto_enables(env):
+    _record(SID, SHA_A, "passed")  # 無既有紀錄
     assert load_config()["custom_sources"][SID]["enabled"] is True
-    _record(SID, "b" * 64, "passed")  # 不同雜湊：關閉
+
+
+def test_same_sha_reverify_keeps_user_disabled(env):
+    _record(SID, SHA_A, "passed")
+    assert state.set_enabled(SID, False, SHA_A) is True  # 使用者手動關掉
+    _record(SID, SHA_A, "passed")  # 同雜湊重驗：保留關閉
     assert load_config()["custom_sources"][SID]["enabled"] is False
-    state.set_enabled(SID, True, "b" * 64)
-    _record(SID, "b" * 64, "failed")  # 失敗：必關
+    state.set_enabled(SID, True, SHA_A)
+    _record(SID, SHA_A, "passed")  # 同雜湊、使用者開著：保留開
+    assert load_config()["custom_sources"][SID]["enabled"] is True
+
+
+def test_failed_then_same_sha_pass_reenables(env):
+    _record(SID, SHA_A, "passed")
+    _record(SID, SHA_A, "failed")  # 失敗：必關
     assert load_config()["custom_sources"][SID]["enabled"] is False
+    _record(SID, SHA_A, "passed")  # 失敗是系統關的，修好後恢復
+    assert load_config()["custom_sources"][SID]["enabled"] is True
+
+
+def test_different_sha_pass_enables_even_if_user_disabled(env):
+    _record(SID, SHA_A, "passed")
+    state.set_enabled(SID, False, SHA_A)
+    _record(SID, "b" * 64, "passed")  # 內容變更
+    assert load_config()["custom_sources"][SID]["enabled"] is True
 
 
 def test_set_enabled_requires_passed_and_same_sha(env):
@@ -201,7 +219,8 @@ def test_set_enabled_requires_passed_and_same_sha(env):
     assert cfg_path.read_bytes() == before
     _record(SID, SHA_A, "failed")
     assert state.set_enabled(SID, True, SHA_A) is False  # failed
-    _record(SID, SHA_A, "passed")
+    _record(SID, SHA_A, "passed")  # 通過即啟用（165-T16）；先由使用者關掉，才看得出雜湊不符的拒絕
+    assert state.set_enabled(SID, False, SHA_A) is True
     assert state.set_enabled(SID, True, "c" * 64) is False  # 雜湊不符
     assert load_config()["custom_sources"][SID]["enabled"] is False
     assert state.set_enabled(SID, True, SHA_A) is True

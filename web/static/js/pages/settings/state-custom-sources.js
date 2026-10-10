@@ -164,7 +164,7 @@ export function customSources() {
                 status: body.status,
                 verified_at: body.verified_at,
                 last_result: { total: body.total, failed: body.failed, cases: body.cases },
-                enabled: body.status === 'failed' ? false : e.enabled,
+                enabled: typeof body.enabled === 'boolean' ? body.enabled : (body.status === 'failed' ? false : e.enabled),
             }));
         },
 

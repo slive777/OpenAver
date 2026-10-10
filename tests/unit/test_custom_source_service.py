@@ -325,7 +325,30 @@ def test_failed_reverify_closes_enabled(env):
     assert (item["status"], item["enabled"]) == ("failed", False)
     assert _entries(cfg_path)[SID]["enabled"] is False  # 持久化的開關也被關掉，不是只有顯示層遮住
     assert service.verify(SID, transport=_tp())["status"] == "passed"
-    assert _status()["enabled"] is False  # 之後修好再通過，不會自己復活成已啟用
+    assert _status()["enabled"] is True  # 失敗是系統關的；之後修好再通過即恢復啟用（165-T16 Q1）
+
+
+def test_first_pass_auto_enables(env):
+    service.upload(GOOD)
+    out = service.verify(SID, transport=_tp())
+    assert out["status"] == "passed" and out["enabled"] is True
+    assert _status()["enabled"] is True
+
+
+def test_same_sha_reverify_keeps_user_disabled(env):
+    _passed(env)
+    service.set_enabled(SID, False)
+    out = service.verify(SID, transport=_tp())
+    assert out["status"] == "passed" and out["enabled"] is False
+    assert _status()["enabled"] is False
+    service.upload(GOOD)  # 重傳清掉紀錄 → 驗收通過即啟用
+    assert service.verify(SID, transport=_tp())["enabled"] is True
+
+
+def test_failed_verify_response_enabled_false(env):
+    _passed(env)
+    out = service.verify(SID, transport=_tp(changed=True))
+    assert out["status"] == "failed" and out["enabled"] is False
 
 
 def test_passing_reverify_keeps_enabled(env):
@@ -391,7 +414,7 @@ def test_list_sources_shape_and_load_failed_and_orphans(env):
     assert set(items) == {"broken", SID}
     good = items[SID]
     assert good["source_id"] == "custom:single-og" and good["name"]
-    assert good["status"] == "passed" and good["enabled"] is False
+    assert good["status"] == "passed" and good["enabled"] is True
     assert good["load_error"] is None and good["verified_at"] == _entries(cfg_path)[SID]["verified_at"]
     assert good["last_result"]["total"] == 2
     bad = items["broken"]
@@ -434,7 +457,9 @@ def test_applicable_is_pure_and_lists_only_routable(env, monkeypatch):
     service.upload(GOOD_MIN)
     assert service.applicable("SONE-205") == {}
     service.verify(SID, transport=_tp())
-    assert service.applicable("SONE-205") == {}  # passed 但未啟用
+    assert service.applicable("SONE-205") == {"custom:single-og": True}  # 通過即啟用（165-T16）
+    service.set_enabled(SID, False)
+    assert service.applicable("SONE-205") == {}  # passed 但被使用者關閉
     service.set_enabled(SID, True)
 
     def boom(*a, **k):

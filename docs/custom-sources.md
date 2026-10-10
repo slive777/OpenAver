@@ -274,7 +274,7 @@ tests:
 
 ## 13. 上傳、驗收與狀態
 
-這一章給 AI：把寫好的 YAML 上傳、請求驗收、查狀態要打哪些端點，會遇到哪些錯誤碼，以及來源被實際使用前要滿足什麼。上傳與驗收**都不會啟用**來源：啟用只能由使用者在設定頁按，AI 無法代為啟用。
+這一章給 AI：把寫好的 YAML 上傳、請求驗收、查狀態要打哪些端點，會遇到哪些錯誤碼，以及來源被實際使用前要滿足什麼。上傳不會啟用來源；**驗收通過的當下來源即自動啟用**（使用者仍可在設定頁關掉；同一份內容重新驗收不會把使用者關掉的再打開）。AI 沒有啟用端點，不需要也無法另外啟用。通過後請告訴使用者：「驗收通過即可用，請重新整理搜尋頁／瀏覽頁」（來源清單在頁面載入時注入，啟用後需重新整理才會出現）。
 
 ### 端點
 
@@ -286,7 +286,7 @@ tests:
 curl -X POST http://localhost:8000/api/custom-sources -H 'Content-Type: text/plain' --data-binary @my-source.yaml
 ```
 
-驗收（會連網跑 `tests`，回 200 `{success, id, status, verified_at, total, failed, cases: [{index, number, passed, mismatches: [{key, expected, actual, url}]}]}`；`status` 為 `passed` 或 `failed`，`failed` 時照 `mismatches` 修 YAML 後重傳）：
+驗收（會連網跑 `tests`，回 200 `{success, id, status, enabled, verified_at, total, failed, cases: [{index, number, passed, mismatches: [{key, expected, actual, url}]}]}`；`status` 為 `passed` 或 `failed`，`failed` 時照 `mismatches` 修 YAML 後重傳）：
 
 ```bash
 curl -X POST http://localhost:8000/api/custom-sources/my-source/verify
@@ -333,11 +333,11 @@ curl -X DELETE http://localhost:8000/api/custom-sources/my-source
 | `failed` | 驗收沒有通過；照 `mismatches` 修正後重傳 |
 | `load_failed` | 檔案載入失敗（YAML 或 schema 錯誤） |
 
-狀態依序推導：`load_failed` → `verifying` → `unverified` → `passed`／`failed`。紀錄的檔案雜湊與現檔不符、或紀錄損壞，一律視為 `unverified`。驗收失敗必自動關閉該來源；重傳（含內容完全相同）一定把狀態重設為 `unverified` 並關閉。`enabled` 只在 `passed` 時有效。
+狀態依序推導：`load_failed` → `verifying` → `unverified` → `passed`／`failed`。紀錄的檔案雜湊與現檔不符、或紀錄損壞，一律視為 `unverified`。驗收失敗必自動關閉該來源；驗收通過即啟用（首次、內容變更、失敗後恢復皆是），但同一份內容在已通過的狀態下重新驗收，會保留使用者手動關閉的狀態。重傳（含內容完全相同）一定把狀態重設為 `unverified` 並關閉。`enabled` 只在 `passed` 時有效。
 
 ### 使用 custom:<id> 的條件
 
-`custom:<id>` 用在三處：`search`（`GET /api/search?source=custom:<id>`）、`enrich_single`（`POST /api/enrich-single`）、`rescrape`（`POST /api/rescrape/preview`）。**三個條件缺一就被拒**：已驗收通過、使用者已在設定頁打開、番號符合該來源的 `number_pattern`（沒寫 `number_pattern` 的來源不限制番號，只要非空）。
+`custom:<id>` 用在三處：`search`（`GET /api/search?source=custom:<id>`）、`enrich_single`（`POST /api/enrich-single`）、`rescrape`（`POST /api/rescrape/preview`）。**三個條件缺一就被拒**：已驗收通過、已啟用（驗收通過即啟用，使用者可在設定頁關掉）、番號符合該來源的 `number_pattern`（沒寫 `number_pattern` 的來源不限制番號，只要非空）。
 
 | reason | 意思 |
 |---|---|
@@ -346,7 +346,7 @@ curl -X DELETE http://localhost:8000/api/custom-sources/my-source
 | `verifying` | 正在驗收中，請稍後再試 |
 | `unverified` | 尚未通過驗收，請先驗收 |
 | `failed` | 驗收沒有通過（站方可能改版了），需重跑驗收 |
-| `disabled` | 使用者尚未在設定頁啟用 |
+| `disabled` | 來源已被關閉（使用者在設定頁關掉） |
 | `pattern_mismatch` | 這個番號不符合此來源接受的格式（只有寫了 `number_pattern` 的來源會出現） |
 
 三處被拒時的回應形狀：
@@ -370,4 +370,4 @@ curl -X DELETE http://localhost:8000/api/custom-sources/my-source
 - 批次補完不支援 `custom:*`，一律拒絕。
 - 新片入庫與自動搜尋不會問自訂來源，要事後重刮。
 - 不支援 cookie 與 Cloudflare 驗證（見 §12 第 2 條）。
-- AI 無法啟用來源，啟用一定由使用者在設定頁完成。
+- AI 沒有啟用端點：驗收通過即自動啟用，要關閉只能由使用者在設定頁操作。

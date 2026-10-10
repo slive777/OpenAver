@@ -262,6 +262,19 @@ test('verify POST ok then GET fails: entry keeps the POST status, line shows a s
   assert.equal(c.customSrcPollTimer, null);
 });
 
+test('verify passed response enabled is adopted by the capsule', async () => {
+  const c = make();
+  c.customSrcList = [entry('a', 'unverified', { enabled: false })];
+  const cases = [{ index: 1, number: 'AAA-001', passed: true, mismatches: [] }];
+  routedFetch({
+    'POST /api/custom-sources/a/verify': resp({ success: true, id: 'a', status: 'passed', enabled: true, verified_at: 1700000000, total: 1, failed: 0, cases }),
+    'GET /api/custom-sources': () => { throw new Error('net'); },
+  });
+  await c.customSrcVerify('a');
+  assert.equal(c.customSrcList[0].status, 'passed');
+  assert.equal(c.customSrcList[0].enabled, true);
+});
+
 test('toggle POST ok then GET fails: entry shows the POST enabled, line shows a sync error, no spinner', async () => {
   const c = make();
   c.customSrcList = [entry('p', 'passed', { enabled: false })];

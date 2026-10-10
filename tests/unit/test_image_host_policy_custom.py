@@ -40,8 +40,7 @@ def _install(d, *, passed=True, enable=True):
         assert state.record_result(
             SID, sha, "passed", {"total": 1, "failed": 0, "cases": []}, state.get_gen(SID)
         )
-        if enable:
-            assert state.set_enabled(SID, True, sha)
+        assert state.set_enabled(SID, bool(enable), sha)  # 通過即啟用（165-T16），未啟用要明確關閉
     return path, sha
 
 

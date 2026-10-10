@@ -16,7 +16,7 @@ from tests.unit._custom_source_pages import FIXTURE_DIR, PAGES
 GOOD = (FIXTURE_DIR / "single-og.yaml").read_text(encoding="utf-8")
 SOG = "https://single-og.example/sone-205"
 SOG_MISS = "https://single-og.example/zzzz-999"
-NEXT_SENTENCE = "請呼叫驗收；通過後請使用者到設定頁打開"
+NEXT_SENTENCE = "請呼叫驗收；通過即自動啟用，請使用者重新整理搜尋頁／瀏覽頁"
 
 
 def _yaml(source_id, extra=""):
@@ -191,7 +191,8 @@ def test_full_round(client, env, fake):
     assert body["success"] is True and body["status"] == "passed" and body["failed"] == 0
     listed = client.get("/api/custom-sources").json()
     assert listed["success"] is True
-    assert [(s["id"], s["status"], s["enabled"]) for s in listed["sources"]] == [("single-og", "passed", False)]
+    assert [(s["id"], s["status"], s["enabled"]) for s in listed["sources"]] == [("single-og", "passed", True)]
+    assert body["enabled"] is True
     resp = client.post("/api/custom-sources/single-og/enabled", json={"enabled": True})
     assert resp.status_code == 200 and resp.json()["enabled"] is True
     resp = client.post("/api/custom-sources/applicable", json={"number": "SONE-205"})

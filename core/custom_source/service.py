@@ -95,8 +95,10 @@ def _run_verify(source_id, transport):
     last_result = {"total": len(cases), "failed": failed, "cases": cases}
     if not state.record_result(source_id, loaded.sha256, status, last_result, gen_seen):
         raise ServiceError("changed_during_verify", 409)
-    verified_at = (state.read_entry(source_id) or {}).get("verified_at")
-    return {"id": source_id, "status": status, "verified_at": verified_at, **last_result}
+    entry = state.read_entry(source_id) or {}
+    verified_at = entry.get("verified_at")
+    enabled = bool(entry.get("enabled"))
+    return {"id": source_id, "status": status, "verified_at": verified_at, "enabled": enabled, **last_result}
 
 
 def verify(source_id, *, transport=None):

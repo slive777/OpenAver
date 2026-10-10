@@ -100,7 +100,10 @@ def _clip_result(result):
 
 
 def record_result(source_id, sha256, status, result, gen_seen):
-    """寫入驗收結果；gen 與 gen_seen 不同則不寫、回 False（世代圍欄，無略過後門）。"""
+    """寫入驗收結果；gen 與 gen_seen 不同則不寫、回 False（世代圍欄，無略過後門）。
+
+    enabled：失敗→False；通過且既有紀錄 passed 同 sha256→保留既有值；其餘通過→True。
+    """
     if status not in STATUSES:
         raise ValueError("status must be 'passed' or 'failed'")
     with LOCK:
@@ -114,12 +117,14 @@ def record_result(source_id, sha256, status, result, gen_seen):
             if not isinstance(entries, dict):
                 entries = cfg[KEY] = {}
             old = entries.get(source_id)
-            keep = (
-                status == "passed"
-                and isinstance(old, dict)
+            # 保留既有 enabled 只限「既有為 passed 且同 sha」（使用者手動關掉的決定）；
+            # 其餘通過（首次、內容變更、failed 後恢復）一律啟用；失敗一律關閉。
+            same = (
+                isinstance(old, dict)
                 and old.get("sha256") == sha256
-                and bool(old.get("enabled"))
+                and old.get("status") == "passed"
             )
+            keep = status == "passed" and (bool(old.get("enabled")) if same else True)
             entries[source_id] = {
                 "sha256": sha256,
                 "status": status,

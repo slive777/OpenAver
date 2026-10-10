@@ -40,8 +40,8 @@ def _sha(path):
 
 def _record(sid, sha, status="passed", enable=False):
     assert state.record_result(sid, sha, status, {"total": 1, "failed": 0, "cases": []}, state.get_gen(sid))
-    if enable:
-        assert state.set_enabled(sid, True, sha)
+    if status == "passed":  # 通過即啟用（165-T16）；enable=False 明確關閉才是「通過但未啟用」
+        assert state.set_enabled(sid, bool(enable), sha)
 
 
 def test_gate_not_loaded_id_missing(env):

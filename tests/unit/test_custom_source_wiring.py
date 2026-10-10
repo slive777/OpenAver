@@ -63,8 +63,7 @@ def _pass(sid, enabled=True):
     loaded = registry.load_one(sid)
     result = {"total": 1, "failed": 0, "cases": [{"index": 0, "number": NUMBER, "passed": True, "mismatches": []}]}
     assert state.record_result(sid, loaded.sha256, "passed", result, state.get_gen(sid))
-    if enabled:
-        assert state.set_enabled(sid, True, loaded.sha256)
+    assert state.set_enabled(sid, bool(enabled), loaded.sha256)  # 通過即啟用（165-T16），未啟用要明確關閉
 
 
 def _ready_og(env, monkeypatch, routes=None):
