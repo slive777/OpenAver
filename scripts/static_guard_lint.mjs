@@ -2595,8 +2595,18 @@ const RULES = [
     note: '[163a-T6b-set] 使用者在重刮視窗指定 DMM、DMM 拒絕連線 → 要看到「拒絕連線」，不能只說「找不到」而讓人以為 DMM 沒這片',
   },
   {
-    file: 'web/static/js/shared/state-rescrape.js', kind: 'structure-count', pattern: 'this.rescrapeAccessError = null;', count: 7,
-    note: '[163a-T6b-reset] 使用者被拒後按「換來源」／關窗再開／改番號 → 紅字要消失；開窗、番號空白、送出前、查無 fallback、網路失敗 catch、回選單、關窗各清一次，少一處上一個來源的紅字就黏在畫面上',
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'structure-count', pattern: 'this._clearRescrapeErrors();', count: 10,
+    note: '[163a-T6b-reset]（165-T10 搬遷）原 7 處 `rescrapeAccessError = null` 集中為 helper；呼叫點數棘輪。使用者被拒後按「換來源」／關窗再開／改番號 → 紅字要消失；開窗、番號空白、送出前、查無 fallback、網路失敗 catch、回選單、關窗各清一次，少一處上一個來源的紅字就黏在畫面上',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string',
+    pattern: /_clearRescrapeErrors\(\) \{\s*this\.rescrapeNotFound = false;\s*this\.rescrapeAccessError = null;\s*this\.rescrapeCustomError = null;/,
+    note: '[163a-T6b-reset]（165-T10 搬遷）helper 本體必須同時清 not-found／access／custom 三種紅字，少一個就會兩行紅字並存',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string',
+    pattern: 'onRescrapeNumberInput() {\n            this._clearRescrapeErrors();',
+    note: '[163a-T6b-modal-reset-body]（165-T10 搬遷補）使用者被拒後改番號 → 紅字要立刻消失；helper 呼叫必須是該方法第一個敘述；要重排就同步改這條，粗顆粒守衛',
   },
   {
     file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "window.t('showcase.rescrape.access_refused'",
@@ -2628,8 +2638,8 @@ const RULES = [
     note: '[163a-T6b-modal-block] 紅字區塊要顯示映射後的訊息文字',
   },
   {
-    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: /@input="[^"]*rescrapeAccessError = null/,
-    note: '[163a-T6b-modal-reset] 使用者被拒後改番號 → 紅字要立刻消失，否則舊來源的錯誤蓋在新番號上',
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: /@input="[^"]*onRescrapeNumberInput\(\)/,
+    note: '[163a-T6b-modal-reset]（165-T10 搬遷）使用者被拒後改番號 → 紅字要立刻消失，否則舊來源的錯誤蓋在新番號上',
   },
   {
     file: 'web/static/js/pages/search/state/advanced-picker.js', kind: 'required-string', pattern: /errorText = this\._advancedAccessText\(data\)/,

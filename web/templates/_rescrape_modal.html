@@ -28,7 +28,7 @@
            但實測「拖入檔名解析錯 → 搜尋無結果 → 想在當前卡改正番號重抓」是真實工作流，
            故放開唯讀，讓 🔄 長壓 = 改番號 + 挑來源、只替換當前卡（仍不重設結果列，與 US5 區隔）。 #}
         <input class="rescrape-num-input" type="text" x-model="rescrapeNumber"
-               @input="if (rescrapeCfWaiting) cancelCfPoll(); rescrapeNotFound = false; rescrapeAccessError = null">
+               @input="onRescrapeNumberInput()">
         <div class="rescrape-hint">{{ t('showcase.rescrape.filename_hint') }}：<code x-text="rescrapeOriginalFilename"></code></div>
       </div>
 
@@ -95,6 +95,30 @@
         {# 空組 note：僅當 metatube 來源為 0 時顯示（B2 無 metatube → 仍顯示；B3 註冊後自動隱） #}
         <div class="rescrape-empty-note" x-show="rescrapeMetatubeSources().length === 0">{{ t('settings.advanced_search.group_metatube_empty') }}</div>
 
+        {# 自訂來源分組（165-T10）：<template x-if>＝零自訂來源時不輸出任何節點。
+           格式不符灰化由後端 applicable 判斷（aria-disabled＋title），擋點在 rescrapeWithSource。 #}
+        <template x-if="rescrapeCustomSources().length > 0">
+          <div>
+            <div class="rescrape-group-sep">{{ t('showcase.rescrape.group_custom') }}</div>
+            <div class="source-pill-row">
+              <template x-for="s in rescrapeCustomSources()" :key="s.id">
+                <button type="button" class="source-pill source-pill--action source-pill--manual-only"
+                        :class="{ 'is-loading': rescrapeLoadingSource === s.id }"
+                        data-enabled="true"
+                        :aria-disabled="rescrapeCustomApplicable[s.id] === false ? 'true' : 'false'"
+                        :title="rescrapeCustomApplicable[s.id] === false ? t('showcase.rescrape.custom_pattern_mismatch') : ''"
+                        :disabled="rescrapeLoadingSource !== null && rescrapeLoadingSource !== s.id"
+                        @click="rescrapeWithSource(s.id)">
+                  <span class="pill-spin" x-show="rescrapeLoadingSource === s.id"></span>
+                  <i class="bi bi-slash-circle slash-icn" x-show="rescrapeLoadingSource !== s.id" aria-hidden="true"></i>
+                  <span class="pill-name" x-text="s.display_name_raw || s.id"></span>
+                  <span class="source-pill-custom-badge" aria-hidden="true">c</span>
+                </button>
+              </template>
+            </div>
+          </div>
+        </template>
+
         {# 70-T6: CF waiting 態（JavLibrary CF 解題中） #}
         <div x-show="rescrapeCfWaiting" class="rescrape-cf-waiting">
           <span class="pill-spin" aria-hidden="true"></span>
@@ -116,6 +140,12 @@
         <div class="rescrape-inline-error" x-show="rescrapeNotFound" x-cloak>
           <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
           <span>{{ t('showcase.rescrape.not_found') }}</span>
+        </div>
+
+        {# 自訂來源失敗句（查無／站方改版／預檢拒絕）：與上兩塊互斥 #}
+        <div class="rescrape-inline-error" x-show="rescrapeCustomError" x-cloak>
+          <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+          <span x-text="rescrapeCustomMessage(rescrapeCustomError)"></span>
         </div>
       </div>
 

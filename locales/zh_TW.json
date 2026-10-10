@@ -1047,7 +1047,12 @@
       "version_next_aria": "下一個版本",
       "adopt_version": "採用此版本",
       "adopt_switch_source": "替換此版本",
-      "preserve_title": "保留目前標題：「{title}」"
+      "preserve_title": "保留目前標題：「{title}」",
+      "group_custom": "自訂來源",
+      "custom_pattern_mismatch": "此來源不收這種番號",
+      "custom_not_found": "{source} 沒有這部片",
+      "custom_parse_failed": "{source} 抓不到資料，站方可能改版了，請到設定頁重跑驗收",
+      "custom_refused": "{source} 目前無法使用"
     },
     "placeholder": {
       "search": "搜尋番號、女優、標題..."
