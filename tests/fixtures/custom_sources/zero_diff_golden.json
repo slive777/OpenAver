@@ -1,0 +1,65 @@
+{
+ "baseline_commit": "35a9cb70",
+ "capabilities_source_enums": {
+  "GET /api/search /input_schema/properties": [
+   "dmm",
+   "javbus",
+   "jav321",
+   "javdb",
+   "d2pass",
+   "heyzo",
+   "fc2",
+   "avsox"
+  ],
+  "POST /api/actresses/{name} /input_schema/properties/photo/properties": [
+   "graphis",
+   "gfriends",
+   "wiki",
+   "xcity",
+   "local_crop"
+  ],
+  "POST /api/actresses/{name}/photo /input_schema/properties": [
+   "graphis",
+   "gfriends",
+   "wiki",
+   "xcity",
+   "local_crop"
+  ],
+  "POST /api/batch-enrich /input_schema/properties": [
+   "auto",
+   "dmm",
+   "javbus",
+   "jav321",
+   "javdb",
+   "d2pass",
+   "heyzo",
+   "fc2",
+   "avsox"
+  ],
+  "POST /api/batch-enrich /input_schema/properties/items/items/properties": [
+   "auto",
+   "dmm",
+   "javbus",
+   "jav321",
+   "javdb",
+   "d2pass",
+   "heyzo",
+   "fc2",
+   "avsox"
+  ],
+  "POST /api/enrich-single /input_schema/properties": [
+   "auto",
+   "dmm",
+   "javbus",
+   "jav321",
+   "javdb",
+   "d2pass",
+   "heyzo",
+   "fc2",
+   "avsox"
+  ]
+ },
+ "config_sources": "{\"success\":true,\"data\":{\"scraper\":{\"create_folder\":true,\"folder_layers\":[\"{actor}\"],\"folder_format\":\"{actor}\",\"filename_format\":\"{num} {title}\",\"nfo_title_format\":\"[{num}]{title}\",\"download_cover\":true,\"cover_filename\":\"poster.jpg\",\"create_nfo\":true,\"max_title_length\":50,\"max_filename_length\":60,\"video_extensions\":[\".avi\",\".asf\",\".divx\",\".flv\",\".iso\",\".m2ts\",\".m4v\",\".mkv\",\".mov\",\".mp4\",\".mpeg\",\".mpg\",\".rm\",\".rmvb\",\".strm\",\".ts\",\".vob\",\".webm\",\".wmv\"],\"suffix_keywords\":[\"-cd1\",\"-cd2\",\"-4k\",\"-uc\"],\"jellyfin_mode\":false,\"external_manager\":\"off\",\"download_sample_images\":false,\"strm_path_mappings\":{}},\"search\":{\"search_filter\":\"\",\"uncensored_mode_enabled\":false,\"favorite_folder\":\"\",\"proxy_url\":\"\",\"proxy_scope\":\"dmm\",\"auto_organize\":{\"enabled\":false}},\"source_links\":{\"dmm\":true,\"d2pass\":true,\"heyzo\":true,\"fc2\":true,\"javbus\":false,\"jav321\":false,\"javdb\":false,\"avsox\":false},\"translate\":{\"enabled\":false,\"provider\":\"ollama\",\"batch_size\":10,\"ollama\":{\"url\":\"http://localhost:11434\",\"model\":\"qwen3:8b\"},\"gemini\":{\"api_key\":\"\",\"model\":\"gemini-flash-lite-latest\"},\"openai\":{\"base_url\":\"\",\"api_key\":\"\",\"model\":\"gpt-4o-mini\",\"use_custom_model\":false}},\"gallery\":{\"directories\":[],\"output_dir\":\"\",\"output_filename\":\"gallery_output.html\",\"path_mappings\":{},\"min_size_mb\":0,\"default_mode\":\"image\",\"default_sort\":\"date\",\"default_order\":\"descending\",\"items_per_page\":90,\"show_table_list\":false,\"cover_badges\":{\"enabled\":false,\"items\":{}}},\"showcase\":{\"player\":\"\"},\"general\":{\"default_page\":\"search\",\"theme\":\"light\",\"sidebar_collapsed\":false,\"tutorial_completed\":false,\"font_size\":\"md\",\"locale\":\"zh-TW\",\"server_mode\":false,\"close_action\":\"ask\",\"auto_check_update\":true,\"last_notified_update_version\":\"\"},\"sources\":[{\"id\":\"dmm\",\"type\":\"builtin\",\"display_name_key\":\"DMM\",\"display_name_raw\":\"\",\"enabled\":true,\"order\":0,\"config\":{},\"is_beta\":false,\"manual_only\":false,\"requires_proxy\":true,\"is_censored\":true},{\"id\":\"javbus\",\"type\":\"builtin\",\"display_name_key\":\"JavBus\",\"display_name_raw\":\"\",\"enabled\":true,\"order\":1,\"config\":{},\"is_beta\":false,\"manual_only\":false,\"requires_proxy\":false,\"is_censored\":true},{\"id\":\"jav321\",\"type\":\"builtin\",\"display_name_key\":\"Jav321\",\"display_name_raw\":\"\",\"enabled\":true,\"order\":2,\"config\":{},\"is_beta\":false,\"manual_only\":false,\"requires_proxy\":false,\"is_censored\":true},{\"id\":\"javdb\",\"type\":\"builtin\",\"display_name_key\":\"JavDB\",\"display_name_raw\":\"\",\"enabled\":true,\"order\":3,\"config\":{},\"is_beta\":false,\"manual_only\":false,\"requires_proxy\":false,\"is_censored\":true},{\"id\":\"d2pass\",\"type\":\"builtin\",\"display_name_key\":\"D2Pass\",\"display_name_raw\":\"\",\"enabled\":true,\"order\":4,\"config\":{},\"is_beta\":false,\"manual_only\":false,\"requires_proxy\":false,\"is_censored\":false},{\"id\":\"heyzo\",\"type\":\"builtin\",\"display_name_key\":\"HEYZO\",\"display_name_raw\":\"\",\"enabled\":true,\"order\":5,\"config\":{},\"is_beta\":false,\"manual_only\":false,\"requires_proxy\":false,\"is_censored\":false},{\"id\":\"fc2\",\"type\":\"builtin\",\"display_name_key\":\"FC2\",\"display_name_raw\":\"\",\"enabled\":true,\"order\":6,\"config\":{},\"is_beta\":false,\"manual_only\":false,\"requires_proxy\":false,\"is_censored\":false},{\"id\":\"avsox\",\"type\":\"builtin\",\"display_name_key\":\"AVSOX\",\"display_name_raw\":\"\",\"enabled\":true,\"order\":7,\"config\":{},\"is_beta\":false,\"manual_only\":false,\"requires_proxy\":false,\"is_censored\":false},{\"id\":\"javlibrary\",\"type\":\"builtin\",\"display_name_key\":\"JavLibrary\",\"display_name_raw\":\"\",\"enabled\":false,\"order\":99,\"config\":{},\"is_beta\":true,\"manual_only\":true,\"requires_proxy\":false,\"is_censored\":true},{\"id\":\"fc-javten\",\"type\":\"builtin\",\"display_name_key\":\"FC2-javten\",\"display_name_raw\":\"\",\"enabled\":false,\"order\":100,\"config\":{},\"is_beta\":true,\"manual_only\":true,\"requires_proxy\":false,\"is_censored\":false}],\"thumbnail_cache_enabled\":false,\"metatube\":{\"enabled\":false,\"url\":\"\",\"token\":\"\",\"allow_lan\":false},\"focal_device\":{\"disabled\":false,\"consecutive_timeout_count\":0,\"judged_at_version\":\"\",\"set_by_user\":false}},\"resolved\":{\"gallery_output_path\":\"<DATA_ROOT>\",\"data_root\":\"<DATA_ROOT>\"},\"cf_window_proxy_restart_needed\":false}",
+ "scraper_sources": "{\"sources\":[{\"id\":\"dmm\",\"display_name\":\"DMM\",\"type\":\"builtin\",\"enabled\":true,\"order\":0,\"is_censored\":true},{\"id\":\"javbus\",\"display_name\":\"JavBus\",\"type\":\"builtin\",\"enabled\":true,\"order\":1,\"is_censored\":true},{\"id\":\"jav321\",\"display_name\":\"Jav321\",\"type\":\"builtin\",\"enabled\":true,\"order\":2,\"is_censored\":true},{\"id\":\"javdb\",\"display_name\":\"JavDB\",\"type\":\"builtin\",\"enabled\":true,\"order\":3,\"is_censored\":true},{\"id\":\"d2pass\",\"display_name\":\"D2Pass\",\"type\":\"builtin\",\"enabled\":true,\"order\":4,\"is_censored\":false},{\"id\":\"heyzo\",\"display_name\":\"HEYZO\",\"type\":\"builtin\",\"enabled\":true,\"order\":5,\"is_censored\":false},{\"id\":\"fc2\",\"display_name\":\"FC2\",\"type\":\"builtin\",\"enabled\":true,\"order\":6,\"is_censored\":false},{\"id\":\"avsox\",\"display_name\":\"AVSOX\",\"type\":\"builtin\",\"enabled\":true,\"order\":7,\"is_censored\":false}],\"total_enabled\":8}",
+ "search_sources": "{\"sources\":[{\"id\":\"auto\",\"name\":\"自動\",\"description\":\"依優先順序自動選擇\"},{\"id\":\"dmm\",\"name\":\"DMM\",\"description\":\"日本官方（需 Proxy）\"},{\"id\":\"javbus\",\"name\":\"JavBus\",\"description\":\"最常用的來源（封面無浮水印）\"},{\"id\":\"jav321\",\"name\":\"Jav321\",\"description\":\"備用來源（封面完整）\"},{\"id\":\"javdb\",\"name\":\"JavDB\",\"description\":\"資料完整（有片商）\"},{\"id\":\"d2pass\",\"name\":\"D2Pass\",\"description\":\"1Pondo / Caribbeancom / 10musume\"},{\"id\":\"heyzo\",\"name\":\"HEYZO\",\"description\":\"HEYZO 專用\"},{\"id\":\"fc2\",\"name\":\"FC2\",\"description\":\"FC2 專用\"},{\"id\":\"avsox\",\"name\":\"AVSOX\",\"description\":\"無碼片源\"}],\"order\":[\"dmm\",\"javbus\",\"jav321\",\"javdb\",\"d2pass\",\"heyzo\",\"fc2\",\"avsox\"]}"
+}

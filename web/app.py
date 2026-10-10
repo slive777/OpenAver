@@ -627,6 +627,19 @@ def get_common_context(request: Request) -> dict:
         else:
             _src['routable'] = True
             _src['available'] = True
+    # 165-T7c：自訂來源只在讀取邊界合成（CD-165-2）——不進持久化 config.sources。
+    # 一律賦新 list（不 append/extend 原 list）；零自訂時追加為空、輸出與升級前相同。
+    from core.custom_source.views import custom_source_views
+    _custom_views = custom_source_views()
+    _custom_entries = [
+        v.config.model_dump() | {
+            'routable': v.routable,
+            'available': True,
+            'custom_status': v.status,
+        }
+        for v in _custom_views
+    ]
+    config['sources'] = list(config.get('sources') or []) + _custom_entries
     # 70-T5：cf_transport_available — standalone 已 register → true；dev/server → false
     from core.cf_transport import get_cf_transport as _get_cf_transport
     _cf_transport_available = _get_cf_transport() is not None
