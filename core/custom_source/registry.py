@@ -94,3 +94,9 @@ def scraper_factories(prefix="custom:"):
         key = prefix + loaded.spec.id
         factories[key] = lambda s=loaded.spec, k=key: [CustomScraper(s, k)]
     return factories
+
+
+def factory_for(loaded, prefix="custom:"):
+    """用傳入快照的 spec 建 factory；不重讀檔（gate 檢查過的那份就是執行的那份）。"""
+    key = prefix + loaded.id
+    return lambda s=loaded.spec, k=key: [CustomScraper(s, k)]

@@ -22,7 +22,8 @@ from core.scrapers import (
     JavLibraryScraper,          # T3 新增
     Video
 )
-from core.scrapers.errors import SourceBlocked, SourceUnreachable
+from core.scrapers.errors import SourceBlocked, SourceParseEmpty, SourceUnreachable
+from core.scrapers.errors import CustomSourceRefused
 from core.proxy_policy import source_needs_jp_ip
 from core.scrapers.utils import (
     SOURCE_NAMES,
@@ -194,6 +195,49 @@ class _MetatubeShim:
             return None
 
 
+# ============ 自訂來源（165）============
+
+def _custom_factory(source: str, number: str) -> Callable[[], list]:
+    """gate 通過 → 用 gate 檢查過的那份快照建 factory；不過 raise CustomSourceRefused。
+
+    lazy import：只有 custom: 分支才會載入 core.custom_source（auto 與一般 import 零影響）。
+    """
+    from core.custom_source import gate, registry
+    gate_result = gate.check_usable(source.split(':', 1)[1], number)
+    if not gate_result.ok:
+        raise CustomSourceRefused(gate_result.reason)
+    return registry.factory_for(gate_result.loaded)
+
+
+def search_custom_versions(source: str, number: str) -> List[Dict[str, Any]]:
+    """custom:<id> 同番號全版本列舉 → list[dict]（形狀同 search_javlib_versions）。
+
+    gate 不過 raise CustomSourceRefused；抓取例外原樣上拋給呼叫端映射。
+    """
+    scraper = _custom_factory(source, normalize_number(number))()[0]
+    return [v.to_legacy_dict() for v in scraper.search_all_versions(number)]
+
+
+def fetch_custom_by_detail_url(source: str, detail_url: str, number: str) -> Optional[Video]:
+    """custom:<id> 直抓單一 detail URL → Video。跨網域由 CustomScraper 拋 blocked_target，原樣上拋。"""
+    scraper = _custom_factory(source, normalize_number(number))()[0]
+    return scraper.fetch_by_detail_url(detail_url, number)
+
+
+def _source_display_name(source: str) -> str:
+    """顯示名；custom: 取 YAML name，載入失敗／畸形 id 回 source 原字串；不過 gate、不拋。"""
+    if not source.startswith('custom:'):
+        return SOURCE_NAMES.get(source, source)
+    try:
+        from core.custom_source import registry
+        loaded = registry.load_one(source.split(':', 1)[1])
+        if loaded is not None and loaded.spec is not None:
+            return loaded.spec.name
+    except Exception:
+        logger.debug("[Search] 自訂來源顯示名載入失敗: %s", source)
+    return source
+
+
 # ============ 核心搜尋函數 ============
 
 VALID_JAVBUS_LANGS = {'zh-tw', 'ja', 'en'}
@@ -207,6 +251,7 @@ def search_jav(
     搜尋 JAV 資訊（向後相容函數）
 
     surface_access_errors=True 時，explicit 單一來源遇到 SourceBlocked／SourceUnreachable
+    （自訂來源另含 SourceParseEmpty；gate 不過則拋 CustomSourceRefused）
     會往上拋（讓呼叫端分得出「被拒／連不到」與「查無」）；預設 False 維持吞掉。auto 不受影響。
     """
     all_data: Dict[str, Video] = {}
@@ -261,6 +306,17 @@ def search_jav(
                 lambda _pname=_mt_provider, _url=_mt_url, _tok=_mt_token, _gen=_mt_gen:
                     [_MetatubeShim(_pname, _url, _tok, _gen)]
             )
+
+    # 165：explicit custom:<id> 先過 gate，通過才用 gate 檢查過的那份快照建 scraper；
+    # auto 路徑完全不碰 custom（不 import、不 gate、不讀目錄）。
+    if source.startswith('custom:'):
+        try:
+            source_to_scraper[source] = _custom_factory(source, number)
+        except CustomSourceRefused as refused:
+            if surface_access_errors:
+                raise
+            logger.info("[Search] 自訂來源 %s 未放行: %s", source, refused.reason)
+            return None
 
     # 決定要跑哪些爬蟲（auto vs. explicit）
     logger.info(f"[Search] {number} 使用來源: {source}")
@@ -330,7 +386,7 @@ def search_jav(
                 from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
                 if isinstance(e, (CfChallengeRequired, CfTransportUnavailable)):
                     raise          # bubble 給 router，不 continue
-                if surface_access_errors and isinstance(e, (SourceBlocked, SourceUnreachable)):
+                if surface_access_errors and isinstance(e, (SourceBlocked, SourceParseEmpty, SourceUnreachable)):
                     raise
                 # [CF-DIAG] DEBUG→INFO + 例外型別：explicit 分支是 JL 的唯一路徑
                 # （manual_only）。型別讓 40 分鐘重現能分辨 WebViewException（死窗）
@@ -380,7 +436,7 @@ def search_jav_single_source(
 
 def access_error_info(exc: Exception, source: str) -> Dict[str, str]:
     """SourceBlocked／SourceUnreachable → {access_error, source, message}（兩個端點共用）。"""
-    name = SOURCE_NAMES.get(source, source)
+    name = _source_display_name(source)
     if not isinstance(exc, SourceBlocked):
         return {
             "access_error": "unreachable", "source": source,

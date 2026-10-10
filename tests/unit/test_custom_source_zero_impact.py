@@ -9,7 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _CODE = (
-    "import sys, core.scraper\n"
+    "import sys, core.scraper, core.source_config, core.config\n"
     "print('scraper=' + str('core.scraper' in sys.modules))\n"
     "print('custom=' + str(any(m == 'core.custom_source' or m.startswith('core.custom_source.')"
     " for m in sys.modules)))\n"
@@ -24,4 +24,24 @@ def test_importing_scraper_does_not_load_custom_source():
     detail = f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
     assert proc.returncode == 0, detail
     assert "scraper=True" in proc.stdout, detail
+    assert "custom=False" in proc.stdout, detail
+
+
+_CODE_AFTER_SYNTAX = (
+    "import sys, core.scraper, core.source_config\n"
+    "from core.source_config import validate_source_id\n"
+    "assert validate_source_id('auto') and not validate_source_id('nope')\n"
+    "print('custom=' + str(any(m == 'core.custom_source' or m.startswith('core.custom_source.')"
+    " for m in sys.modules)))\n"
+)
+
+
+def test_non_custom_ids_do_not_load_custom_source():
+    """非 custom: 的 id 驗證不得觸發 custom_source 載入（custom: 分支自己可以載入）。"""
+    proc = subprocess.run(
+        [sys.executable, "-c", _CODE_AFTER_SYNTAX],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=60,
+    )
+    detail = f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
+    assert proc.returncode == 0, detail
     assert "custom=False" in proc.stdout, detail

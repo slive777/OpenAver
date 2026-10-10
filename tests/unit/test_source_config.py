@@ -473,3 +473,14 @@ def test_is_censored_fc_javten_uncensored_no_warning(caplog):
 def test_source_config_schema_has_no_requires_cf():
     """v4 反向鎖（CD-118a-8 撤銷）：SourceConfig 不得再加 requires_cf。"""
     assert 'requires_cf' not in SourceConfig.model_fields
+
+
+def test_validate_source_id_custom_slug():
+    """custom:<slug> 純語法判斷：合法 slug True；路徑穿越、空、大寫、過長 False。"""
+    assert validate_source_id('custom:foo') is True
+    assert validate_source_id('custom:a-1') is True
+    assert validate_source_id('custom:../x') is False
+    assert validate_source_id('custom:') is False
+    assert validate_source_id('custom:A') is False
+    assert validate_source_id('custom:' + 'a' * 33) is False
+    assert validate_source_id('custom:' + 'a' * 32) is True
