@@ -33,8 +33,17 @@ class ProxySettings(BaseModel):
 
     @field_validator('url', mode='before')
     @classmethod
-    def _strip_url(cls, v):
-        return v.strip() if isinstance(v, str) else v
+    def _normalize_url(cls, v):
+        """唯一的位址正規化點：所有 `ProxySettings` 都經此建立（config／快照／測試連線），
+        所有出口（requests proxies、驗證視窗、探測）只讀 `.url`。
+        沒有 `://` 的位址（Clash／v2rayN 常見的 `127.0.0.1:7890`）一律視為 `http://<位址>`。
+        不用 `requests.utils.prepend_scheme_if_needed`：`localhost:7890` 會被補成 `localhost:///7890`。"""
+        if not isinstance(v, str):
+            return v
+        v = v.strip()
+        if v and '://' not in v:
+            v = 'http://' + v
+        return v
 
 
 def settings_from_config(config: dict) -> ProxySettings:

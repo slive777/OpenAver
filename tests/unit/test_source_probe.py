@@ -435,7 +435,7 @@ SNAP_SOCKS_ALL = ProxySettings(url='socks5://h.example:1', scope='all')
     ('win_scope_dmm_socks_auth', 'windows', _FakeTransport(BOTH), SNAP_AUTH_DMM, (None, None)),
     ('win_blank_proxy', 'windows', _FakeTransport(BOTH), ProxySettings(url='', scope='all'),
      (None, None)),
-    ('win_unparseable_address_still_probed', 'windows', _FakeTransport(BOTH), SNAP_NOSCHEME_ALL,
+    ('win_noscheme_address_is_http', 'windows', _FakeTransport(BOTH), SNAP_NOSCHEME_ALL,
      (None, None)),
     ('win_not_started_beats_auth', 'windows', _FakeTransport(()), SNAP_AUTH_ALL,
      ('verifier_not_started',) * 2),

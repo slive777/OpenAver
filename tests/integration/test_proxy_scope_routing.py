@@ -126,6 +126,17 @@ def test_scope_all_every_source_via_policy(recorders):
     assert recorders.sys_hosts() == set()
 
 
+def test_scheme_less_address_every_source_via_policy(recorders):
+    """Proxy 欄填 `localhost:<port>`（無 scheme）＝ http://，八家都走它。"""
+    port = recorders.pol.rsplit(':', 1)[1]
+    write_search_config(proxy_url=f'localhost:{port}', scope='all')
+
+    _drive_all()
+
+    assert recorders.pol_sources() == set(ALL_SOURCES), recorders.pol_hosts()
+    assert recorders.sys_hosts() == set()
+
+
 def test_blank_proxy_nothing_via_policy(recorders):
     """Proxy 欄空白：POL 一筆都沒有，八家全照系統代理。"""
     write_search_config(proxy_url='', scope='all')

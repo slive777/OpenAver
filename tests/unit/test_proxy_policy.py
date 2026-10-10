@@ -138,3 +138,18 @@ def test_metatube_relay_judgement(url, connected, expected):
         assert is_metatube_relay_url(url) is expected
     finally:
         metatube_state.disconnect()
+
+
+@pytest.mark.parametrize('raw,expected', [
+    ('localhost:7890', 'http://localhost:7890'),
+    ('127.0.0.1:7890', 'http://127.0.0.1:7890'),
+    (' 127.0.0.1:7890 ', 'http://127.0.0.1:7890'),
+    ('http://h:1', 'http://h:1'),
+    ('socks5://h:1', 'socks5://h:1'),
+    ('', ''),
+])
+def test_schemeless_address_is_http_for_every_consumer(raw, expected):
+    s = _s('all', raw)
+    assert s.url == expected
+    assert proxy_kwargs('source_query', source_id='javdb', settings=s).get('proxies', {}).get('https', '') == expected
+    assert settings_from_config({'search': {'proxy_url': raw, 'proxy_scope': 'all'}}).url == expected

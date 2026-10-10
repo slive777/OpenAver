@@ -28,7 +28,11 @@ _TABLE = [
     ('socks5h://u:p@h:7', 'all', _spec('socks5://h:7', 'u', 'p', usable=False)),
     ('http://[::1]:8', 'all', _spec('http://[::1]:8')),
     # 無法解析：fail-closed，server 為空字串、usable=False
-    ('h:1', 'all', _spec('', usable=False)),
+    ('h:1', 'all', _spec('http://h:1')),  # 無 scheme ＝ http://（與 requests／八家一致）
+    ('127.0.0.1:7890', 'all', _spec('http://127.0.0.1:7890')),
+    ('localhost:7890', 'all', _spec('http://localhost:7890')),
+    ('u:p@h:1', 'all', _spec('http://h:1', 'u', 'p')),
+    ('h', 'all', _spec('', usable=False)),  # 無 scheme 也無 port：不猜 80
     ('://', 'all', _spec('', usable=False)),
     ('http://', 'all', _spec('', usable=False)),
     ('http://h', 'all', _spec('', usable=False)),
