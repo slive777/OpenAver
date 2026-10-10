@@ -24,6 +24,7 @@ export const REASON_KEY_MAP = {
     proxy_auth_unsupported: 'settings.sources.probe_reason_proxy_auth_unsupported',
     mac_system_proxy: 'settings.sources.probe_reason_mac_system_proxy',
     verifier_not_started: 'settings.sources.probe_reason_verifier_not_started',
+    custom_use_verify: 'settings.sources.probe_reason_custom_use_verify',
 };
 
 export const REASON_KEY_GENERIC = 'settings.sources.probe_reason_generic';

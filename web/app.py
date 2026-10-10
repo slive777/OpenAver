@@ -278,6 +278,7 @@ from web.routers import access as access_router
 from web.routers import wishlist as wishlist_router
 from web.routers import insights as insights_router
 from web.routers import source_probe as source_probe_router
+from web.routers import custom_sources as custom_sources_router
 # Module-level imports for startup_reconnect / _fire_probe so that
 # patch("web.app.startup_reconnect") / patch("web.app._fire_probe") target the
 # correct use-site binding (TASK-63e-1; function-local import would defeat patch).
@@ -313,6 +314,7 @@ app.include_router(access_router.router)
 app.include_router(wishlist_router.router)
 app.include_router(insights_router.router)
 app.include_router(source_probe_router.router)
+app.include_router(custom_sources_router.router)
 
 
 @app.exception_handler(RequestValidationError)

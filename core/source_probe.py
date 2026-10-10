@@ -42,6 +42,7 @@ REASON_CODES = frozenset({
     'proxy', 'timeout', 'tls', 'dns', 'network', 'error',
     'windows_verifier', 'self_hosted', 'unknown', 'unprobeable',
     'proxy_auth_unsupported', 'mac_system_proxy', 'verifier_not_started',
+    'custom_use_verify',
 })
 
 MANUAL_ONLY_IDS = frozenset({'javlibrary', 'fc-javten'})
@@ -254,6 +255,8 @@ def _verifier_skip_reason(source_id: str, snap: ProxySettings) -> Optional[str]:
 
 def skip_reason(source_id: str, snap: ProxySettings) -> Optional[str]:
     """不探測的 id 分類（唯一一處）；要探測回 None。"""
+    if source_id.startswith('custom:'):
+        return 'custom_use_verify'
     if source_id in MANUAL_ONLY_IDS:
         return _verifier_skip_reason(source_id, snap)  # None ＝ 實測，不可落到下面的 unknown
     if source_id.startswith('metatube:'):

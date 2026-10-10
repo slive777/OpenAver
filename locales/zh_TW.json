@@ -355,6 +355,7 @@
       "probe_reason_proxy_auth_unsupported": "這兩家的驗證視窗不支援帶帳號密碼的 socks5 代理，未測",
       "probe_reason_mac_system_proxy": "macOS 版照系統代理，未測",
       "probe_reason_verifier_not_started": "驗證視窗未啟動，請重開 OpenAver",
+      "probe_reason_custom_use_verify": "自訂來源請用驗收",
       "probe_reason_generic": "原因不明",
       "probe_line": "{state}：{reason}",
       "probe_line_advice": "{state}：{reason}（{advice}）",
