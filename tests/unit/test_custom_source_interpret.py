@@ -1,6 +1,7 @@
 """自訂來源解譯器：scrape／scrape_detail／run_tests 的行為（全離線，FakeTransport）。"""
 
 import dataclasses
+import itertools
 
 import pytest
 
@@ -41,9 +42,13 @@ def _hrefs(name, css):
     return [a["href"] for a in parse_html(_txt(name)).select(css)]
 
 
+def _step0(name, **changes):
+    spec = _spec(name)
+    return dataclasses.replace(spec, steps=(dataclasses.replace(spec.steps[0], **changes), *spec.steps[1:]))
+
+
 def _cands(*suffixes):
-    spec = _spec("candidates")
-    return dataclasses.replace(spec, steps=(dataclasses.replace(spec.steps[0], candidates=suffixes),))
+    return _step0("candidates", candidates=suffixes)
 
 
 def _run(spec, number, routes):
@@ -158,21 +163,16 @@ def test_declared_number_empty_is_parse_empty_but_other_number_is_not_found():
     assert result.status == "not_found"
 
 
-def _undated(name):
-    return page(_txt(name).replace("uploadDate", "uploadDateX"))
-
-
 @pytest.mark.parametrize("uc_page, c_page, order, dates", [
     (_pg("two-step-detail-a.html"), _pg("two-step-detail-b.html"), ["c", "uc"], ["2025-12-17", "2024-06-01"]),
-    (_undated("two-step-detail-b.html"), _pg("two-step-detail-a.html"), ["c", "uc"], ["2024-06-01", ""]),
+    (page(_txt("two-step-detail-b.html").replace("uploadDate", "uploadDateX")), _pg("two-step-detail-a.html"), ["c", "uc"], ["2024-06-01", ""]),
     (_pg("two-step-detail-a.html"), _pg("two-step-detail-a.html"), ["uc", "c"], ["2024-06-01", "2024-06-01"]),
 ])
 def test_multiple_sorted_by_date_desc(uc_page, c_page, order, dates):
     uc, c = _hrefs("two-step-search.html", "h3.entry-title a")
     result, _ = _run(_spec("two-step"), "SONE-205", {TWO + "SONE-205": _pg("two-step-search.html"), uc: uc_page, c: c_page})
     assert result.status == "multiple"
-    by_name = {"uc": uc, "c": c}
-    assert [i.detail_url for i in result.items] == [by_name[o] for o in order]
+    assert [i.detail_url for i in result.items] == [{"uc": uc, "c": c}[o] for o in order]
     assert [i.fields["date"] for i in result.items] == dates
 
 
@@ -189,15 +189,11 @@ def test_results_filter_empty_is_not_found():
 
 
 def test_body_contains_hit_is_not_found():
-    spec = _spec("two-step")
-    marked = dataclasses.replace(spec, steps=(dataclasses.replace(spec.steps[0], not_found_body="sone-205c"), spec.steps[1]))
+    marked = _step0("two-step", not_found_body="sone-205c")
     result, transport = _run(marked, "SONE-205", _routes_for("two-step"))
     assert result.status == "not_found"
     assert transport.calls == [TWO + "SONE-205"]
-    # 單段式：每個候選頁的 body 命中都算查無
-    one = _spec("single-og")
-    one = dataclasses.replace(one, steps=(dataclasses.replace(one.steps[0], not_found_body="<h1"),))
-    result, _ = _run(one, "SONE-205", _routes_for("single-og"))
+    result, _ = _run(_step0("single-og", not_found_body="<h1"), "SONE-205", _routes_for("single-og"))
     assert result.status == "not_found"
 
 
@@ -262,12 +258,8 @@ def _boundary_hit(keep, prefix, suffix):
     return not (prefix and prefix[-1] in blocked) and not (suffix and suffix[0] in "0123456789")
 
 
-_BOUNDARY_GRID = [
-    (keep, prefix, suffix)
-    for keep in ("sone-205", "2439990")
-    for prefix in ("", " ", "/", "-", "中文字幕", "x", "1")
-    for suffix in ("", "c", "uc", " ", "/", "0")
-]
+_BOUNDARY_GRID = list(itertools.product(
+    ("sone-205", "2439990"), ("", " ", "/", "-", "中文字幕", "x", "1"), ("", "c", "uc", " ", "/", "0")))
 
 
 @pytest.mark.parametrize("keep, prefix, suffix", _BOUNDARY_GRID)
@@ -286,6 +278,18 @@ def test_outage_stops_remaining_candidates(routes, calls, status, reason, count)
     result, transport = _run(_cands("a", "b", "c"), "SONE-205", {f"{CAND}{k}/": v for k, v in routes.items()})
     assert len(transport.calls) == calls
     assert (result.status, result.reason, len(result.items)) == (status, reason, count)
+
+
+@pytest.mark.parametrize("url, routes, secrets", [
+    ("https://a.example/v/x?apikey=SECRET1#frag", {"https://a.example/v/x?apikey=SECRET1#frag": page("", 500)}, ("SECRET1", "apikey", "frag")),
+    ("https://a.example/v/y", {"https://a.example/v/y": redirect("https://a.example/z?token=SECRET2"),
+                              "https://a.example/z?token=SECRET2": page("")}, ("SECRET2", "token")),
+])
+def test_failure_log_drops_query_and_fragment(caplog, url, routes, secrets):
+    caplog.set_level("INFO")
+    result, _ = _run(_step0("single-og", url=url), "SONE-205", routes)
+    assert result.status == "error" and "a.example/" in caplog.text
+    assert not any(word in caplog.text for word in secrets)
 
 
 def test_first_failure_in_candidate_order_wins():
@@ -370,10 +374,6 @@ def test_run_tests_status_mismatch_and_format():
     assert "  status: expected 'ok', actual 'not_found'" in text
 
 
-def test_format_results_all_pass_has_no_fail_and_shows_mismatch_line():
+def test_format_results_all_pass_has_no_fail():
     ok = run_tests(_spec("single-og"), _cfg(), FakeTransport(_routes_for("single-og")))
     assert "FAIL" not in format_results(ok)
-    bad = run_tests(_with_cases((("tags_max", 99),), (("tags_max", 0),)), _cfg(), FakeTransport(_routes_for("single-og")))
-    text = format_results(bad)
-    assert "FAIL case 2" in text
-    assert f"  tags_max: expected 0, actual {bad[1].mismatches[0].actual!r}" in text

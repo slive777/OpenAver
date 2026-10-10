@@ -1,7 +1,7 @@
 """自訂來源解譯器：照 Spec 找一個番號並跑 YAML 驗收案例；節流與逐跳守衛都在 fetch_page。"""
 import re
 from dataclasses import dataclass
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse, urlsplit
 
 from core.custom_source.extract import extract_fields, parse_html
 from core.custom_source.fetch import FetchError, fetch_page, make_transport
@@ -9,12 +9,9 @@ from core.logger import get_logger
 from core.scrapers.utils import normalize_number_impl
 
 MAX_DETAIL_FETCH = 5
-
 log = get_logger(__name__)
-
-_OUTAGE_REASONS = frozenset({"network", "timeout"})
 _PLACEHOLDER_RE = re.compile(r"\{(number|number_lower|number_digits|suffix)\}")
-_KEY_RE = re.compile(r"(.*?)(_contains|_include|_exclude|_max)?")
+_KEY_RE = re.compile(r"(.*?)(_contains|_include|_exclude|_max|)")
 
 
 @dataclass(frozen=True)
@@ -57,6 +54,14 @@ def _render(template, values, encode=True):
     return _PLACEHOLDER_RE.sub(lambda match: shown.get(match.group(1), ""), template)
 
 
+def _log_url(url):
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return "<invalid url>"
+    return f"{parts.scheme}://{parts.netloc.rpartition('@')[2]}{parts.path}"
+
+
 def _fetch_ok(url, transport, config):
     page = fetch_page(url, transport, config)
     if page.status == 404:
@@ -74,9 +79,9 @@ def _fetch_unique(urls, transport, config, errors, nf_step=None):
         try:
             page = _fetch_ok(requested, transport, config)
         except FetchError as exc:
-            log.info("custom source page failed: %s %s", exc, requested)
+            log.info("custom source page failed: %s %s", exc, _log_url(requested))
             errors.append((order, exc))
-            if exc.reason in _OUTAGE_REASONS:
+            if exc.reason in ("network", "timeout"):
                 break
             continue
         if page is None:
@@ -138,7 +143,7 @@ def _make_items(spec, pages, canon, errors):
         try:
             item = _make_item(spec, page, canon)
         except FetchError as exc:
-            log.info("custom source page failed: %s %s", exc, page.final_url)
+            log.info("custom source page failed: %s %s", exc, _log_url(page.final_url))
             errors.append((order, exc))
             continue
         if item is not None:
@@ -161,9 +166,7 @@ def _finish(spec, pages, canon, errors):
         return ScrapeResult("error", reason=first.reason, http_status=first.http_status)
     if not items:
         return ScrapeResult("not_found")
-    if len(items) == 1:
-        return ScrapeResult("ok", items=tuple(items))
-    return ScrapeResult("multiple", items=tuple(_sort_items(items)))
+    return ScrapeResult("ok" if len(items) == 1 else "multiple", items=tuple(_sort_items(items)))
 
 
 def _single_stage(spec, canon, transport, config):
@@ -205,8 +208,7 @@ def scrape(spec, number, config, transport=None):
 
 
 def _detail_page(spec, canon, transport, config, url):
-    errors = []
-    return _finish(spec, _fetch_unique([url], transport, config, errors), canon, errors)
+    return _finish(spec, _fetch_unique([url], transport, config, (errors := [])), canon, errors)
 
 
 def scrape_detail(spec, detail_url, number, config, transport=None):
@@ -228,7 +230,6 @@ _CHECKS = {
 
 def _check_expect(key, expected, fields):
     name, suffix = _KEY_RE.fullmatch(key).groups()
-    suffix = suffix or ""
     actual = fields.get(name)
     want = _as_list(expected)
     if suffix == "_max":
@@ -253,8 +254,6 @@ def run_tests(spec, config, transport=None):
 
 
 def format_results(results):
-    lines = []
-    for res in results:
-        lines.append(f"{'PASS' if res.passed else 'FAIL'} case {res.index} {res.number}")
-        lines += [f"  {m.key}: expected {m.expected!r}, actual {m.actual!r}" for m in res.mismatches]
-    return "\n".join(lines)
+    lines = (f"{'PASS' if r.passed else 'FAIL'} case {r.index} {r.number}" for r in results)
+    return "\n".join(line + "".join(f"\n  {m.key}: expected {m.expected!r}, actual {m.actual!r}" for m in r.mismatches)
+                     for line, r in zip(lines, results, strict=True))
