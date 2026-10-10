@@ -1,0 +1,16 @@
+id: candidates
+name: Candidates
+fetch: plain
+number_pattern: '[A-Za-z]{2,6}-\d{2,5}'
+steps:
+  # single stage with candidate suffixes: "c" and "uc" are real separate pages, "" redirects onto "c"
+  - url: "https://candidates.example/video/chinese-subtitles/{number_lower}{suffix}/"
+    candidates: ["c", "uc", ""]
+fields:
+  number:  {css: "h1.entry-title", then: [{regex: '^([A-Za-z0-9]+-\d+)'}]}
+  title:   {css: "h1.entry-title", then: [{regex: '^\S+\s+(?:\([^)]*\)\s*)?(.+)$'}]}
+  cover:   {jsonld: "VideoObject.thumbnailUrl"}
+  tags:    {css: ".tags-items a.tag-item", all: true}
+tests:
+  - number: SONE-205
+    expect: {number: SONE-205, title_contains: "部活少女", tags_include: ["按摩"], tags_max: 15}

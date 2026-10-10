@@ -1,0 +1,16 @@
+id: fuzzy
+name: Fuzzy Search
+fetch: plain
+number_pattern: '[A-Za-z]{2,6}-\d{2,5}'
+steps:
+  - url: "https://fuzzy.example/?s={number}"           # post URL is a numeric id -> must search; filter hits by number in link text
+    results: {css: "h3.jeg_post_title a", keep_if_contains: "{number_lower}"}
+  - {}
+fields:
+  number:  {css: "h1.jeg_post_title", then: [{regex: '\[([A-Za-z0-9]+-\d+)\]'}]}
+  title:   {css: "h1.jeg_post_title", then: [{regex: '\]\s*(.+)$'}]}
+  cover:   {meta: "og:image"}
+  tags:    {css: ".jeg_post_tags a, .jeg_meta_category a", all: true}
+tests:
+  - number: IPZZ-100
+    expect: {number: IPZZ-100, title_contains: "加美杏奈", cover: "https://avbebe.com/wp-content/uploads/2024/01/IPZZ-100.jpg", tags_include: ["加美杏奈", "口交"], tags_max: 12}

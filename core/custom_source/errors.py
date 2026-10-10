@@ -17,6 +17,7 @@ LOAD_REASONS = frozenset({
     "fetch_cf_unsupported",
     "unknown_fetch",
     "unknown_transform",
+    "bad_value",
 })
 
 SCRAPE_ERROR_REASONS = frozenset({
