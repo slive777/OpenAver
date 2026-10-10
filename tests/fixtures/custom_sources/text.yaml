@@ -1,0 +1,17 @@
+id: text
+name: Text Page
+fetch: plain              # requests with a normal UA is enough (200)
+number_pattern: 'FC2-\d{6,8}'   # matched against the normalized number
+steps:
+  - url: "https://text.example/search/?q=FC2PPV{number_digits}"      # no number->URL mapping; search returns 200 with 0 cards when nothing matches
+    results: {css: ".card-video__title a", keep_if_contains: "{number_digits}"}
+  - {}
+fields:
+  title:   {meta: "og:title", then: [{regex: '^\S+\s+(.+)$'}]}
+  cover:   {meta: "og:image"}
+  tags:    {css: ".content-details__meta a", all: true}
+tests:
+  - number: FC2-2439990
+    expect: {number: FC2-2439990, title_contains: "一字鮑", cover: "https://cdn1.ppp.porn/contents/videos_screenshots/1000/1549/preview.m3u8.jpg", tags_include: ["日本", "學生"], tags_max: 10}
+  - number: FC2-9999999
+    status: not_found

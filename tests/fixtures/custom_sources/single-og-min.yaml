@@ -1,0 +1,14 @@
+id: single-og-min
+name: Single OG Min
+fetch: tls
+number_pattern: '[A-Za-z]{2,6}-\d{2,5}'
+steps:
+  - url: "https://single-og-min.example/videos/{number_lower}/"   # 404 for unknown number
+fields:
+  number:  {meta: "og:title", then: [{regex: '^([A-Za-z0-9]+-\d+)'}]}
+  title:   {meta: "og:title", then: [{regex: '^\S+\s+(.+)$'}]}
+  cover:   {meta: "og:image"}
+  tags:    {css: "h5.tags a.cat", all: true}
+tests:
+  - number: SONE-205
+    expect: {number: SONE-205, title_contains: "溫柔不會說不要", cover: "https://assets-cdn.jable.tv/contents/videos_screenshots/42000/42140/preview.jpg", tags_include: ["中文字幕", "角色劇情"], tags_max: 6}

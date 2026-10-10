@@ -1,0 +1,21 @@
+id: two-step
+name: Two Step
+fetch: plain              # requests with a normal UA is enough
+number_pattern: '[A-Za-z]{2,6}-\d{2,5}'
+steps:
+  - url: "https://two-step.example/search/{number}"        # 200 even when nothing matches
+    not_found_when: {body_contains: "search-no-results"}   # body class on the empty-search page
+    results: {css: "h3.entry-title a", keep_if_contains: "{number_lower}"}   # search is fuzzy -> filter hits by number
+  - {}                                               # detail step: urls come from the search results
+fields:
+  number:  {css: "h1.entry-title", then: [{regex: '^([A-Za-z0-9]+-\d+)'}]}
+  title:   {css: "h1.entry-title", then: [{regex: '^\S+\s+(?:\([^)]*\)\s*)?(.+)$'}]}
+  cover:   {jsonld: "VideoObject.thumbnailUrl"}
+  tags:    {css: ".tags-items a.tag-item", all: true}
+  date:    {jsonld: "VideoObject.uploadDate"}
+tests:
+  - number: SONE-205
+    status: multiple      # two real versions -> existing multi-version picker
+    expect: {number: SONE-205, title_contains: "部活少女", cover: "https://pics.dmm.co.jp/mono/movie/adult/sone205/sone205pl.jpg", tags_include: ["按摩", "美少女"], tags_max: 15}
+  - number: ZZZZ-999
+    status: not_found

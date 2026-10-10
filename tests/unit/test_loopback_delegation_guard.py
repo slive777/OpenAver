@@ -127,6 +127,24 @@ LEDGER: tuple[LedgerEntry, ...] = (
             "判 true 是擋掉（非公開位址）不是放行。不在 T6-a 語意範圍（Opus 裁決 §2）。"
         ),
     ),
+    LedgerEntry(
+        rel="core/custom_source/guard.py",
+        scope="_blocked_name",
+        shape="literal",
+        reason=(
+            "deny-direction（target）：自訂來源 SSRF 位址守衛，判的是要連的 host 是不是 "
+            "localhost 別名，判 true 是擋掉不是放行。不在 T6-a 語意範圍。"
+        ),
+    ),
+    LedgerEntry(
+        rel="core/custom_source/schema.py",
+        scope="_static_host",
+        shape="literal",
+        reason=(
+            "deny-direction（target）：自訂來源載入期靜態 host 檢查，判的是 URL host 是不是 "
+            "localhost 別名，判 true 是拒載不是放行。不在 T6-a 語意範圍。"
+        ),
+    ),
 )
 
 LEDGER_BY_ID: dict[str, LedgerEntry] = {_identity(e): e for e in LEDGER}

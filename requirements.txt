@@ -20,6 +20,7 @@ websockets==16.0
 
 # Utilities
 pillow==12.3.0  # 影像處理（鎖最新修補版 head；清掉 13 個 CVE，含 crop/paste/alpha_composite 座標整數溢位 heap OOB write CVE-2026-59199、ImageCmsTransform heap corruption CVE-2026-59205、RankFilter 整數溢位 CVE-2026-59197、TGA RLE encoder heap 洩漏 CVE-2026-59198 + decompression-bomb 繞過等）
+PyYAML==6.0.3  # 自訂來源 YAML 載入
 
 # Desktop GUI (Windows)
 pywebview==6.2.1

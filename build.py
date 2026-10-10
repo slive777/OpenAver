@@ -46,7 +46,7 @@ COPY_ITEMS = [
 # + extra_deps（Windows pywebview backend 專用）。
 # 不再 pip freeze dev venv，根除 denylist 漂移與 orphan 污染。
 
-# uvicorn[standard] 裡的 win-safe extras（uvloop 不含，Windows 用不到）
+# uvicorn[standard] 裡的 win-safe extras（uvloop 不含，Windows 用不到；PyYAML 已明列於 requirements.txt）
 # websockets 已是 requirements.txt 頂層，不重複
 # 精確釘版本（==）確保可重現 build：同 git tag = 同 ZIP（與 EXTRA_DEPS_NO_DEPS 同規範）。
 # 版本來源：.build_cache/wheels/ 實際解析的 wheel 檔名（cross-check dist/ ZIP site-packages）。
@@ -55,7 +55,6 @@ _UVICORN_WIN_SAFE_EXTRAS = [
     "httptools==0.8.0",
     "watchfiles==1.2.0",
     "python-dotenv==1.2.2",
-    "PyYAML==6.0.3",
 ]
 
 # pure-Python sdist-only 套件（PyPI 從未發 wheel）
@@ -330,7 +329,7 @@ def download_and_install_packages(python_dir: Path):  # noqa: C901 — Windows w
     # uvicorn[standard] → uvicorn（去 extra）+ win-safe extras 明列
     # pywebview 從 requirements.txt 讀入，但在 Phase 1 排除（proxy-tools 無 wheel）
     runtime_deps = parse_requirements_allowlist()
-    win_safe_extras = list(_UVICORN_WIN_SAFE_EXTRAS)  # httptools/watchfiles/python-dotenv/PyYAML
+    win_safe_extras = list(_UVICORN_WIN_SAFE_EXTRAS)  # httptools/watchfiles/python-dotenv
 
     # Phase 1：runtime（去 pywebview）+ win-safe extras → with-deps，解 transitive
     phase1_deps = [d for d in runtime_deps + win_safe_extras

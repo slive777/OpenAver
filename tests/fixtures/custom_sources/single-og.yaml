@@ -1,0 +1,19 @@
+id: single-og
+name: Single OG
+fetch: tls                # plain | tls
+number_pattern: '[A-Za-z]{2,6}-\d{2,5}'
+steps:
+  - url: "https://single-og.example/{number_lower}"      # redirects to a detail page; 404 for unknown number
+fields:
+  number:   {css: "h1", then: [{regex: '^([A-Za-z0-9]+-\d+)'}]}
+  title:    {meta: "og:title", then: [{regex: '^\S+\s+(.+)$'}]}
+  cover:    {meta: "og:image"}
+  tags:     {css: '.space-y-2 a[href*="/genres/"]', all: true}
+  actors:   {css: '.space-y-2 a[href*="/actresses/"]', all: true}
+  date:     {meta: "og:video:release_date"}
+  duration: {meta: "og:video:duration", then: [{div: 60}]}
+tests:
+  - number: SONE-205
+    expect: {number: SONE-205, title_contains: "好心說不喜歡", cover: "https://fourhoi.com/sone-205/cover-n.jpg", tags_include: ["美少女", "按摩"], tags_max: 12}
+  - number: ZZZZ-999
+    status: not_found
