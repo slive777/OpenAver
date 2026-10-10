@@ -97,7 +97,7 @@ class Spec:
     id: str
     name: str
     fetch: str
-    number_pattern: str
+    number_pattern: str | None
     steps: tuple
     fields: tuple
     tests: tuple
@@ -312,7 +312,9 @@ def _validate_fetch(data):
 
 
 def _validate_pattern(data):
-    value = _required(data, "number_pattern", "")
+    if "number_pattern" not in data or data["number_pattern"] is None:
+        return None, None
+    value = data["number_pattern"]
     if not isinstance(value, str):
         raise LoadError("bad_value", "number_pattern 須為字串", "number_pattern")
     if len(value) > MAX_PATTERN_LEN:
@@ -547,7 +549,7 @@ def _validate_case(raw, compiled, path):
         raise LoadError("bad_value", "案例須為 mapping", path)
     _check_keys(raw, CASE_KEYS, path)
     number = _need_str(_required(raw, "number", path), f"{path}.number")
-    if compiled.fullmatch(normalize_number_impl(number)) is None:
+    if compiled is not None and compiled.fullmatch(normalize_number_impl(number)) is None:
         raise LoadError("bad_pattern", "番號不符合自己的 number_pattern", f"{path}.number")
     status = raw.get("status", "ok")
     if not isinstance(status, str) or status not in CASE_STATUSES:

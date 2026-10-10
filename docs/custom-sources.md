@@ -25,7 +25,7 @@
 | `id` | 字串 | 是 | 只能用小寫英文字母、數字與連字號，第一個字元必須是英文字母或數字（不可以連字號開頭），總長 1–32 字，必須等於檔名（不含副檔名），不可與內建來源名稱衝突 |
 | `name` | 字串 | 是 | 顯示名稱，1–40 字，不可含控制字元 |
 | `fetch` | 字串 | 是 | `plain` 或 `tls`，見 §7 |
-| `number_pattern` | 字串（regex） | 是 | 標準化後的番號必須完整符合這個 regex，否則此來源直接略過該番號；最長 200 字 |
+| `number_pattern` | 字串（regex） | 否 | 有寫時，標準化後的番號必須完整符合這個 regex，否則此來源直接略過該番號；最長 200 字。**沒寫（或寫成 `number_pattern:` 留空）＝不限制，任何非空番號都收**。番號沒有固定規則的站（例如國產片）不要寫這個欄位；寫了空字串 `''` 不算不限制，會讓所有番號都不符 |
 | `steps` | list | 是 | 1 段（單段式）或 2 段（兩段式） |
 | `fields` | mapping | 是 | 欄位宣告，至少要有 `title` 或 `cover` |
 | `tests` | list | 是 | 驗收案例，見 §8 |
@@ -67,6 +67,8 @@
 
 只有 `steps[].url` 內的代入值會做 URL 編碼；`keep_if_contains` 的代入值不編碼。大括號必須成對，寫了其他占位符會被拒（reason `bad_template`）。
 
+番號會先被標準化：純字母前綴會補連字號（`MD0318` 變 `MD-0318`、`DA003` 變 `DA-003`），數字開頭的前綴不補（`91cm001` 變 `91CM001`）；單一字母加恰好四位數字也不補（`N0762` 維持 `N0762`）。站上的番號沒有連字號時，網址模板不要用 `{number}`，改用 `{number_digits}` 自己組（例如 `https://site.example/MD{number_digits}`），或搭配 `keep_if_contains` 比對。
+
 `keep_if_contains` 的比對規則：比對連結的 href 與連結文字，不分大小寫；命中的字串以數字開頭時，命中處前一個字元不能是數字，以英文字母開頭時，前一個字元不能是英文字母（中日文等其他文字不算，所以標題「中文字幕SONE-205」仍會命中）；兩種情況命中處後一個字元都不能是數字。所以 `SONE-20` 不會命中 `sone-205`，`243999` 不會命中 `fc2ppv2439990`，但 `SONE-205` 仍會命中 `sone-205c`。
 
 ## 4. 變換表
@@ -94,7 +96,7 @@
 
 ## 6. `not_found` 三判準與結果形狀
 
-抓一個番號的結果只有幾種：`ok`（一筆）、`multiple`（多個版本）、`not_found`（查無）、錯誤，以及番號不符 `number_pattern` 時的略過。
+抓一個番號的結果只有幾種：`ok`（一筆）、`multiple`（多個版本）、`not_found`（查無）、錯誤，以及（有寫 `number_pattern` 時）番號不符 `number_pattern` 的略過。
 
 判定 `not_found` 的三個情況：
 
@@ -125,7 +127,7 @@
 | `bad_id` | `id` 含大寫、底線等不允許的字元、以連字號開頭或超過 32 字；改名 |
 | `reserved_id` | `id` 與內建來源名稱衝突；換一個 |
 | `id_filename_mismatch` | `id` 不等於檔名；兩者改成一致 |
-| `bad_pattern` | regex 無法編譯、過長或沒有 capture group；或 `tests` 的番號不符 `number_pattern` |
+| `bad_pattern` | regex 無法編譯、過長或沒有 capture group；或有寫 `number_pattern` 時，`tests` 的番號不符它 |
 | `bad_template` | URL 模板有不支援的占位符、大括號不成對、主機名稱含占位符，或指向 IP／本機；見 §3、§12 |
 | `bad_selector` | CSS selector 語法錯誤 |
 | `missing_negative_assert` | `tests` 沒有任何負向斷言；見 §8 |
@@ -147,7 +149,8 @@
 
 `tests` 是一串案例，每個案例的鍵只有 `number`、`status`、`expect`：
 
-- `number`：真實存在的番號，必須符合自己的 `number_pattern`。
+- `number`：真實存在的番號；有寫 `number_pattern` 時必須符合它。
+  從頁面抽出的 `number` 欄位在比對前也會先被標準化（同 §3 的規則），所以 `expect.number` 要寫標準化後的形狀（如 `MD-0318`、`91CM001`），不是站上顯示的原樣。
 - `status`：`ok`（預設）、`multiple`（預期多版本）、`not_found`（預期查無，不需 `expect`）。
 - `expect`：對抽到的欄位下斷言。鍵是欄位名，加上後綴表示斷言種類：
 
@@ -242,7 +245,7 @@ tests:
 4. **判斷單段或兩段**：網址能由番號直接組出詳情頁就用單段式；要先搜尋再點進去就用兩段式，並寫 `results` 的過濾條件，且第 2 段寫 `- {}`。
 5. **決定 `fetch`**：先 `plain`，被擋再 `tls`（§7）。
 6. **寫 `tests`**：至少兩案，一個真實存在的番號（正向斷言加 `tags_max`）與一個不存在的番號（`status: not_found`）。
-7. **自我檢查**：`id` 等於檔名；`number_pattern` 能完整符合每個測試番號；`fields` 有 `title` 或 `cover`；`then` 的 regex 都有 capture group；沒有用到未知的鍵。載入被拒就對照 §6 的 reason 表修正。
+7. **自我檢查**：`id` 等於檔名；有寫 `number_pattern` 時它要能完整符合每個測試番號（沒寫就沒有這一項）；`fields` 有 `title` 或 `cover`；`then` 的 regex 都有 capture group；沒有用到未知的鍵。載入被拒就對照 §6 的 reason 表修正。
 8. 站方改版或查不到時不要硬湊：走 §11。
 
 ## 11. 表達不了的站
@@ -334,7 +337,7 @@ curl -X DELETE http://localhost:8000/api/custom-sources/my-source
 
 ### 使用 custom:<id> 的條件
 
-`custom:<id>` 用在三處：`search`（`GET /api/search?source=custom:<id>`）、`enrich_single`（`POST /api/enrich-single`）、`rescrape`（`POST /api/rescrape/preview`）。**三個條件缺一就被拒**：已驗收通過、使用者已在設定頁打開、番號符合該來源的 `number_pattern`。
+`custom:<id>` 用在三處：`search`（`GET /api/search?source=custom:<id>`）、`enrich_single`（`POST /api/enrich-single`）、`rescrape`（`POST /api/rescrape/preview`）。**三個條件缺一就被拒**：已驗收通過、使用者已在設定頁打開、番號符合該來源的 `number_pattern`（沒寫 `number_pattern` 的來源不限制番號，只要非空）。
 
 | reason | 意思 |
 |---|---|
@@ -344,7 +347,7 @@ curl -X DELETE http://localhost:8000/api/custom-sources/my-source
 | `unverified` | 尚未通過驗收，請先驗收 |
 | `failed` | 驗收沒有通過（站方可能改版了），需重跑驗收 |
 | `disabled` | 使用者尚未在設定頁啟用 |
-| `pattern_mismatch` | 這個番號不符合此來源接受的格式 |
+| `pattern_mismatch` | 這個番號不符合此來源接受的格式（只有寫了 `number_pattern` 的來源會出現） |
 
 三處被拒時的回應形狀：
 

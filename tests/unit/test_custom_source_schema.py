@@ -333,3 +333,24 @@ def test_load_bytes_sha256_is_of_raw_bytes():
 def test_id_re_is_public_and_fullmatch_only():
     assert not hasattr(schema, "_" + "ID_RE")
     assert ID_RE.fullmatch("a-b1") and not ID_RE.fullmatch("a\n") and not ID_RE.fullmatch("A_b")
+
+
+# ---- T15：number_pattern 選填（缺席或 null＝任何非空番號都接受）
+NO_PATTERN = sub(BASE, "number_pattern: 'ABC-\\d+'\n", "")
+NULL_PATTERN = sub(BASE, "number_pattern: 'ABC-\\d+'", "number_pattern:")
+
+
+@pytest.mark.parametrize("text", [NO_PATTERN, NULL_PATTERN], ids=["absent", "null"])
+def test_number_pattern_optional(text):
+    assert load_text(text, "base").number_pattern is None
+
+
+def test_no_pattern_tests_numbers_not_blocked():
+    text = sub(NO_PATTERN, "number: ABC-123", "number: DA003")
+    assert load_text(text, "base").tests[0].number == "DA003"
+
+
+def test_pattern_given_still_validated():
+    with pytest.raises(LoadError) as e:
+        load_text(sub(BASE, "number: ABC-123", "number: DA003"), "base")
+    assert e.value.reason == "bad_pattern"

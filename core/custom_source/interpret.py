@@ -198,7 +198,9 @@ def _two_stage(spec, canon, transport, config):
 
 
 def accepts_number(spec, number):
-    """番號正規化後符合 spec.number_pattern 才會被這個來源處理。"""
+    """番號正規化後符合 spec.number_pattern 才會被這個來源處理；沒寫 pattern 則任何非空番號都收。"""
+    if spec.number_pattern is None:
+        return bool(normalize_number_impl(number))
     return re.fullmatch(spec.number_pattern, normalize_number_impl(number)) is not None
 
 

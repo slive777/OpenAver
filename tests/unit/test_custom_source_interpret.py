@@ -519,3 +519,11 @@ def test_run_tests_total_budget_times_out_later_cases(monkeypatch):
     assert [r.passed for r in results] == [True, False, False]
     assert results[1].mismatches == (interpret.Mismatch("status", "ok", "error:timeout", ""),)
     assert len(transport.calls) == 1
+
+
+@pytest.mark.parametrize("number, expected", [
+    ("DA003", True), ("91CM-001", True), ("MD0318", True), ("", False),
+])
+def test_accepts_number_without_pattern(number, expected):
+    spec = dataclasses.replace(_spec("single-og"), number_pattern=None)
+    assert accepts_number(spec, number) is expected
