@@ -42,6 +42,7 @@ from core.image_host_policy import (
 )
 from core.maker_mapping import load_prefix_mapping
 from core.source_config import validate_source_id
+from web.routers._custom_gate import refusal_for # noqa: PLC2701 — 卡片指定的 web 內部底線模組（165-T7b），同 router 層共用 gate 句表，尚未升格為公開名
 from core.source_settings import get_switchable_source_ids_ordered, is_uncensored_mode_effective
 from core.auto_organize_state import mark_manual_activity, request_abort, get_status
 from core.config import load_config, mutate_config
@@ -215,8 +216,15 @@ def search(
         if source:
             # 指定來源搜索
             from core.scraper import search_jav_single_source, access_error_info
-            from core.scrapers.errors import SourceBlocked, SourceUnreachable
+            from core.scrapers.errors import SourceBlocked, SourceParseEmpty, SourceUnreachable
             from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
+            if source.startswith('custom:'):
+                refused = refusal_for(source, q)
+                if refused:
+                    return JSONResponse(status_code=400, content={
+                        "success": False, "error": refused[1],
+                        "reason": "custom_source_refused", "custom_reason": refused[0],
+                    })
             try:
                 data = search_jav_single_source(
                     q, source, surface_access_errors=True,
@@ -242,6 +250,20 @@ def search(
                 return {
                     "success": False,
                     "error": "JavLibrary 僅限桌面應用程式（standalone）使用",
+                    "data": [],
+                    "total": 0,
+                    "mode": "exact",
+                    "has_more": False,
+                    "actress_profile": None,
+                }
+            except SourceParseEmpty:
+                from web.routers._custom_preview import parse_empty_text  # noqa: PLC2701 — 卡片指定的 web 內部底線模組（165-T7b）；lazy import 以免 import 時載入 core.custom_source*（AC-165-8）
+                logger.warning("search: parse_empty source=%s q=%s", source, q)
+                return {
+                    "success": False,
+                    "error": parse_empty_text(source),
+                    "custom_error": "parse_empty",
+                    "source": source,
                     "data": [],
                     "total": 0,
                     "mode": "exact",

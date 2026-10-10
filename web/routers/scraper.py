@@ -30,6 +30,7 @@ from core.scraper import (
     smart_search, is_number_format,
 )
 from core.scrapers.errors import SourceBlocked, SourceUnreachable
+from web.routers._custom_gate import refusal_for # noqa: PLC2701 — 卡片指定的 web 內部底線模組（165-T7b），同 router 層共用 gate 句表，尚未升格為公開名
 from core.source_config import validate_source_id
 from core.source_settings import is_uncensored_mode_effective
 from core.cf_transport import get_cf_transport, CfChallengeRequired, CfTransportUnavailable
@@ -382,6 +383,9 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
     不下載 cover（cover 是遠端 URL，原樣回前端，無 SSRF 面）。
     """
     try:
+        if (request.source or '').startswith('custom:'):
+            from web.routers._custom_preview import preview_custom  # noqa: PLC2701 — 卡片指定的 web 內部底線模組（165-T7b）；lazy import 以免 import 時載入 core.custom_source*（AC-165-8）
+            return preview_custom(request.source, request.number)
         if request.source == 'javlibrary':
             versions = search_javlib_versions(request.number)  # Cf* 例外由外層 except 接
             if not versions:
@@ -418,6 +422,12 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
     except Exception:
         logger.exception("rescrape_preview_endpoint 失敗")
         return {"success": False, "error": "預覽搜尋失敗，請查閱日誌"}
+
+
+def _custom_candidate_scraper_data(request: "EnrichRequest"):
+    """custom:* 的 detail_url 預抓（確認選定那一版）；形狀同 _javlib_candidate_scraper_data。"""
+    from web.routers._custom_preview import custom_candidate_data  # noqa: PLC2701 — 卡片指定的 web 內部底線模組（165-T7b）；lazy import 以免 import 時載入 core.custom_source*（AC-165-8）
+    return custom_candidate_data(request.source, request.detail_url, request.number)
 
 
 def _javlib_candidate_scraper_data(request: "EnrichRequest"):
@@ -533,9 +543,15 @@ def _validate_enrich_request(request: EnrichRequest, owning, action: Optional[st
     if request.metadata is not None and owning is not None and action != 'rescrape':
         raise HTTPException(400, detail="唯讀來源：metadata 只在 rescrape（重刮）意圖下生效，補完（ingest）不讀取預先取得的內容")
 
+    # 1c. 自訂來源 gate（在任何抓取之前；不放進 try 內避免被吞成 200）
+    if (request.source or '').startswith('custom:'):
+        refused = refusal_for(request.source, request.number)
+        if refused:
+            raise HTTPException(400, detail=refused[1])
+
     # 2. 互斥檢查（CD-135-11）
-    if request.metadata is not None and request.source == "javlibrary" and request.detail_url:
-        raise HTTPException(400, detail="metadata 與 javlibrary 明細網址（detail_url）不可同時提供")
+    if request.metadata is not None and request.detail_url and (request.source == "javlibrary" or (request.source or '').startswith('custom:')):
+        raise HTTPException(400, detail="metadata 與 javlibrary／自訂來源明細網址（detail_url）不可同時提供")
 
     # 3. key／型別驗證
     if request.metadata is not None:
@@ -702,10 +718,13 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             return asdict(_readonly_enrich_failure("未設定媒體庫輸出路徑", "error"))
         try:
             scraper_data = None
+            _cand_err = None
             if action == 'rescrape' and request.source == 'javlibrary' and request.detail_url:
                 scraper_data, _cand_err = _javlib_candidate_scraper_data(request)
-                if _cand_err:
-                    return _cand_err
+            if action == 'rescrape' and (request.source or '').startswith('custom:') and request.detail_url:
+                scraper_data, _cand_err = _custom_candidate_scraper_data(request)
+            if _cand_err:
+                return _cand_err
             if request.metadata is not None:
                 scraper_data = dict(request.metadata)
             # TASK-109-T2: 產出核心（URI→FS 轉換到組 EnrichResult 為止）薄搬移進
@@ -770,6 +789,10 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             # 重刮的 NFO 輸出（search_jav 走 internal_nfo_carriers 注入同組，PR #89 Codex P2）
             scraper_data = video.to_legacy_dict()
             scraper_data.update(internal_nfo_carriers(video))
+        if (request.source or '').startswith('custom:') and request.detail_url:
+            scraper_data, _cand_err = _custom_candidate_scraper_data(request)
+            if _cand_err:
+                return _cand_err
         if request.metadata is not None:
             scraper_data = _clean_metadata_for_scraper_data(request.metadata)
         result = enrich_single(
@@ -956,8 +979,9 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
         try:
             for idx, item in enumerate(deduped_items, start=1):
                 effective_source = item.source or request.source or "auto"
+                _custom_refused = effective_source.startswith('custom:')
                 # 未知 / 非法 source guard：不靜默轉成無效 cache_key，退回 'auto'（最小驚訝）。
-                if effective_source != "auto" and not validate_source_id(effective_source):
+                if not _custom_refused and effective_source != "auto" and not validate_source_id(effective_source):
                     logger.warning(
                         "batch_enrich: 未知 source %r（number=%s），退回 'auto'",
                         effective_source, item.number,
@@ -967,6 +991,12 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
 
                 # progress 事件
                 yield f"data: {json.dumps({'type': 'progress', 'current': idx, 'total': total, 'number': item.number})}\n\n"
+
+                if _custom_refused:
+                    # spec §8：自訂來源不參與批次補完（含已驗收已啟用者）；純字串判斷，不抓取不寫入
+                    failed_count += 1
+                    yield f"data: {json.dumps({'type': 'result-item', 'number': item.number, 'file_path': item.file_path, 'success': False, 'error': '自訂來源不參與批次補完，請改用單片重刮', 'reason': 'error'})}\n\n"
+                    continue
 
                 # TASK-104-T3 (CD-104-5)：唯讀項不再拒絕，改道 output_dir（action 固定
                 # 'ingest'——batch 語意是補缺、非撞號選版；撞號選版走單片 enrich-single
