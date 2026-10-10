@@ -340,6 +340,7 @@
       "probe_reason_ok": "連線正常",
       "probe_reason_cf_challenge": "站方要求人機驗證",
       "probe_reason_http_status": "站方拒絕了請求",
+      "probe_reason_http_status_code": "站方拒絕了請求（HTTP {status}）",
       "probe_reason_app_rejected": "站方拒絕了這個查詢通道",
       "probe_reason_proxy": "代理無回應或位址有誤",
       "probe_reason_timeout": "連線逾時",

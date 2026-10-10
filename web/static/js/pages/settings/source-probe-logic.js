@@ -73,6 +73,9 @@ export const PROBE_ICON_MAP = {
     skipped: 'bi-dash-circle',
 };
 
+/** http_status 且有整數狀態碼時改用這句（帶 {status}）；明確字面不動態拼（FE-JS-06）。 */
+export const REASON_KEY_HTTP_STATUS_CODE = 'settings.sources.probe_reason_http_status_code';
+
 export const ADVICE_KEY_MAP = {
     jp_ip: 'settings.sources.probe_advice_jp_ip',
 };
@@ -86,6 +89,7 @@ export function describeProbe(result) {
         icon: PROBE_ICON_MAP[r.state],
         stateKey: STATE_KEY_MAP[r.state],
         reasonKey: REASON_KEY_MAP[r.reason] ?? REASON_KEY_GENERIC,
+        status: Number.isInteger(r.status) ? r.status : null,
         adviceKey: ADVICE_KEY_MAP[r.advice] ?? null,
         host: (r.state === 'blocked' || r.state === 'unreachable') && r.host ? String(r.host) : null,
     };

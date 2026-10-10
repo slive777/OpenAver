@@ -152,3 +152,25 @@ test('srcProbeLine names the host only for blocked or unreachable results', () =
     assert.ok(!line.includes('undefined') && !line.includes('null') && !line.includes('host'));
   }
 });
+
+test('describeProbe keeps an integer HTTP status, nulls anything else', () => {
+  assert.equal(describeProbe({ state: 'blocked', reason: 'http_status', status: 503 }).status, 503);
+  for (const status of [undefined, null, '503', 503.5, NaN]) {
+    assert.equal(describeProbe({ state: 'blocked', reason: 'http_status', status }).status, null);
+  }
+});
+
+test('srcProbeLine shows the status code for http_status, original sentence otherwise', () => {
+  const { fake } = makeFake({
+    a: { state: 'blocked', reason: 'http_status', status: 503 },
+    b: { state: 'blocked', reason: 'http_status' },
+    c: { state: 'blocked', reason: 'cf_challenge', status: 403 },
+  });
+  const a = fake.srcProbeLine('a');
+  assert.ok(a.includes('503'), a);
+  assert.ok(a.includes('probe_reason_http_status_code'), a);
+  const b = fake.srcProbeLine('b');
+  assert.ok(!b.includes('{status}') && !b.includes('probe_reason_http_status_code'), b);
+  assert.ok(b.includes('settings.sources.probe_reason_http_status'), b);
+  assert.ok(!fake.srcProbeLine('c').includes('503') && !fake.srcProbeLine('c').includes('403'));
+});

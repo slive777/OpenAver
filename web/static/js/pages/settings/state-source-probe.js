@@ -1,6 +1,8 @@
 import {
     acceptProbeResponse,
     describeProbe,
+    REASON_KEY_HTTP_STATUS_CODE,
+    REASON_KEY_MAP,
     buildProbeKey,
     pickProbeIds,
     summarizeProbe,
@@ -36,7 +38,9 @@ export function stateSourceProbe() {
             const d = describeProbe(this.srcProbeResults[id]);
             if (!d) return '';
             const state = window.t(d.stateKey);
-            const reason = window.t(d.reasonKey);
+            const reason = (d.reasonKey === REASON_KEY_MAP.http_status && d.status !== null)
+                ? window.t(REASON_KEY_HTTP_STATUS_CODE, { status: d.status })
+                : window.t(d.reasonKey);
             const advice = d.adviceKey ? window.t(d.adviceKey) : '';
             if (d.host && d.adviceKey) {
                 return window.t('settings.sources.probe_line_host_advice', { state, host: d.host, reason, advice });
