@@ -7,7 +7,7 @@ import pytest
 import requests
 
 from core.custom_source import fetch
-from core.custom_source.fetch import FetchError, RawResponse, fetch_page, make_transport
+from core.custom_source.fetch import DeadlineTransport, FetchError, RawResponse, fetch_page, make_transport
 from core.proxy_policy import ProxySettings
 from core.scrapers.models import ScraperConfig
 from tests.unit._custom_source_fake import FakeTransport, page, redirect
@@ -313,3 +313,16 @@ def test_tls_missing_curl_cffi_is_transport_unavailable_and_plain_unaffected(mon
         make_transport("tls", "s", _cfg())
     assert ei.value.reason == "transport_unavailable"
     assert make_transport("plain", "s", _cfg()) is not None
+
+
+def test_deadline_transport_third_request_times_out(monkeypatch):
+    clock = iter(range(0, 1000, 10))
+    monkeypatch.setattr("core.custom_source.fetch._now", lambda: next(clock))
+    inner = FakeTransport({A: page("a")})
+    t = DeadlineTransport(inner, 25)  # 讀值 0 → deadline 25
+    assert t.request(A).status == 200  # 10
+    assert t.request(A).status == 200  # 20
+    with pytest.raises(FetchError) as ei:
+        t.request(A)  # 30
+    assert ei.value.reason == "timeout"
+    assert inner.calls == [A, A]

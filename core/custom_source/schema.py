@@ -11,7 +11,7 @@ import unicodedata
 from collections.abc import Hashable
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 import soupsieve
 import yaml
@@ -398,7 +398,19 @@ def _validate_steps(raw):
         if not isinstance(raw[1], dict) or raw[1]:
             raise LoadError("bad_value", "第 2 段必須是空 mapping", "steps[1]")
         steps.append(Step(None, (), None, None))
-    return tuple(steps), (host,)
+    return tuple(steps), (host.removeprefix("www."),)
+
+
+def detail_host_allowed(spec, url):
+    """詳情頁網址的 host（去開頭 www.）須是 spec.hosts 的基底 host 或其子網域。"""
+    try:
+        host = urlsplit(url).hostname
+    except ValueError:
+        return False
+    if not host:
+        return False
+    h = host.removeprefix("www.")
+    return any(h == b or h.endswith("." + b) for b in spec.hosts)
 
 
 # ---------------------------------------------------------------- fields

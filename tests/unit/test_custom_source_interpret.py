@@ -10,7 +10,7 @@ from core.custom_source import schema
 import core.custom_source.interpret as interpret
 from core.custom_source.extract import parse_html
 from core.custom_source.fetch import FetchError
-from core.custom_source.interpret import format_results, run_tests, scrape, scrape_detail
+from core.custom_source.interpret import accepts_number, format_results, run_tests, scrape, scrape_detail
 from core.proxy_policy import ProxySettings
 from core.scrapers.models import ScraperConfig
 from tests.unit._custom_source_fake import FakeTransport, page, redirect
@@ -381,3 +381,91 @@ def test_run_tests_status_mismatch_and_format():
 def test_format_results_all_pass_has_no_fail():
     ok = run_tests(_spec("single-og"), CFG, FakeTransport(_routes_for("single-og")))
     assert "FAIL" not in format_results(ok)
+
+
+# ---------- 165-T2：detail_host / public_url / nf_step / 預算 / accepts_number ----------
+
+def test_run_tests_flags_cross_domain_detail_host():
+    other = "https://detail.other.test/x"
+    routes = {SOG: redirect(other), other: _pg("single-og")}
+    spec = _with_cases((("title_contains", "Sample Title One"),))
+    results = run_tests(spec, CFG, FakeTransport(routes))
+    assert not results[0].passed
+    assert results[0].mismatches == (interpret.Mismatch("detail_host", "同站 host", "detail.other.test", other),)
+
+
+def test_run_tests_mismatch_url_has_no_userinfo():
+    target = "https://u:p@single-og.example/x?id=1"
+    routes = {SOG: redirect(target), target: _pg("single-og")}
+    results = run_tests(_with_cases((("title", "WRONG"),)), CFG, FakeTransport(routes))
+    mismatch = results[0].mismatches[0]
+    assert mismatch.key == "title"
+    assert "u:p@" not in mismatch.url and "?id=1" in mismatch.url
+
+
+def test_scrape_detail_applies_not_found_when_for_single_stage():
+    marker = "<h1"
+    assert marker in _txt("single-og") and marker in _txt("two-step-detail-a")
+    single = _step0("single-og", not_found_body=marker)
+    result = scrape_detail(single, SOG, "SONE-205", CFG, FakeTransport({SOG: _pg("single-og")}))
+    assert result.status == "not_found"
+    # 兩段式：steps[0] 是搜尋頁標記，不可擋詳情頁
+    detail = "https://two-step.example/v/a/"
+    two = _step0("two-step", not_found_body=marker)
+    result = scrape_detail(two, detail, "SONE-205", CFG, FakeTransport({detail: _pg("two-step-detail-a")}))
+    assert result.status in ("ok", "multiple")
+
+
+@pytest.mark.parametrize("name, number, expected", [
+    ("single-og", "SONE-205", True),
+    ("single-og", "sone205", True),
+    ("single-og", "12345", False),
+    ("single-og", "", False),
+    ("text", "SONE-205", False),
+    ("text", "FC2-2439990", True),
+])
+def test_accepts_number_table(name, number, expected):
+    assert accepts_number(_spec(name), number) is expected
+
+
+def test_guarded_delegates_to_accepts_number(monkeypatch):
+    monkeypatch.setattr(interpret, "accepts_number", lambda spec, number: False)
+    result, transport = _run(_spec("single-og"), "SONE-205", _routes_for("single-og"))
+    assert (result.status, transport.calls) == ("skipped", [])
+
+
+def _fake_clock(monkeypatch, step=10):
+    ticks = itertools.count(0, step)
+    monkeypatch.setattr("core.custom_source.fetch._now", lambda: next(ticks))
+
+
+def test_budget_stops_requests_after_deadline(monkeypatch):
+    _fake_clock(monkeypatch)
+    transport = FakeTransport(_routes_for("candidates"))
+    result = scrape(_spec("candidates"), "SONE-205", CFG, transport, budget_s=25)
+    assert len(transport.calls) == 2
+    assert result.status in ("ok", "multiple")
+
+
+def test_no_budget_means_no_deadline(monkeypatch):
+    _fake_clock(monkeypatch)
+    transport = FakeTransport(_routes_for("candidates"))
+    scrape(_spec("candidates"), "SONE-205", CFG, transport, budget_s=None)
+    assert len(transport.calls) == 4
+
+
+def test_run_tests_total_budget_times_out_later_cases(monkeypatch):
+    now = [0]
+    monkeypatch.setattr("core.custom_source.fetch._now", lambda: now[0])
+
+    def slow(url):
+        now[0] += 30
+        return _pg("single-og")
+
+    cases = tuple(schema.Case("SONE-205", "ok", (("title_contains", "Sample Title One"),)) for _ in range(3))
+    spec = dataclasses.replace(_spec("single-og"), tests=cases)
+    transport = FakeTransport({SOG: slow})
+    results = run_tests(spec, CFG, transport, total_budget_s=25)
+    assert [r.passed for r in results] == [True, False, False]
+    assert results[1].mismatches == (interpret.Mismatch("status", "ok", "error:timeout", ""),)
+    assert len(transport.calls) == 1

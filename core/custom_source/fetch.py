@@ -1,6 +1,7 @@
 """自訂來源的抓取層：逐跳守衛、兩種 transport、body 上限、節流。"""
 
 from dataclasses import dataclass
+import time
 from importlib.metadata import PackageNotFoundError
 from typing import NamedTuple, Optional, Protocol
 from urllib.parse import urljoin
@@ -17,6 +18,7 @@ MAX_BODY_BYTES = 5 * 1024 * 1024
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _DATA_STATUSES = frozenset({200, 404})
 _CHUNK_SIZE = 64 * 1024
+_now = time.monotonic
 
 
 class FetchError(Exception):
@@ -113,6 +115,19 @@ class TlsTransport:
         if len(body) > MAX_BODY_BYTES:
             raise FetchError("too_large")
         return RawResponse(status, headers, body, headers.get("location"))
+
+
+class DeadlineTransport:
+    """包住另一個 transport：建構後超過 budget_s 秒，之後每次 request() 直接 timeout。"""
+
+    def __init__(self, inner, budget_s):
+        self._inner = inner
+        self._deadline = _now() + budget_s
+
+    def request(self, url):
+        if _now() >= self._deadline:
+            raise FetchError("timeout")
+        return self._inner.request(url)
 
 
 def make_transport(fetch, source_id, config):

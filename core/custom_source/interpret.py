@@ -3,8 +3,11 @@ import re
 from dataclasses import dataclass
 from urllib.parse import quote, urldefrag, urljoin, urlparse, urlsplit
 
+from core.custom_source import fetch as fetch_mod
 from core.custom_source.extract import extract_fields, parse_html
-from core.custom_source.fetch import FetchError, fetch_page, make_transport
+from core.custom_source.fetch import DeadlineTransport, FetchError, fetch_page, make_transport
+from core.custom_source.schema import detail_host_allowed
+from core.custom_source.urls import public_url
 from core.logger import get_logger
 from core.scrapers.utils import normalize_number_impl
 
@@ -193,12 +196,18 @@ def _two_stage(spec, canon, transport, config):
     return _finish(spec, pages, canon, errors)
 
 
-def _guarded(spec, number, config, transport, work):
-    canon = normalize_number_impl(number)
-    if re.fullmatch(spec.number_pattern, canon) is None:
+def accepts_number(spec, number):
+    """番號正規化後符合 spec.number_pattern 才會被這個來源處理。"""
+    return re.fullmatch(spec.number_pattern, normalize_number_impl(number)) is not None
+
+
+def _guarded(spec, number, config, transport, work, budget_s=None):
+    if not accepts_number(spec, number):
         return ScrapeResult("skipped")
+    canon = normalize_number_impl(number)
     try:
-        return work(canon, transport or make_transport(spec.fetch, f"custom:{spec.id}", config))
+        tr = transport or make_transport(spec.fetch, f"custom:{spec.id}", config)
+        return work(canon, tr if budget_s is None else DeadlineTransport(tr, budget_s))
     except FetchError as exc:
         return ScrapeResult("error", reason=exc.reason, http_status=exc.http_status)
     except Exception:
@@ -206,13 +215,20 @@ def _guarded(spec, number, config, transport, work):
         return ScrapeResult("error", reason="unexpected")
 
 
-def scrape(spec, number, config, transport=None):
+def scrape(spec, number, config, transport=None, budget_s=None):
     stage = _two_stage if len(spec.steps) == 2 else _single_stage
-    return _guarded(spec, number, config, transport, lambda canon, tr: stage(spec, canon, tr, config))
+    return _guarded(spec, number, config, transport, lambda canon, tr: stage(spec, canon, tr, config), budget_s)
 
 
-def scrape_detail(spec, detail_url, number, config, transport=None):
-    return _guarded(spec, number, config, transport, lambda canon, tr: _finish(spec, _fetch_unique([detail_url], tr, config, (errors := [])), canon, errors))
+def scrape_detail(spec, detail_url, number, config, transport=None, budget_s=None):
+    nf_step = spec.steps[0] if len(spec.steps) == 1 else None
+
+    def work(canon, tr):
+        errors = []
+        pages = _fetch_unique([detail_url], tr, config, errors, nf_step=nf_step)
+        return _finish(spec, pages, canon, errors)
+
+    return _guarded(spec, number, config, transport, work, budget_s)
 
 
 def _as_list(value):
@@ -238,19 +254,45 @@ def _check_expect(key, expected, fields):
     return None if ok else (want, actual)
 
 
-def _check_case(case, result):
+def _host_of(url):
+    try:
+        return urlsplit(url).hostname or ""
+    except ValueError:
+        return ""
+
+
+def _host_mismatches(spec, items):
+    return [Mismatch("detail_host", "同站 host", _host_of(i.detail_url), public_url(i.detail_url)) for i in items if not detail_host_allowed(spec, i.detail_url)]
+
+
+def _expect_mismatches(checked):
+    return [Mismatch(key, bad[0], bad[1], public_url(item.detail_url)) for item, key, bad in checked if bad is not None]
+
+
+def _check_case(spec, case, result):
     got = f"error:{result.reason}" if result.status == "error" else result.status
     if got != case.status:
         return [Mismatch("status", case.status, got, "")]
     if case.status == "not_found":
         return []
     checked = [(item, key, _check_expect(key, want, item.fields)) for item in result.items for key, want in case.expect]
-    return [Mismatch(key, bad[0], bad[1], item.detail_url) for item, key, bad in checked if bad is not None]
+    return _expect_mismatches(checked) + _host_mismatches(spec, result.items)
 
 
-def run_tests(spec, config, transport=None):
-    runs = [(i, c, _check_case(c, scrape(spec, c.number, config, transport))) for i, c in enumerate(spec.tests, 1)]
-    return tuple(CaseResult(i, c.number, not found, tuple(found)) for i, c, found in runs)
+def _run_case(spec, index, case, config, transport, budget_s, total_deadline):
+    if total_deadline is not None and fetch_mod._now() >= total_deadline:
+        found = [Mismatch("status", case.status, "error:timeout", "")]
+    else:
+        if total_deadline is not None:
+            remaining = total_deadline - fetch_mod._now()
+            budget_s = remaining if budget_s is None else min(budget_s, remaining)
+        found = _check_case(spec, case, scrape(spec, case.number, config, transport, budget_s=budget_s))
+    return CaseResult(index, case.number, not found, tuple(found))
+
+
+def run_tests(spec, config, transport=None, budget_s=None, total_budget_s=None):
+    total_deadline = None if total_budget_s is None else fetch_mod._now() + total_budget_s
+    return tuple(_run_case(spec, i, c, config, transport, budget_s, total_deadline) for i, c in enumerate(spec.tests, 1))
 
 
 def format_results(results):
