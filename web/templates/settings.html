@@ -364,6 +364,84 @@
                                    手動屬性由 .source-pill--manual-only 的虛線外框表達。 #}
                             </div>
                         </template>
+                        {# 165-T9：自訂來源是獨立元件（不進 settings 的 mergeState）；此區只准用 customSrc*／entry／window.t，
+                           寫 sources／form／showToast 會靜默讀到父層。零自訂時 x-for 不輸出任何節點。 #}
+                        <div x-data="customSources" style="display: contents">
+                            <template x-for="entry in customSrcList" :key="entry.id">
+                                <div style="display: contents">
+                                    <div class="source-pill source-pill--manual-only source-pill--action"
+                                         :data-enabled="(entry.status === 'passed' && entry.enabled) ? 'true' : 'false'"
+                                         role="option"
+                                         :aria-selected="(entry.status === 'passed' && entry.enabled) ? 'true' : 'false'"
+                                         :aria-disabled="customSrcStatus(entry) === 'verifying' ? 'true' : 'false'"
+                                         tabindex="0"
+                                         @click="customSrcToggle(entry.id)"
+                                         @keydown.enter.prevent="customSrcToggle(entry.id)"
+                                         @keydown.space.prevent="customSrcToggle(entry.id)">
+                                        <span class="pill-name" x-text="entry.name"></span>
+                                        <span class="source-pill-custom-badge"
+                                              title="{{ t('settings.sources.custom_badge_title') }}"
+                                              aria-hidden="true">c</span>
+                                        <span class="pill-spin" x-show="customSrcStatus(entry) === 'verifying'" x-cloak></span>
+                                        <button type="button"
+                                                class="source-pill-probe"
+                                                x-show="customSrcStatus(entry) !== 'verifying'"
+                                                x-cloak
+                                                :data-state="customSrcProbeState(entry.status)"
+                                                :aria-label="customSrcLine(entry)"
+                                                :title="customSrcLine(entry)"
+                                                @mousedown.prevent
+                                                @click.stop="customSrcToggleLine(entry.id)"
+                                                @keydown.enter.stop
+                                                @keydown.space.stop>
+                                            <i :class="customSrcProbeIcon(entry.status)" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                    <div class="source-pill-custom-line"
+                                         x-show="customSrcOpenId === entry.id"
+                                         x-cloak>
+                                        <span class="source-pill-custom-line-text" x-text="customSrcLine(entry)"></span>
+                                        <span class="source-pill-custom-line-error"
+                                              role="alert"
+                                              x-show="customSrcError !== ''"
+                                              x-text="customSrcError"></span>
+                                        <span class="source-pill-custom-line-actions">
+                                            <button type="button"
+                                                    class="btn btn-xs btn-ghost"
+                                                    x-show="entry.status !== 'load_failed'"
+                                                    :disabled="customSrcBusyId !== null"
+                                                    @click="customSrcVerify(entry.id)">
+                                                {{ t('settings.sources.custom_verify_btn') }}
+                                            </button>
+                                            <button type="button"
+                                                    class="btn btn-xs btn-ghost"
+                                                    @click="customSrcOpenRemove(entry.id)">
+                                                {{ t('settings.sources.custom_remove_btn') }}
+                                            </button>
+                                        </span>
+                                    </div>
+                                </div>
+                            </template>
+                            <dialog class="modal fluent-modal"
+                                    :class="{ 'modal-open': customSrcRemoveId !== null }"
+                                    @click.self="customSrcCloseRemove()"
+                                    @keydown.escape.window="customSrcRemoveId !== null && customSrcCloseRemove()">
+                                <div class="modal-box fluent-modal-box">
+                                    <h3 class="fluent-modal-title">
+                                        <i class="bi bi-trash"></i> {{ t('settings.sources.custom_remove_title') }}
+                                    </h3>
+                                    <p class="fluent-modal-body" x-text="customSrcRemoveBody()"></p>
+                                    <div class="modal-action fluent-modal-actions">
+                                        <button type="button" class="btn btn-ghost" @click="customSrcCloseRemove()">
+                                            {{ t('common.action.cancel') }}
+                                        </button>
+                                        <button type="button" class="btn btn-outline btn-warning" @click="customSrcConfirmRemove()">
+                                            {{ t('settings.sources.custom_remove_confirm') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </dialog>
+                        </div>
                     </div>
 
                     <p class="source-pill-probe-tip"

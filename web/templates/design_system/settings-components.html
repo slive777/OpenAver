@@ -727,6 +727,13 @@
             <span class="source-pill-mt-badge" aria-hidden="true">m</span>
         </div>
 
+        <!-- 自訂來源（165-T9：虛線 + c 角標 + 驗收狀態點；有碼色、不可拖、不算進已啟用 N/10） -->
+        <div class="source-pill source-pill--manual-only source-pill--action" data-enabled="true">
+            <span class="pill-name">MySite</span>
+            <span class="source-pill-custom-badge" aria-hidden="true">c</span>
+            <span class="source-pill-probe" data-state="ok"><i class="bi bi-check-circle" aria-hidden="true"></i></span>
+        </div>
+
         <!-- parts-bin 可加入（staged reachable：available=true，顯 +，無刪除線） -->
         <div class="source-pill is-partsbin" data-enabled="false" data-available="true">
             <i class="bi bi-plus-circle plus-icn" aria-hidden="true"></i>
@@ -755,6 +762,13 @@
 &lt;!-- manual-only（dashed accent）--&gt;
 &lt;div class="source-pill source-pill--manual-only" data-enabled="false"&gt;
   &lt;span class="pill-name"&gt;JavLibrary&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;!-- 自訂來源（c 角標 + 驗收狀態點；不可拖）--&gt;
+&lt;div class="source-pill source-pill--manual-only source-pill--action" data-enabled="true"&gt;
+  &lt;span class="pill-name"&gt;MySite&lt;/span&gt;
+  &lt;span class="source-pill-custom-badge"&gt;c&lt;/span&gt;
+  &lt;span class="source-pill-probe" data-state="ok"&gt;&lt;i class="bi bi-check-circle"&gt;&lt;/i&gt;&lt;/span&gt;
 &lt;/div&gt;
 
 &lt;!-- metatube（m 角標）--&gt;

@@ -589,6 +589,34 @@
     min-height: 2.5rem;
 }
 
+/* 165-T9：自訂來源說明列（狀態句＋驗收／移除），全寬換行，其後的膠囊換到下一列。 */
+#settings-components .source-pill-custom-line {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+#settings-components .source-pill-custom-line-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+#settings-components .source-pill-custom-line-error {
+    flex-basis: 100%;
+    color: var(--color-warning);
+}
+
+#settings-components .source-pill-custom-line-actions {
+    display: inline-flex;
+    gap: 0.25rem;
+}
+
 /* ─── Source pill visuals moved to components/source-pill.css (TASK-62a-0,
  *     cross-page shared, unscoped). Container .settings-sources-pills stays here. ─── */
 

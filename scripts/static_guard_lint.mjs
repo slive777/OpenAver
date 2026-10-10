@@ -1596,6 +1596,12 @@ const RULES = [
   },
   { file: 'web/static/js/pages/settings/main.js', kind: 'forbidden-string', pattern: '...stateConfig()', note: '[TestSettingsESMGuard] test_main_js_uses_descriptor_merge (forbidden half — 只驗 1/3 factory 的 spread，弱於 scanner/showcase/search 頁，故意不補強成一致，CD-96-9)' },
   { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'get isDirty()', note: '[TestSettingsESMGuard] test_state_config_has_getter_isDirty — isDirty 須為 getter 非 plain prop（settings 頁獨有斷言）' },
+  // ---- 165-T9：自訂來源是獨立元件，父層分片不可長出 customSrc 狀態；掛載點不可改名 ----
+  ...['state-config.js', 'state-source-probe.js'].map((file) => ({
+    file: `web/static/js/pages/settings/${file}`, kind: 'forbidden-string', pattern: 'customSrc',
+    note: `[lint-guard 165-T9-parent-isolation] ${file} 不可出現 customSrc（自訂來源獨立元件，不進 mergeState 分片）`,
+  })),
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'x-data="customSources"', note: '[lint-guard 165-T9-mount-point] 設定頁須掛載 customSources 元件' },
 
   // ---- [TestScannerESMGuard] 54c：scanner state 模組 + main.js + scanner.html ----
   ...[
