@@ -557,3 +557,34 @@ def nested_preview_target_allowed(query: str) -> bool:
     if len(targets) != 1:
         return False          # 兩個 url ＝ 夾帶，交給 metatube 挑等於交給攻擊者挑
     return _is_public_http_target(targets[0])
+
+
+def is_metatube_relay_url(url: str) -> bool:
+    """這個 URL 是不是連到使用者自己（已連線）的 metatube 圖片端點？
+
+    只做**分類**（它是不是中轉圖），不做授權（該不該放行，那是 `proxy_verdict()`
+    的事，所以不套 `nested_preview_target_allowed`）。判準與 `proxy_verdict()`
+    Branch 2 同一組 host／scheme／port／path_prefix，直接重用同一批函式。
+    未連線 metatube → False。
+    """
+    # BE-SEC-01: single try/except-wrapped urlparse, reuse `parsed`.
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return False
+    for entry in proxy_dynamic_hosts():
+        if host != entry.host:
+            continue
+        if parsed.scheme not in entry.schemes:
+            return False
+        if entry.port is not None and _effective_port(parsed) != entry.port:
+            return False
+        if entry.path_prefix and not _path_prefix_allowed(
+            parsed.path, entry.path_prefix
+        ):
+            return False
+        return True
+    return False

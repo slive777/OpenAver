@@ -2,7 +2,7 @@
 
 picker 前端元件不改（B1 已 data-driven）；本檔驗 validate + dispatch 閉合：
 exact + source=metatube:FANZA → search_jav_single_source → explicit 分支整包贏。
-另驗 get_common_context 注入 routable/available/proxy_configured（bootstrap 資料來源）。
+另驗 get_common_context 注入 routable/available（bootstrap 資料來源）。
 """
 import pytest
 
@@ -79,10 +79,9 @@ def test_disconnected_metatube_source_no_dispatch(client, temp_config_path):
     assert resp.json()["data"] == []
 
 
-def test_bootstrap_injects_routable_and_proxy_configured(client, temp_config_path):
-    """get_common_context 注入：builtin sources 帶 routable=true，bootstrap 有 proxy_configured。"""
+def test_bootstrap_injects_routable_and_available(client, temp_config_path):
+    """get_common_context 注入：builtin sources 帶 routable=true、available=true。"""
     html = client.get("/search").text
-    assert "proxy_configured:" in html, "bootstrap 缺少 proxy_configured 注入"
     assert '"routable": true' in html, "builtin source 應帶 routable=true（config.sources|tojson 自動帶出）"
     assert '"available": true' in html, "builtin source 應帶 available=true"
 

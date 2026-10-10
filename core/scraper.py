@@ -20,9 +20,12 @@ from core.scrapers import (
     FC2OfficialScraper, FC2JavtenScraper, AVSOXScraper,
     D2PassScraper, HEYZOScraper, DMMScraper,
     JavLibraryScraper,          # T3 新增
-    Video, ScraperConfig
+    Video
 )
+from core.scrapers.errors import SourceBlocked, SourceUnreachable
+from core.proxy_policy import source_needs_jp_ip
 from core.scrapers.utils import (
+    SOURCE_NAMES,
     extract_number as _new_extract_number,
     FUZZY_SEARCH_SOURCES,
     normalize_number_impl,
@@ -33,7 +36,7 @@ from core.scrapers.utils import (
 from core.maker_mapping import get_maker_by_prefix
 from core.source_merger import merge_results
 from core.source_config import validate_source_id
-from core.source_settings import get_enabled_source_ids, get_all_source_ids_ordered
+from core.source_settings import get_enabled_source_ids, get_all_source_ids_ordered, is_source_enabled
 
 # 63c metatube routing imports（CD-63c-1 / CD-63c-2 / CD-63c-3）
 from core.metatube.client import MetatubeHttpClient, pick_movie_result
@@ -193,26 +196,18 @@ class _MetatubeShim:
 
 # ============ 核心搜尋函數 ============
 
-def _is_dmm_enabled(proxy_url: str) -> bool:
-    """空字串 → False；'direct' / 真 proxy → True"""
-    return bool(proxy_url and proxy_url.strip())
-
-
-def _dmm_proxy_url(proxy_url: str) -> str:
-    """'direct'（大小寫不敏感）→ ''（直連）；其他 → 原值"""
-    if not proxy_url:
-        return ''
-    if proxy_url.strip().lower() == 'direct':
-        return ''
-    return proxy_url
-
-
 VALID_JAVBUS_LANGS = {'zh-tw', 'ja', 'en'}
 
 
-def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_lang: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def search_jav(
+    number: str, source: str = 'auto', javbus_lang: Optional[str] = None,
+    surface_access_errors: bool = False,
+) -> Optional[Dict[str, Any]]:
     """
     搜尋 JAV 資訊（向後相容函數）
+
+    surface_access_errors=True 時，explicit 單一來源遇到 SourceBlocked／SourceUnreachable
+    會往上拋（讓呼叫端分得出「被拒／連不到」與「查無」）；預設 False 維持吞掉。auto 不受影響。
     """
     all_data: Dict[str, Video] = {}
 
@@ -225,9 +220,6 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
         logger.warning(f"[Search] 未知來源: {source}")
         return None
 
-    # DMM 需要日本 IP（proxy 或 direct），有啟用才建立
-    dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url)) if _is_dmm_enabled(proxy_url) else None
-
     # javbus_lang 校驗 + config fallback（auto 與 explicit javbus 共用）
     if javbus_lang is not None and javbus_lang not in VALID_JAVBUS_LANGS:
         logger.warning("[Search] 無效的 javbus_lang: %s，fallback 到 config", javbus_lang)
@@ -236,11 +228,11 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
 
     # 來源 id → scraper factory（無參數 callable，回 scraper instance list）。
     # DMM 與 JavBus 是攜帶 closure 參數的特例：
-    #   - dmm：proxy-gated，dmm_config 為 None（無 proxy）時回 []（不建立）。
+    #   - dmm：一律建立（開關看膠囊；代理由 proxy policy 決定）。
     #   - javbus：帶校驗後的 lang。
     # explicit 指定來源與 auto fan-out 共用同一份定義。
     source_to_scraper = {
-        'dmm': lambda: [DMMScraper(dmm_config)] if dmm_config else [],
+        'dmm': lambda: [DMMScraper()],
         'javbus': lambda: [JavBusScraper(lang=_javbus_lang)],
         'jav321': lambda: [JAV321Scraper()],
         'javdb': lambda: [JavDBScraper()],
@@ -338,6 +330,8 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
                 from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
                 if isinstance(e, (CfChallengeRequired, CfTransportUnavailable)):
                     raise          # bubble 給 router，不 continue
+                if surface_access_errors and isinstance(e, (SourceBlocked, SourceUnreachable)):
+                    raise
                 # [CF-DIAG] DEBUG→INFO + 例外型別：explicit 分支是 JL 的唯一路徑
                 # （manual_only）。型別讓 40 分鐘重現能分辨 WebViewException（死窗）
                 # vs TimeoutError（靜默死亡）vs 其他——之前藏在 DEBUG 看不到。
@@ -374,10 +368,28 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
 
 
 def search_jav_single_source(
-    number: str, source: str, proxy_url: str = '', javbus_lang: Optional[str] = None,
+    number: str, source: str, javbus_lang: Optional[str] = None,
+    surface_access_errors: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """指定單一來源搜尋"""
-    return search_jav(number, source=source, proxy_url=proxy_url, javbus_lang=javbus_lang)
+    return search_jav(
+        number, source=source, javbus_lang=javbus_lang,
+        surface_access_errors=surface_access_errors,
+    )
+
+
+def access_error_info(exc: Exception, source: str) -> Dict[str, str]:
+    """SourceBlocked／SourceUnreachable → {access_error, source, message}（兩個端點共用）。"""
+    name = SOURCE_NAMES.get(source, source)
+    if not isinstance(exc, SourceBlocked):
+        return {
+            "access_error": "unreachable", "source": source,
+            "message": f"{name} 連不到，請檢查網路或代理設定",
+        }
+    message = f"{name} 拒絕連線"
+    if source_needs_jp_ip(source):
+        message += "。部分地區需要日本 IP，可在 Proxy 欄設定"
+    return {"access_error": "refused", "source": source, "message": message}
 
 
 def search_javlib_versions(number: str) -> List[Dict[str, Any]]:
@@ -648,7 +660,6 @@ def _fuzzy_one(
     query: str,
     limit: int,
     offset: int,
-    proxy_url: str,
     status_callback: Optional[Callable[[str, str], None]],
     result_callback: Optional[Callable[[int, Any], None]],
     discovery_only: bool = False,
@@ -666,8 +677,7 @@ def _fuzzy_one(
     if source == 'dmm':
         if status_callback:
             status_callback('dmm', 'searching')
-        dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url))
-        dmm_scraper = DMMScraper(dmm_config)
+        dmm_scraper = DMMScraper()
         result = _dmm_keyword_search_progressive(
             dmm_scraper, query, limit, status_callback, result_callback, offset=offset
         )
@@ -689,7 +699,6 @@ def _fuzzy_search_chain(
     query: str,
     limit: int = 20,
     offset: int = 0,
-    proxy_url: str = '',
     status_callback: Optional[Callable[[str, str], None]] = None,
     result_callback: Optional[Callable[[int, Any], None]] = None,
     discovery_only: bool = False,
@@ -703,11 +712,11 @@ def _fuzzy_search_chain(
     chain = [s for s in get_all_source_ids_ordered() if s in FUZZY_SEARCH_SOURCES]
     first_dispatched = False
     for source in chain:
-        if source == 'dmm' and not _is_dmm_enabled(proxy_url):
+        if source == 'dmm' and not is_source_enabled('dmm'):
             continue  # 不可達，跳過（不算 dispatched）
         cb = result_callback if not first_dispatched else None
         results = _fuzzy_one(
-            source, query, limit, offset, proxy_url, status_callback, cb,
+            source, query, limit, offset, status_callback, cb,
             discovery_only=discovery_only,
         )
         first_dispatched = True  # 第一個實際發動後，後續 seed 不送
@@ -722,7 +731,6 @@ def search_actress(
     offset: int = 0,
     status_callback: Optional[Callable[[str, str], None]] = None,
     result_callback: Optional[Callable[[int, Any], None]] = None,
-    proxy_url: str = '',
     discovery_only: bool = False,
 ) -> List[Dict[str, Any]]:
     """女優搜尋 — thin wrapper delegating to _fuzzy_search_chain."""
@@ -730,7 +738,6 @@ def search_actress(
         name,
         limit=limit,
         offset=offset,
-        proxy_url=proxy_url,
         status_callback=status_callback,
         result_callback=result_callback,
         discovery_only=discovery_only,
@@ -790,7 +797,7 @@ def _get_uncensored_sources(search_term: str) -> list[str]:
     return mt_pick + builtin
 
 
-def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, proxy_url: str = '', result_callback: Optional[Callable[[int, Any], None]] = None, discovery_only: bool = False) -> List[Dict[str, Any]]:  # noqa: C901 — 無碼/有碼兩條搜尋鏈並存於同一函式；CD-65-7 已明文交代無碼模式模糊搜尋「預期回空」的設計語意，拆分會把這段語意說明從呼叫點剝離、增加誤讀風險
+def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, result_callback: Optional[Callable[[int, Any], None]] = None, discovery_only: bool = False) -> List[Dict[str, Any]]:  # noqa: C901 — 無碼/有碼兩條搜尋鏈並存於同一函式；CD-65-7 已明文交代無碼模式模糊搜尋「預期回空」的設計語意，拆分會把這段語意說明從呼叫點剝離、增加誤讀風險
     """
     智慧搜尋：自動判斷搜尋類型並執行
 
@@ -826,7 +833,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         for unc_source in unc_sources:
             if status_callback:
                 status_callback(unc_source, 'searching')
-            result = search_jav(search_term, source=unc_source, proxy_url=proxy_url)
+            result = search_jav(search_term, source=unc_source)
             if result:
                 break
 
@@ -851,7 +858,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         for unc_source in unc_sources:
             if status_callback:
                 status_callback(unc_source, 'searching')
-            result = search_jav(search_term, source=unc_source, proxy_url=proxy_url)
+            result = search_jav(search_term, source=unc_source)
             if result:
                 break
         results = [result] if result else []
@@ -873,7 +880,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
             if status_callback:
                 status_callback(sid, 'searching')
             try:
-                res = search_jav_single_source(query, sid, proxy_url=proxy_url)
+                res = search_jav_single_source(query, sid)
                 if res:
                     res['_mode'] = 'exact'
                     if status_callback:
@@ -903,7 +910,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
              # Fallback to actress（不透傳 result_callback：prefix 的 seed 已送出，
              # actress fallback 不可送第二個 seed，避免 slot index 錯位）
              if status_callback: status_callback('mode', 'actress')
-             results = search_actress(query, limit=limit, status_callback=status_callback, proxy_url=proxy_url)
+             results = search_actress(query, limit=limit, status_callback=status_callback)
              if results: mode = 'actress'
 
         if not results:
@@ -925,7 +932,6 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
             query,
             limit=limit,
             offset=offset,
-            proxy_url=proxy_url,
             status_callback=status_callback,
             result_callback=result_callback if not discovery_only else None,
             discovery_only=discovery_only,

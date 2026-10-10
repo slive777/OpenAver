@@ -54,6 +54,7 @@ from core.source_settings import is_uncensored_mode_effective
 from pydantic import BaseModel
 from core.logger import get_logger
 from core.platform_info import DSM_PERMISSION_HINT, is_synology
+from core.proxy_policy import proxy_kwargs
 from web.routers.notifications import emit_notification as _emit_notif
 from core.wishlist_reconcile import reconcile_wishlist, format_wishlist_removed_message
 
@@ -174,7 +175,7 @@ def _yield_source_summary(result) -> Generator[str, None, None]:
             })
 
 
-def _run_readonly_source(src, config, repo, proxy_url, summary, reachable: bool = True, should_abort: Optional[Callable[[], bool]] = None, strm_mappings_getter: Optional[Callable[[], dict]] = None) -> Generator[str, None, None]:
+def _run_readonly_source(src, config, repo, summary, reachable: bool = True, should_abort: Optional[Callable[[], bool]] = None, strm_mappings_getter: Optional[Callable[[], dict]] = None) -> Generator[str, None, None]:
     """在 daemon worker thread 跑 produce_source，drain 無界 queue 逐片 yield SSE。
 
     worker 例外（含 produce_source 迴圈前的 normalize/列檔/DB 拋錯，未被 producer
@@ -191,7 +192,7 @@ def _run_readonly_source(src, config, repo, proxy_url, summary, reachable: bool 
     def _work():
         try:
             box['result'] = produce_source(
-                src, config, repo, proxy_url=proxy_url,
+                src, config, repo,
                 on_progress=q.put,
                 should_abort=should_abort,
                 reachable=reachable,
@@ -318,7 +319,6 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
         long_paths: list[str] = []  # a5: Windows 長路徑收集（只在 win32 填充）
 
         # TASK-88c-T2: readonly 來源生成摘要（跨來源累計，迴圈前初始化避免清零）
-        proxy_url = config.get('search', {}).get('proxy_url', '')
         readonly_summary = {
             "created": 0, "skipped": 0, "no_scrape": 0, "failed": 0,
             "no_output": 0, "sources": 0, "source_errors": 0,
@@ -346,7 +346,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                 # 一次載入的凍結快照；load_config() 無 lru_cache、每次讀 disk，故 getter 拿到
                 # 的是「當下磁碟上的」映射 → 斷線尾巴那片也用當前映射。
                 yield from _run_readonly_source(
-                    src, config, repo, proxy_url, readonly_summary, reachable,
+                    src, config, repo, readonly_summary, reachable,
                     should_abort=should_abort,
                     strm_mappings_getter=lambda: load_config().get('scraper', {}).get('strm_path_mappings', {}),
                 )
@@ -1395,7 +1395,7 @@ def _embed_cover(img_ref: str, path_mappings: dict = None) -> str:
                     headers['Referer'] = referer
                     break
 
-            resp = requests.get(img_ref, headers=headers, timeout=15)
+            resp = requests.get(img_ref, headers=headers, timeout=15, **proxy_kwargs('image', url=img_ref))
             if resp.status_code != 200:
                 logger.warning('封面嵌入失敗 [HTTP %s] %s', resp.status_code, img_ref[:100])
                 return img_ref
@@ -1477,7 +1477,6 @@ def generate_from_ids(body: GenerateFromIdsRequest):
     gallery_config = config.get('gallery', {})
     output_dir = gallery_config.get('output_dir', '') or ''
     theme = config.get('general', {}).get('theme', 'light')
-    proxy_url = config.get('search', {}).get('proxy_url', '')
 
     # 查 DB
     try:
@@ -1512,7 +1511,7 @@ def generate_from_ids(body: GenerateFromIdsRequest):
         else:
             # DB miss → 即時 scrape
             try:
-                scrape_results = smart_search(num, limit=1, uncensored_mode=is_uncensored_mode_effective(config), proxy_url=proxy_url)
+                scrape_results = smart_search(num, limit=1, uncensored_mode=is_uncensored_mode_effective(config))
             except Exception as e:
                 logger.error('generate_from_ids: scrape %s failed: %s', num, e)
                 scrape_results = []

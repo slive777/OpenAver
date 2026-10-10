@@ -11,6 +11,7 @@ from lxml import etree
 from .base import BaseScraper
 from .models import Video, Actress, ScraperConfig
 from .utils import rate_limit
+from core.source_probe import ProbePlan, ProbeTarget
 
 
 class HEYZOScraper(BaseScraper):
@@ -30,15 +31,25 @@ class HEYZOScraper(BaseScraper):
 
     def __init__(self, config: Optional[ScraperConfig] = None):
         super().__init__(config)
-        self._session = requests.Session()
+        self._session = self._new_session()
         self._session.headers.update({
             'User-Agent': self.config.user_agent,
             'Accept': 'text/html,application/xhtml+xml',
             'Accept-Language': 'en-US,en;q=0.9,ja;q=0.8',
         })
 
+    SAMPLE_NUM = "0783"
+
     def _get_source_name(self) -> str:
         return "heyzo"
+
+    def probe_plan(self, timeout):
+        """測試連線：打英文樣本頁（真搜尋用的那條）。"""
+        url = self.EN_URL.format(num=self.SAMPLE_NUM)
+
+        def send():
+            return self._session.get(url, timeout=timeout, stream=True)
+        return ProbePlan([ProbeTarget('en.heyzo.com', send, ok_404=True)])
 
     def _extract_heyzo_num(self, number: str) -> Optional[str]:
         """

@@ -9,9 +9,9 @@
 
 ### 1.1 有碼來源（CENSORED_SOURCES）
 
-| 來源 ID | 顯示名 | exact 番號 | keyword-fuzzy | prefix 範圍 | 需 proxy | 桌面限定 CF | 封面浮水印 | 備註 |
+| 來源 ID | 顯示名 | exact 番號 | keyword-fuzzy | prefix 範圍 | 可能需日本 IP | 桌面限定 CF | 封面浮水印 | 備註 |
 |---------|--------|-----------|---------------|------------|---------|------------|-----------|------|
-| `dmm` | DMM | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | GraphQL API；需日本 IP（VPN/proxy）；數位 PPV 新片優先；封面高畫質 |
+| `dmm` | DMM | ✅ | ✅ | ❌ | ⚠️ 依地區 | ❌ | ❌ | GraphQL API；部分地區需日本 IP（VPN/proxy）；數位 PPV 新片優先；封面高畫質 |
 | `javbus` | JavBus | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | 直打 detail URL；封面無浮水印但**僅右半裁切**；~~搜尋端點 `/search/` 已 404~~ → **2026-08-29 實測回 200、30 筆**（variant 探查於 spec-85 移除是產品決定，與端點死活無關，見 §2 與陷阱表） |
 | `jav321` | Jav321 | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | keyword 搜尋恆回空，故不入 FUZZY_SEARCH_SOURCES |
 | `javdb` | JavDB | ✅ | ❌ | ❌ | ❌ | ⚠️ | 網頁有／API 無 | 重複 keyword 呼叫觸發 Cloudflare ban，故不入 FUZZY_SEARCH_SOURCES；**網頁路徑封面有 `javdb.com` 浮水印；資料介面路徑無浮水印**（見 §5）|
@@ -19,7 +19,7 @@
 
 ### 1.2 無碼來源（UNCENSORED_SOURCES）
 
-| 來源 ID | 顯示名 | exact 番號 | keyword-fuzzy | prefix 範圍 | 需 proxy | 桌面限定 CF | 封面浮水印 | 備註 |
+| 來源 ID | 顯示名 | exact 番號 | keyword-fuzzy | prefix 範圍 | 可能需日本 IP | 桌面限定 CF | 封面浮水印 | 備註 |
 |---------|--------|-----------|---------------|------------|---------|------------|-----------|------|
 | `d2pass` | D2Pass | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；日期格式番號（caribbeancom / 1pondo 等） |
 | `heyzo` | HEYZO | ✅ | ❌ | ❌ | ❌ | ❌ | [需確認] | 無碼；HEYZO-XXXX 格式 |
@@ -34,7 +34,7 @@ core/scrapers/utils.py
   CENSORED_SOURCES    = ['dmm', 'javbus', 'jav321', 'javdb']  (+ javlibrary append)
   UNCENSORED_SOURCES  = ['d2pass', 'heyzo', 'fc2', 'avsox']  (+ fc-javten append)
   SOURCE_ORDER        = CENSORED_SOURCES + UNCENSORED_SOURCES  # 8 elem，不含 javlibrary
-  PROXY_SOURCES       = {'dmm'}
+  PROXY_SOURCES       = {'dmm'}  # 可能需日本 IP 的來源（依地區；非「必須有 proxy」），DMM 是否啟用只看來源膠囊
   FUZZY_SEARCH_SOURCES = ['javbus', 'dmm']
 ```
 
@@ -127,12 +127,25 @@ class BaseScraper(ABC):
     # 預設實作
     def validate_number(self, number: str) -> bool      # 正規式格式驗證
     def normalize_number(self, number: str) -> str      # 委派 normalize_number_impl()
+    def probe_plan(self, timeout) -> ProbePlan | None   # 測試連線通道宣告，預設 None（不可探測）
 ```
 
 `search()` 約定：
 - 回傳 `Video` 物件（命中）或 `None`（找不到）
 - 格式錯誤拋 `ValueError`；網路超時拋 `TimeoutError`
 - 不應 raise 其他未預期例外（caller 依 exception boundary 決定 fallback）
+
+`probe_plan()` 約定（設定頁「測試連線」用）：
+- 簽名 `probe_plan(self, timeout) -> ProbePlan | None`；預設 `None` ＝ 不可探測
+- `ProbePlan(targets, mode)`：`mode` 為 `'any'` 或 `'all'`——鏡像站用 `any`（任一通即通）、各自獨立網域用 `all`（全通才通）
+- `ProbeTarget(host, send, ok_404, check, read)`；`send()` 無參數，回該來源實際查詢通道的回應物件
+- `send` 依該來源實際的查詢通道，二擇一：用 scraper 自己的 Session（若有，例如 `_new_session()` 建的），或
+  `requests.*(..., **self._proxy_kwargs())`；兩者都沿用注入的代理快照，不得另建不經代理的連線、不得讀目前設定
+- 每個 `send` 必須帶 `timeout=timeout`、`stream=True`（讀取上限與關閉由中央負責）
+- 樣本番號查無（404）算「連得到」時，在 target 上設 `ok_404=True`
+- 靠驗證視窗的來源（JavLibrary、FC2-javten）在 target 上設 `cf_challenge_ok=True`：拿到明確的 Cloudflare 驗證頁訊號（`cf-mitigated: challenge` 或頁面標記）算「連得到」；單純 `server: cloudflare` 的 403 仍算被擋。是否實測由 `core/source_probe.py` 的 `skip_reason` 依桌面種類與視窗可用性決定
+- 只放**查資料**的網域，不放封面／劇照圖床
+- scraper 只宣告、不做判讀；通／被擋／連不到的判讀在 `core/source_probe.py`
 
 ### 4.2 normalize_number（`core/scrapers/utils.py:normalize_number_impl`）
 
@@ -179,7 +192,7 @@ post-spec-85（T1c 解耦後）：standalone 函式，不再實例化 `JavBusScr
 | 來源 | 封面特性 | 推薦排序建議 |
 |------|----------|------------|
 | JavBus | 無浮水印，但右半裁切 | 排前（若可接受裁切）|
-| DMM | 無浮水印，全框高畫質 | 排前（需 proxy） |
+| DMM | 無浮水印，全框高畫質 | 排前（部分地區需日本 IP） |
 | Jav321 | 無浮水印，全框 | 排前 |
 | JavDB | 網頁路徑有 `javdb.com` 浮水印；資料介面路徑無浮水印、全框 | 排前（0.15.1 起 javdb 走資料介面優先 ⇒ 一般情況下拿到的是無浮水印那張；只有降級到網頁備援時才會帶浮水印）|
 
@@ -201,9 +214,9 @@ post-spec-85（T1c 解耦後）：standalone 函式，不再實例化 `JavBusScr
 | 陷阱 | 一句話 |
 |------|--------|
 | Mock patch target | 測試 patch 要指**使用端** `core.scraper.*`，不是定義端 `core.scrapers.javbus.*`；否則 mock 不生效、測試打真網路 |
-| DMM proxy gate | `search_jav_single_source(q, 'dmm')` 無 `proxy_url` 時 DMM 回 `None`，cascade 繼續試下一個來源（預期行為） |
+| DMM 開關與代理範圍 | DMM 能不能被用只看設定頁來源膠囊（`config.sources[]` 的 `enabled`），與 Proxy 欄是否填寫無關；Proxy 欄填了之後哪些連線走代理由 `core/proxy_policy.py` 依「僅 DMM／所有來源」決定 |
 | ~~JavBus 搜尋端點已死~~ | ⛔ **2026-08-29 實測推翻**：`/search/{keyword}` 回的是 **HTTP 200、30 筆**，不是 404（`get_ids_from_search('a')` 當場驗過，`_build_search_url` 本來就在組這個網址）。舊敘述「**不可**再實作任何依賴 `/search/` 的功能」曾讓一位 reviewer 判定某個 task 的樣本來源已死並下 BLOCK。**exact 走 detail URL、partial/prefix 走 `get_ids_from_search`** 這半仍然正確，是分工不是能力限制。⚠️ 這是 live-only 事實，要據此做決定前**自己再驗一次**（見 `gotchas-backend.md` `BE-VERIFY-03`）|
 | javlibrary manual_only | `get_enabled_source_ids()` 自動排除 manual_only 來源，javlibrary 不進 cascade head；只能由進階搜尋顯式指定 |
-| fuzzy always-on | 停用 javbus/dmm 只影響 exact cascade；模糊路徑仍會呼叫它們（設計如此，CD-65-4） |
+| fuzzy always-on | 停用 javbus/dmm 只影響 exact cascade。模糊路徑：JavBus 仍 always-on（設計如此，CD-65-4）；DMM 例外，看膠囊（關閉即略過）；explicit 指定來源不受膠囊限制 |
 | ~~FC2 無發行日~~ | ⛔ **0.13.12 起作廢**：該不變式屬於舊的 javten 鏡像實作（0.13.13 起為 `fc2_javten.py`／來源 `fc-javten`，仍硬定 `date=""`——站方結構性沒有這個欄位）。現行 `fc2` 走官方站 `fc2_official.py`，**會回傳發行日**（spec-118 AC-1.2 就是要它）。看到 FC2 有日期**不是 bug**，看到它恆空才是 |
 | 路徑處理 | `file:///` URI 轉換一律用 `core/path_utils.py`，禁止手動 strip/建構 |

@@ -6,6 +6,7 @@ gfriends CDN 查表模組
 
 from typing import Optional
 import requests
+from core.proxy_policy import proxy_kwargs
 
 CDN_BASE = "https://cdn.jsdelivr.net/gh/gfriends/gfriends@master/Content"
 FALLBACK_FOLDER = "9-AVDBS"
@@ -86,7 +87,7 @@ def _check_gfriends_url(folder: str, name: str) -> Optional[str]:
     # AI-Fix 優先（人工增強版）
     ai_fix_url = f"{CDN_BASE}/{folder}/AI-Fix-{name}.jpg"
     try:
-        resp = requests.head(ai_fix_url, timeout=3)
+        resp = requests.head(ai_fix_url, timeout=3, **proxy_kwargs('actress'))
         if resp.status_code == 200:
             return ai_fix_url
     except Exception:  # noqa: S110 — network probe; pass is intentional, fall through to original
@@ -96,7 +97,7 @@ def _check_gfriends_url(folder: str, name: str) -> Optional[str]:
     # Fallback 原版
     url = f"{CDN_BASE}/{folder}/{name}.jpg"
     try:
-        resp2 = requests.head(url, timeout=3)
+        resp2 = requests.head(url, timeout=3, **proxy_kwargs('actress'))
         if resp2.status_code == 200:
             return url
     except Exception:  # noqa: S110 — network probe; pass is intentional, return None below

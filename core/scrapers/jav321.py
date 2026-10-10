@@ -9,7 +9,9 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from .base import BaseScraper
 from .models import Video, Actress
-from .utils import get_html, post_html, rate_limit
+import requests
+from .utils import DEFAULT_HEADERS, get_html, post_html, rate_limit
+from core.source_probe import ProbePlan, ProbeTarget
 
 
 def _force_https(url: str) -> str:
@@ -40,6 +42,15 @@ class JAV321Scraper(BaseScraper):
     - 穩定性高
     """
 
+    SEARCH_URL = 'https://www.jav321.com/search'
+    SAMPLE_NUMBER = 'SONE-205'
+
+    def probe_plan(self, timeout):
+        """測試連線：與真搜尋同一個 POST 入口（post_html 吞狀態碼，所以這裡自己發）。"""
+        def send():
+            return requests.post(self.SEARCH_URL, data={'sn': self.SAMPLE_NUMBER}, headers=DEFAULT_HEADERS, timeout=timeout, stream=True, **self._proxy_kwargs())
+        return ProbePlan([ProbeTarget('www.jav321.com', send, ok_404=True)])
+
     def _get_source_name(self) -> str:
         return "jav321"
 
@@ -60,8 +71,8 @@ class JAV321Scraper(BaseScraper):
 
         try:
             # POST 搜尋
-            search_url = 'https://www.jav321.com/search'
-            html = post_html(search_url, data={'sn': number}, timeout=self.config.timeout)
+            search_url = self.SEARCH_URL
+            html = post_html(search_url, data={'sn': number}, timeout=self.config.timeout, **self._proxy_kwargs())
 
             if not html:
                 return None
@@ -78,7 +89,7 @@ class JAV321Scraper(BaseScraper):
                     return None
 
                 detail_url = urljoin('https://www.jav321.com', str(link.get('href')))
-                dh = get_html(detail_url, timeout=self.config.timeout)
+                dh = get_html(detail_url, timeout=self.config.timeout, **self._proxy_kwargs())
                 detail_html = dh if dh else ""
                 
                 if not detail_html:
@@ -224,7 +235,7 @@ class JAV321Scraper(BaseScraper):
         """
         try:
             search_url = 'https://www.jav321.com/search'
-            html = post_html(search_url, data={'sn': keyword}, timeout=self.config.timeout)
+            html = post_html(search_url, data={'sn': keyword}, timeout=self.config.timeout, **self._proxy_kwargs())
 
             if not html:
                 return []

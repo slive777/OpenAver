@@ -209,12 +209,17 @@ class PyWebViewCfTransport:
         self,
         windows: dict[str, webview.Window],
         initial_urls: dict[str, str] | None = None,
+        pending: frozenset[str] | set[str] | None = None,
     ) -> None:
         # TASK-118a-T1 D-1: per-site dicts. Constructor shape is fixed — no
         # single-window / dict polymorphism (that convenience is the next
         # person's bug).
         self._wins: dict[str, webview.Window] = dict(windows)
-        self._dead: dict[str, bool] = {key: False for key in self._wins}
+        # TASK-163b-T7a I-B'-1: keys in `pending` start unavailable (_dead=True) and stay
+        # that way until confirm_ready(key) — their window is not yet known to be usable
+        # (proxy applied + native init succeeded). No `pending` ⇒ identical to before.
+        self._pending: set[str] = {key for key in (pending or ()) if key in self._wins}
+        self._dead: dict[str, bool] = {key: key in self._pending for key in self._wins}
         self._cf_urls: dict[str, str | None] = {key: None for key in self._wins}
         # D-0: _origins is seeded here from initial_urls (reflecting where each
         # window already is at construction time) AND written by _navigate()
@@ -297,7 +302,16 @@ class PyWebViewCfTransport:
             # TimeoutError on the next fetch (caught by the bridge-gate in fetch()/is_ready()).
             logger.info("[CF-DIAG] window 'closed' event fired (site=%s) → _dead=True (Layer 2 active)", key)
             self._dead[key] = True
+            self._pending.discard(key)
         return _on_closed
+
+    def confirm_ready(self, key: str) -> None:
+        """Mark a `pending` site usable. No-op unless *key* is still pending, so a
+        late confirmation can never revive a window that was closed meanwhile."""
+        if key not in self._pending:
+            return
+        self._pending.discard(key)
+        self._dead[key] = False
 
     # ------------------------------------------------------------------
     # Bridge-readiness helpers (0.9.9c root-cause work)

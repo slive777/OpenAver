@@ -11,6 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from core.logger import get_logger
+from core.proxy_policy import proxy_kwargs
 logger = get_logger(__name__)
 
 
@@ -120,7 +121,7 @@ def scrape_graphis_photo(name: str) -> Optional[Dict]:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=4)
+        response = requests.get(url, headers=headers, timeout=4, **proxy_kwargs('actress'))
         response.raise_for_status()
 
         # Parse HTML
@@ -157,7 +158,7 @@ def scrape_graphis_photo(name: str) -> Optional[Dict]:
             model_id = model_match.group(1)
             try:
                 profile_url = f"https://graphis.ne.jp/monthly/model.php?ID={model_id}"
-                profile_resp = requests.get(profile_url, headers=headers, timeout=3)
+                profile_resp = requests.get(profile_url, headers=headers, timeout=3, **proxy_kwargs('actress'))
                 if profile_resp.status_code == 200:
                     profile_data = _parse_graphis_profile(profile_resp.text)
             except Exception as e:

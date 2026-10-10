@@ -14,6 +14,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 @pytest.fixture(autouse=True)
+def _dmm_capsule_off(monkeypatch):
+    """預設 DMM 膠囊關：這份檔的案例走 JavBus 路徑，不要依賴本機 config（BE-TEST-01 使用端 patch）。"""
+    monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: False)
+
+
+@pytest.fixture(autouse=True)
 def _no_request_delay(monkeypatch):
     """本檔把 REQUEST_DELAY 歸零（只影響本檔）：外站呼叫都已 mock，節流秒數
     沒有驗證對象，不歸零只是白等。"""
@@ -273,6 +279,7 @@ class TestSearchActressResultCallback:
 
         monkeypatch.setattr("core.scraper.get_all_source_ids_ordered",
                             lambda: ['javbus', 'dmm'])
+        monkeypatch.setattr("core.scraper.is_source_enabled", lambda sid: True)
 
         callback_calls = []
 
@@ -286,7 +293,6 @@ class TestSearchActressResultCallback:
              patch('core.scraper._dmm_keyword_search_progressive',
                    return_value=[{'number': 'SONE-100', 'actors': ['三上悠亜']}]) as mock_dmm:
             results = search_actress('三上悠亜', limit=20,
-                                     proxy_url='http://proxy:8080',
                                      result_callback=result_callback)
 
         # DMM must have been called (fallback ran)
@@ -563,7 +569,7 @@ class TestDisabledSourceRouting:
         searched = []
         fc2_result = {'number': 'FC2-PPV-123', 'title': 'FC2'}
 
-        def fake_search_jav(num, source='auto', proxy_url='', javbus_lang=None):
+        def fake_search_jav(num, source='auto', javbus_lang=None):
             searched.append(source)
             return fc2_result if source == 'fc2' else None
 

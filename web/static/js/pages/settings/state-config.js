@@ -23,6 +23,7 @@ export function stateConfig() {
             // Search
             searchFavoriteFolder: '',
             proxyUrl: '',
+            proxyScope: 'dmm',
             thumbnailCacheEnabled: true,   // 縮圖快取開關（feature/71 T2，top-level config 欄位）；新安裝預設開啟（0.9.11+），舊用戶 migration 維持關閉
 
             // Translate
@@ -74,6 +75,10 @@ export function stateConfig() {
         // GET /api/config 的 response-only 解析值（不入 saveConfig payload）
         // 預設 '' 避免 :placeholder hydrate 前出現 undefined（FE-TIMING-07）
         resolvedGalleryOutputPath: '',
+
+        // PUT/GET /api/config 回應頂層欄位（response-only，不入 form／saveConfig payload）：
+        // 儲存後 JavLibrary／FC2-javten 驗證視窗要重開 OpenAver 才會改走新代理設定
+        cfWindowProxyRestartNeeded: false,
 
         // ===== i18n State =====
         locale: (window.__locale || 'zh-TW'),
@@ -323,14 +328,6 @@ export function stateConfig() {
             if (src.manual_only) return false;
             if (this.isDisconnectedMetatube(src)) return false;
             return src.enabled;
-        },
-
-        /**
-         * DMM 是否可用（proxy_url 非空）
-         * 控制 source-dmm-disabled class（刪除線樣式）
-         */
-        isDmmAvailable() {
-            return !!this.form.proxyUrl.trim();
         },
 
         // ===== Lifecycle =====
@@ -673,12 +670,14 @@ export function stateConfig() {
                 const resp = await fetch('/api/config');
                 const result = await resp.json();
                 if (result.success) {
+                    this.cfWindowProxyRestartNeeded = result.cf_window_proxy_restart_needed === true;
                     const config = result.data;
 
                     // Search
                     // 61c-3: uncensoredMode 由 sources 段推導（computed getter），不再單獨讀 uncensored_mode_enabled。
                     this.form.searchFavoriteFolder = config.search?.favorite_folder || '';
                     this.form.proxyUrl = config.search?.proxy_url || '';
+                    this.form.proxyScope = config.search?.proxy_scope || 'dmm';
                     this.form.thumbnailCacheEnabled = config.thumbnail_cache_enabled || false;
                     // 71-T5: 載入目前片數供縮圖快取空間估算（失敗降級 0，不阻塞表單）
                     this._loadVideoCount();
@@ -826,7 +825,6 @@ export function stateConfig() {
                                 ? (s.display_name_raw || '')
                                 : (s.display_name_key || ''),
                             available: s.available ?? (s.type !== 'metatube'),  // builtins default available; metatube waits for /status
-                            requires_proxy: s.requires_proxy ?? false,           // forward-compat for 63c-6
                         }))
                         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
@@ -990,6 +988,7 @@ export function stateConfig() {
                     uncensored_mode_enabled: this.uncensoredMode,
                     favorite_folder: this.form.searchFavoriteFolder.trim(),
                     proxy_url: this.form.proxyUrl.trim(),
+                    proxy_scope: this.form.proxyScope,
                 };
 
                 config.thumbnail_cache_enabled = this.form.thumbnailCacheEnabled;
@@ -1072,6 +1071,7 @@ export function stateConfig() {
                 });
                 const result = await resp.json();
                 if (result.success) {
+                    this.cfWindowProxyRestartNeeded = result.cf_window_proxy_restart_needed === true;
                     this.showToast(window.t('settings.toast.config_saved'), 'success');
                     // 更新快照（避免儲存後仍為 dirty）
                     this.savedState = JSON.parse(JSON.stringify(this.form));
@@ -1425,11 +1425,6 @@ export function stateConfig() {
         // Dispatcher：依 type / 狀態分流。B1 只命中 builtin-toggle 分支。
         clickActiveRowPill(src) {
             if (!src) return;
-            // 63c-6 Surface 1：DMM requires_proxy 且 proxy 未設定 → toast + return（不 demote）
-            if (src.requires_proxy && !this.isDmmAvailable()) {
-                this.showToast(window.t('settings.sources.dmm_proxy_required_hint'), 'warning');
-                return;
-            }
             if (src.manual_only) { this.clickJavLibrary(); return; }
             // metatube Active Row 點擊 = demote（永遠允許，不論 available；demote 是可逆操作）
             if (src.type === 'metatube') { this.demoteMetatube(src.id); return; }

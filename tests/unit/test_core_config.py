@@ -505,6 +505,166 @@ class TestMigrationThumbnailCacheEnabled:
         )
 
 
+# ============ test_migration_proxy_scope ============
+
+_REAL_DEFAULT = Path(__file__).resolve().parents[2] / "web" / "config.default.json"
+
+
+def _dmm_enabled(cfg: dict):
+    return {s["id"]: s["enabled"] for s in cfg["sources"]}["dmm"]
+
+
+def _legacy_proxy_config(proxy_url, dmm_enabled: bool, **extra) -> dict:
+    """舊式設定檔：search 段無 proxy_scope、sources 為完整 builtin（DMM enabled 可指定）。"""
+    from core.source_config import get_builtin_sources
+    sources = [s.model_dump() for s in get_builtin_sources()]
+    for s in sources:
+        if s["id"] == "dmm":
+            s["enabled"] = dmm_enabled
+    cfg = {"search": {"proxy_url": proxy_url}, "sources": sources}
+    cfg.update(extra)
+    return cfg
+
+
+class TestMigrationProxyScope:
+    """search.proxy_scope 欄位 + 升級遷移（feature/163a T2，CD-163a-5/8/9）"""
+
+    @staticmethod
+    def _setup(tmp_path, monkeypatch, data=None, default_path=None):
+        config_path = tmp_path / "config.json"
+        if data is not None:
+            _write_config(config_path, data)
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", default_path or tmp_path / "config.default.json")
+        return config_path
+
+    @pytest.mark.parametrize("proxy_url, dmm_before, url_after, dmm_after", [
+        ("http://192.168.1.177:8888", True, "http://192.168.1.177:8888", True),
+        ("http://192.168.1.177:8888", False, "http://192.168.1.177:8888", False),
+        ("direct", True, "", True),
+        ("DIRECT", True, "", True),
+        ("  direct ", True, "", True),
+        ("direct", False, "", False),   # direct + DMM off：不得被打開
+        ("", True, "", False),          # 空白 + DMM on → off
+        ("   ", True, "", False),
+        ("", False, "", False),
+    ])
+    def test_migration_table(self, tmp_path, monkeypatch, proxy_url, dmm_before, url_after, dmm_after):
+        config_path = self._setup(tmp_path, monkeypatch, _legacy_proxy_config(proxy_url, dmm_before))
+        load_config()
+        disk = _read_config(config_path)
+        assert disk["search"]["proxy_scope"] == "dmm"
+        assert disk["search"]["proxy_url"] == url_after
+        assert _dmm_enabled(disk) is dmm_after
+
+    def test_blank_proxy_with_dmm_on_turns_dmm_off(self, tmp_path, monkeypatch):
+        config_path = self._setup(tmp_path, monkeypatch, _legacy_proxy_config("", True))
+        result = load_config()
+        assert _dmm_enabled(result) is False
+        assert _dmm_enabled(_read_config(config_path)) is False
+
+    def test_direct_is_cleared_and_dmm_state_unchanged(self, tmp_path, monkeypatch):
+        config_path = self._setup(tmp_path, monkeypatch, _legacy_proxy_config("direct", True))
+        load_config()
+        disk = _read_config(config_path)
+        assert disk["search"]["proxy_url"] == ""
+        assert _dmm_enabled(disk) is True
+
+    @pytest.mark.parametrize("proxy_url", ["http://p:8888", ""])
+    def test_sources_missing_regenerated(self, tmp_path, monkeypatch, proxy_url):
+        """sources 缺 → 重生為全開 → 空白 proxy 關 DMM；填了維持開"""
+        config_path = self._setup(tmp_path, monkeypatch, {"search": {"proxy_url": proxy_url}})
+        load_config()
+        assert _dmm_enabled(_read_config(config_path)) is bool(proxy_url)
+
+    @pytest.mark.parametrize("proxy_url", ["http://p:8888", "direct"])
+    def test_sources_corrupt_regenerated_keeps_dmm_on(self, tmp_path, monkeypatch, proxy_url):
+        config_path = self._setup(
+            tmp_path, monkeypatch, {"search": {"proxy_url": proxy_url}, "sources": "garbage"})
+        load_config()
+        disk = _read_config(config_path)
+        assert _dmm_enabled(disk) is True
+        assert disk["search"]["proxy_scope"] == "dmm"
+
+    @pytest.mark.parametrize("proxy_url", ["", "http://p:8888"])
+    def test_uncensored_mode_sources_missing_dmm_stays_off(self, tmp_path, monkeypatch, proxy_url):
+        config_path = self._setup(tmp_path, monkeypatch, {
+            "search": {"proxy_url": proxy_url, "uncensored_mode_enabled": True}})
+        load_config()
+        assert _dmm_enabled(_read_config(config_path)) is False
+
+    def test_migration_runs_once_user_reenabled_dmm_stays_on(self, tmp_path, monkeypatch):
+        """I-2：遷移後使用者自己把 DMM 打開 → 下次載入不再被關掉"""
+        config_path = self._setup(tmp_path, monkeypatch, _legacy_proxy_config("", True))
+        load_config()
+        disk = _read_config(config_path)
+        assert _dmm_enabled(disk) is False
+        for s in disk["sources"]:
+            if s["id"] == "dmm":
+                s["enabled"] = True
+        _write_config(config_path, disk)
+        result = load_config()
+        assert _dmm_enabled(result) is True
+        assert _dmm_enabled(_read_config(config_path)) is True
+
+    @pytest.mark.parametrize("scope", ["foo", "all", "dmm"])
+    def test_existing_scope_marker_makes_migration_noop(self, tmp_path, monkeypatch, scope):
+        data = _legacy_proxy_config("direct", True)
+        data["search"]["proxy_scope"] = scope
+        config_path = self._setup(tmp_path, monkeypatch, data)
+        load_config()
+        disk = _read_config(config_path)
+        assert disk["search"]["proxy_scope"] == scope
+        assert disk["search"]["proxy_url"] == "direct"
+        assert _dmm_enabled(disk) is True
+
+    def test_blank_proxy_marker_present_keeps_dmm_on(self, tmp_path, monkeypatch):
+        data = _legacy_proxy_config("", True)
+        data["search"]["proxy_scope"] = "dmm"
+        config_path = self._setup(tmp_path, monkeypatch, data)
+        load_config()
+        assert _dmm_enabled(_read_config(config_path)) is True
+
+    def test_non_string_proxy_url_treated_as_blank(self, tmp_path, monkeypatch):
+        config_path = self._setup(tmp_path, monkeypatch, _legacy_proxy_config(None, True))
+        load_config()
+        disk = _read_config(config_path)
+        assert disk["search"]["proxy_scope"] == "dmm"
+        assert _dmm_enabled(disk) is False
+
+    def test_migration_is_persisted_in_single_save(self, tmp_path, monkeypatch, mocker):
+        """I-1：proxy_scope 與 DMM 調整在同一次落盤。基底為真 default（補齊其他遷移），
+        只剩本遷移觸發 → _save_config_unlocked 恰 1 次。"""
+        from core.source_config import get_manual_only_sources
+        base = json.loads(_REAL_DEFAULT.read_text(encoding="utf-8"))
+        del base["search"]["proxy_scope"]
+        base["search"]["proxy_url"] = ""
+        base["sources"].extend(s.model_dump() for s in get_manual_only_sources())
+        # default.json 本身仍缺數個「額外補欄」遷移的鍵 → 先補齊，讓本遷移是唯一會觸發落盤的那一個
+        base["scraper"].update({"strm_path_mappings": {}, "nfo_title_format": "[{num}]{title}"})
+        base["translate"]["openai"] = {"base_url": "", "api_key": "", "model": "gpt-4o-mini"}
+        base["general"]["last_notified_update_version"] = ""
+        config_path = self._setup(tmp_path, monkeypatch, base)
+        spy = mocker.spy(core_config, "_save_config_unlocked")
+
+        load_config()
+
+        assert spy.call_count == 1
+        disk = _read_config(config_path)
+        assert disk["search"]["proxy_scope"] == "dmm"
+        assert _dmm_enabled(disk) is False
+
+    def test_new_install_dmm_on_and_not_migrated(self, tmp_path, monkeypatch, mocker):
+        config_path = self._setup(tmp_path, monkeypatch, default_path=_REAL_DEFAULT)
+        assert not config_path.exists()
+        result = load_config()
+        assert result["search"]["proxy_scope"] == "dmm"
+        assert result["search"]["proxy_url"] == ""
+        assert _dmm_enabled(result) is True
+        assert _dmm_enabled(_read_config(config_path)) is True
+        # 遷移函式對新安裝 raw config 回 False（不進遷移）
+        assert core_config._migrate_proxy_scope(json.loads(config_path.read_text(encoding="utf-8"))) is False
+
 # ============ test_migration_focal_device_state ============
 
 class TestMigrationFocalDeviceState:
@@ -753,7 +913,7 @@ class TestMigrationSources:
         """config.json 無 sources key → load_config() 後補入 8 個 builtin 全 enabled=true
         （T3 後：additive migration 再追加 javlibrary manual_only，共 9 條）"""
         config_path = tmp_path / "config.json"
-        _write_config(config_path, {"general": {"theme": "light"}})
+        _write_config(config_path, {"general": {"theme": "light"}, "search": {"proxy_scope": "dmm"}})
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
         monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
 
@@ -797,6 +957,7 @@ class TestMigrationSources:
                 "javbus": False, "jav321": False, "javdb": False, "avsox": False,
             },
             "general": {"theme": "dark", "locale": "ja"},
+            "search": {"proxy_scope": "dmm"},
         })
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
         monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
@@ -826,7 +987,7 @@ class TestMigrationSources:
             {"id": "javbus", "type": "builtin", "display_name_key": "JavBus", "enabled": False, "order": 1},
             {"id": "jav321", "type": "builtin", "display_name_key": "Jav321", "enabled": True, "order": 2},
         ]
-        _write_config(config_path, {"sources": existing})
+        _write_config(config_path, {"sources": existing, "search": {"proxy_scope": "dmm"}})
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
         monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
 
@@ -870,7 +1031,7 @@ class TestMigrationSources:
             {"id": "dmm", "type": "builtin", "display_name_key": "DMM", "enabled": True, "order": 0},
         ]
         _write_config(config_path, {
-            "search": {"uncensored_mode_enabled": True},
+            "search": {"uncensored_mode_enabled": True, "proxy_scope": "dmm"},
             "sources": existing,
         })
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)

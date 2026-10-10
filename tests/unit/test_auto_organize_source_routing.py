@@ -69,7 +69,6 @@ class TestAutoOrganizeSourceRouting:
         fav.mkdir()
         write_video(fav, "dummy.mp4")
         config = make_config(fav)
-        config["search"]["proxy_url"] = "http://proxy.test:8080"
         # 不設 uncensored_mode_enabled（預設 False），單獨證明 strict 半邊
 
         mocker.patch("core.auto_organize.extract_number", return_value="SONE-205")
@@ -82,7 +81,6 @@ class TestAutoOrganizeSourceRouting:
         mock_smart.assert_called_once()
         kwargs = mock_smart.call_args.kwargs
         assert kwargs.get("uncensored_mode") is False
-        assert kwargs.get("proxy_url") == "http://proxy.test:8080"
         assert mock_smart.call_args.args[0] == "SONE-205"
         mock_search.assert_not_called()
 
@@ -94,7 +92,6 @@ class TestAutoOrganizeSourceRouting:
         fav.mkdir()
         write_video(fav, "dummy.mp4")
         config = make_config(fav)
-        config["search"]["proxy_url"] = "http://proxy.test:8080"
 
         mocker.patch("core.auto_organize.extract_number", return_value="FC2-53")
         mock_smart = mocker.patch("core.auto_organize.smart_search")
@@ -106,7 +103,7 @@ class TestAutoOrganizeSourceRouting:
 
         run_one_round(config)
 
-        mock_search.assert_called_once_with("FC2-53", proxy_url="http://proxy.test:8080")
+        mock_search.assert_called_once_with("FC2-53")
         mock_smart.assert_not_called()
 
     def test_nonstrict_number_search_jav_none_records_not_found(

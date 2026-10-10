@@ -28,6 +28,7 @@ from core.focal import device_state, requires_face_detection
 from core.focal.subprocess_runner import run_detection
 from core.logger import get_logger
 from core.platform_info import is_synology, DSM_PERMISSION_HINT
+from core.proxy_policy import proxy_kwargs
 
 logger = get_logger(__name__)
 
@@ -728,7 +729,7 @@ def _attempt_download_image(
     headers = build_download_headers(url, referer)
     timeout = (CONNECT_TIMEOUT, REQUEST_TIMEOUT) if short_connect else REQUEST_TIMEOUT
     try:
-        resp = requests.get(url, headers=headers, timeout=timeout)
+        resp = requests.get(url, headers=headers, timeout=timeout, **proxy_kwargs('image', url=url))
         if resp.status_code == 200 and len(resp.content) > 1000:
             # 解碼用的 host 走 urlparse——與 proxy 端（web/routers/search.py）同一種取法。
             # **刻意不重用 `_host_key()`**：那支對畸形 port 回 None（理由見它自己的

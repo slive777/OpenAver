@@ -25,10 +25,11 @@ from core.enrich_contract import did_enrich_something, enrich_success, should_pr
 from core.organizer import organize_file
 from core.path_utils import to_file_uri, uri_to_fs_path, uri_to_local_fs_path, coerce_to_file_uri
 from core.scraper import (
-    search_jav, search_jav_single_source,
+    search_jav, search_jav_single_source, access_error_info,
     search_javlib_versions, fetch_javlib_by_detail_url, internal_nfo_carriers,
     smart_search, is_number_format,
 )
+from core.scrapers.errors import SourceBlocked, SourceUnreachable
 from core.source_config import validate_source_id
 from core.source_settings import is_uncensored_mode_effective
 from core.cf_transport import get_cf_transport, CfChallengeRequired, CfTransportUnavailable
@@ -213,10 +214,9 @@ def scrape_single(request: ScrapeRequest) -> dict:
             "error": "無法識別番號，請手動輸入"
         }
 
-    # 載入設定（需在 search_jav 之前，以便傳入 proxy_url）
+    # 載入設定
     config = load_config()
     scraper_config = config.get('scraper', {})
-    _proxy_url = config.get('search', {}).get('proxy_url', '')
     path_mappings = config.get('gallery', {}).get('path_mappings', {})
 
     # 優先使用前端傳來的 metadata
@@ -227,10 +227,10 @@ def scrape_single(request: ScrapeRequest) -> dict:
         # 沒有 metadata 才重新搜尋
         uncensored_mode = is_uncensored_mode_effective(config)
         if is_number_format(number) or uncensored_mode:
-            results = smart_search(number, uncensored_mode=uncensored_mode, proxy_url=_proxy_url)
+            results = smart_search(number, uncensored_mode=uncensored_mode)
             metadata = dict(results[0]) if results else None
         else:
-            metadata = search_jav(number, proxy_url=_proxy_url)
+            metadata = search_jav(number)
         if not metadata:
             return {
                 "success": False,
@@ -381,10 +381,6 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
     回傳成功 dict + success:True；not-found（None）→ 200 {success:False}。
     不下載 cover（cover 是遠端 URL，原樣回前端，無 SSRF 面）。
     """
-    config = load_config()
-    search_cfg = config.get("search", {})
-    proxy_url = search_cfg.get("proxy_url", "")
-
     try:
         if request.source == 'javlibrary':
             versions = search_javlib_versions(request.number)  # Cf* 例外由外層 except 接
@@ -397,11 +393,11 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
             result = search_jav(
                 request.number,
                 source="auto",
-                proxy_url=proxy_url,
             )
         else:
             result = search_jav_single_source(
-                request.number, request.source, proxy_url
+                request.number, request.source,
+                surface_access_errors=True,
             )
 
         if result is None:
@@ -416,6 +412,9 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
         return {"success": False, "cf_needed": True, "cf_source": request.source}
     except CfTransportUnavailable:
         return {"success": False, "cf_unavailable": True}
+    except (SourceBlocked, SourceUnreachable) as e:
+        info = access_error_info(e, request.source)
+        return {"success": False, "access_error": info["access_error"], "source": request.source}
     except Exception:
         logger.exception("rescrape_preview_endpoint 失敗")
         return {"success": False, "error": "預覽搜尋失敗，請查閱日誌"}
@@ -610,8 +609,6 @@ def _reconcile_wishlist_after_write() -> None:
 @router.post("/enrich-single")
 def enrich_single_endpoint(request: EnrichRequest) -> dict:
     config = load_config()
-    search_cfg = config.get("search", {})
-    proxy_url = search_cfg.get("proxy_url", "")
     # TASK-91-T3：讀取端 path_mappings，供 resolve_nfo_cover_paths / uri_to_local_fs_path /
     # enrich_single 共用一次算好的同一組值（避免重複 .get() chain）。
     path_mappings = config.get("gallery", {}).get("path_mappings", {})
@@ -675,7 +672,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 repo_factory=VideoRepository, ro_source=source, output_root=output_root,
                 output_uri=output_uri, canonical=canonical, file_path=request.file_path,
                 number=request.number, scraper_cfg=config.get("scraper", {}),
-                path_mappings=path_mappings, action=action, proxy_url=proxy_url,
+                path_mappings=path_mappings, action=action,
                 scraper_data=scraper_data, scrape_source=request.source,
                 javbus_lang=request.javbus_lang, write_cover=resolved_write_cover,
                 overwrite_existing=request.overwrite_existing, preserve_title=request.preserve_title,
@@ -780,7 +777,6 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             write_extrafanart=request.write_extrafanart,
             overwrite_existing=request.overwrite_existing,
             external_manager=config.get("scraper", {}).get("external_manager", "off"), nfo_title_format=config.get("scraper", {}).get("nfo_title_format", '[{num}]{title}'),
-            proxy_url=proxy_url,
             source=request.source,
             javbus_lang=request.javbus_lang,
             scraper_data=scraper_data,
@@ -818,8 +814,6 @@ class FetchSamplesRequest(BaseModel):
 @router.post("/scraper/fetch-samples")
 def fetch_samples_endpoint(req: FetchSamplesRequest) -> dict:
     config = load_config()
-    search_cfg = config.get("search", {})
-    proxy_url = search_cfg.get("proxy_url", "")
     # TASK-91-T3：站台5 outer to_file_uri 補傳 path_mappings（inner uri_to_fs_path 維持不變，
     # 見 TASK-91-T3.md 站台5 inner/outer 分析結論）。
     path_mappings = config.get("gallery", {}).get("path_mappings", {})
@@ -839,7 +833,7 @@ def fetch_samples_endpoint(req: FetchSamplesRequest) -> dict:
         if not output_root:
             return asdict(_readonly_enrich_failure("未設定媒體庫輸出路徑", "error"))
         try:
-            meta = search_jav(req.number, source="auto", proxy_url=proxy_url)
+            meta = search_jav(req.number, source="auto")
             # P2 review round 3 (FIX#2/FIX#3): mirror core.enricher.fetch_samples_only
             # field-for-field. That function NEVER sets `reason` (EnrichResult's
             # dataclass default, None, on every path — success, file-not-found,
@@ -907,7 +901,6 @@ def fetch_samples_endpoint(req: FetchSamplesRequest) -> dict:
         result = fetch_samples_only(
             file_path=req.file_path,
             number=req.number,
-            proxy_url=proxy_url,
             path_mappings=path_mappings,
         )
         return asdict(result)
@@ -923,8 +916,6 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
         raise HTTPException(status_code=422, detail="items 上限為 20 筆")
 
     config = await asyncio.to_thread(load_config)
-    search_cfg = config.get("search", {})
-    proxy_url = search_cfg.get("proxy_url", "")
 
     # 90c-T1 唯讀 guard（async-safe）：config 已於上方 to_thread 載入，這裡從既載入的
     # config 算一次唯讀前綴集（純比對、無 I/O），逐項用 is_path_readonly 純比對——不可在
@@ -1027,7 +1018,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                                 repo_factory=VideoRepository, ro_source=ro_source, output_root=out_root,
                                 output_uri=out_uri, canonical=uri, file_path=itm.file_path,
                                 number=itm.number, scraper_cfg=config.get("scraper", {}),
-                                path_mappings=_ro_mappings, action='ingest', proxy_url=proxy_url,
+                                path_mappings=_ro_mappings, action='ingest',
                                 scraper_data=None, scrape_source=es, javbus_lang=el,
                                 write_cover=request.write_cover, overwrite_existing=request.overwrite_existing,
                                 focal_before_cover_recheck=True,
@@ -1128,7 +1119,6 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                                 lambda n=item.number, es=effective_source, el=effective_lang: search_jav(
                                     n,
                                     source=es,
-                                    proxy_url=proxy_url,
                                     javbus_lang=el,
                                 ),
                             )
@@ -1149,7 +1139,6 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                             write_extrafanart=request.write_extrafanart,
                             overwrite_existing=request.overwrite_existing,
                             external_manager=config.get("scraper", {}).get("external_manager", "off"), nfo_title_format=config.get("scraper", {}).get("nfo_title_format", '[{num}]{title}'),
-                            proxy_url=proxy_url,
                             source=es if es != "auto" else None,
                             javbus_lang=el,
                             scraper_data=sd,

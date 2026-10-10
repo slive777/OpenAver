@@ -360,8 +360,7 @@
       "mt_probe_hint_reason3": "サイトリニューアルで metatube scraper が機能しなくなったソース（JAV321 / KIN8 など、お使いの環境とは無関係）。",
       "mt_connect_failed": "接続に失敗しました：{error}",
       "mt_promote_unavailable_warning": "このソースは現在到達不可ですが、Active Row に追加しました。データを取得できない可能性があります",
-      "mt_probe_failed_pill_hint": "このソースは現在到達不可です。追加後にデータを取得できない可能性があります。先に「再テスト」で確認することをお勧めします",
-      "dmm_proxy_required_hint": "DMM を使用するには Proxy が必要です。設定で Proxy を有効にしてください"
+      "mt_probe_failed_pill_hint": "このソースは現在到達不可です。追加後にデータを取得できない可能性があります。先に「再テスト」で確認することをお勧めします"
     },
     "advanced_search": {
       "metatube_keyword_hint": "Metatube ソースは女優 / キーワード検索に対応していません。完全な番号を入力することをお勧めします。",
@@ -454,8 +453,6 @@
     },
     "search": {
       "uncensored_mode": "無修正モード",
-      "proxy_dmm_hint": "DMM は日本 IP が必要",
-      "proxy_placeholder": "http://ユーザー:パスワード@ホスト:ポート — 日本 IP があれば direct と入力",
       "favorite_folder_label": "お気に入りフォルダ",
       "favorite_folder_hint": "よく使うフォルダをワンクリックで読み込み",
       "favorite_folder_placeholder": "空欄 = システムのダウンロードフォルダ",
@@ -640,7 +637,6 @@
       "enter_api_key": "API Keyを入力してください",
       "enter_api_key_first": "API Keyを入力してください",
       "select_model": "モデルを選択してください",
-      "network_error": "✗ ネットワークエラー",
       "translation_success": "翻訳テスト成功！ ({translation})",
       "test_failed": "テスト失敗: {msg}",
       "openai_connection_failed": "接続失敗",
@@ -1493,10 +1489,8 @@
       "h6_manual": "手動ソース（デスクトップ版のみ）",
       "h6_default_source": "デフォルト検索ソース",
       "h6_dmm_fuzzy": "DMM あいまい検索",
-      "h6_proxy_direct": "Proxy ダイレクトモード",
       "h6_toggle": "モード切替",
       "h6_format": "番号フォーマット例",
-      "censored_dmm": "<strong>DMM</strong>：日本 IP Proxy が必要（<strong>設定ページ</strong> → Proxy フィールド）",
       "censored_others": "<strong>JavBus</strong>、<strong>Jav321</strong>、<strong>JavDB</strong>：直接使用可能",
       "uncensored_d2pass": "<strong>D2Pass</strong>：1Pondo / Caribbeancom / 10musume の 3 サイトをカバー",
       "uncensored_heyzo": "<strong>HEYZO</strong>：独立ソース",
@@ -1507,11 +1501,7 @@
       "manual_fc2_javten": "<strong>FC2-javten</strong>：FC2 公式サイトで配信終了した作品を補う有志のアーカイブサイト。日本語の原題・カバー・サンプル画像・タグ・販売者・評価を取得できます。<strong>発売日はありません</strong>（サイトのページに項目自体が存在しないため）。タグは日本語の原文です。",
       "default_source_set": "「<strong>スキャンソース</strong>」でドラッグして順番を調整。システムは有効なソースを上から順に使用します",
       "default_source_effect": "特定のソースのトグルをオフにすると、設定を削除せずそのソースを一時的に無効化できます",
-      "fuzzy_always_on": "<strong>あいまい検索の例外</strong>：女優名 / キーワードであいまい検索を行う場合、「スキャンソース」で無効化されているソースも並び順通りに使用されます（無効化は番号の完全一致検索にのみ影響します）",
       "dmm_fuzzy_trigger": "検索ボックスに日本語の女優名やメーカー名を入力すると DMM あいまい検索も同時にトリガーされる",
-      "dmm_fuzzy_prereq": "前提：DMM が有効になっていること（Proxy または <code>direct</code> モードが必要）",
-      "proxy_direct_vpn": "日本の VPN に接続中、または日本にいる場合、別途 Proxy を設定する必要はありません",
-      "proxy_direct_how": "設定ページの Proxy フィールドに <code>direct</code> と入力するだけで DMM を直接有効化できます",
       "toggle_uncensored": "<strong>設定ページ</strong>で「無修正モード」トグルを有効にすると、検索時に無修正ソースが優先される",
       "col_source": "ソース",
       "col_format": "フォーマット",
@@ -1579,8 +1569,6 @@
       "report_debug_1": "<code>OpenAver_Debug.bat</code> を実行",
       "report_debug_2": "問題を再現する",
       "report_debug_3": "ログファイルとエラーメッセージを <a href=\"https://github.com/slive777/OpenAver/issues\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Issues</a> に報告",
-      "dmm_proxy": "DMM には日本 IP が必要です。<strong>設定ページ</strong> → Proxy フィールドに日本のプロキシを入力してください",
-      "dmm_direct": "VPN や日本のネットワークに接続済みの場合、Proxy フィールドに <code>direct</code> と入力するだけで有効化できます。Proxy アドレスは不要です。",
       "translate_ollama": "<strong>Ollama</strong>：Ollama アプリが起動していることを確認してください（Windows では手動起動が必要）",
       "translate_gemini": "<strong>Gemini</strong>：<strong>設定ページ</strong>で API Key が正しく設定されていることを確認",
       "translate_openai": "<strong>OpenAI Compatible</strong>：Base URL とモデル名が正しいか確認してください"

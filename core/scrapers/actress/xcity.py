@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from core.logger import get_logger
+from core.proxy_policy import proxy_kwargs
 
 
 logger = get_logger(__name__)
@@ -123,14 +124,15 @@ def scrape_xcity(name: str) -> Optional[Dict]:
     """Fetch an exact xcity match and return its parsed profile, or None."""
     search_url = f"https://xcity.jp/idol/?genre=%2Fidol%2F&q={quote(name)}&sg=idol"
     try:
-        search = requests.get(search_url, headers=HEADERS, timeout=15)
+        search = requests.get(search_url, headers=HEADERS, timeout=15, **proxy_kwargs('actress'))
         if search.status_code != 200:
             return None
         actress_id = _find_exact_match(search.text, name)
         if actress_id is None:
             return None
         detail = requests.get(
-            f"https://xcity.jp/idol/detail/{actress_id}/", headers=HEADERS, timeout=15
+            f"https://xcity.jp/idol/detail/{actress_id}/", headers=HEADERS, timeout=15,
+            **proxy_kwargs('actress'),
         )
         if detail.status_code != 200:
             return None

@@ -46,6 +46,7 @@ from core.metatube.state import metatube_state as _mt_startup_state
 from core.access_auth import ensure_schema, load_snapshot, snapshot, verify_ticket
 from core import source_reachability
 from core.platform_info import is_synology
+from core.desktop_env import desktop_kind
 
 
 # 路徑設定
@@ -276,6 +277,7 @@ from web.routers import diagnostics as diagnostics_router
 from web.routers import access as access_router
 from web.routers import wishlist as wishlist_router
 from web.routers import insights as insights_router
+from web.routers import source_probe as source_probe_router
 # Module-level imports for startup_reconnect / _fire_probe so that
 # patch("web.app.startup_reconnect") / patch("web.app._fire_probe") target the
 # correct use-site binding (TASK-63e-1; function-local import would defeat patch).
@@ -310,6 +312,7 @@ app.include_router(diagnostics_router.router)
 app.include_router(access_router.router)
 app.include_router(wishlist_router.router)
 app.include_router(insights_router.router)
+app.include_router(source_probe_router.router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -560,12 +563,12 @@ from web.lan_listener import get_lan_ip  # noqa: E402 — re-export for backward
 def _is_windows_desktop() -> bool:
     """True のみ Windows 桌面 App（feature/82 T4：OPENAVER_STANDALONE env + win32 雙重條件）。
     非桌面 / 非 Windows → False，Settings 中不渲染 close_action 下拉。"""
-    return os.environ.get("OPENAVER_STANDALONE") == "1" and sys.platform == "win32"
+    return desktop_kind() == "windows"
 
 
 def _is_mac_desktop() -> bool:
     """True 僅限 macOS 桌面 App（OPENAVER_STANDALONE=1 AND darwin）。"""
-    return os.environ.get("OPENAVER_STANDALONE") == "1" and sys.platform == "darwin"
+    return desktop_kind() == "mac"
 
 
 def get_common_context(request: Request) -> dict:
@@ -622,10 +625,6 @@ def get_common_context(request: Request) -> dict:
         else:
             _src['routable'] = True
             _src['available'] = True
-    # 63c-3 / 63c-6：proxy 是否已設定（DMM requires_proxy 灰化 Surface 2 用，獨立 context key）
-    _proxy_url = (config.get('search') or {}).get('proxy_url') or ''
-    proxy_configured = len(_proxy_url) > 0
-
     # 70-T5：cf_transport_available — standalone 已 register → true；dev/server → false
     from core.cf_transport import get_cf_transport as _get_cf_transport
     _cf_transport_available = _get_cf_transport() is not None
@@ -641,7 +640,6 @@ def get_common_context(request: Request) -> dict:
     return {
         "request": request,
         "config": config,
-        "proxy_configured": proxy_configured,
         "cf_transport_available": _cf_transport_available,
         "cf_sites": _cf_sites,
         "lan_ip": get_lan_ip() if _server_mode else None,
@@ -654,6 +652,7 @@ def get_common_context(request: Request) -> dict:
         "merged_translations": merged_translations,
         "t": _t_bound,
         "is_windows_desktop": _is_windows_desktop(),
+        "is_mac_desktop": _is_mac_desktop(),
         "is_desktop": _is_windows_desktop() or _is_mac_desktop(),
         "is_synology": is_synology(),
     }
@@ -747,7 +746,7 @@ async def settings_page(request: Request):
     context = get_common_context(request)
     context["page"] = "settings"
     # 用 get_common_context 已載入的那一份 config（:517 → context["config"]），不再讀第二次
-    # 磁碟——同一支函式裡的 proxy_configured / _server_mode 也是這個形狀。純 dict 運算，
+    # 磁碟——同一支函式裡的 _server_mode 也是這個形狀。純 dict 運算，
     # 不需要 asyncio.to_thread（BE-ASYNC-01 管的是阻塞 I/O，這行沒有）。
     context["focal_auto_enabled"] = not device_state.is_disabled_in(context["config"])
     return templates.TemplateResponse(request, "settings.html", context)

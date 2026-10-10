@@ -15,6 +15,7 @@ from .errors import SourceBlocked, SourceUnreachable
 from .models import Video, Actress
 from .utils import rate_limit, strip_number_prefix
 from . import javdb_api
+from core.source_probe import ProbePlan, ProbeTarget
 
 # 嘗試載入 curl_cffi
 # CURL_CFFI_IMPORT_ERROR 先在頂層初始化：正常 import 成功時此變數仍須存在，否則單獨
@@ -203,8 +204,24 @@ class JavDBScraper(BaseScraper):
     - 需 curl_cffi 偽造 TLS 指紋（僅網頁備援路徑）
     """
 
+    SAMPLE_NUMBER = "SONE-205"
+
     def _get_source_name(self) -> str:
         return "javdb"
+
+    def _api_sender(self, host, path, timeout):
+        def send():
+            return javdb_api._signed_get(host, path, javdb_api.probe_query(self.SAMPLE_NUMBER), timeout=timeout, stream=True, **self._proxy_kwargs())
+        return send
+
+    def probe_plan(self, timeout):
+        """測試連線：只測 App 資料通道（兩個鏡像 host，任一通即可）；不測網頁備援。"""
+        path = javdb_api._SEARCH_PATH
+        targets = [
+            ProbeTarget(host.split('//', 1)[1], self._api_sender(host, path, timeout), check=javdb_api.envelope_ok, read='full_capped')
+            for host in javdb_api._API_HOSTS
+        ]
+        return ProbePlan(targets, mode='any')
 
     def _get_html(self, url: str) -> Optional[str]:
         """使用 curl_cffi 發送請求（偽造 Chrome TLS 指紋）"""
@@ -220,7 +237,8 @@ class JavDBScraper(BaseScraper):
 
         _ca = _cainfo_override_bytes()
         extra = {"curl_options": {CurlOpt.CAINFO: _ca}} if _ca is not None else {}
-        _proxies = _resolve_proxies(url)
+        _pk = self._proxy_kwargs()
+        _proxies = _pk.get('proxies') or _resolve_proxies(url)
 
         try:
             response = curl_requests.get(
@@ -271,7 +289,7 @@ class JavDBScraper(BaseScraper):
         查無回 None；傳輸失敗照 B6 拋 SourceUnreachable / SourceBlocked
         （由 search() 攔下並降級，見 CD-132b-5）。
         """
-        return javdb_api.fetch_video(number)
+        return javdb_api.fetch_video(number, **self._proxy_kwargs())
 
     def search_via_html(self, number: str) -> Optional[Video]:
         """走網頁解析。呼叫端必須傳入已正規化的番號。

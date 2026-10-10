@@ -17,6 +17,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from core.logger import get_logger
+from core.proxy_policy import proxy_kwargs
 
 logger = get_logger(__name__)
 
@@ -200,7 +201,7 @@ def scrape_wiki_ja(name: str) -> Optional[Dict]:
     """
     url = f"https://ja.wikipedia.org/wiki/{urllib.parse.quote(name)}"
     try:
-        r = requests.get(url, headers=HEADERS, timeout=15)
+        r = requests.get(url, headers=HEADERS, timeout=15, **proxy_kwargs('actress'))
     except requests.exceptions.Timeout:
         logger.warning(f"[wiki_ja] Timeout for {name}")
         return None

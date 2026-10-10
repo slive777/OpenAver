@@ -1,0 +1,110 @@
+import {
+    acceptProbeResponse,
+    describeProbe,
+    REASON_KEY_HTTP_STATUS_CODE,
+    REASON_KEY_MAP,
+    buildProbeKey,
+    pickProbeIds,
+    summarizeProbe,
+} from '@/settings/source-probe-logic.js';
+
+/**
+ * 測試連線分片（163b-T4a，CD-8）。
+ * 讀 host 的 form / sources / showToast；不定義 init()，不碰 $watch（watcher 掛在模板）。
+ * 全站唯一呼叫測試連線端點的地方。
+ */
+export function stateSourceProbe() {
+    return {
+        srcProbeStatus: 'idle',   // 'idle' | 'running'
+        srcProbeResults: {},      // 以來源 id 字串為鍵，整包重新賦值
+        srcProbeGen: 0,
+        srcProbeTipId: null,      // 原因句指向哪顆（T4b 消費）
+
+        get srcProbeKey() {
+            return buildProbeKey(this.form.proxyUrl, this.form.proxyScope, this.sources);
+        },
+
+        get srcProbeSummary() {
+            return summarizeProbe(this.srcProbeResults);
+        },
+
+        // ---- 163b-T4b 檢視：只讀 srcProbeResults、只寫 srcProbeTipId ----
+        srcProbeIcon(id) {
+            const d = describeProbe(this.srcProbeResults[id]);
+            return d ? 'bi ' + d.icon : '';
+        },
+
+        srcProbeLine(id) {
+            const d = describeProbe(this.srcProbeResults[id]);
+            if (!d) return '';
+            const state = window.t(d.stateKey);
+            const reason = (d.reasonKey === REASON_KEY_MAP.http_status && d.status !== null)
+                ? window.t(REASON_KEY_HTTP_STATUS_CODE, { status: d.status })
+                : window.t(d.reasonKey);
+            const advice = d.adviceKey ? window.t(d.adviceKey) : '';
+            if (d.host && d.adviceKey) {
+                return window.t('settings.sources.probe_line_host_advice', { state, host: d.host, reason, advice });
+            }
+            if (d.host) {
+                return window.t('settings.sources.probe_line_host', { state, host: d.host, reason });
+            }
+            if (d.adviceKey) {
+                return window.t('settings.sources.probe_line_advice', { state, reason, advice });
+            }
+            return window.t('settings.sources.probe_line', { state, reason });
+        },
+
+        get srcProbeTipText() {
+            const id = this.srcProbeTipId;
+            if (id === null) return '';
+            const line = this.srcProbeLine(id);
+            if (!line) return '';
+            const src = this.sources.find((x) => x.id === id);
+            return window.t('settings.sources.probe_tip', { name: src ? src.display_name : id, line });
+        },
+
+        toggleSrcProbeTip(id) {
+            this.srcProbeTipId = this.srcProbeTipId === id ? null : id;
+        },
+
+        // 唯一遞增世代處；冪等、對 idle 狀態無其他副作用
+        clearSrcProbe() {
+            this.srcProbeGen++;
+            this.srcProbeResults = {};
+            this.srcProbeTipId = null;
+            this.srcProbeStatus = 'idle';
+        },
+
+        async runSrcProbe() {
+            this.clearSrcProbe();
+            const gen = this.srcProbeGen;
+            this.srcProbeStatus = 'running';
+            const ids = pickProbeIds(this.sources);
+            try {
+                const res = await fetch('/api/sources/probe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        proxy_url: String(this.form.proxyUrl ?? '').trim(),
+                        proxy_scope: this.form.proxyScope,
+                        source_ids: ids,
+                    }),
+                });
+                if (!res.ok) throw new Error('probe http ' + res.status);
+                const data = await res.json();
+                if (!acceptProbeResponse(gen, this.srcProbeGen)) return;
+                if (!data || typeof data.results !== 'object' || data.results === null) {
+                    throw new Error('probe response missing results');
+                }
+                this.srcProbeResults = data.results;
+                this.srcProbeStatus = 'idle';
+            } catch (e) {
+                const stale = !acceptProbeResponse(gen, this.srcProbeGen);
+                if (stale) return;
+                this.srcProbeResults = {};
+                this.srcProbeStatus = 'idle';
+                this.showToast(window.t('settings.sources.probe_failed'), 'error');
+            }
+        },
+    };
+}

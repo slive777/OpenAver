@@ -161,6 +161,52 @@
     border-radius: var(--radius-pill);
 }
 
+/* 163b-T4b：測試連線狀態點（膠囊末端）與原因句。四態形狀由 bi 圖示區分，顏色僅輔助。 */
+.source-pill-probe {
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    background: none;
+    border: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.source-pill-probe:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-pill);
+}
+
+.source-pill-probe[data-state="ok"] {
+    color: var(--color-success);
+}
+
+.source-pill-probe[data-state="blocked"] {
+    color: var(--color-warning);
+}
+
+.source-pill-probe[data-state="unreachable"] {
+    color: var(--color-error);
+}
+
+.source-pill-probe[data-state="skipped"] {
+    color: var(--text-secondary);
+}
+
+.source-pill-probe-tip {
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.source-pill-probe-tip:empty {
+    display: none;
+}
+
 /* Parts Bin pill — click-to-promote affordance.
    TASK-partsbin-staged-affordance: cursor pointer on all partsbin pills (available or not)
    reflects click-to-promote semantics. The previous --pill-accent tint override is removed —
@@ -214,19 +260,6 @@
     height: 6px;
     border-radius: 50%;
     background: var(--color-warning);
-}
-
-/* 63c-6: DMM requires_proxy — proxy 未設定時灰化（兩 surface 共用）。
-   opacity 對齊 .is-partsbin[data-available="false"] 慣例 (0.5)。
-   hover 不亮回，cursor 改 not-allowed 提示不可操作。 */
-.source-pill[data-proxy-required="true"] {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.source-pill[data-proxy-required="true"]:hover {
-    transform: none;
-    box-shadow: none;
 }
 
 /* ─── Action / loading modifiers (62a-2; click-to-rescrape pill, NOT drag) ───

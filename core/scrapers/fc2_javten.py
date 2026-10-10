@@ -15,6 +15,7 @@ from core.logger import get_logger
 from .base import BaseScraper
 from .models import Video, Actress, ScraperConfig
 from .utils import rate_limit
+from core.source_probe import VERIFIER_PROBE_HEADERS, ProbePlan, ProbeTarget
 
 logger = get_logger(__name__)
 
@@ -83,6 +84,15 @@ class FC2JavtenScraper(BaseScraper):
 
     def _get_source_name(self) -> str:
         return "fc-javten"
+
+    def probe_plan(self, timeout):
+        """測試連線：GET 首頁（與搜尋同一個出口）；拿到 Cloudflare 驗證頁＝通，不叫驗證視窗。"""
+        session = self._new_session()
+
+        def send():
+            return session.get(
+                JAVTEN_ORIGIN, headers=VERIFIER_PROBE_HEADERS, timeout=timeout, stream=True)
+        return ProbePlan([ProbeTarget('javten.com', send, cf_challenge_ok=True)])
 
     def _normalize_fc2_number(self, number: str) -> str:
         """

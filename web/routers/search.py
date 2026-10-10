@@ -46,6 +46,7 @@ from core.source_settings import get_switchable_source_ids_ordered, is_uncensore
 from core.auto_organize_state import mark_manual_activity, request_abort, get_status
 from core.config import load_config, mutate_config
 from core.favorite_scan import resolve_favorite_folder
+from core.proxy_policy import proxy_kwargs
 from web import auto_organize_scheduler
 
 from core.scraper import (
@@ -103,7 +104,7 @@ def proxy_image(url: str = Query(..., description="圖片 URL")):
 
         # SSRF guard: 不跟隨 redirect（CD-113c-7）。白名單只驗原始 URL，
         # 若對方 30x 到內網，跟隨會繞過驗證。照抄 core/metatube/client.py。
-        resp = requests.get(url, headers=headers, timeout=10, allow_redirects=False)
+        resp = requests.get(url, headers=headers, timeout=10, allow_redirects=False, **proxy_kwargs('image', url=url))
         if 300 <= resp.status_code < 400:
             location = resp.headers.get("Location", "")
             try:
@@ -198,11 +199,10 @@ def search(
     if source is not None and source != "auto" and mode != "exact":
         return JSONResponse(status_code=400, content={"success": False, "error": "source 僅在 mode=exact 時生效，請改用 mode=exact 或移除 source"})
 
-    # 讀取設定（無碼模式 + proxy）
+    # 讀取設定（無碼模式）
     from core.config import load_config
     config = load_config()
     uncensored_mode = is_uncensored_mode_effective(config)
-    proxy_url = config.get('search', {}).get('proxy_url', '')
 
     # discovery 僅在明確指定 actress/partial/prefix 模式時生效
     # auto 不含：auto 內部自動選路，discovery_only 會干擾 keyword fallback
@@ -210,14 +210,17 @@ def search(
 
     # 自動模式使用 smart_search
     if mode == "auto":
-        results = smart_search(q, limit=limit, offset=offset, uncensored_mode=uncensored_mode, proxy_url=proxy_url, discovery_only=use_discovery)
+        results = smart_search(q, limit=limit, offset=offset, uncensored_mode=uncensored_mode, discovery_only=use_discovery)
     elif mode == "exact":
         if source:
             # 指定來源搜索
-            from core.scraper import search_jav_single_source
+            from core.scraper import search_jav_single_source, access_error_info
+            from core.scrapers.errors import SourceBlocked, SourceUnreachable
             from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
             try:
-                data = search_jav_single_source(q, source, proxy_url=proxy_url)
+                data = search_jav_single_source(
+                    q, source, surface_access_errors=True,
+                )
             # CD-70c-4: search entry does NOT wire the interactive CF flow (no begin_solve,
             # no cf_needed). The JavLibrary pill is hidden in search context when
             # cf_transport_available is false (frontend isJlUnavailable), so this path is
@@ -245,17 +248,31 @@ def search(
                     "has_more": False,
                     "actress_profile": None,
                 }
+            except (SourceBlocked, SourceUnreachable) as e:
+                info = access_error_info(e, source)
+                logger.warning("search: %s source=%s q=%s", info["access_error"], source, q)
+                return {
+                    "success": False,
+                    "error": info["message"],
+                    "access_error": info["access_error"],
+                    "source": source,
+                    "data": [],
+                    "total": 0,
+                    "mode": "exact",
+                    "has_more": False,
+                    "actress_profile": None,
+                }
             results = [data] if data else []
         else:
             # 精確搜索（使用 smart_search 的 exact 模式）
-            data = search_jav(q, proxy_url=proxy_url)
+            data = search_jav(q)
             results = [data] if data else []
     elif mode == "partial":
         results = search_partial(q, discovery_only=use_discovery)
     elif mode == "actress":
-        results = search_actress(q, limit=limit, offset=offset, proxy_url=proxy_url, discovery_only=use_discovery)
+        results = search_actress(q, limit=limit, offset=offset, discovery_only=use_discovery)
     else:
-        results = smart_search(q, limit=limit, offset=offset, proxy_url=proxy_url, discovery_only=use_discovery)
+        results = smart_search(q, limit=limit, offset=offset, discovery_only=use_discovery)
 
     detected_mode = mode if mode != "auto" else _detect_mode(q)
 
@@ -503,15 +520,11 @@ def batch_search(body: BatchSearchRequest) -> dict:
     if len(numbers) > 50:
         return JSONResponse(status_code=422, content={"success": False, "error": "最多支援 50 筆批量搜尋"})
 
-    from core.config import load_config
-    config = load_config()
-    proxy_url = config.get('search', {}).get('proxy_url', '')
-
     results = {}
 
     def _search_one(num: str):
         try:
-            data = smart_search(num, limit=1, proxy_url=proxy_url)
+            data = smart_search(num, limit=1)
             if data:
                 entry = data[0]
                 entry['found'] = True
@@ -561,11 +574,10 @@ async def search_stream(
             yield f"data: {json.dumps({'type': 'error', 'message': '請輸入有效的搜尋關鍵字'})}\n\n"
         return StreamingResponse(error_gen(), media_type="text/event-stream")
 
-    # 讀取設定（無碼模式 + proxy）
+    # 讀取設定（無碼模式）
     from core.config import load_config
     config = await asyncio.to_thread(load_config)
     uncensored_mode = is_uncensored_mode_effective(config)
-    proxy_url = config.get('search', {}).get('proxy_url', '')
 
     status_queue = Queue()
     sent_seed = False
@@ -587,7 +599,7 @@ async def search_stream(
 
     def run_search():
         """在背景執行搜尋"""
-        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode, proxy_url=proxy_url, result_callback=result_callback)
+        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode, result_callback=result_callback)
 
     async def event_generator():
         nonlocal sent_seed

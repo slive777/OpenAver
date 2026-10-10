@@ -19,9 +19,6 @@ export function stateProviders() {
         testModelLoading: false,
         testGeminiLoading: false,
         testGeminiTranslateLoading: false,
-        proxyStatus: '',
-        proxyStatusOk: false,
-        testProxyLoading: false,
 
         // ===== Methods =====
         async loadOllamaModels(url, savedModel = '') {
@@ -49,34 +46,6 @@ export function stateProviders() {
                 }
             } catch (e) {
                 this.ollamaStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${window.t('settings.status.connection_failed')}</span>`;
-            }
-        },
-
-        async testProxy() {
-            if (!this.form.proxyUrl.trim()) return;
-
-            this.testProxyLoading = true;
-            this.proxyStatusOk = false;
-            this.proxyStatus = window.t('settings.status.testing');
-
-            try {
-                const resp = await fetch('/api/proxy/test', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ proxy_url: this.form.proxyUrl.trim() })
-                });
-                const result = await resp.json();
-
-                if (result.success === true) {
-                    this.proxyStatusOk = true;
-                    this.proxyStatus = `✓ ${result.message}`;
-                } else {
-                    this.proxyStatus = `✗ ${result.message}`;
-                }
-            } catch (e) {
-                this.proxyStatus = window.t('settings.status.network_error');
-            } finally {
-                this.testProxyLoading = false;
             }
         },
 

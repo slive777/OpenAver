@@ -114,12 +114,13 @@ document.querySelectorAll('.info-row').forEach(row => {
 ### 搜尋來源
 - 掃描來源 Active Row badge 列表（DMM、JavBus、Jav321、JavDB 等），可拖曳調整搜尋順序
 - 點擊 badge 切換啟用/停用，綠色邊框 = 啟用
-- DMM 需要 Proxy 設定才能使用
+- DMM 開不開看膠囊（點膠囊切換），不需要 Proxy 設定
+- 來源卡右上「測試連線」：測目前畫面上的代理設定，結果以膠囊上的狀態點顯示
 
 ### 設定項目
 - 女優畫廊模式（Beta toggle）
 - 無碼模式（toggle）
-- Proxy 位址 + 測試按鈕
+- Proxy 位址 + 範圍（僅 DMM｜所有來源）
 - 我的最愛資料夾路徑
 - 啟用標題翻譯（toggle）
 

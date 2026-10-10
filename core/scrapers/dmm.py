@@ -9,8 +9,10 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 from .base import BaseScraper
+from .errors import SourceBlocked, SourceUnreachable
 from .models import Video, Actress, ScraperConfig
 from .utils import rate_limit
+from core.source_probe import ProbePlan, ProbeTarget
 
 
 # 出貨前綴表路徑（專案根目錄，依片商分組）
@@ -134,17 +136,18 @@ class DMMScraper(BaseScraper):
 
     def __init__(self, config: Optional[ScraperConfig] = None):
         super().__init__(config)
-        self._session = requests.Session()
+        self._session = self._new_session()
         self._session.headers.update({
             'User-Agent': self.config.user_agent,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         })
-        if self.config.proxy_url:
-            self._session.proxies = {
-                'http': self.config.proxy_url,
-                'https': self.config.proxy_url,
-            }
+
+    def probe_plan(self, timeout):
+        """測試連線：打查資料實際走的 graphql 端點（帶 session 的代理與 header）。"""
+        def send():
+            return self._session.post(self.API_URL, json={'query': '{ __typename }'}, timeout=timeout, stream=True)
+        return ProbePlan([ProbeTarget('api.video.dmm.co.jp', send)])
 
     def _get_source_name(self) -> str:
         return "dmm"
@@ -318,7 +321,7 @@ class DMMScraper(BaseScraper):
     def _fetch_tags_from_html(self, content_id: str) -> list[str]:
         """
         從 DMM 商品頁 HTML 抓取 genres（ジャンル）。
-        使用同一 session（已設定 proxy），傳 age_check_done=1 cookie 繞過年齡驗證。
+        使用同一 session（代理由 proxy policy 決定），傳 age_check_done=1 cookie 繞過年齡驗證。
 
         兩種解析策略：
         1. JSON-LD VideoObject.genre（較快）
@@ -527,7 +530,7 @@ class DMMScraper(BaseScraper):
             resp = self._session.post(self.API_URL, json=payload, timeout=10)
 
             if resp.status_code != 200:
-                return None
+                raise SourceBlocked(f"DMM: HTTP {resp.status_code}")
 
             data = resp.json()
             if not data.get('data') or not data['data'].get('legacySearchPPV'):
@@ -553,6 +556,12 @@ class DMMScraper(BaseScraper):
             # 子串相近的其他系列，例如 ERK-116 → gerk116）
             return None
 
+        except (SourceBlocked, SourceUnreachable):
+            raise
+        except requests.exceptions.JSONDecodeError:
+            return None  # 200 但 body 非 JSON：查無，不是連不到
+        except requests.RequestException as e:
+            raise SourceUnreachable(f"DMM: {type(e).__name__}") from e
         except Exception:
             return None
 
@@ -574,7 +583,7 @@ class DMMScraper(BaseScraper):
             )
 
             if response.status_code != 200:
-                return None
+                raise SourceBlocked(f"DMM: HTTP {response.status_code}")
 
             data = response.json()
 
@@ -642,8 +651,12 @@ class DMMScraper(BaseScraper):
 
             return video
 
-        except requests.Timeout as e:
-            raise TimeoutError(f"DMM API timeout for {content_id}") from e
+        except (SourceBlocked, SourceUnreachable):
+            raise
+        except requests.exceptions.JSONDecodeError:
+            return None  # 200 但 body 非 JSON：查無，不是連不到
+        except requests.RequestException as e:
+            raise SourceUnreachable(f"DMM: {type(e).__name__} (detail)") from e
         except Exception:
             return None
 

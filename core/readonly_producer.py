@@ -376,7 +376,6 @@ def resolve_ingest_plan(
     config: dict,
     *,
     action: str = 'ingest',
-    proxy_url: str = '',
     scraper_data: Optional[dict] = None,
     source: Optional[str] = None,
     javbus_lang: Optional[str] = None,
@@ -478,9 +477,9 @@ def resolve_ingest_plan(
         # javbus_lang instead of hardcoding source="auto" — mirrors the
         # rescrape branch's dispatch below.
         elif source and source not in (None, 'auto'):
-            meta = search_jav_single_source(number, source, proxy_url, javbus_lang=javbus_lang)
+            meta = search_jav_single_source(number, source, javbus_lang=javbus_lang)
         else:
-            meta = search_jav(number, source="auto", proxy_url=proxy_url, javbus_lang=javbus_lang)
+            meta = search_jav(number, source="auto", javbus_lang=javbus_lang)
 
         nfo_thumb = root.findtext('thumb') if valid_nfo else None
         cover_fs = VideoScanner().find_cover_image(src_fs_path, nfo_thumb=nfo_thumb)
@@ -552,9 +551,9 @@ def resolve_ingest_plan(
         if scraper_data:
             meta = scraper_data
         elif source and source not in (None, 'auto'):
-            meta = search_jav_single_source(number, source, proxy_url, javbus_lang=javbus_lang) if number else None
+            meta = search_jav_single_source(number, source, javbus_lang=javbus_lang) if number else None
         else:
-            meta = search_jav(number, source="auto", proxy_url=proxy_url, javbus_lang=javbus_lang) if number else None
+            meta = search_jav(number, source="auto", javbus_lang=javbus_lang) if number else None
         cover_strategy = ('download', meta['cover']) if meta and meta.get('cover') else ('none',)
 
     if meta is None:
@@ -1029,7 +1028,6 @@ def enrich_one_readonly(
     scraper_cfg: dict,        # config.get("scraper", {})
     path_mappings: dict,
     action: str = 'ingest',
-    proxy_url: str = '',
     scraper_data: Optional[dict] = None,   # C1：javlib 預抓結果，單片專用
     scrape_source=None,       # request.source → resolve_ingest_plan(source=)
     javbus_lang=None,
@@ -1089,7 +1087,7 @@ def enrich_one_readonly(
     # step 2
     meta, cover_strategy = resolve_ingest_plan(
         fs_path, number, scraper_cfg,
-        action=action, proxy_url=proxy_url, scraper_data=scraper_data, source=scrape_source,
+        action=action, scraper_data=scraper_data, source=scrape_source,
         javbus_lang=javbus_lang,
     )
     if not meta:
@@ -1233,7 +1231,7 @@ def _emit(on_progress, result, source_uri, status, movie_dir="", number="", erro
         on_progress(outcome)
 
 
-def produce_source(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None, force: bool = False, reachable: bool = True, strm_mappings_getter=None) -> ProduceResult:
+def produce_source(source, config, repo, *, on_progress=None, should_abort=None, force: bool = False, reachable: bool = True, strm_mappings_getter=None) -> ProduceResult:
     """Orchestrate per-source readonly generation: guard → list → skip → scrape → write → upsert.
 
     Pure service layer. NO FastAPI, NO SSE, NO router. (CD-88b-8, §1.1)
@@ -1314,7 +1312,7 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
         # local cover exists (CD-104-2's 3-state cover_strategy tuple lives
         # inside resolve_ingest_plan now, not inline here).
         meta, cover_strategy = resolve_ingest_plan(
-            fi["path"], number, scraper_cfg, action='ingest', proxy_url=proxy_url,
+            fi["path"], number, scraper_cfg, action='ingest',
         )
         if not meta or not meta.get('number'):
             # T2: always stub a row (with or without a filename number), matching

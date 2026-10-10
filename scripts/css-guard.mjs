@@ -1738,21 +1738,6 @@ const RULES = [
   // 簡化回 :hover（gear 已無任何 :disabled 綁定，:not(:disabled) 恆真、為死權重）。整條規則（含正向
   // opacity/cursor 斷言與負向 hover-gating 斷言）皆針對此已死功能，無其他可留用部分，故整條移除。
 
-  // CG-RO-02 ← TestDmmProxyRequiredGuard CSS 半邊（source-pill.css；opacity + hover no-lift）
-  {
-    id: 'CG-RO-02',
-    file: 'components/source-pill.css',
-    kind: 'fn',
-    check(ctx) {
-      const m = ctx.raw.match(/\.source-pill\[data-proxy-required="true"\]\s*\{([^}]+)\}/s);
-      if (!m) ctx.fail('CG-RO-02: source-pill.css 缺 .source-pill[data-proxy-required="true"] rule block');
-      else if (!m[1].includes('opacity')) ctx.fail('CG-RO-02: [data-proxy-required="true"] rule 缺 opacity 設定（灰化機制）');
-      const hm = ctx.raw.match(/\.source-pill\[data-proxy-required="true"\]:hover\s*\{([^}]+)\}/s);
-      if (!hm) ctx.fail('CG-RO-02: source-pill.css 缺 [data-proxy-required="true"]:hover rule（hover 不亮回）');
-      else if (!hm[1].includes('transform')) ctx.fail('CG-RO-02: :hover rule 缺 transform: none（防 lift）');
-    },
-  },
-
   // CG-RO-03 ← TestPicker64aThreeStateGuard offline CSS 半邊（source-pill.css；specificity-aware 全域守衛）
   {
     id: 'CG-RO-03',

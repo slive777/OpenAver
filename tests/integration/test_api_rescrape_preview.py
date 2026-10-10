@@ -33,7 +33,7 @@ def _scraper_dict(**kw):
 
 class TestRescrapePreviewEndpoint:
     def test_preview_specific_source_calls_single_source(self, client, mocker):
-        """具體來源 → 呼叫 search_jav_single_source(number, source, proxy_url)，回 dict + success:True。"""
+        """具體來源 → 呼叫 search_jav_single_source(number, source)，回 dict + success:True。"""
         mock_single = mocker.patch(
             "web.routers.scraper.search_jav_single_source",
             return_value=_scraper_dict(),
@@ -50,7 +50,7 @@ class TestRescrapePreviewEndpoint:
         assert data["title"] == "Test Title"
         assert mock_single.called
         args = mock_single.call_args.args
-        # (number, source, proxy_url) — number/source 在 args 前兩位
+        # (number, source) — number/source 在 args 前兩位
         assert args[0] == "SONE-205"
         assert args[1] == "javdb"
 
@@ -134,26 +134,6 @@ class TestRescrapePreviewEndpoint:
 
         assert response.status_code == 200
         assert response.json()["success"] is False
-
-    def test_preview_reads_proxy_from_search_config(self, client, mocker):
-        """proxy_url 從 config['search'] 取得。"""
-        mock_auto = mocker.patch(
-            "web.routers.scraper.search_jav",
-            return_value=_scraper_dict(),
-        )
-        mocker.patch("web.routers.scraper.load_config", return_value={
-            "search": {
-                "proxy_url": "http://proxy.test:8888",
-            },
-        })
-
-        client.post("/api/rescrape/preview", json={
-            "number": "SONE-205",
-            "source": "auto",
-        })
-
-        kwargs = mock_auto.call_args.kwargs
-        assert kwargs.get("proxy_url") == "http://proxy.test:8888"
 
     def test_preview_missing_number_returns_422(self, client):
         """漏 number → 422（Pydantic）。"""

@@ -97,6 +97,7 @@ class SearchConfig(BaseModel):
     uncensored_mode_enabled: bool = False  # deprecated: read via core.source_settings.is_uncensored_mode_effective()
     favorite_folder: str = ""  # 我的最愛資料夾 - 空字串 = 使用系統下載資料夾
     proxy_url: str = ""
+    proxy_scope: Literal['dmm', 'all'] = 'dmm'  # Proxy 套用範圍；鍵存在即「已遷移」標記（feature/163a）
     auto_organize: AutoOrganizeConfig = AutoOrganizeConfig()
 
 
@@ -257,6 +258,41 @@ def _backfill_update_config_fields(gen: dict) -> bool:
         gen['last_notified_update_version'] = ''
         changed = True
     return changed
+
+
+def _migrate_proxy_scope(raw_config: dict) -> bool:
+    """舊設定檔一次性遷移：補 search.proxy_scope='dmm'，並維持 DMM 可用性不變。
+
+    標記規則：search 段已有 proxy_scope 鍵（不看值是否合法）→ 整個函式 no-op、回 False。
+    遷移表（升級前 proxy_url → 升級後）：
+      - 真網址：proxy_url 與 DMM 皆不變
+      - 'direct'（strip＋lower）：proxy_url 清成 ''，DMM 不變
+      - 空白／None／非字串：proxy_url 清成 ''，DMM 若為 on 則關閉（本來就連不上）
+    只改 raw_config、不存檔：由 _load_config_unlocked 結尾單一落盤點一起寫回（I-1）。
+    fail-open：任何例外記 warning 並回 False，不讓啟動失敗。
+    """
+    try:
+        search = raw_config.get('search')
+        if not isinstance(search, dict):
+            return False
+        if 'proxy_scope' in search:
+            return False
+        url = search.get('proxy_url')
+        url = url.strip() if isinstance(url, str) else ''
+        if url.lower() == 'direct':
+            search['proxy_url'] = ''
+        elif not url:
+            search['proxy_url'] = ''
+            sources = raw_config.get('sources')
+            dmm = next((s for s in sources if isinstance(s, dict) and s.get('id') == 'dmm'), None) \
+                if isinstance(sources, list) else None
+            if dmm is not None and dmm.get('enabled') is True:
+                dmm['enabled'] = False
+        search['proxy_scope'] = 'dmm'
+        return True
+    except Exception as exc:
+        logger.warning("[Config] proxy_scope 遷移發生例外，略過：%s", exc)
+        return False
 
 
 def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；每加一個設定欄位的向後相容 migration 就得在此多開一支分支，這是它存在的理由而非缺陷；收斂設計已列 backlog（見 OpenAver架構評估-回應.md §七）
@@ -548,6 +584,10 @@ def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；
                         need_save = True
         except Exception as exc:
             logger.warning("[Config] manual_only additive migration 發生例外，略過：%s", exc)
+
+        # 舊檔一次性補 search.proxy_scope 並維持 DMM 可用性（需在 sources 段之後）。
+        if _migrate_proxy_scope(raw_config):
+            need_save = True
 
         # Additive migration（feature/71 T2）：top-level thumbnail_cache_enabled 補預設。
         # load_config() 直接 return raw dict（不 model_validate），故舊 config.json 缺此 key

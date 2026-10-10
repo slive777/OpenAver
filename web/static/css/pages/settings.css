@@ -221,6 +221,30 @@
     }
 }
 
+/* 163b：Proxy 區一行版型（欄位＋範圍切換＋說明；說明在所有寬度都獨佔下一行） */
+#settings-components .settings-form-row--proxy .row-label {
+    min-width: 0;
+    flex: 0 0 auto;
+}
+
+#settings-components .settings-form-row--proxy input {
+    flex: 1 1 14rem;
+    min-width: 0;
+}
+
+#settings-components .settings-form-row--proxy .settings-sources-segmented {
+    flex-shrink: 0;
+}
+
+#settings-components .settings-form-row--proxy .settings-sources-segmented button {
+    white-space: nowrap;
+}
+
+#settings-components .settings-form-row--proxy .settings-hint {
+    flex-basis: 100%;
+    white-space: normal;
+}
+
 /* scroll-margin-top：sticky header 高度補償，避免標題被遮 */
 #settings-components .settings-section {
     scroll-margin-top: 5rem;   /* 與 .settings-header 高度對齊，實作後目視微調 */
@@ -432,7 +456,15 @@
 #settings-components .settings-sources-batchbar-right {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 0.5rem;
+}
+
+#settings-components .settings-sources-probe-summary {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
 }
 
 /* ─── Cap counter (tabular-nums prevents digit jitter on toggle) ─── */
@@ -692,9 +724,14 @@
                 box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
-#settings-components .settings-sources-segmented button:hover:not(.is-on) {
+#settings-components .settings-sources-segmented button:hover:not(.is-on, :disabled) {
     color: var(--text-primary);
     background: color-mix(in oklch, var(--surface-2) 50%, transparent);
+}
+
+#settings-components .settings-sources-segmented button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 #settings-components .settings-sources-segmented button.is-on {

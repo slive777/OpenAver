@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 from .base import BaseScraper
 from .models import Video, Actress, ScraperConfig
 from .utils import rate_limit
+from core.source_probe import ProbePlan, ProbeTarget
 
 
 class CsrfExpired(Exception):
@@ -40,7 +41,7 @@ class AVSOXScraper(BaseScraper):
 
     def __init__(self, config: Optional[ScraperConfig] = None):
         super().__init__(config)
-        self._session = requests.Session()
+        self._session = self._new_session()
         self._session.headers.update({
             'User-Agent': self.config.user_agent,
             'Accept': 'application/json, text/html',
@@ -51,6 +52,15 @@ class AVSOXScraper(BaseScraper):
 
     def _get_source_name(self) -> str:
         return "avsox"
+
+    def probe_plan(self, timeout):
+        """測試連線：三個鏡像各打 {domain}/cn（與取 token 同一條），任一通即可。"""
+        targets = []
+        for domain in self.BASE_DOMAINS:
+            def send(domain=domain):
+                return self._session.get(f"{domain}/cn", timeout=timeout, stream=True)
+            targets.append(ProbeTarget(domain.split('//', 1)[1], send))
+        return ProbePlan(targets, mode='any')
 
     def _ensure_session(self) -> tuple[Optional[str], Optional[str]]:
         """

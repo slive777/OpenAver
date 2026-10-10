@@ -9,6 +9,7 @@ from .base import BaseScraper
 from .models import Video, Actress
 from .utils import rate_limit, strip_number_prefix
 from core.logger import get_logger
+from core.source_probe import ProbePlan, ProbeTarget
 
 logger = get_logger(__name__)
 
@@ -47,11 +48,12 @@ class JavBusScraper(BaseScraper):
     """
 
     BASE_URL = "https://www.javbus.com"
+    SAMPLE_NUMBER = "SONE-205"
 
     def __init__(self, config=None, lang: str = "zh-tw"):
         super().__init__(config)
         self.lang = lang
-        self._session = requests.Session()
+        self._session = self._new_session()
         # [反爬設計，非技術債——請勿「修好」成共用 config UA]（spec-103 §3.7）
         # 下面 5 個 header 是刻意搭配的成套組合，共同構成一個內部一致的完整
         # 瀏覽器指紋（Safari on macOS）。其他走 self.config.user_agent 的來源
@@ -73,6 +75,14 @@ class JavBusScraper(BaseScraper):
             "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
         })
+
+    def probe_plan(self, timeout):
+        """測試連線：打樣本詳情頁（沿用成套 Safari header，樣本頁 404 也算站台有回應）。"""
+        url = f"{self.BASE_URL}{self._get_lang_prefix()}/{self.SAMPLE_NUMBER}"
+
+        def send():
+            return self._session.get(url, timeout=timeout, stream=True)
+        return ProbePlan([ProbeTarget('www.javbus.com', send, ok_404=True)])
 
     def _get_source_name(self) -> str:
         return "javbus"

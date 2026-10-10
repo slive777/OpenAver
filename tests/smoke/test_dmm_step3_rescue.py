@@ -6,7 +6,6 @@ CI 排除（--ignore=tests/smoke / -m "not smoke"）。
 import pytest
 
 from core.scrapers.dmm import DMMScraper
-from core.scrapers.models import ScraperConfig
 
 pytestmark = pytest.mark.smoke
 
@@ -19,14 +18,7 @@ RESCUE_NUMBER = "NWF-237"
 @pytest.mark.smoke
 def test_dmm_step3_rescues_number_not_convertible_by_hints():
     """對 hints 算不出正確 cid、但 DMM 確實收錄的番號，真實 search() 應救回。"""
-    from core.config import load_config
-    from core.scraper import _dmm_proxy_url, _is_dmm_enabled
-
-    raw = (load_config().get("search") or {}).get("proxy_url") or ""
-    if not _is_dmm_enabled(raw):
-        pytest.skip("dmm proxy 未設定（無日本線路）")
-
-    scraper = DMMScraper(ScraperConfig(proxy_url=_dmm_proxy_url(raw)))
+    scraper = DMMScraper()
 
     # 防衛：出貨表算不出正確 cid（nwf 不在表裡），只能靠搜尋 API 那一步救回。
     #

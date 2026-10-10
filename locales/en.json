@@ -360,8 +360,7 @@
       "mt_probe_hint_reason3": "The source's metatube scraper has broken due to a site redesign (e.g. JAV321 / KIN8 — unrelated to your setup).",
       "mt_connect_failed": "Connection failed: {error}",
       "mt_promote_unavailable_warning": "This source is currently unreachable — it has been added to Active Row but may return no data",
-      "mt_probe_failed_pill_hint": "This source is currently unreachable — it may return no data after adding. Click 'Retest' to check again.",
-      "dmm_proxy_required_hint": "DMM requires a proxy to work — enable a proxy in Settings first"
+      "mt_probe_failed_pill_hint": "This source is currently unreachable — it may return no data after adding. Click 'Retest' to check again."
     },
     "advanced_search": {
       "metatube_keyword_hint": "Metatube sources do not support actress/keyword search — enter a full ID for best results.",
@@ -454,8 +453,6 @@
     },
     "search": {
       "uncensored_mode": "Uncensored Mode",
-      "proxy_dmm_hint": "DMM requires Japan IP",
-      "proxy_placeholder": "http://user:pass@host:port — enter direct if you already have Japan IP",
       "favorite_folder_label": "Favorite Folder",
       "favorite_folder_hint": "Load a commonly used folder with one click",
       "favorite_folder_placeholder": "Leave blank = system Downloads folder",
@@ -640,7 +637,6 @@
       "enter_api_key": "Enter API Key",
       "enter_api_key_first": "Enter API Key first",
       "select_model": "Select a model",
-      "network_error": "✗ Network error",
       "translation_success": "Translation test passed! ({translation})",
       "test_failed": "Test failed: {msg}",
       "openai_connection_failed": "Connection failed",
@@ -1493,10 +1489,8 @@
       "h6_manual": "Manual sources (desktop app only)",
       "h6_default_source": "Default Search Source",
       "h6_dmm_fuzzy": "DMM Fuzzy Search",
-      "h6_proxy_direct": "Proxy Direct Mode",
       "h6_toggle": "Toggle Mode",
       "h6_format": "ID Format Examples",
-      "censored_dmm": "<strong>DMM</strong>: Requires a Japanese IP proxy (<strong>Settings page</strong> → Proxy field)",
       "censored_others": "<strong>JavBus</strong>, <strong>Jav321</strong>, <strong>JavDB</strong>: Available directly",
       "uncensored_d2pass": "<strong>D2Pass</strong>: Covers 1Pondo / Caribbeancom / 10musume",
       "uncensored_heyzo": "<strong>HEYZO</strong>: Standalone source",
@@ -1507,11 +1501,7 @@
       "manual_fc2_javten": "<strong>FC2-javten</strong>: a community archive that covers FC2 titles the official site has delisted. It returns the original Japanese title, cover, sample images, tags, seller, and rating; there is <strong>no release date</strong> (the site's page simply has no such field), and tags are in Japanese.",
       "default_source_set": "Drag to reorder sources in the 'Sources' tab — the system uses them in order",
       "default_source_effect": "Disable a source's toggle to temporarily exclude it without deleting its settings",
-      "fuzzy_always_on": "<strong>Fuzzy search exception</strong>: When searching by actress name or keyword, sources follow the ranked order even if disabled in Sources — disabled status only applies to exact ID searches.",
       "dmm_fuzzy_trigger": "Entering a Japanese actress or maker name in the search box also triggers DMM fuzzy search",
-      "dmm_fuzzy_prereq": "Prerequisite: DMM must be enabled (requires Proxy or <code>direct</code> mode)",
-      "proxy_direct_vpn": "If you are already connected to a Japan VPN or are located in Japan, no extra Proxy setup is needed",
-      "proxy_direct_how": "Simply enter <code>direct</code> in the Proxy field on the Settings page to enable DMM directly",
       "toggle_uncensored": "Enable the 'Uncensored Mode' toggle on the <strong>Settings page</strong> to prioritize uncensored sources",
       "col_source": "Source",
       "col_format": "Format",
@@ -1579,8 +1569,6 @@
       "report_debug_1": "Run <code>OpenAver_Debug.bat</code>",
       "report_debug_2": "Reproduce the issue",
       "report_debug_3": "Report the log file and error message to <a href=\"https://github.com/slive777/OpenAver/issues\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Issues</a>",
-      "dmm_proxy": "DMM requires a Japanese IP; enter a Japanese proxy in the <strong>Settings page</strong> → Proxy field",
-      "dmm_direct": "If you are already on a VPN or Japan network, you can also enter <code>direct</code> in the Proxy field to enable it without a proxy address.",
       "translate_ollama": "<strong>Ollama</strong>: Confirm the Ollama application is running (Windows requires manual launch)",
       "translate_gemini": "<strong>Gemini</strong>: Confirm the API Key is correctly set on the <strong>Settings page</strong>",
       "translate_openai": "<strong>OpenAI Compatible</strong>: Check that the Base URL and model name are correct"

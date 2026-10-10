@@ -1641,3 +1641,49 @@ class TestAvailableSites:
         )
         transport._dead['fc-javten'] = True
         assert transport.available_sites() == ['javlibrary']
+
+
+class TestPendingConfirmReady:
+    """TASK-163b-T7a I-B'-1: pending 的 key 在 confirm_ready 之前不可用；關閉後不復活。"""
+
+    @staticmethod
+    def _pending_transport(wins=None):
+        wins = wins or {'javlibrary': FakeWindow(), 'fc-javten': FakeWindow()}
+        t = PyWebViewCfTransport(
+            wins,
+            {},
+            pending={'javlibrary', 'fc-javten'},
+        )
+        return t, wins
+
+    def test_pending_site_is_unavailable_until_confirmed(self):
+        t, wins = self._pending_transport()
+        assert t.available_sites() == []
+        for call in (
+            lambda: t.fetch('https://www.javlibrary.com/ja/', 'javlibrary'),
+            lambda: t.begin_solve('https://www.javlibrary.com/', 'javlibrary'),
+            lambda: t.is_ready('javlibrary'),
+            lambda: t.navigate_and_settle('https://javten.com/', 'fc-javten'),
+        ):
+            with pytest.raises(CfTransportUnavailable):
+                call()
+        for w in wins.values():
+            assert [c for c in w.calls if c[0] == 'load_url'] == []
+        t.confirm_ready('javlibrary')
+        assert t.available_sites() == ['javlibrary']
+        t.confirm_ready('fc-javten')
+        assert t.available_sites() == ['fc-javten', 'javlibrary']
+
+    def test_confirm_after_close_does_not_revive(self):
+        t, wins = self._pending_transport()
+        wins['javlibrary'].events.closed.fire()
+        t.confirm_ready('javlibrary')
+        assert t.available_sites() == []
+        with pytest.raises(CfTransportUnavailable):
+            t.is_ready('javlibrary')
+
+    def test_no_pending_behaves_as_before(self):
+        t = PyWebViewCfTransport(
+            {'javlibrary': FakeWindow(), 'fc-javten': FakeWindow()}, {'javlibrary': JL_ORIGIN})
+        assert t.available_sites() == ['fc-javten', 'javlibrary']
+        assert t._pending == set()

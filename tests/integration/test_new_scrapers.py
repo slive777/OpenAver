@@ -2,59 +2,19 @@
 Integration tests for scraper-related API endpoints (TestClient).
 
 Covers:
-- Proxy test endpoint (success / 403 / timeout / config persistence)
+- Proxy config persistence
 - Unknown source returns HTTP 400
 """
-import pytest
-import requests
-from unittest.mock import patch, MagicMock
-
 from fastapi.testclient import TestClient
 from web.app import app
 
 
 # ============================================================
-# TestProxyAPI — proxy test endpoint via TestClient
+# TestProxyConfigPersistence — proxy_url 存檔還原
 # ============================================================
 
-class TestProxyAPI:
-    """Proxy 測試 API 端點測試"""
-
-    def test_proxy_test_endpoint_success(self, client):
-        """Proxy 回傳 200 → success=True, reason='ok'"""
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-
-        with patch("requests.post", return_value=mock_resp):
-            resp = client.post("/api/proxy/test", json={"proxy_url": "http://test:8080"})
-
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-        assert data["reason"] == "ok"
-
-    def test_proxy_test_endpoint_403(self, client):
-        """Proxy 回傳 403 → success=False, reason='non_jp'"""
-        mock_resp = MagicMock()
-        mock_resp.status_code = 403
-
-        with patch("requests.post", return_value=mock_resp):
-            resp = client.post("/api/proxy/test", json={"proxy_url": "http://test:8080"})
-
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is False
-        assert data["reason"] == "non_jp"
-
-    def test_proxy_test_endpoint_timeout(self, client):
-        """ConnectionError → success=False, reason='unreachable'"""
-        with patch("requests.post", side_effect=requests.exceptions.ConnectionError):
-            resp = client.post("/api/proxy/test", json={"proxy_url": "http://bad:9999"})
-
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is False
-        assert data["reason"] == "unreachable"
+class TestProxyConfigPersistence:
+    """Proxy 設定存檔測試"""
 
     def test_config_proxy_url_persistence(self, client, temp_config_path):
         """proxy_url 寫入 config 後可讀回"""

@@ -542,7 +542,6 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
     write_extrafanart: bool = False,
     overwrite_existing: bool = False,
     external_manager: str = "off",
-    proxy_url: str = "",
     source: Optional[str] = None,
     javbus_lang: Optional[str] = None,
     scraper_data: Optional[dict] = None,
@@ -589,7 +588,7 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
 
     if mode == "refresh_full":
         if scraper_data is None:
-            scraper_data = search_jav(number, proxy_url=proxy_url,
+            scraper_data = search_jav(number,
                                       source=source or 'auto', javbus_lang=javbus_lang)
         if not scraper_data:
             repo.update_scrape_attempted_at(to_file_uri(fs_path_for_db), time.time())  # db-ns-ok: fs_path_for_db, DB round-trip value, no reverse mapping applied
@@ -641,7 +640,7 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
         _cover_also_missing = write_cover and not meta.get("cover_url")
         if missing or _cover_also_missing:
             if scraper_data is None:
-                scraper_data = search_jav(number, proxy_url=proxy_url,
+                scraper_data = search_jav(number,
                                           source=source or 'auto', javbus_lang=javbus_lang)
             if not scraper_data:
                 if _title_only_synthetic_missing:
@@ -944,7 +943,6 @@ def _db_upsert_samples_only(repo: VideoRepository, fs_path: str, sample_images: 
 def fetch_samples_only(
     file_path: str,
     number: str,
-    proxy_url: str = "",
     path_mappings: dict = None,
 ) -> EnrichResult:
     """只補抓劇照：呼叫 scraper → 下載 extrafanart → 更新 DB sample_images。
@@ -971,7 +969,7 @@ def fetch_samples_only(
         _empty.error = "檔案不存在"
         return _empty
 
-    meta = search_jav(number, proxy_url=proxy_url,
+    meta = search_jav(number,
                       source="auto", javbus_lang=None)
     if not meta:
         logger.warning("[fetch_samples_only] 找不到資料: %s", number)

@@ -14,7 +14,6 @@
 - GET    /api/config/format-variables   — 取得刮削路徑/檔名格式可用變數
 - GET    /api/ollama/models             — 取得 Ollama 可用模型列表
 - POST   /api/ollama/test               — 測試 Ollama 模型是否能正常回應
-- POST   /api/proxy/test                — 測試 Proxy 連線（透過 DMM 驗證）
 """
 
 from fastapi import APIRouter, HTTPException, Request
@@ -58,6 +57,7 @@ from core.readonly_assets import _write_strm  # noqa: PLC2701 — .strm 重寫�
 from core.source_config import MAX_ENABLED_SOURCES
 from core.translate_service import LANGUAGE_PROMPTS
 from core.platform_info import is_synology
+from core.proxy_policy import cf_window_proxy_restart_needed
 
 logger = get_logger(__name__)
 
@@ -94,6 +94,7 @@ def get_config() -> dict:
             ),
             "data_root": str(get_data_root()),
         },
+        "cf_window_proxy_restart_needed": cf_window_proxy_restart_needed(),
     }
 
 
@@ -191,7 +192,7 @@ def update_config(config: AppConfig) -> dict:
 
             mutate_config(_write_preserving_server_owned)
             _reset_translate_service()  # 重置翻譯服務，讓新配置生效
-            return {"success": True, "message": "設定已儲存"}
+            return {"success": True, "message": "設定已儲存", "cf_window_proxy_restart_needed": cf_window_proxy_restart_needed()}
         except Exception as e:
             logger.error("儲存設定失敗: %s", e)
             return {"success": False, "error": "儲存設定失敗"}
@@ -732,44 +733,3 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
     except Exception as e:
         logger.error("測試 Ollama 模型失敗: %s", e)
         return {"success": False, "error": "測試模型失敗"}
-
-
-class ProxyTestRequest(BaseModel):
-    proxy_url: str
-
-
-@router.post("/proxy/test")
-def test_proxy(request: ProxyTestRequest) -> dict:
-    """測試 Proxy 連線（透過 DMM GraphQL endpoint 驗證）"""
-    import requests
-
-    is_direct = request.proxy_url.strip().lower() == 'direct'
-    if is_direct:
-        proxies = {'http': None, 'https': None}
-        success_message = "直連測試成功（DMM 可達）"
-        non_jp_message = "直連可達，但 DMM 回傳 403（非日本 IP，建議使用 Proxy）"
-    else:
-        proxies = {'http': request.proxy_url, 'https': request.proxy_url}
-        success_message = "Proxy 連線成功（DMM 可達）"
-        non_jp_message = "Proxy 連線成功，但 DMM 回傳 403（可能非日本 IP）"
-
-    try:
-        resp = requests.post(
-            "https://api.video.dmm.co.jp/graphql",
-            json={"query": "{ __typename }"},
-            headers={"Content-Type": "application/json"},
-            proxies=proxies,
-            timeout=10
-        )
-        if resp.status_code == 200:
-            return {"success": True, "reason": "ok", "message": success_message}
-        elif resp.status_code == 403:
-            return {"success": False, "reason": "non_jp", "message": non_jp_message}
-        else:
-            return {"success": False, "reason": "unexpected_status", "message": f"DMM 回傳異常狀態碼: {resp.status_code}"}
-    except requests.exceptions.Timeout:
-        return {"success": False, "reason": "unreachable", "message": "連線失敗: 連線逾時"}
-    except requests.exceptions.ConnectionError:
-        return {"success": False, "reason": "unreachable", "message": "連線失敗: 無法連線到目標主機"}
-    except Exception:
-        return {"success": False, "reason": "unreachable", "message": "連線失敗: 請檢查輸入格式"}

@@ -10,7 +10,6 @@ CI 排除（--ignore=tests/smoke / -m "not smoke"）。
 import pytest
 
 from core.scrapers.dmm import DMMScraper
-from core.scrapers.models import ScraperConfig
 
 pytestmark = pytest.mark.smoke
 
@@ -26,14 +25,7 @@ RESCUE_CASES = (
 @pytest.mark.parametrize("number,expected_number", RESCUE_CASES)
 def test_dmm_rescues_second_try_or_search_api(number, expected_number):
     """對補零算不出、但 DMM 確實收錄的番號，真實 search() 應救回正確片。"""
-    from core.config import load_config
-    from core.scraper import _dmm_proxy_url, _is_dmm_enabled
-
-    raw = (load_config().get("search") or {}).get("proxy_url") or ""
-    if not _is_dmm_enabled(raw):
-        pytest.skip("dmm proxy 未設定（無日本線路）")
-
-    scraper = DMMScraper(ScraperConfig(proxy_url=_dmm_proxy_url(raw)))
+    scraper = DMMScraper()
 
     try:
         result = scraper.search(number)

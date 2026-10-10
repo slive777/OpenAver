@@ -244,7 +244,7 @@ _TOOLS: list[dict] = [
                     "type": "string",
                     "enum": get_source_enum(include_auto=True),
                     "default": "auto",
-                    "description": "刮削來源（**預設值就是 auto**——不指定就會自動把每個欄位各自取第一個有值的來源、拼成一份，不是「整包用第一家的資料」；指定單一來源時才是整包用那家的；dmm 需要 proxy 才能使用）",
+                    "description": "刮削來源（**預設值就是 auto**——不指定就會自動把每個欄位各自取第一個有值的來源、拼成一份，不是「整包用第一家的資料」；指定單一來源時才是整包用那家的；部分地區 dmm 需要日本 IP（設定頁 Proxy 欄或日本 VPN））",
                 },
                 "javbus_lang": {
                     "type": "string",

@@ -4541,7 +4541,7 @@ class TestProduceSourceMixedStats:
                 return None
             return basename.replace(".mp4", "").upper()
 
-        def fake_search_jav(number, source="auto", proxy_url="", javbus_lang=None):
+        def fake_search_jav(number, source="auto", javbus_lang=None):
             if "NOSCRAPE" in number:
                 return None
             return {"number": number, "title": "T", "cover": "", "actors": [], "tags": [],
@@ -5330,7 +5330,7 @@ class TestWriteMovieAssetsStrmDrift:
 
 def _e2e_search_jav_factory():
     """Return a search_jav stub yielding per-number meta (cover + 1 sample)."""
-    def fake_search_jav(number, source="auto", proxy_url="", javbus_lang=None):
+    def fake_search_jav(number, source="auto", javbus_lang=None):
         return {
             'number': number,
             'title': f'Title {number}',
@@ -5687,7 +5687,7 @@ class TestWriteMovieAssetsContainment:
         repo.get_all.return_value = []
         files = [{'path': str(source_dir / self.FILENAME), 'size': 1_000_000, 'mtime': 1.0, 'nfo_mtime': 0.0}]
 
-        def fake_search_jav(number, source="auto", proxy_url="", javbus_lang=None):
+        def fake_search_jav(number, source="auto", javbus_lang=None):
             meta = {
                 'number': number,
                 'title': 'Normal Title',
@@ -7597,7 +7597,7 @@ class TestCallSequenceEquivalence:
         repo.is_output_dir_taken.return_value = False
         repo.get_empty_focal_candidates.return_value = []
 
-        def fake_search_jav(number, source="auto", proxy_url="", javbus_lang=None):
+        def fake_search_jav(number, source="auto", javbus_lang=None):
             call_log.append(('search_jav', number))
             return {
                 'number': number, 'title': f'Title {number}', 'cover': f'http://x/{number}.jpg',
@@ -8136,7 +8136,7 @@ class TestResolveIngestPlan:
             MockVS.return_value.find_cover_image.return_value = cover_path
             meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
 
-        mock_search.assert_called_once_with('SRC-001', source='auto', proxy_url='', javbus_lang=None)
+        mock_search.assert_called_once_with('SRC-001', source='auto', javbus_lang=None)
         assert cover_strategy == ('copy', cover_path, {'poster': None, 'fanart': None})
 
     # -- P2 fix (round-3 review 2026-07-21): ingest scrape-fallback honors the
@@ -8148,7 +8148,7 @@ class TestResolveIngestPlan:
         source="auto" the ingest scrape-fallback used before this fix (Codex
         PR#113 round-3 P2). javbus_lang is threaded through too.
         MUTATION LOCK: reverting the ingest branch's source dispatch back to a
-        bare `search_jav(number, source="auto", proxy_url=proxy_url)` call
+        bare `search_jav(number, source="auto")` call
         makes this test RED (mock_single never called; cover_strategy would
         still coincidentally match, but mock_single.assert_called_once_with
         below fails)."""
@@ -8163,11 +8163,11 @@ class TestResolveIngestPlan:
              patch('core.readonly_producer.VideoScanner') as MockVS:
             MockVS.return_value.find_cover_image.return_value = ''
             meta, cover_strategy = resolve_ingest_plan(
-                str(video), 'SRC-001', {}, action='ingest', source='javbus', proxy_url='p',
+                str(video), 'SRC-001', {}, action='ingest', source='javbus',
                 javbus_lang='zh-tw',
             )
 
-        mock_single.assert_called_once_with('SRC-001', 'javbus', 'p', javbus_lang='zh-tw')
+        mock_single.assert_called_once_with('SRC-001', 'javbus', javbus_lang='zh-tw')
         mock_search.assert_not_called()
         assert cover_strategy == ('download', 'http://x/c.jpg')
 
@@ -8189,7 +8189,7 @@ class TestResolveIngestPlan:
                 str(video), 'SRC-001', {}, action='ingest', source=source, javbus_lang='ja',
             )
 
-        mock_search.assert_called_once_with('SRC-001', source='auto', proxy_url='', javbus_lang='ja')
+        mock_search.assert_called_once_with('SRC-001', source='auto', javbus_lang='ja')
         mock_single.assert_not_called()
         assert cover_strategy == ('download', 'http://x/c.jpg')
 
@@ -8407,11 +8407,11 @@ class TestResolveIngestPlan:
                  return_value={'number': 'SRC-001', 'title': 'T', 'cover': 'http://x/c.jpg'},
              ) as mock_single:
             meta, cover_strategy = resolve_ingest_plan(
-                str(video), 'SRC-001', {}, action='rescrape', source='javbus', proxy_url='p',
+                str(video), 'SRC-001', {}, action='rescrape', source='javbus',
                 javbus_lang='zh-tw',
             )
 
-        mock_single.assert_called_once_with('SRC-001', 'javbus', 'p', javbus_lang='zh-tw')
+        mock_single.assert_called_once_with('SRC-001', 'javbus', javbus_lang='zh-tw')
         mock_search.assert_not_called()
         assert cover_strategy == ('download', 'http://x/c.jpg')
 
@@ -8431,7 +8431,7 @@ class TestResolveIngestPlan:
                 javbus_lang='ja',
             )
 
-        mock_search.assert_called_once_with('SRC-001', source='auto', proxy_url='', javbus_lang='ja')
+        mock_search.assert_called_once_with('SRC-001', source='auto', javbus_lang='ja')
         mock_single.assert_not_called()
         assert cover_strategy == ('download', 'http://x/c.jpg')
 
@@ -8838,7 +8838,6 @@ class TestEnrichOneReadonlyEntryPoint:
             scraper_cfg={},
             path_mappings={},
             action="ingest",
-            proxy_url="",
             scraper_data=None,
             scrape_source=None,
             javbus_lang=None,

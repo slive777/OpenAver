@@ -28,7 +28,7 @@
            但實測「拖入檔名解析錯 → 搜尋無結果 → 想在當前卡改正番號重抓」是真實工作流，
            故放開唯讀，讓 🔄 長壓 = 改番號 + 挑來源、只替換當前卡（仍不重設結果列，與 US5 區隔）。 #}
         <input class="rescrape-num-input" type="text" x-model="rescrapeNumber"
-               @input="if (rescrapeCfWaiting) cancelCfPoll(); rescrapeNotFound = false">
+               @input="if (rescrapeCfWaiting) cancelCfPoll(); rescrapeNotFound = false; rescrapeAccessError = null">
         <div class="rescrape-hint">{{ t('showcase.rescrape.filename_hint') }}：<code x-text="rescrapeOriginalFilename"></code></div>
       </div>
 
@@ -55,11 +55,10 @@
                         'is-loading': rescrapeLoadingSource === s.id
                     }"
                     data-enabled="true"
-                    :data-proxy-required="isSourceProxyBlocked(s) ? 'true' : 'false'"
                     :aria-disabled="isJlUnavailable(s) ? 'true' : 'false'"
                     :title="isJlUnavailable(s) ? window.t(cfUnavailableMessageKey()) : ''"
                     :disabled="rescrapeLoadingSource !== null && rescrapeLoadingSource !== s.id"
-                    @click="isJlUnavailable(s) ? showToast(window.t(cfUnavailableMessageKey()), 'warning') : (isSourceProxyBlocked(s) ? showToast(window.t('settings.sources.dmm_proxy_required_hint'), 'warning') : rescrapeWithSource(s.id))">
+                    @click="isJlUnavailable(s) ? showToast(window.t(cfUnavailableMessageKey()), 'warning') : rescrapeWithSource(s.id)">
               <span class="pill-spin" x-show="rescrapeLoadingSource === s.id"></span>
               <i class="bi bi-slash-circle slash-icn" x-show="rescrapeLoadingSource !== s.id && !isJlUnavailable(s)" aria-hidden="true"></i>
               {# 品牌名（display_name_raw → display_name_key fallback；不走 i18n，CD-62-12） #}
@@ -102,6 +101,15 @@
           <span x-text="window.t('showcase.rescrape.jl_cf_solving')"></span>
           <button type="button" class="btn btn-ghost btn-sm"
                   @click="cancelCfPoll()">{{ t('common.action.cancel') }}</button>
+        </div>
+
+        {# 被拒／連不到：與 not-found 並列、互斥（紅字，不用 x-html） #}
+        <div class="rescrape-inline-error" x-show="rescrapeAccessError" x-cloak>
+          <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+          <span>
+            <span x-text="rescrapeAccessMessage(rescrapeAccessError)"></span>
+            <span x-show="rescrapeAccessAdvice(rescrapeAccessError)" x-text="rescrapeAccessAdvice(rescrapeAccessError)"></span>
+          </span>
         </div>
 
         {# not-found：留在 pick + inline error（不換頁） #}

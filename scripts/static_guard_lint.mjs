@@ -2507,8 +2507,7 @@ const RULES = [
     note: '[118a-T9] builtin pill 的 @click（toast）未走 cfUnavailableMessageKey() — 點擊灰化膠囊會回到「僅限桌面應用程式」那句矛盾訊息',
   },
 
-  // ---- [TestMetatubePickerWiringGuard] 63c-3：進階 picker 接 metatube 真資料（proxy_configured 注入 / routable gate / metatube 分組未刪，5 個斷言） ----
-  { file: 'web/templates/_advanced_search_bootstrap.html', kind: 'required-string', pattern: 'proxy_configured:', note: '[TestMetatubePickerWiringGuard] test_bootstrap_injects_proxy_configured' },
+  // ---- [TestMetatubePickerWiringGuard] 63c-3：進階 picker 接 metatube 真資料（routable gate / metatube 分組未刪，4 個斷言） ----
   { file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'rescrapeMetatubeSources', note: '[TestMetatubePickerWiringGuard] test_state_rescrape_keeps_routable_gate — rescrapeMetatubeSources 存在' },
   { file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'routable === true', note: '[TestMetatubePickerWiringGuard] test_state_rescrape_keeps_routable_gate — routable gate 保留' },
   { file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "s.type === 'metatube'", note: '[TestMetatubePickerWiringGuard] test_state_rescrape_keeps_routable_gate — type === metatube filter' },
@@ -2534,62 +2533,237 @@ const RULES = [
     note: '[TestMetatubeB5RecommendedRemoved] test_zh_tw_no_recommended_label_keys — settings.sources 範圍內',
   },
 
-  // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已由 96c css-guard CG-RO-02 覆蓋，本段不重建）----
+  // ---- [163a-T6a] 設定頁 Proxy 範圍切換／空白灰化／測試鈕／拿掉「請先設定代理」攔截 ----
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: "proxyScope: 'dmm'",
+    stripLineComments: true,
+    note: "[163a-T6a-init] 使用者開設定頁 → 範圍鈕要有預設值「僅 DMM」才不會一片空白（form 須宣告 proxyScope: 'dmm'）",
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'this.form.proxyScope = config.search?.proxy_scope',
+    stripLineComments: true,
+    note: '[163a-T6a-load] 使用者存過「所有來源」→ 重開設定頁要還原，否則再按儲存就悄悄改回「僅 DMM」',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'proxy_scope: this.form.proxyScope',
+    stripLineComments: true,
+    note: '[163a-T6a-save] 使用者選「所有來源」按儲存 → 設定檔要真的寫入，否則封面與女優照片仍不走代理',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'structure-count', pattern: /(?<![\w:-]):disabled="!form\.proxyUrl\.trim\(\)"/, count: 2,
+    note: '[163a-T6a-disabled] Proxy 欄空白時兩顆範圍鈕都要灰掉，否則畫面看似設了範圍、實際沒有代理可走',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="form\.proxyScope = 'dmm'"/,
+    note: "[163a-T6a-bind] 使用者按「僅 DMM」要真的切過去",
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="form\.proxyScope = 'all'"/,
+    note: "[163a-T6a-bind] 使用者按「所有來源」要真的切過去，否則 NAS 的封面與女優照片無法走代理",
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'isDmmAvailable',
+    note: '[163a-T6a-no-intercept-js] 使用者 Proxy 空白時點 DMM 膠囊要能開關，不得被「請先設定代理」攔住',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'requires_proxy',
+    note: '[163a-T6a-no-intercept-js] 使用者 Proxy 空白時點 DMM 膠囊要能開關，不得被「請先設定代理」攔住',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'dmm_proxy_required_hint',
+    note: '[163a-T6a-no-intercept-js] 使用者 Proxy 空白時點 DMM 膠囊要能開關，不得被「請先設定代理」攔住',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'isDmmAvailable',
+    note: '[163a-T6a-no-intercept-tpl] 設定頁 DMM 膠囊不得因 Proxy 空白而灰化成像被停用',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'data-proxy-required',
+    note: '[163a-T6a-no-intercept-tpl] 設定頁 DMM 膠囊不得因 Proxy 空白而灰化成像被停用',
+  },
+
+  // ---- [163a-T6b] 重刮視窗／搜尋頁 picker：被拒／連不到顯示紅字、拿掉「請先設定代理」攔截 ----
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'rescrapeAccessError = {',
+    stripLineComments: true,
+    note: '[163a-T6b-set] 使用者在重刮視窗指定 DMM、DMM 拒絕連線 → 要看到「拒絕連線」，不能只說「找不到」而讓人以為 DMM 沒這片',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'structure-count', pattern: 'this.rescrapeAccessError = null;', count: 7,
+    note: '[163a-T6b-reset] 使用者被拒後按「換來源」／關窗再開／改番號 → 紅字要消失；開窗、番號空白、送出前、查無 fallback、網路失敗 catch、回選單、關窗各清一次，少一處上一個來源的紅字就黏在畫面上',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "window.t('showcase.rescrape.access_refused'",
+    stripLineComments: true,
+    note: '[163a-T6b-msg] 使用者指定來源被拒 → 紅字要寫「拒絕連線」而不是「找不到」，才知道該查網路／代理',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "window.t('showcase.rescrape.access_unreachable'",
+    stripLineComments: true,
+    note: '[163a-T6b-msg] 使用者指定來源連不到 → 紅字要寫「連不到，請檢查網路或代理設定」',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "window.t('showcase.rescrape.access_advice_jp_ip'",
+    stripLineComments: true,
+    note: '[163a-T6b-msg] DMM 被拒 → 要多給「部分地區需要日本 IP」建議句',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'requires_proxy',
+    scope: { anchor: /rescrapeAccessAdvice\s*\([^)]*\)\s*\{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[163a-T6b-advice-gate] JavDB 等不需日本 IP 的來源被拒 → 不得被叫去設日本 IP 代理；建議句只依來源的 requires_proxy 屬性附加',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="rescrapeAccessError"/,
+    note: '[163a-T6b-modal-block] 來源被拒時重刮視窗要有紅字區塊，否則使用者按了沒反應、不知道要做什麼',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'rescrapeAccessMessage(rescrapeAccessError)',
+    note: '[163a-T6b-modal-block] 紅字區塊要顯示映射後的訊息文字',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: /@input="[^"]*rescrapeAccessError = null/,
+    note: '[163a-T6b-modal-reset] 使用者被拒後改番號 → 紅字要立刻消失，否則舊來源的錯誤蓋在新番號上',
+  },
+  {
+    file: 'web/static/js/pages/search/state/advanced-picker.js', kind: 'required-string', pattern: /errorText = this\._advancedAccessText\(data\)/,
+    stripLineComments: true,
+    note: '[163a-T6b-picker] 使用者在搜尋頁指定來源被拒 → 錯誤文字要走介面語言映射，不顯示後端寫死的中文',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: 'isSourceProxyBlocked',
+    note: '[163a-T6b-no-intercept] 使用者 Proxy 空白時點重刮視窗的 DMM 膠囊要直接查詢，不得被擋或沒反應',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'forbidden-string', pattern: 'isSourceProxyBlocked',
+    note: '[163a-T6b-no-intercept] 使用者 Proxy 空白時點重刮視窗的 DMM 膠囊要直接查詢，不得被擋或沒反應',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: 'dmm_proxy_required_hint',
+    note: '[163a-T6b-no-intercept] 使用者 Proxy 空白時點重刮視窗的 DMM 膠囊要直接查詢，不得跳「請先設定代理」',
+  },
+
+  // ---- [163a-T7] AC-12：說明頁／AI 描述／locale 不得再教人把 direct 填進 Proxy 欄；舊 help key 名不得回流 ----
+  ...[
+    'locales/zh_TW.json', 'locales/zh_CN.json', 'locales/ja.json', 'locales/en.json',
+    'web/templates/settings.html', 'web/templates/help.html', 'web/routers/capabilities.py',
+  ].flatMap((f) => [
+    {
+      file: f, kind: 'forbidden-string',
+      pattern: /<code>\s*direct\s*<\/code>|(?:輸入|输入)\s*(?:<code>)?direct\b|enter\s+direct\b|direct\s*と入力|Proxy\s+direct\s*模式|Proxy\s+Direct\s+Mode|Proxy\s+ダイレクトモード/i,
+      note: '[163a-T7-direct-fill] 使用者照說明把 direct 填進 Proxy 欄 → 欄位存成無效代理位址，DMM（或所選範圍內的來源）連線全部失敗；Proxy 留空＝系統代理，不需要任何特殊字樣',
+    },
+    {
+      file: f, kind: 'forbidden-string',
+      pattern: /\b(?:h6_proxy_direct|proxy_direct_vpn|proxy_direct_how|dmm_direct)\b/,
+      note: '[163a-T7-old-key] 舊 direct 小節的 help key 名回流 → 說明頁標題顯示原始 key 字樣，或舊 direct 教學譯文復活',
+    },
+  ]),
+
+  // ---- [163b-T1] 探測路徑只准吃請求體快照，不得讀已儲存的設定 ----
+  ...['core/source_probe.py', 'web/routers/source_probe.py'].flatMap((f) =>
+    ['load_config', 'current_settings'].map((word) => ({
+      file: f, kind: 'forbidden-string', pattern: word,
+      note: '[163b-T1-no-live-read] 使用者輸入新代理不按儲存就按測試 → 探測若讀了已儲存的設定，結果反映的是舊代理，且畫面完全看不出來',
+    })),
+  ),
+
+  // ---- [163b-T7a] windows/ 與 core/cf_transport.py 不得自己讀 Proxy 欄的設定值 ----
+  ...[
+    { dir: 'windows', ext: ['.py'], recursive: true },
+    'core/cf_transport.py',
+  ].map((target) => ({
+    file: target, kind: 'forbidden-string', pattern: 'proxy_url',
+    note: '[163b-T7a-no-proxy-url-in-windows] 驗證視窗要走哪個代理只能問 core.proxy_policy 的 cf_window_proxy；windows 層若自己讀代理設定欄位，就會繞過「僅 DMM／所有來源」的範圍判斷，使用者選「僅 DMM」卻發現 JavLibrary／FC2-javten 的視窗也被送進代理',
+  })),
+
+  // ---- [163b-T7b] 重開提示的接線（node:test 看不到模板；外觀不守） ----
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="cfWindowProxyRestartNeeded"/,
+    note: '[163b-T7b-restart-hint-wired] 使用者存了新代理、提示永遠不出現 → 以為 JavLibrary／FC2-javten 已改走新代理，其實要重開 OpenAver 才會換',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /this\.cfWindowProxyRestartNeeded = result\.cf_window_proxy_restart_needed === true/,
+    note: '[163b-T7b-restart-hint-state] 使用者存了新代理、後端說要重開但前端沒讀到 → 提示不出現，以為已改走新代理',
+  },
+
+  // ---- [163b-T3] 舊測試鈕與舊端點確實消失 ----
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'testProxy',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'settings.search.test_dmm',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: '/api/proxy/test',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
+  {
+    file: { dir: 'web/static/js', ext: ['.js'], recursive: true }, kind: 'forbidden-string', pattern: '/api/proxy/test',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
+  {
+    file: { dir: 'web/static/js', ext: ['.js'], recursive: true }, kind: 'forbidden-string', pattern: 'testProxy',
+    note: '[163b-T3-no-old-test-btn] 使用者在 Proxy 欄旁按到只測 DMM 的舊鈕 → 打到已拿掉的端點只看到網路錯誤，誤以為自己的代理壞了',
+  },
+
+  // ---- [163b-T4a] 測試連線只在按下時跑：唯一 fetch、唯一入口、模板接線 ----
+  // 目錄規則不加 recursive：__tests__/ 不被掃，行為測試才能呼叫測試入口方法。
+  {
+    file: 'web/static/js/pages/settings/state-source-probe.js', kind: 'structure-count', pattern: '/api/sources/probe', count: 1,
+    note: '[163b-T4a-fetch-once] 使用者按一次「測試連線」→ 若分片裡呼叫兩次，代理與 IP 多吃一倍流量且兩輪結果互相覆蓋（註解也不得寫出端點字面，structure-count 不剝 .js 註解）',
+  },
+  {
+    file: { dir: 'web/static/js/pages/settings', ext: ['.js'], exclude: ['state-source-probe.js'] }, kind: 'forbidden-string', pattern: '/api/sources/probe',
+    note: '[163b-T4a-no-stray-fetch] 使用者只是開設定頁或改設定，沒按「測試連線」→ 若別處偷呼叫探測端點，十個來源網站會被連一輪（走他的代理與 IP）',
+  },
+  {
+    file: { dir: 'web/static/js/pages/settings', ext: ['.js'], exclude: ['state-source-probe.js'] }, kind: 'forbidden-string', pattern: 'runSrcProbe',
+    note: '[163b-T4a-no-stray-run] 使用者只是開設定頁或改設定，沒按「測試連線」→ 若別處呼叫測試入口方法，來源網站會被偷偷連一輪',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'structure-count', pattern: /(?<![\w:-])@click="runSrcProbe\(\)"/, count: 1,
+    note: '[163b-T4a-run-once-tpl] 使用者按「測試連線」→ 模板裡只能有這一個入口；少了鈕沒反應，多了別處也會觸發探測',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'structure-count', pattern: "$watch('srcProbeKey', () => clearSrcProbe())", count: 1,
+    note: '[163b-T4a-watch-wired] 使用者測完後改了 Proxy 欄、範圍或膠囊開關 → 沒接線舊結果會一直留著，以為新設定已驗過（node:test 看不到模板）',
+  },
+
+  // ---- [163b-T4b] 膠囊上的狀態點與原因句：接線釘子（node:test 看不到模板；外觀不守） ----
+  ...[
+    ['dot-click-stop', '@click.stop="toggleSrcProbeTip(s.id)"', '使用者點狀態點想看原因 → 沒擋冒泡會把這顆膠囊翻成停用、結果被清空，且悄悄改了來源設定'],
+    ['dot-enter-stop', '@keydown.enter.stop', '鍵盤使用者 Tab 到狀態點按 Enter 想看原因 → 沒擋冒泡會翻膠囊開關、全部點消失'],
+    ['dot-space-stop', '@keydown.space.stop', '鍵盤使用者在狀態點按空白想看原因 → 沒擋冒泡會讓膠囊進入抓取排序或翻開關'],
+    ['dot-no-drag', '@mousedown.prevent', '使用者想點狀態點看原因、按住時手稍微移動 → 沒取消 mousedown 會變成拖曳整顆膠囊，放到別顆上就把來源順序存檔了，原因句也沒出來'],
+    ['dot-type-button', 'type="button"', '使用者點一下狀態點 → 漏寫 type 會送出整份設定表單，沒按儲存卻存了'],
+    ['dot-gated', 'x-show="srcProbeIcon(s.id)"', '測試前或改設定後 → 沒有結果的膠囊不該掛著空白點，否則以為新設定已驗過'],
+  ].map(([tag, literal, why]) => ({
+    file: 'web/templates/settings.html', kind: 'required-string',
+    pattern: new RegExp('(?<![\\w:-])' + literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    scope: /<button\b[^>]*class="source-pill-probe"[^>]*>/s,
+    note: `[163b-T4b-${tag}] ${why}`,
+  })),
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-text="srcProbeTipText"/,
+    scope: /<[a-z]+\b[^>]*class="source-pill-probe-tip"[^>]*>/s,
+    note: '[163b-T4b-tip-wired] 手機或鍵盤使用者點了狀態點 → 膠囊列下方沒有原因句，只知道「被擋」不知道原因與日本 IP 建議',
+  },
+  ...['locales/zh_TW.json', 'web/static/js/pages/settings/source-probe-logic.js', 'web/templates/settings.html'].flatMap((file) =>
+    ['地區限制', '區域封鎖'].map((word) => ({
+      file, kind: 'forbidden-string', pattern: word,
+      note: '[163b-T4b-no-region-claim] javdb App 通道被拒絕時畫面斷言「' + word + '」→ 使用者去換 IP，其實換 IP 沒用',
+    }))),
+
+  // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已隨 163a-T6b 拔除）----
   // Scope A：clickActiveRowPill 函數體。⚠ Python 原始 regex 用 \Z（Python string-end anchor）+ re.DOTALL；
   // JS 無 \Z（\Z 在 JS regex 是字面 "Z"），faithful port 用 $（配合僅 's' flag、無 'm' flag，JS $ 即絕對字串結尾，等價 Python \Z）。
-  {
-    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'requires_proxy',
-    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
-    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_has_requires_proxy_intercept — Scope A（\\Z→$ port）',
-  },
-  {
-    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'isDmmAvailable',
-    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
-    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_has_requires_proxy_intercept — Scope A（\\Z→$ port）',
-  },
-  {
-    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'dmm_proxy_required_hint',
-    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
-    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_has_requires_proxy_intercept — Scope A（\\Z→$ port）',
-  },
   {
     file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'window.confirm',
     scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
     note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_no_window_confirm — Scope A（\\Z→$ port）',
-  },
-  {
-    file: 'web/templates/settings.html', kind: 'required-string', pattern: ':data-proxy-required',
-    scope: /x-for="s in activeRowSources"[^>]*>.*?<div\s+class="source-pill"(.*?)role="option"/s,
-    note: '[TestDmmProxyRequiredGuard] test_settings_active_row_pill_has_data_proxy_required_binding — Scope B',
-  },
-  {
-    file: 'web/templates/settings.html', kind: 'required-string', pattern: 'isDmmAvailable',
-    scope: /x-for="s in activeRowSources"[^>]*>.*?<div\s+class="source-pill"(.*?)role="option"/s,
-    note: '[TestDmmProxyRequiredGuard] test_settings_active_row_pill_proxy_required_uses_is_dmm_available — Scope B',
-  },
-  {
-    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: /isSourceProxyBlocked\s*\([^)]*\)\s*\{/,
-    note: '[TestDmmProxyRequiredGuard] test_state_rescrape_has_is_source_proxy_blocked — unscoped method-definition regex（同 T1 test_open_switch_source_picker_method_present 慣例）',
-  },
-  {
-    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'proxy_configured',
-    scope: /isSourceProxyBlocked\s*\([^)]*\)\s*\{([^}]+)\}/s,
-    note: '[TestDmmProxyRequiredGuard] test_state_rescrape_is_source_proxy_blocked_reads_proxy_configured — Scope C',
-  },
-  {
-    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'requires_proxy',
-    scope: /isSourceProxyBlocked\s*\([^)]*\)\s*\{([^}]+)\}/s,
-    note: '[TestDmmProxyRequiredGuard] test_state_rescrape_is_source_proxy_blocked_reads_proxy_configured — Scope C',
-  },
-  {
-    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: ':data-proxy-required',
-    scope: /x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
-    note: '[TestDmmProxyRequiredGuard] test_rescrape_modal_builtin_pill_has_data_proxy_required — Scope D（與 Picker64a Scope E 同一 regex，同一 target）',
-  },
-  {
-    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'isSourceProxyBlocked',
-    scope: /x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
-    note: '[TestDmmProxyRequiredGuard] test_rescrape_modal_builtin_pill_click_uses_is_source_proxy_blocked — Scope D',
   },
   {
     file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: 'window.confirm',
@@ -6061,13 +6235,6 @@ const RULES = [
   },
 
   // 162c: TestSettingsDmmProxyContract
-  {
-    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string',
-    pattern: 'proxyUrl',
-    scope: { anchor: /isDmmAvailable\s*\(\s*\)\s*\{/, braceBalanced: true },
-    stripLineComments: true,
-    note: '[lint-guard 162c-test_is_dmm_available_reads_proxy_url] isDmmAvailable 本體須讀 proxyUrl — 遷自 test_frontend_lint.py',
-  },
   {
     file: 'web/templates/settings.html', kind: 'structure-count',
     pattern: /(?<![\w:-])x-model="form\.proxyUrl"/,

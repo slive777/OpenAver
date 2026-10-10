@@ -45,7 +45,7 @@ class SourceConfig(BaseModel):
     config: dict = Field(default_factory=dict)
     is_beta: bool = False
     manual_only: bool = False  # B1 day-one schema（預留 B4 javlibrary）；B1 全 False
-    requires_proxy: bool = False  # CD-63a-3：DMM=True，metatube 全 False
+    requires_proxy: bool = False  # 需要日本 IP（DMM=True，metatube 全 False）
 
     @model_validator(mode='after')
     def _derive_requires_proxy(self) -> 'SourceConfig':

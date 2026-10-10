@@ -256,39 +256,34 @@ class TestAutoFanOutReadsEnabledIds:
         assert all(v == 0 for v in constructed.values())
 
 
-class TestDmmProxyGuard:
-    """DMM proxy guard preserved across the refactor."""
+class TestDmmBuiltRegardlessOfProxyField:
+    """DMM 能不能被用只看膠囊（auto fan-out 的 enabled 清單），與 Proxy 欄無關（163a）。"""
 
-    def test_auto_dmm_enabled_but_no_proxy_not_constructed(self, monkeypatch):
-        # 'dmm' is in the enabled list but no proxy -> DMM must NOT be constructed.
+    def test_search_jav_builds_dmm_regardless_of_proxy_field(self, monkeypatch):
+        # explicit 指定 dmm：Proxy 欄空白（預設）也照建，不再被靜默略過。
+        constructed = _install_scraper_spies(monkeypatch)
+        search_jav("ABP-001", source="dmm")
+        assert constructed['DMMScraper'] == 1
+
+    def test_auto_dmm_in_enabled_list_constructed(self, monkeypatch):
+        # 膠囊開（在 enabled 清單內）→ auto fan-out 建 DMM。
         constructed = _install_scraper_spies(monkeypatch)
         monkeypatch.setattr(
             scraper_mod, 'get_enabled_source_ids', lambda availability_map=None: ['dmm', 'javbus']
         )
-        search_jav("ABP-001", source="auto", proxy_url="")
-        assert constructed['DMMScraper'] == 0
+        search_jav("ABP-001", source="auto")
+        assert constructed['DMMScraper'] == 1
         assert constructed['JavBusScraper'] == 1
 
-    def test_auto_dmm_with_proxy_constructed(self, monkeypatch):
-        # Proxy configured -> DMM included in the fan-out.
+    def test_auto_dmm_not_in_enabled_list_not_constructed(self, monkeypatch):
+        # 膠囊關（不在 enabled 清單）→ auto fan-out 不建 DMM。
         constructed = _install_scraper_spies(monkeypatch)
         monkeypatch.setattr(
-            scraper_mod, 'get_enabled_source_ids', lambda availability_map=None: ['dmm', 'javbus']
+            scraper_mod, 'get_enabled_source_ids', lambda availability_map=None: ['javbus']
         )
-        search_jav("ABP-001", source="auto", proxy_url="http://127.0.0.1:8080")
-        assert constructed['DMMScraper'] == 1
-        assert constructed['JavBusScraper'] == 1
-
-    def test_explicit_dmm_no_proxy_not_constructed(self, monkeypatch):
-        constructed = _install_scraper_spies(monkeypatch)
-        result = search_jav("ABP-001", source="dmm", proxy_url="")
-        assert result is None
+        search_jav("ABP-001", source="auto")
         assert constructed['DMMScraper'] == 0
-
-    def test_explicit_dmm_with_proxy_constructed(self, monkeypatch):
-        constructed = _install_scraper_spies(monkeypatch)
-        search_jav("ABP-001", source="dmm", proxy_url="http://127.0.0.1:8080")
-        assert constructed['DMMScraper'] == 1
+        assert constructed['JavBusScraper'] == 1
 
 
 # ============ TASK-73a-T1: 入口 gate + search_jav 整合 ============

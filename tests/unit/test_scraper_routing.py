@@ -505,7 +505,7 @@ def test_exact_cascade_uses_routing_map_expired_source_retried(monkeypatch):
     with patch("core.scraper.search_jav_single_source", mock_ss):
         results = smart_search("ABF-001")
 
-    mock_ss.assert_called_once_with('ABF-001', 'metatube:FANZA', proxy_url='')
+    mock_ss.assert_called_once_with('ABF-001', 'metatube:FANZA')
     assert len(results) == 1
     assert results[0]['_source'] == 'metatube:FANZA'
 
@@ -514,7 +514,7 @@ def test_exact_cascade_uses_routing_map_expired_source_retried(monkeypatch):
     mock_state_both_false.routing_availability_map.return_value = {'metatube:FANZA': False}
     monkeypatch.setattr("core.scraper.metatube_state", mock_state_both_false)
 
-    def _single_source(number, source, proxy_url=''):
+    def _single_source(number, source):
         if source == 'javbus':
             return {'number': 'ABF-001', 'title': 'T', '_source': 'javbus'}
         return None
@@ -523,7 +523,7 @@ def test_exact_cascade_uses_routing_map_expired_source_retried(monkeypatch):
         results_2 = smart_search("ABF-001")
 
     assert mock_ss_2.call_count == 1
-    mock_ss_2.assert_called_once_with('ABF-001', 'javbus', proxy_url='')
+    mock_ss_2.assert_called_once_with('ABF-001', 'javbus')
     assert len(results_2) == 1
     assert results_2[0]['_source'] == 'javbus'
 
