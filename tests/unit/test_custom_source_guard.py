@@ -36,6 +36,9 @@ TRUTH_TABLE = [
     ("http://[::ffff:192.168.1.1]/", "non_public"),
     ("http://faß.example/", "non_ascii_host"),
     ("http://xn--fa-hia.example/", None),
+    ("http://192.168.1.1\\@x.example/", "bad_authority"),
+    ("http://127.0.0.1:8080\\@x.example/", "bad_authority"),
+    ("http://x.example\\@127.0.0.1/", "bad_authority"),
     ("http://localhost/", "bad_host"),
     ("http://LOCALHOST./", "bad_host"),
     ("http://x.localhost/", "bad_host"),
@@ -112,3 +115,30 @@ def test_real_resolve_host_strips_scope_and_dedupes(monkeypatch):
     ]
     monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: infos)
     assert _REAL_RESOLVE_HOST("example.com") == ["fe80::1", "8.8.8.8"]
+
+
+def test_cross_check_blocks_when_connect_host_differs(monkeypatch):
+    import types
+    # 無反斜線的乾淨網址，但 urllib3 讀到的 host 不同 → 只有交叉比對擋得住
+    monkeypatch.setattr("core.custom_source.guard.parse_url", lambda u: types.SimpleNamespace(host="127.0.0.1"))
+    with pytest.raises(BlockedTarget) as ei:
+        guard.check("http://x.example/")
+    assert ei.value.reason == "bad_authority"
+
+
+def test_cross_check_blocks_when_parse_url_raises(monkeypatch):
+    def boom(u):
+        raise ValueError("x")
+    monkeypatch.setattr("core.custom_source.guard.parse_url", boom)
+    with pytest.raises(BlockedTarget) as ei:
+        guard.check("http://x.example/")
+    assert ei.value.reason == "bad_authority"
+
+
+def test_backslash_authority_blocked_even_if_hosts_agree(monkeypatch):
+    import types
+    # 兩個 parser 剛好讀到同一個 host，反斜線檢查仍要獨立擋下
+    monkeypatch.setattr("core.custom_source.guard.parse_url", lambda u: types.SimpleNamespace(host="8.8.8.8"))
+    with pytest.raises(BlockedTarget) as ei:
+        guard.check("http://x.example\\@8.8.8.8/")
+    assert ei.value.reason == "bad_authority"

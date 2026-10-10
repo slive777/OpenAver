@@ -12,6 +12,7 @@ MAX_DETAIL_FETCH = 5
 
 log = get_logger(__name__)
 
+_OUTAGE_REASONS = frozenset({"network", "timeout"})
 _PLACEHOLDER_RE = re.compile(r"\{(number|number_lower|number_digits|suffix)\}")
 _KEY_RE = re.compile(r"(.*?)(_contains|_include|_exclude|_max)?")
 
@@ -68,14 +69,15 @@ def _body_hit(step, text):
 
 
 def _fetch_unique(urls, transport, config, errors, nf_step=None):
-    pages = []
-    seen = set()
+    pages, seen = [], set()
     for order, requested in enumerate(urls):
         try:
             page = _fetch_ok(requested, transport, config)
         except FetchError as exc:
             log.info("custom source page failed: %s %s", exc, requested)
             errors.append((order, exc))
+            if exc.reason in _OUTAGE_REASONS:
+                break
             continue
         if page is None:
             continue
@@ -89,7 +91,8 @@ def _fetch_unique(urls, transport, config, errors, nf_step=None):
 
 
 def _link_matches(keep, href, text):
-    return keep in href.lower() or keep in text.lower()
+    rx = re.compile((r"(?<!\d)" if keep[:1].isdigit() else r"(?<![a-z])") + re.escape(keep) + r"(?!\d)")
+    return rx.search(href.lower()) is not None or rx.search(text.lower()) is not None
 
 
 def _search_hits(page, step, values):
@@ -126,9 +129,7 @@ def _make_item(spec, page, canon):
     fields = extract_fields(page.text, page.final_url, spec.fields)
     if not fields.get("title") and not fields.get("cover"):
         raise FetchError("parse_empty")
-    if _same_number(fields, canon):
-        return ScrapedItem(page.final_url, dict(fields, number=canon))
-    return None
+    return ScrapedItem(page.final_url, dict(fields, number=canon)) if _same_number(fields, canon) else None
 
 
 def _make_items(spec, pages, canon, errors):

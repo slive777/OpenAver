@@ -37,7 +37,7 @@
 | `url` | 字串 | 是（第 1 段） | URL 模板，只能用 http 或 https，主機名稱必須是固定字面（占位符見 §3） |
 | `candidates` | list of 字串 | 否 | 1–8 個、每個最多 16 字；依序把每個值代入 `{suffix}` 各抓一次。只能用在單段式 |
 | `not_found_when` | mapping | 否 | 子鍵 `body_contains`：頁面內容含這段字串就判定查無此片 |
-| `results` | mapping | 兩段式必填 | 第 1 段的搜尋結果過濾；子鍵 `css`（選出結果連結的 selector）與 `keep_if_contains`（連結網址或文字必須含這段字串，可用 `{number}`、`{number_lower}`、`{number_digits}`；這裡的代入值不做 URL 編碼，比對時不分大小寫）。單段式不可寫 |
+| `results` | mapping | 兩段式必填 | 第 1 段的搜尋結果過濾；子鍵 `css`（選出結果連結的 selector）與 `keep_if_contains`（連結的 href 或連結文字必須含這段字串，可用 `{number}`、`{number_lower}`、`{number_digits}`；代入值不做 URL 編碼，比對不分大小寫並檢查邊界，規則見 §3）。單段式不可寫 |
 
 兩段式的第 2 段必須寫成 `- {}`（詳情頁網址來自第 1 段的搜尋結果）。
 
@@ -65,7 +65,9 @@
 | `{number_digits}` | `123` | 番號**末尾的連續數字**；沒有則為空字串 |
 | `{suffix}` | 依 `candidates` 逐個代入 | 只有在該 step 寫了 `candidates` 時才可用 |
 
-代入的值都會做 URL 編碼。大括號必須成對，寫了其他占位符會被拒（reason `bad_template`）。
+只有 `steps[].url` 內的代入值會做 URL 編碼；`keep_if_contains` 的代入值不編碼。大括號必須成對，寫了其他占位符會被拒（reason `bad_template`）。
+
+`keep_if_contains` 的比對規則：比對連結的 href 與連結文字，不分大小寫；命中的字串以數字開頭時，命中處前一個字元不能是數字，以英文字母開頭時，前一個字元不能是英文字母（中日文等其他文字不算，所以標題「中文字幕SONE-205」仍會命中）；兩種情況命中處後一個字元都不能是數字。所以 `SONE-20` 不會命中 `sone-205`，`243999` 不會命中 `fc2ppv2439990`，但 `SONE-205` 仍會命中 `sone-205c`。
 
 ## 4. 變換表
 
@@ -103,6 +105,8 @@
 一個站的搜尋常對「查無」也回 200，這時就需要 `not_found_when`。
 
 多版本：同一番號抽到多個詳情頁（單段式的多個 `candidates`，或兩段式的多個結果）且番號都吻合，結果是 `multiple`，依 `date` 由新到舊排序；兩段式最多抓前 5 個詳情頁。
+
+單段式有多個 `candidates` 時，若某個候選逾時或連不上（reason `timeout`、`network`），就不再嘗試後面的候選（站多半是掛了）。
 
 部分頁面失敗不影響其他頁：只要還有一頁成功就算成功。**全部頁面都失敗**才回錯誤，reason 取第一個失敗頁的。
 
@@ -255,6 +259,7 @@ tests:
 3. **DNS rebinding 殘留**：站方若刻意在檢查與連線之間更改 DNS 解析結果，可繞過公網限制；單人 LAN 使用場景下已接受此殘留。
 4. **Windows 非 ASCII 路徑**：OpenAver 安裝路徑含非 ASCII 字元時，`fetch: tls` 模式可能無法建立 HTTPS 連線（CA 憑證路徑問題）→ 改用 `fetch: plain`，或把 OpenAver 裝在純英文路徑。
 5. **沒有番號的片不在範圍**：輸入契約就是番號（見 §1）。
+6. **文字編碼只看 HTTP 標頭**：解碼只依回應標頭的 `charset`（沒有就當 UTF-8），不讀 HTML 內的 `<meta charset>`；只在 `<meta>` 宣告 Shift_JIS 等編碼的站可能出現亂碼。
 
 其他需要知道的：
 

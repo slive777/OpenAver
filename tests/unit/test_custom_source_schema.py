@@ -97,6 +97,8 @@ def rows():
     add("tpl_ipv6", sub(BASE, "https://base.example/", "http://[::1]/"), "bad_template", "steps[0].url")
     add("tpl_keep_suffix", sub(TWO, 'keep_if_contains: "{number_lower}"', 'keep_if_contains: "{suffix}"'),
         "bad_template", "steps[0].results.keep_if_contains")
+    add("tpl_authority_backslash", sub(BASE, '"https://base.example/{number_lower}"',
+                                       "'http://192.168.1.1\\@router.example/{number}'"), "bad_template", "steps[0].url")
     add("selector_field", sub(BASE, '{css: "h1"}', '{css: "a[href"}'), "bad_selector", "fields.title.css")
     add("selector_results", sub(TWO, "a.hit", "div >"), "bad_selector", "steps[0].results.css")
     add("transform_unknown", sub(BASE, '{css: "h1"}', '{css: "h1", then: [{eval: "1"}]}'),

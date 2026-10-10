@@ -4,9 +4,11 @@ import ipaddress
 import socket
 from urllib.parse import urlparse
 
+from urllib3.util import parse_url
+
 from core.custom_source.errors import BlockedTarget
 
-GUARD_REASONS = frozenset({"bad_scheme", "bad_url", "bad_host", "non_ascii_host", "non_public", "unresolvable"})
+GUARD_REASONS = frozenset({"bad_scheme", "bad_url", "bad_host", "bad_authority", "non_ascii_host", "non_public", "unresolvable"})
 
 _BLOCKED_NAME_SUFFIXES = (".localhost", ".local", ".internal")
 
@@ -35,6 +37,23 @@ def _blocked_name(host):
     return name == "localhost" or name.endswith(_BLOCKED_NAME_SUFFIXES)
 
 
+def _authority(url):
+    rest = url.split("://", 1)[-1]
+    for i, ch in enumerate(rest):
+        if ch in "/?#":
+            return rest[:i]
+    return rest
+
+
+def _connect_host_differs(url, host):
+    """守衛判斷的 host 必須與 urllib3（requests 實際連線者）讀到的一致；解析例外視為不一致。"""
+    try:
+        other = parse_url(url).host
+    except Exception:
+        return True
+    return (other or "").strip("[]").lower() != host.strip("[]").lower()
+
+
 def check(url):
     """通過回 None；違規拋 BlockedTarget。訊息為固定文字，不含 URL 任何部分。"""
     try:
@@ -50,6 +69,8 @@ def check(url):
         raise BlockedTarget("bad_host", "網址沒有主機名稱")
     if not host.isascii():
         raise BlockedTarget("non_ascii_host", "主機名稱含非 ASCII 字元，請改用 punycode（xn--）")
+    if "\\" in _authority(url) or _connect_host_differs(url, host):
+        raise BlockedTarget("bad_authority", "網址的主機段格式不正確")
     if _blocked_name(host):
         raise BlockedTarget("bad_host", "不允許的主機名稱")
     try:

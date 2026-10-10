@@ -63,6 +63,14 @@ def test_malformed_location_is_fetch_error_not_crash():
     assert t.calls == [A]
 
 
+def test_backslash_authority_redirect_is_blocked_before_request():
+    t = FakeTransport({A: redirect("http://127.0.0.1\\@x.example/")})
+    with pytest.raises(FetchError) as ei:
+        fetch_page(A, t, _cfg())
+    assert ei.value.reason == "blocked_target"
+    assert t.calls == [A]
+
+
 def test_redirect_loop_stops_at_limit():
     t = FakeTransport({A: redirect(B), B: redirect(C), C: redirect(A)})
     with pytest.raises(FetchError) as ei:

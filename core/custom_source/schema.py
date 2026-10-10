@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 import soupsieve
 import yaml
+from urllib3.util import parse_url as urllib3_parse_url
 from yaml.constructor import ConstructorError
 from yaml.nodes import ScalarNode
 
@@ -217,6 +218,8 @@ def _static_host(url, path):
         raise LoadError("bad_template", "URL 須為 http 或 https", path)
     if "{" in match.group(1):
         raise LoadError("bad_template", "占位符不可出現在主機名稱", path)
+    if "\\" in match.group(1):
+        raise LoadError("bad_template", "主機段不可含反斜線", path)
     probe = _PLACEHOLDER_RE.sub("x", url)
     try:
         parsed = urlparse(probe)
@@ -229,6 +232,12 @@ def _static_host(url, path):
     if not host:
         raise LoadError("bad_template", "URL 缺少主機名稱", path)
     host = host.lower()
+    try:
+        other = urllib3_parse_url(probe).host
+    except Exception:
+        raise LoadError("bad_template", "URL 格式錯誤", path) from None
+    if (other or "").strip("[]").lower() != host:
+        raise LoadError("bad_template", "主機名稱解析結果不一致", path)
     if host == "localhost" or host.endswith(_LOCAL_SUFFIXES):
         raise LoadError("bad_template", "不可指向本機或內部主機", path)
     try:

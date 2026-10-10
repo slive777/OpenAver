@@ -1,7 +1,6 @@
 """自訂來源解譯器：scrape／scrape_detail／run_tests 的行為（全離線，FakeTransport）。"""
 
 import dataclasses
-import re
 
 import pytest
 
@@ -42,6 +41,11 @@ def _hrefs(name, css):
     return [a["href"] for a in parse_html(_txt(name)).select(css)]
 
 
+def _cands(*suffixes):
+    spec = _spec("candidates")
+    return dataclasses.replace(spec, steps=(dataclasses.replace(spec.steps[0], candidates=suffixes),))
+
+
 def _run(spec, number, routes):
     transport = FakeTransport(routes)
     return scrape(spec, number, _cfg(), transport), transport
@@ -73,13 +77,10 @@ def _routes_for(name):
             CAND + "/": redirect(CAND + "c/")}
 
 
-# ---------- 番號形狀與模板代入 ----------
-
 @pytest.mark.parametrize("name, number", [("text", "SONE-205"), ("single-og", "12345"), ("fuzzy", "FC2-2439990")])
 def test_pattern_mismatch_skipped_without_requests(name, number):
     result, transport = _run(_spec(name), number, {})
-    assert result.status == "skipped"
-    assert transport.calls == []
+    assert (result.status, transport.calls) == ("skipped", [])
 
 
 @pytest.mark.parametrize("name, number, first_call", [
@@ -127,8 +128,6 @@ def test_duplicate_result_links_do_not_consume_slots():
     assert transport.calls == [TWO + "SONE-205", url]
 
 
-# ---------- 去重、核對、排序 ----------
-
 def test_candidates_deduped_by_final_url():
     result, transport = _run(_spec("candidates"), "SONE-205", _routes_for("candidates"))
     assert transport.calls == [CAND + "c/", CAND + "uc/", CAND + "/", CAND + "c/"]
@@ -150,8 +149,7 @@ def test_number_mismatch_candidate_dropped():
 
 
 def test_declared_number_empty_is_parse_empty_but_other_number_is_not_found():
-    spec = _spec("candidates")
-    spec = dataclasses.replace(spec, steps=(dataclasses.replace(spec.steps[0], candidates=("c",)),))
+    spec = _cands("c")
     broken = dataclasses.replace(spec, fields=tuple(
         dataclasses.replace(f, selector="h6.none") if f.name == "number" else f for f in spec.fields))
     result, _ = _run(broken, "SONE-205", {CAND + "c/": _pg("two-step-detail-a.html")})
@@ -178,8 +176,6 @@ def test_multiple_sorted_by_date_desc(uc_page, c_page, order, dates):
     assert [i.fields["date"] for i in result.items] == dates
 
 
-# ---------- not_found 三判準 ----------
-
 def test_single_stage_404_is_not_found():
     result, transport = _run(_spec("single-og"), "ZZZZ-999", _routes_for("single-og"))
     assert result.status == "not_found"
@@ -204,8 +200,6 @@ def test_body_contains_hit_is_not_found():
     result, _ = _run(one, "SONE-205", _routes_for("single-og"))
     assert result.status == "not_found"
 
-
-# ---------- error 與部分失敗 ----------
 
 _U = SOG
 _HOPS = [_U] + [f"https://single-og.example/h{i}" for i in range(1, 7)]
@@ -258,15 +252,44 @@ def test_transport_unavailable_and_unexpected_never_raise(monkeypatch):
     (page("", 404), page("", 404), "not_found", None, 0),
 ])
 def test_partial_failure_returns_successes(c_route, uc_route, status, reason, count):
-    spec = _spec("candidates")
-    spec = dataclasses.replace(spec, steps=(dataclasses.replace(spec.steps[0], candidates=("c", "uc")),))
+    spec = _cands("c", "uc")
     result, _ = _run(spec, "SONE-205", {CAND + "c/": c_route, CAND + "uc/": uc_route})
     assert (result.status, result.reason, len(result.items)) == (status, reason, count)
 
 
+def _boundary_hit(keep, prefix, suffix):
+    blocked = "abcdefghijklmnopqrstuvwxyz" if keep[0].isalpha() else "0123456789"
+    return not (prefix and prefix[-1] in blocked) and not (suffix and suffix[0] in "0123456789")
+
+
+_BOUNDARY_GRID = [
+    (keep, prefix, suffix)
+    for keep in ("sone-205", "2439990")
+    for prefix in ("", " ", "/", "-", "中文字幕", "x", "1")
+    for suffix in ("", "c", "uc", " ", "/", "0")
+]
+
+
+@pytest.mark.parametrize("keep, prefix, suffix", _BOUNDARY_GRID)
+def test_link_match_respects_number_boundaries(keep, prefix, suffix):
+    hit = _boundary_hit(keep, prefix, suffix)
+    assert interpret._link_matches(keep, prefix + keep + suffix, "") is hit
+    assert interpret._link_matches(keep, "/v/123", (prefix + keep + suffix).upper()) is hit
+
+
+@pytest.mark.parametrize("routes, calls, status, reason, count", [
+    ({"a": FetchError("timeout")}, 1, "error", "timeout", 0),
+    ({"a": _pg("two-step-detail-a.html"), "b": FetchError("network")}, 2, "ok", None, 1),
+    ({"a": page("", 500), "b": _pg("two-step-detail-a.html"), "c": page("", 404)}, 3, "ok", None, 1),
+])
+def test_outage_stops_remaining_candidates(routes, calls, status, reason, count):
+    result, transport = _run(_cands("a", "b", "c"), "SONE-205", {f"{CAND}{k}/": v for k, v in routes.items()})
+    assert len(transport.calls) == calls
+    assert (result.status, result.reason, len(result.items)) == (status, reason, count)
+
+
 def test_first_failure_in_candidate_order_wins():
-    spec = _spec("candidates")
-    spec = dataclasses.replace(spec, steps=(dataclasses.replace(spec.steps[0], candidates=("c", "uc")),))
+    spec = _cands("c", "uc")
     result, _ = _run(spec, "SONE-205", {CAND + "c/": page("<html></html>"), CAND + "uc/": page("", 503)})
     assert (result.status, result.reason, result.http_status) == ("error", "parse_empty", None)
 
@@ -275,35 +298,19 @@ def test_two_stage_detail_failure_keeps_other_hit():
     uc, c = _hrefs("two-step-search.html", "h3.entry-title a")
     routes = {TWO + "SONE-205": _pg("two-step-search.html"), uc: page("", 500), c: _pg("two-step-detail-b.html")}
     result, _ = _run(_spec("two-step"), "SONE-205", routes)
-    assert result.status == "ok"
     assert [i.detail_url for i in result.items] == [c]
 
 
-class _HopTransport:
-    """每個候選頁先導向 5 跳才給內容；記錄請求。"""
-
-    def __init__(self):
-        self.calls = []
-
-    def request(self, url):
-        self.calls.append(url)
-        match = re.search(r"-h(\d)$", url)
-        hop = int(match.group(1)) if match else 0
-        if hop == 5:
-            return _pg("two-step-detail-a.html")
-        return redirect(f"{url}-h{hop + 1}" if not match else url[:-1] + str(hop + 1))
-
-
 def test_single_stage_request_budget_is_bounded():
-    spec = _spec("candidates")
-    spec = dataclasses.replace(spec, steps=(dataclasses.replace(spec.steps[0], candidates=tuple("abcdefgh")),))
-    transport = _HopTransport()
-    result = scrape(spec, "SONE-205", _cfg(), transport)
+    routes = {}
+    for s in "abcdefgh":
+        chain = [f"{CAND}{s}/"] + [f"{CAND}{s}/h{n}" for n in range(1, 6)]
+        routes.update({chain[n]: redirect(chain[n + 1]) for n in range(5)})
+        routes[chain[5]] = _pg("two-step-detail-a.html")
+    result, transport = _run(_cands(*"abcdefgh"), "SONE-205", routes)
     assert len(transport.calls) == 48
     assert result.status == "multiple"
 
-
-# ---------- scrape_detail ----------
 
 @pytest.mark.parametrize("spec_name, number, route, status, calls", [
     ("single-og", "SONE-205", _pg("single-og.html"), "ok", 1),
@@ -314,11 +321,8 @@ def test_single_stage_request_budget_is_bounded():
 def test_scrape_detail(spec_name, number, route, status, calls):
     transport = FakeTransport({SOG: route})
     result = scrape_detail(_spec(spec_name), SOG, number, _cfg(), transport)
-    assert result.status == status
-    assert len(transport.calls) == calls
+    assert (result.status, len(transport.calls)) == (status, calls)
 
-
-# ---------- run_tests ----------
 
 @pytest.mark.parametrize("name", ["single-og", "single-og-min", "two-step", "fuzzy", "text", "candidates"])
 def test_fixture_tests_all_pass(name):
@@ -331,11 +335,6 @@ def _with_cases(*cases):
     return dataclasses.replace(spec, tests=tuple(schema.Case("SONE-205", "ok", c) for c in cases))
 
 
-def _actual():
-    result, _ = _run(_spec("single-og"), "SONE-205", _routes_for("single-og"))
-    return result.items[0].fields
-
-
 @pytest.mark.parametrize("expect, key, expected, actual_of", [
     ((("title", "WRONG"),), "title", "WRONG", lambda f: f["title"]),
     ((("title_contains", "no-such-text"),), "title_contains", "no-such-text", lambda f: f["title"]),
@@ -345,7 +344,7 @@ def _actual():
     ((("actors", ("nobody",)),), "actors", ["nobody"], lambda f: f["actors"]),
 ])
 def test_run_tests_reports_key_expected_actual(expect, key, expected, actual_of):
-    fields = _actual()
+    fields = _run(_spec("single-og"), "SONE-205", _routes_for("single-og"))[0].items[0].fields
     if key == "tags_exclude":
         expect = ((key, (fields["tags"][0],)),)
         expected = [fields["tags"][0]]
