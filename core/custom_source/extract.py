@@ -11,7 +11,6 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from core.custom_source.transforms import apply_transforms, round_half_up
-from core.custom_source.urls import public_url
 
 LIST_FIELDS = frozenset({"tags", "actors", "sample_images"})
 URL_FIELDS = frozenset({"cover", "sample_images"})
@@ -146,8 +145,7 @@ def _norm_url(value, base_url):
         return None
     if not parsed.netloc:
         return None
-    # 圖片網址是欄位值（不會拿去抓頁面），帳密只用於抓頁，不可外流
-    return public_url(joined) or None
+    return joined
 
 
 def _clean_list(values):

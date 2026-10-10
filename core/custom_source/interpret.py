@@ -136,7 +136,8 @@ def _same_number(fields, canon):
 
 
 def _make_item(spec, page, canon):
-    fields = extract_fields(page.text, page.final_url, spec.fields)
+    # 帳密只用於抓頁；從頁面抽出的網址一律以去帳密的 base 組出
+    fields = extract_fields(page.text, public_url(page.final_url) or page.final_url, spec.fields)
     if not fields.get("title") and not fields.get("cover"):
         raise FetchError("parse_empty")
     return ScrapedItem(page.final_url, dict(fields, number=canon)) if _same_number(fields, canon) else None
@@ -244,15 +245,6 @@ _CHECKS = {
 }
 
 
-def _public_value(value):
-    """mismatch 的 expected/actual：http(s) 字串去帳密（防其他欄位外流）。"""
-    if isinstance(value, (list, tuple)):
-        return [_public_value(v) for v in value]
-    if isinstance(value, str) and value.lower().startswith(("http://", "https://")) and "@" in value:
-        return public_url(value) or value
-    return value
-
-
 def _check_expect(key, expected, fields):
     name, suffix = _KEY_RE.fullmatch(key).groups()
     actual = fields.get(name)
@@ -260,7 +252,7 @@ def _check_expect(key, expected, fields):
     if suffix == "_max":
         actual = len(actual) if isinstance(actual, list) else None
     ok = actual is not None and _CHECKS[suffix](actual, want)
-    return None if ok else (_public_value(want), _public_value(actual))
+    return None if ok else (want, actual)
 
 
 def _host_of(url):

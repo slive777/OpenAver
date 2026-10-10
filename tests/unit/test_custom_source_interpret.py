@@ -420,10 +420,29 @@ def test_run_tests_mismatch_actual_has_no_userinfo_from_relative_image():
     assert mismatch.actual == ["https://single-og.example/cover.jpg"] or mismatch.actual == "https://single-og.example/cover.jpg"
 
 
-def test_expect_values_with_userinfo_are_sanitized():
-    got = interpret._public_value(["https://a:b@h.example/x?q=1", "plain", 3])
-    assert got == ["https://h.example/x?q=1", "plain", 3]
-    assert interpret._public_value("http://a:b@h.example/") == "http://h.example/"
+def test_to_video_images_from_credentialed_template_have_no_userinfo():
+    from core.custom_source.scraper import CustomScraper
+    _, routes = _userinfo_routes()
+    spec = _spec("single-og")
+    result = scrape(spec, "SONE-205", CFG, FakeTransport(routes))
+    video = CustomScraper(spec, "c", CFG)._to_video(result.items[0], "SONE-205")
+    assert video.cover_url == "https://single-og.example/cover.jpg"
+    assert "alice:secret@" not in repr(video.__dict__)
+
+
+def test_urljoin_transform_fields_have_no_userinfo():
+    target, routes = _userinfo_routes()
+    spec = _spec("single-og")
+    fields = tuple(
+        schema.Field(f.name, "css", f.selector, "href", True, (schema.Transform("urljoin", True),)) if f.name == "tags" else f
+        for f in spec.fields
+    )
+    transport = FakeTransport(routes)
+    result = scrape(dataclasses.replace(spec, fields=fields), "SONE-205", CFG, transport)
+    tags = result.items[0].fields["tags"]
+    assert tags and all(t.startswith("https://single-og.example/") for t in tags)
+    assert "alice:secret@" not in repr(tags)
+    assert target in transport.calls
 
 
 def test_extracted_images_have_no_userinfo_but_page_still_fetched_with_it():
