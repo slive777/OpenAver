@@ -2,6 +2,7 @@
 
 import dataclasses
 import itertools
+from unittest.mock import Mock
 
 import pytest
 
@@ -107,8 +108,7 @@ def test_results_capped_at_max_detail_fetch(monkeypatch, limit, expected_calls):
     html = "".join(f'<h3 class="entry-title"><a href="{u}">SONE-205 v{i}</a></h3>' for i, u in enumerate(urls))
     routes = {TWO + "SONE-205": page(html)} | {u: _pg("two-step-detail-a.html") for u in urls}
     result, transport = _run(_spec("two-step"), "SONE-205", routes)
-    assert len(transport.calls) == expected_calls
-    assert len(result.items) == expected_calls - 1
+    assert (len(transport.calls), len(result.items)) == (expected_calls, expected_calls - 1)
 
 
 def test_result_links_filtered_by_href_or_text():
@@ -126,31 +126,46 @@ def test_result_links_filtered_by_href_or_text():
     assert transport.calls[1:] == ["https://two-step.example/v/sone-205-x/", "https://two-step.example/v/12345"]
 
 
-def test_duplicate_result_links_do_not_consume_slots():
-    url = "https://two-step.example/v/sone-205-a/"
-    html = f'<h3 class="entry-title"><a href="{url}">SONE-205</a></h3>' * 6
-    result, transport = _run(_spec("two-step"), "SONE-205", {TWO + "SONE-205": page(html), url: _pg("two-step-detail-a.html")})
-    assert transport.calls == [TWO + "SONE-205", url]
+@pytest.mark.parametrize("hrefs, status, count", [
+    (["/x"] * 6, "ok", 1),
+    (["/x#a", "/x#b"], "ok", 1),
+    ([f"/x#{c}" for c in "abcde"] + ["/y"], "multiple", 2),
+])
+def test_duplicate_and_fragment_links_collapse_to_one_request(hrefs, status, count):
+    html = "".join(f'<h3 class="entry-title"><a href="{h}">SONE-205</a></h3>' for h in hrefs)
+    base = "https://two-step.example"
+    routes = {TWO + "SONE-205": page(html), base + "/x": _pg("two-step-detail-a.html"), base + "/y": _pg("two-step-detail-b.html")}
+    result, transport = _run(_spec("two-step"), "SONE-205", routes)
+    assert (result.status, len(result.items), len(transport.calls)) == (status, count, count + 1)
+    assert not any("#" in u for u in transport.calls)
+
+
+@pytest.mark.parametrize("number, hit, status, calls", [
+    ("SONE-205C", "", "not_found", 1),
+    ("HEYZO-1234", '<div class="card-video__title"><a href="/v/1234">x</a></div>', "ok", 2),
+])
+def test_empty_filter_string_matches_nothing(number, hit, status, calls):
+    html = "".join(f'<div class="card-video__title"><a href="/v/n{i}">Title {i}</a></div>' for i in range(5)) + hit
+    spec = dataclasses.replace(_spec("text"), number_pattern="[A-Z0-9-]+")
+    routes = {TEXT: page(html), TEXT + "1234": page(html), "https://text.example/v/1234": _pg("text-detail.html")}
+    result, transport = _run(spec, number, routes)
+    assert (result.status, len(transport.calls)) == (status, calls)
 
 
 def test_candidates_deduped_by_final_url():
     result, transport = _run(_spec("candidates"), "SONE-205", _routes_for("candidates"))
     assert transport.calls == [CAND + "c/", CAND + "uc/", CAND + "/", CAND + "c/"]
-    assert result.status == "multiple"
-    assert [i.detail_url for i in result.items] == [CAND + "c/", CAND + "uc/"]
+    assert (result.status, [i.detail_url for i in result.items]) == ("multiple", [CAND + "c/", CAND + "uc/"])
 
 
 def test_number_mismatch_candidate_dropped():
     spec = _spec("candidates")
-    body = _txt("two-step-detail-a.html")
-    other = page(body.replace("SONE-205", "SONE-999"))
+    other = page(_txt("two-step-detail-a.html").replace("SONE-205", "SONE-999"))
     routes = {CAND.replace("205", "206") + s: _pg("two-step-detail-a.html") for s in ("c/", "uc/", "/")}
     result, _ = _run(spec, "SONE-206", routes)
     assert result.status == "not_found"
     result, _ = _run(spec, "SONE-205", {CAND + "c/": _pg("two-step-detail-a.html"), CAND + "uc/": other, CAND + "/": page("", 404)})
-    assert result.status == "ok"
-    assert [i.detail_url for i in result.items] == [CAND + "c/"]
-    assert result.items[0].fields["number"] == "SONE-205"
+    assert (result.status, [i.detail_url for i in result.items], result.items[0].fields["number"]) == ("ok", [CAND + "c/"], "SONE-205")
 
 
 def test_declared_number_empty_is_parse_empty_but_other_number_is_not_found():
@@ -171,47 +186,39 @@ def test_declared_number_empty_is_parse_empty_but_other_number_is_not_found():
 def test_multiple_sorted_by_date_desc(uc_page, c_page, order, dates):
     uc, c = _hrefs("two-step-search.html", "h3.entry-title a")
     result, _ = _run(_spec("two-step"), "SONE-205", {TWO + "SONE-205": _pg("two-step-search.html"), uc: uc_page, c: c_page})
-    assert result.status == "multiple"
-    assert [i.detail_url for i in result.items] == [{"uc": uc, "c": c}[o] for o in order]
+    assert result.status == "multiple" and [i.detail_url for i in result.items] == [{"uc": uc, "c": c}[o] for o in order]
     assert [i.fields["date"] for i in result.items] == dates
 
 
 def test_single_stage_404_is_not_found():
     result, transport = _run(_spec("single-og"), "ZZZZ-999", _routes_for("single-og"))
-    assert result.status == "not_found"
-    assert transport.calls == ["https://single-og.example/zzzz-999"]
+    assert (result.status, transport.calls) == ("not_found", ["https://single-og.example/zzzz-999"])
 
 
 def test_results_filter_empty_is_not_found():
     result, transport = _run(_spec("text"), "FC2-9999999", _routes_for("text"))
-    assert result.status == "not_found"
-    assert transport.calls == [TEXT + "9999999"]
+    assert (result.status, transport.calls) == ("not_found", [TEXT + "9999999"])
 
 
 def test_body_contains_hit_is_not_found():
     marked = _step0("two-step", not_found_body="sone-205c")
     result, transport = _run(marked, "SONE-205", _routes_for("two-step"))
-    assert result.status == "not_found"
-    assert transport.calls == [TWO + "SONE-205"]
+    assert (result.status, transport.calls) == ("not_found", [TWO + "SONE-205"])
     result, _ = _run(_step0("single-og", not_found_body="<h1"), "SONE-205", _routes_for("single-og"))
     assert result.status == "not_found"
 
 
-_U = SOG
-_HOPS = [_U] + [f"https://single-og.example/h{i}" for i in range(1, 7)]
-_ERRORS = [
-    pytest.param({_U: page("", 503)}, "http_status", 503, id="http503"),
-    pytest.param({_U: page("", 500)}, "http_status", 500, id="http500"),
-    pytest.param({_U: redirect("http://10.0.0.5/")}, "blocked_target", None, id="blocked"),
-    pytest.param({_U: FetchError("network")}, "network", None, id="network"),
-    pytest.param({_U: FetchError("timeout")}, "timeout", None, id="timeout"),
-    pytest.param({_U: FetchError("too_large")}, "too_large", None, id="too_large"),
+_HOPS = [SOG] + [f"https://single-og.example/h{i}" for i in range(1, 7)]
+@pytest.mark.parametrize("routes, reason, status", [
+    pytest.param({SOG: page("", 503)}, "http_status", 503, id="http503"),
+    pytest.param({SOG: page("", 500)}, "http_status", 500, id="http500"),
+    pytest.param({SOG: redirect("http://10.0.0.5/")}, "blocked_target", None, id="blocked"),
+    pytest.param({SOG: FetchError("network")}, "network", None, id="network"),
+    pytest.param({SOG: FetchError("timeout")}, "timeout", None, id="timeout"),
+    pytest.param({SOG: FetchError("too_large")}, "too_large", None, id="too_large"),
     pytest.param({_HOPS[i]: redirect(_HOPS[i + 1]) for i in range(6)}, "redirect_limit", None, id="loop"),
-    pytest.param({_U: page("")}, "parse_empty", None, id="empty_body"),
-]
-
-
-@pytest.mark.parametrize("routes, reason, status", _ERRORS)
+    pytest.param({SOG: page("")}, "parse_empty", None, id="empty_body"),
+])
 def test_error_reasons(routes, reason, status):
     result, _ = _run(_spec("single-og"), "SONE-205", routes)
     assert (result.status, result.reason, result.http_status) == ("error", reason, status)
@@ -223,17 +230,11 @@ def test_search_page_404_is_error_not_not_found():
 
 
 def test_transport_unavailable_and_unexpected_never_raise(monkeypatch):
-    def unavailable(fetch, source_id, config):
-        raise FetchError("transport_unavailable")
-
-    monkeypatch.setattr("core.custom_source.interpret.make_transport", unavailable)
+    monkeypatch.setattr(interpret, "make_transport", Mock(side_effect=FetchError("transport_unavailable")))
     result = scrape(_spec("single-og"), "SONE-205", _cfg())
     assert (result.status, result.reason) == ("error", "transport_unavailable")
 
-    def boom(*args, **kwargs):
-        raise ValueError("boom")
-
-    monkeypatch.setattr("core.custom_source.interpret.extract_fields", boom)
+    monkeypatch.setattr(interpret, "extract_fields", Mock(side_effect=ValueError("boom")))
     result, _ = _run(_spec("single-og"), "SONE-205", _routes_for("single-og"))
     assert (result.status, result.reason) == ("error", "unexpected")
 
@@ -313,8 +314,7 @@ def test_single_stage_request_budget_is_bounded():
         routes.update({chain[n]: redirect(chain[n + 1]) for n in range(5)})
         routes[chain[5]] = _pg("two-step-detail-a.html")
     result, transport = _run(_cands(*"abcdefgh"), "SONE-205", routes)
-    assert len(transport.calls) == 48
-    assert result.status == "multiple"
+    assert (len(transport.calls), result.status) == (48, "multiple")
 
 
 @pytest.mark.parametrize("spec_name, number, route, status, calls", [

@@ -1,7 +1,7 @@
 """自訂來源解譯器：照 Spec 找一個番號並跑 YAML 驗收案例；節流與逐跳守衛都在 fetch_page。"""
 import re
 from dataclasses import dataclass
-from urllib.parse import quote, urljoin, urlparse, urlsplit
+from urllib.parse import quote, urldefrag, urljoin, urlparse, urlsplit
 
 from core.custom_source.extract import extract_fields, parse_html
 from core.custom_source.fetch import FetchError, fetch_page, make_transport
@@ -86,9 +86,9 @@ def _fetch_unique(urls, transport, config, errors, nf_step=None, stop_on_outage=
             continue
         if page is None:
             continue
-        if page.final_url in seen:
+        if urldefrag(page.final_url)[0] in seen:
             continue
-        seen.add(page.final_url)
+        seen.add(urldefrag(page.final_url)[0])
         if nf_step is not None and _body_hit(nf_step, page.text):
             continue
         pages.append((order, page))
@@ -103,10 +103,10 @@ def _link_matches(keep, href, text):
 def _search_hits(page, step, values):
     keep = _render(step.results.keep_if_contains, values, encode=False).lower()
     hits = []
-    for link in parse_html(page.text).select(step.results.css):
+    for link in (parse_html(page.text).select(step.results.css) if keep else ()):
         href = (link.get("href") or "").strip()
         try:
-            url = urljoin(page.final_url, href) if href else ""
+            url = urldefrag(urljoin(page.final_url, href))[0] if href else ""
             web = urlparse(url).scheme in ("http", "https")
         except ValueError:
             continue
