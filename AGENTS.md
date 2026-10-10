@@ -248,3 +248,11 @@ If a regression of this class arises, the fix is:
   (whole-file / element-scoped / attribute-value / method-body window) and prefer
   fail-closed over fail-open — 7 scope-narrowing regressions of exactly this kind were
   caught by review during the v0.11.11 test-deflation.
+- **No captured third-party site responses under `tests/`.** Flag any PR that adds a
+  saved HTML/JSON page from an external site as a test fixture, or a `.gitignore`
+  negation re-allowing `*.html` under `tests/` (default: `*.html` is ignored). Site
+  structure is verified against the live site when a scraper is actually being fixed
+  (canary NG → owner reproduces → compare with the live page); a stored copy goes stale
+  silently and only adds friction. Behaviour of **our own** logic (exact-name matching,
+  empty-result handling, the custom-source interpreter) is tested with a few lines of
+  inline synthetic markup inside the test file. Severity P3, but flag it every time.
