@@ -129,6 +129,7 @@
 | `bad_template` | URL 模板有不支援的占位符、大括號不成對、主機名稱含占位符，或指向 IP／本機；見 §3、§12 |
 | `bad_selector` | CSS selector 語法錯誤 |
 | `missing_negative_assert` | `tests` 沒有任何負向斷言；見 §8 |
+| `missing_not_found_case` | `tests` 沒有任何一案 `status: not_found`；見 §8 |
 | `fetch_cf_unsupported` | 寫了 `fetch: cf`；此版不支援，見 §7 |
 | `unknown_fetch` | `fetch` 不是 `plain` 或 `tls` |
 | `unknown_transform` | `then` 裡出現未知的變換名；對照 §4 |
@@ -158,7 +159,7 @@
 | `tags_exclude`（後綴 `_exclude`） | list 欄位不得含這些值（負向）；值須為非空字串 list，只能用在 list 欄位 |
 | `tags_max`（後綴 `_max`） | list 欄位長度不得超過此整數（負向）；值須為非負整數，只能用在 list 欄位 |
 
-規則：每個 `ok`／`multiple` 案例至少一項正向斷言；整份 `tests` 至少要有一項負向斷言（`_exclude` 或 `_max`，只計 `ok`／`multiple` 案例），否則被拒（reason `missing_negative_assert`）。理由：selector 沒限定到內容容器時，常會把導覽列、推薦區的連結一起抓進 `tags`，標籤暴增卻不會讓正向斷言失敗；`tags_max` 能擋住這種「看起來有抽到、其實抽太多」的情況。
+規則：每個 `ok`／`multiple` 案例至少一項正向斷言；整份 `tests` 至少要有一項負向斷言（`_exclude` 或 `_max`，只計 `ok`／`multiple` 案例），否則被拒（reason `missing_negative_assert`）。整份 `tests` 也至少要有一案 `status: not_found`（用一個站上不存在的番號），否則被拒（reason `missing_not_found_case`）；理由：有些站對查無的番號照樣回 200，沒有查無案就驗不出這種軟 404。理由：selector 沒限定到內容容器時，常會把導覽列、推薦區的連結一起抓進 `tags`，標籤暴增卻不會讓正向斷言失敗；`tags_max` 能擋住這種「看起來有抽到、其實抽太多」的情況。
 
 ### 執行階段的錯誤 reason
 

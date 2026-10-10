@@ -14,3 +14,5 @@ fields:
 tests:
   - number: IPZZ-100
     expect: {number: IPZZ-100, title_contains: "Sample Title Fuzzy", cover: "https://fuzzy.example/uploads/IPZZ-100.jpg", tags_include: ["TagA", "CategoryA"], tags_max: 12}
+  - number: ZZZZ-999
+    status: not_found

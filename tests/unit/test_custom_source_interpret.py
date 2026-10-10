@@ -64,7 +64,8 @@ def _routes_for(name):
     if name == "single-og":
         return {SOG: _pg("single-og"), "https://single-og.example/zzzz-999": page("", 404)}
     if name == "single-og-min":
-        return {"https://single-og-min.example/videos/sone-205/": _pg("single-og-min")}
+        return {"https://single-og-min.example/videos/sone-205/": _pg("single-og-min"),
+                "https://single-og-min.example/videos/zzzz-999/": page("", 404)}
     if name == "text":
         hit = _hrefs("text-search", ".card-video__title a")[0]
         return {TEXT + "2439990": _pg("text-search"), hit: _pg("text-detail"),
@@ -75,9 +76,12 @@ def _routes_for(name):
                 c: _pg("two-step-detail-b"), TWO + "ZZZZ-999": _pg("two-step-empty")}
     if name == "fuzzy":
         hit = _hrefs("fuzzy-search", "h3.jeg_post_title a")[0]
-        return {"https://fuzzy.example/?s=IPZZ-100": _pg("fuzzy-search"), hit: _pg("fuzzy-detail")}
+        return {"https://fuzzy.example/?s=IPZZ-100": _pg("fuzzy-search"), hit: _pg("fuzzy-detail"),
+                "https://fuzzy.example/?s=ZZZZ-999": _pg("fuzzy-search")}
+    miss = CAND.replace("sone-205", "zzzz-999")
     return {CAND + "c/": _pg("two-step-detail-a"), CAND + "uc/": _pg("two-step-detail-b"),
-            CAND + "/": redirect(CAND + "c/")}
+            CAND + "/": redirect(CAND + "c/"),
+            miss + "c/": page("", 404), miss + "uc/": page("", 404), miss + "/": page("", 404)}
 
 
 @pytest.mark.parametrize("name, number", [("text", "SONE-205"), ("single-og", "12345"), ("fuzzy", "FC2-2439990")])

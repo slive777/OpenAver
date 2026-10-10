@@ -12,3 +12,5 @@ fields:
 tests:
   - number: SONE-205
     expect: {number: SONE-205, title_contains: "Sample Title Min", cover: "https://img.example/min/preview.jpg", tags_include: ["TagA", "TagB"], tags_max: 6}
+  - number: ZZZZ-999
+    status: not_found

@@ -14,6 +14,7 @@ LOAD_REASONS = frozenset({
     "bad_template",
     "bad_selector",
     "missing_negative_assert",
+    "missing_not_found_case",
     "fetch_cf_unsupported",
     "unknown_fetch",
     "unknown_transform",
@@ -36,7 +37,8 @@ SCRAPE_ERROR_REASONS = frozenset({
 class LoadError(Exception):
     """YAML 載入／驗證失敗。不帶 YAML 原文。"""
 
-    def __init__(self, reason, message="", field_path=""):
+    def __init__(self, reason, message="", field_path="", line=None):
+        self.line = line
         self.reason = reason
         self.field_path = field_path
         self.message = message
