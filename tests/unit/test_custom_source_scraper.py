@@ -10,7 +10,7 @@ from core.proxy_policy import ProxySettings
 from core.scrapers.errors import SourceBlocked, SourceUnreachable
 from core.scrapers.models import ScraperConfig
 from tests.unit._custom_source_fake import FakeTransport, page
-from tests.unit.test_custom_source_fixtures import FIXTURE_DIR
+from tests.unit._custom_source_pages import FIXTURE_DIR, PAGES
 
 SID = "custom:t"
 SOG = "https://single-og.example/sone-205"
@@ -38,7 +38,7 @@ def _spec(name="single-og"):
 
 
 def _txt(name):
-    return (FIXTURE_DIR / name).read_text(encoding="utf-8")
+    return PAGES[name]
 
 
 def _scraper(name="single-og"):
@@ -178,7 +178,7 @@ def test_end_to_end_status_through_interpret(monkeypatch, status, exc):
 
 
 def test_end_to_end_not_found_and_unexpected_extract(monkeypatch):
-    _wire(monkeypatch, {"https://single-og.example/zzzz-999": page("", 404), SOG: page(_txt("single-og.html"))})
+    _wire(monkeypatch, {"https://single-og.example/zzzz-999": page("", 404), SOG: page(_txt("single-og"))})
     sc = _scraper()
     assert sc.search("ZZZZ-999") is None and sc.search_all_versions("ZZZZ-999") == []
 
@@ -193,10 +193,10 @@ def test_end_to_end_not_found_and_unexpected_extract(monkeypatch):
 
 def test_end_to_end_two_step_versions_newest_first(monkeypatch):
     base = "https://two-step.example/search/"
-    hrefs = [a["href"] for a in parse_html(_txt("two-step-search.html")).select("h3.entry-title a")]
+    hrefs = [a["href"] for a in parse_html(_txt("two-step-search")).select("h3.entry-title a")]
     older, newer = hrefs
-    _wire(monkeypatch, {base + "SONE-205": page(_txt("two-step-search.html")),
-                        older: page(_txt("two-step-detail-a.html")), newer: page(_txt("two-step-detail-b.html"))})
+    _wire(monkeypatch, {base + "SONE-205": page(_txt("two-step-search")),
+                        older: page(_txt("two-step-detail-a")), newer: page(_txt("two-step-detail-b"))})
     sc = CustomScraper(_spec("two-step"), "custom:two-step", _cfg())
     videos = sc.search_all_versions("SONE-205")
     assert len(videos) == 2 and [v.date for v in videos] == sorted((v.date for v in videos), reverse=True)
@@ -206,8 +206,8 @@ def test_end_to_end_two_step_versions_newest_first(monkeypatch):
 
 def test_fetch_by_detail_url_same_host_and_subdomain_pass(monkeypatch):
     sub = "https://www.candidates.example/video/x/"
-    transport = _wire(monkeypatch, {CAND_DETAIL: page(_txt("two-step-detail-a.html")),
-                                    sub: page(_txt("two-step-detail-b.html"))})
+    transport = _wire(monkeypatch, {CAND_DETAIL: page(_txt("two-step-detail-a")),
+                                    sub: page(_txt("two-step-detail-b"))})
     sc = _scraper("candidates")
     for url in (CAND_DETAIL, sub):
         video = sc.fetch_by_detail_url(url, "SONE-205")

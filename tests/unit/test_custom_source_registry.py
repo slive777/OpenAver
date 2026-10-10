@@ -7,7 +7,7 @@ import pytest
 from core.custom_source import errors, registry, schema
 from core.custom_source.registry import custom_sources_dir, load_all, scraper_factories
 from core.scrapers.base import BaseScraper
-from tests.unit.test_custom_source_fixtures import FIXTURE_DIR
+from tests.unit._custom_source_pages import FIXTURE_DIR
 
 GOOD = ["single-og", "single-og-min", "two-step", "fuzzy", "text"]
 SOG_TEXT = (FIXTURE_DIR / "single-og.yaml").read_text(encoding="utf-8")

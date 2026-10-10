@@ -16,6 +16,6 @@ fields:
 tests:
   - number: SONE-205
     status: multiple      # two real versions -> existing multi-version picker
-    expect: {number: SONE-205, title_contains: "部活少女", cover: "https://pics.dmm.co.jp/mono/movie/adult/sone205/sone205pl.jpg", tags_include: ["按摩", "美少女"], tags_max: 15}
+    expect: {number: SONE-205, title_contains: "Sample Title Two", cover: "https://img.example/two-step/cover.jpg", tags_include: ["TagA", "TagB"], tags_max: 15}
   - number: ZZZZ-999
     status: not_found

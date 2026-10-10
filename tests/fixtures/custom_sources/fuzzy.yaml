@@ -13,4 +13,4 @@ fields:
   tags:    {css: ".jeg_post_tags a, .jeg_meta_category a", all: true}
 tests:
   - number: IPZZ-100
-    expect: {number: IPZZ-100, title_contains: "加美杏奈", cover: "https://avbebe.com/wp-content/uploads/2024/01/IPZZ-100.jpg", tags_include: ["加美杏奈", "口交"], tags_max: 12}
+    expect: {number: IPZZ-100, title_contains: "Sample Title Fuzzy", cover: "https://fuzzy.example/uploads/IPZZ-100.jpg", tags_include: ["TagA", "CategoryA"], tags_max: 12}
