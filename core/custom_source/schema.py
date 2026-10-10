@@ -3,6 +3,7 @@
 載入只做靜態檢查：不連網、不做 DNS、不執行 YAML 內任何內容。
 任何輸入只會得到 Spec 或 LoadError。
 """
+import hashlib
 import ipaddress
 import math
 import re
@@ -10,7 +11,7 @@ import unicodedata
 from collections.abc import Hashable
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 import soupsieve
 import yaml
@@ -45,7 +46,7 @@ CASE_KEYS = frozenset({"number", "status", "expect"})
 CASE_STATUSES = frozenset({"ok", "multiple", "not_found"})
 EXPECT_SUFFIXES = ("_contains", "_include", "_exclude", "_max")
 
-_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
+ID_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
 _PLACEHOLDER_RE = re.compile(r"\{[^{}]*\}")
 _AUTHORITY_RE = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://([^/?#]*)")
 _JSONLD_RE = re.compile(r"[A-Za-z0-9_]+\.[A-Za-z0-9_@:-]+")
@@ -96,7 +97,7 @@ class Spec:
     id: str
     name: str
     fetch: str
-    number_pattern: str
+    number_pattern: str | None
     steps: tuple
     fields: tuple
     tests: tuple
@@ -128,6 +129,12 @@ class _StrictLoader(yaml.SafeLoader):
         return super().construct_mapping(node, deep)
 
 
+def _error_line(exc):
+    """PyYAML 錯誤位置的 1-based 行號；沒有位置資訊回 None。"""
+    mark = getattr(exc, "problem_mark", None)
+    return mark.line + 1 if mark is not None else None
+
+
 def _parse_yaml(text):
     try:
         for event in yaml.parse(text, Loader=yaml.SafeLoader):
@@ -139,8 +146,10 @@ def _parse_yaml(text):
     except ConstructorError as exc:
         if (exc.problem or "").startswith("could not determine a constructor"):
             raise LoadError("unsafe_tag", "含有不安全的 YAML tag", "") from None
-        raise LoadError("yaml_syntax", "YAML 語法錯誤", "") from None
-    except (yaml.YAMLError, RecursionError):
+        raise LoadError("yaml_syntax", "YAML 語法錯誤", "", _error_line(exc)) from None
+    except yaml.YAMLError as exc:
+        raise LoadError("yaml_syntax", "YAML 語法錯誤", "", _error_line(exc)) from None
+    except RecursionError:
         raise LoadError("yaml_syntax", "YAML 語法錯誤", "") from None
     except Exception:
         # SafeConstructor 對 !!int／!!bool 等明確 tag 的壞值會拋原生例外
@@ -158,17 +167,27 @@ def load_text(text, filename_stem):
     return _build_spec(_parse_yaml(text), filename_stem)
 
 
-def load_file(path):
-    """讀檔（容許 BOM／CRLF）並載入；檔名 stem 即 id。OSError 不攔。"""
-    p = Path(path)
-    raw = p.read_bytes()
+def load_bytes(raw, filename_stem):
+    """載入原始 bytes（容許 BOM／CRLF），回傳 (Spec, 原始 bytes 的 sha256 hex)。"""
     if len(raw) > MAX_BYTES:
         raise LoadError("too_large", "檔案超過 64 KiB", "")
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise LoadError("yaml_syntax", "檔案不是有效的 UTF-8", "") from None
-    return load_text(text, p.stem)
+    spec = _build_spec(_parse_yaml(text), filename_stem)
+    return spec, hashlib.sha256(raw).hexdigest()
+
+
+def load_uploaded(text):
+    """載入上傳的 YAML 文字；id 取自 YAML 本身（過 slug／保留字檢查），無檔名可比對。"""
+    return load_text(text, None)
+
+
+def load_file(path):
+    """讀檔（容許 BOM／CRLF）並載入；檔名 stem 即 id。OSError 不攔。"""
+    p = Path(path)
+    return load_bytes(p.read_bytes(), p.stem)[0]
 
 
 # ---------------------------------------------------------------- 小工具
@@ -265,11 +284,11 @@ def _compile_regex(pattern, path):
 
 def _validate_id(data, stem):
     value = _required(data, "id", "")
-    if not isinstance(value, str) or _ID_RE.fullmatch(value) is None:
+    if not isinstance(value, str) or ID_RE.fullmatch(value) is None:
         raise LoadError("bad_id", "id 須為小寫英數與連字號（1–32 字）", "id")
     if value in RESERVED_IDS:
         raise LoadError("reserved_id", "id 與內建來源保留字衝突", "id")
-    if value != stem:
+    if stem is not None and value != stem:
         raise LoadError("id_filename_mismatch", "id 必須等於檔名", "id")
     return value
 
@@ -293,7 +312,9 @@ def _validate_fetch(data):
 
 
 def _validate_pattern(data):
-    value = _required(data, "number_pattern", "")
+    if "number_pattern" not in data or data["number_pattern"] is None:
+        return None, None
+    value = data["number_pattern"]
     if not isinstance(value, str):
         raise LoadError("bad_value", "number_pattern 須為字串", "number_pattern")
     if len(value) > MAX_PATTERN_LEN:
@@ -379,7 +400,19 @@ def _validate_steps(raw):
         if not isinstance(raw[1], dict) or raw[1]:
             raise LoadError("bad_value", "第 2 段必須是空 mapping", "steps[1]")
         steps.append(Step(None, (), None, None))
-    return tuple(steps), (host,)
+    return tuple(steps), (host.removeprefix("www."),)
+
+
+def detail_host_allowed(spec, url):
+    """詳情頁網址的 host（去開頭 www.）須是 spec.hosts 的基底 host 或其子網域。"""
+    try:
+        host = urlsplit(url).hostname
+    except ValueError:
+        return False
+    if not host:
+        return False
+    h = host.removeprefix("www.")
+    return any(h == b or h.endswith("." + b) for b in spec.hosts)
 
 
 # ---------------------------------------------------------------- fields
@@ -516,7 +549,7 @@ def _validate_case(raw, compiled, path):
         raise LoadError("bad_value", "案例須為 mapping", path)
     _check_keys(raw, CASE_KEYS, path)
     number = _need_str(_required(raw, "number", path), f"{path}.number")
-    if compiled.fullmatch(normalize_number_impl(number)) is None:
+    if compiled is not None and compiled.fullmatch(normalize_number_impl(number)) is None:
         raise LoadError("bad_pattern", "番號不符合自己的 number_pattern", f"{path}.number")
     status = raw.get("status", "ok")
     if not isinstance(status, str) or status not in CASE_STATUSES:
@@ -541,4 +574,6 @@ def _validate_tests(raw, compiled):
         has_negative = has_negative or negative
     if not has_negative:
         raise LoadError("missing_negative_assert", "tests 須至少有一項 _exclude 或 _max 負向斷言", "tests")
+    if not any(c.status == "not_found" for c in cases):
+        raise LoadError("missing_not_found_case", "tests 須至少有一案 status: not_found（用一個不存在的番號，擋站方軟 404）", "tests")
     return tuple(cases)

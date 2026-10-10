@@ -239,6 +239,7 @@ def validate_source_id(sid: str) -> bool:
     - 'auto' → True（特判，CD-61-5；但 get_builtin_sources() 不含 auto）。
     - 8 個 builtin id → True。
     - 'metatube:*'（非空後綴）→ True（63c，CD-63c-1）。
+    - 'custom:<slug>'（slug 合 ID_RE，純語法）→ True（165-T7a）。
     - 其他 → False。
     """
     if sid == 'auto':
@@ -251,4 +252,8 @@ def validate_source_id(sid: str) -> bool:
     # 63c：放行 metatube provider id（CD-63a-2 延到此 task）
     if sid.startswith('metatube:') and len(sid) > len('metatube:'):
         return True
+    if sid.startswith('custom:'):
+        # 純語法判斷、不查 registry；函式內 import 以維持 core.source_config 零載入 custom_source
+        from core.custom_source.schema import ID_RE
+        return ID_RE.fullmatch(sid[len('custom:'):]) is not None
     return False

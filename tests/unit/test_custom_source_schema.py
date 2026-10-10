@@ -6,7 +6,10 @@ from pathlib import Path
 import pytest
 
 from core.custom_source.errors import LOAD_REASONS, LoadError
-from core.custom_source.schema import load_file, load_text
+import hashlib
+
+from core.custom_source import schema
+from core.custom_source.schema import ID_RE, MAX_BYTES, load_bytes, load_file, load_text, load_uploaded
 from core.source_config import get_builtin_sources, get_manual_only_sources
 
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "custom_sources"
@@ -24,6 +27,8 @@ fields:
 tests:
   - number: ABC-123
     expect: {title: "x", tags_max: 3}
+  - number: ABC-999
+    status: not_found
 """
 
 TWO = """\
@@ -40,7 +45,12 @@ fields:
 tests:
   - number: ABC-123
     expect: {title: "x", tags_max: 3}
+  - number: ABC-999
+    status: not_found
 """
+
+
+NF_CASE = "  - number: ABC-999\n    status: not_found\n"
 
 
 def sub(base, old, new):
@@ -105,6 +115,8 @@ def rows():
         "unknown_transform", "fields.title.then[0]")
     # AC-4 負向
     add("no_negative", sub(BASE, ", tags_max: 3", ""), "missing_negative_assert", "tests")
+    # CD-165-9：至少一案查無
+    add("missing_not_found_case", sub(BASE, NF_CASE, ""), "missing_not_found_case", "tests")
     # bad_value：結構與值域
     add("empty_file", "", "bad_value", "")
     add("top_not_mapping", "- a\n- b\n", "bad_value", "")
@@ -176,7 +188,7 @@ def test_rejection_table_size_and_coverage():
     assert len({r[0] for r in REJECTIONS}) == len(REJECTIONS)
     assert len({r[1] for r in REJECTIONS}) == len(REJECTIONS)
     assert {r[3] for r in REJECTIONS} == set(LOAD_REASONS)
-    assert len(LOAD_REASONS) == 17
+    assert len(LOAD_REASONS) == 18
 
 
 @pytest.mark.parametrize("stem", FIXTURE_STEMS)
@@ -263,3 +275,82 @@ def test_reserved_ids_match_source_config():
         assert ei.value.reason == "reserved_id", rid
     from core.custom_source import schema
     assert set(schema.RESERVED_IDS) == ids
+
+
+@pytest.mark.parametrize("text", [
+    sub(BASE, NF_CASE, ""),
+    sub(BASE, NF_CASE, "  - number: ABC-456\n    status: multiple\n    expect: {title: \"y\"}\n"),
+], ids=["ok_only", "ok_plus_multiple"])
+def test_not_found_case_required(text):
+    with pytest.raises(LoadError) as ei:
+        load_text(text, "base")
+    assert (ei.value.reason, ei.value.field_path) == ("missing_not_found_case", "tests")
+
+
+def test_yaml_syntax_reports_one_based_line():
+    text = "id: base\nname: Base\nfields:\n  title: {css: h1}\n   cover: {css: h2}\n"
+    with pytest.raises(LoadError) as ei:
+        load_text(text, "base")
+    assert ei.value.reason == "yaml_syntax" and ei.value.line == 5
+    with pytest.raises(LoadError) as ei:
+        load_text(sub(BASE, "id: base", "id: Bad_ID"), "Bad_ID")
+    assert ei.value.reason == "bad_id" and ei.value.line is None
+
+
+def test_load_bytes_too_large():
+    pad = MAX_BYTES - len(BASE.encode("utf-8")) - 2
+    exact = (BASE + "#" + "a" * pad + "\n").encode("utf-8")
+    assert len(exact) == MAX_BYTES
+    assert load_bytes(exact, "base")[0].id == "base"
+    with pytest.raises(LoadError) as ei:
+        load_bytes(exact + b"#", "base")
+    assert ei.value.reason == "too_large"
+
+
+@pytest.mark.parametrize("bad_id, reason", [
+    ("../x", "bad_id"), ("auto", "reserved_id"), ('"a\\n"', "bad_id"),
+])
+def test_load_uploaded_rejects_untrusted_id(bad_id, reason):
+    with pytest.raises(LoadError) as ei:
+        load_uploaded(sub(BASE, "id: base", f"id: {bad_id}"))
+    assert ei.value.reason == reason
+
+
+def test_load_uploaded_takes_id_from_yaml_without_filename():
+    spec = load_uploaded(BASE)
+    assert spec.id == "base" and spec == load_text(BASE, "base")
+    with pytest.raises(LoadError) as ei:
+        load_uploaded(sub(BASE, NF_CASE, ""))
+    assert ei.value.reason == "missing_not_found_case"
+
+
+def test_load_bytes_sha256_is_of_raw_bytes():
+    raw = b"\xef\xbb\xbf" + BASE.replace("\n", "\r\n").encode("utf-8")
+    spec, digest = load_bytes(raw, "base")
+    assert spec.id == "base" and digest == hashlib.sha256(raw).hexdigest()
+
+
+def test_id_re_is_public_and_fullmatch_only():
+    assert not hasattr(schema, "_" + "ID_RE")
+    assert ID_RE.fullmatch("a-b1") and not ID_RE.fullmatch("a\n") and not ID_RE.fullmatch("A_b")
+
+
+# ---- T15：number_pattern 選填（缺席或 null＝任何非空番號都接受）
+NO_PATTERN = sub(BASE, "number_pattern: 'ABC-\\d+'\n", "")
+NULL_PATTERN = sub(BASE, "number_pattern: 'ABC-\\d+'", "number_pattern:")
+
+
+@pytest.mark.parametrize("text", [NO_PATTERN, NULL_PATTERN], ids=["absent", "null"])
+def test_number_pattern_optional(text):
+    assert load_text(text, "base").number_pattern is None
+
+
+def test_no_pattern_tests_numbers_not_blocked():
+    text = sub(NO_PATTERN, "number: ABC-123", "number: DA003")
+    assert load_text(text, "base").tests[0].number == "DA003"
+
+
+def test_pattern_given_still_validated():
+    with pytest.raises(LoadError) as e:
+        load_text(sub(BASE, "number: ABC-123", "number: DA003"), "base")
+    assert e.value.reason == "bad_pattern"

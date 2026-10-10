@@ -37,8 +37,6 @@ tools/
 *.html
 !web/templates/*.html
 !web/templates/**/*.html
-!tests/fixtures/scrapers/*.html
-!tests/fixtures/custom_sources/**/*.html
 failure_report.txt
 
 # Windows

@@ -17,7 +17,10 @@ parser 的那一刻，這批測試是因為餵的是舊結構而轉紅，第一�
 - `a61d77d6` jav321 空 `col-md-12` 佔位 → Codex 讀**真 fixture** 抓到
 - `7ce9255d` javbus `&type=1` → 三方實證 ＋ live
 
-因此本目錄**不再收任何真站 HTML / JSON**。站台健康度改由 owner 手動跑的活站 canary
+因此本目錄**不再收任何真站 HTML / JSON**。2026-10-10 刪掉最後一批（157 的 `xcity_*.html` 4 份、
+164 的 `tests/fixtures/custom_sources/*.html` 11 份），`.gitignore` 也拿掉了對本目錄 `*.html` 的
+例外——`tests/` 下的 HTML 預設不進版控，要加就得改 `.gitignore`，review 看得到。
+剩下的 `dmm_crawl_groups.json` 驗的是**我們出貨的** DMM 對照表，不是站方結構。站台健康度改由 owner 手動跑的活站 canary
 承擔；爬蟲層在 CI 的自動覆蓋只留檔名／dispatcher／聚合層／契約守衛。
 
 `core/scrapers/fc2_javten.py`（來源 id `fc-javten`）與 `javlibrary` 另有 CF 擋在前面

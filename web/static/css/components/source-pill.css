@@ -146,7 +146,9 @@
     cursor: pointer;
 }
 
-.source-pill-mt-badge {
+/* 165-T9：自訂來源 `c` 角標，與 m 角標同形。 */
+.source-pill-mt-badge,
+.source-pill-custom-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;

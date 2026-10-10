@@ -1,14 +1,13 @@
 """自訂來源 T4：五種變換與欄位型別層（純函式、全離線）。"""
 import re
-from pathlib import Path
 
 import pytest
 
 from core.custom_source import schema
 from core.custom_source.extract import extract_fields, parse_html
 from core.custom_source.transforms import apply_transforms, round_half_up
+from tests.unit._custom_source_pages import FIXTURE_DIR, PAGES
 
-FIX = Path(__file__).resolve().parents[1] / "fixtures" / "custom_sources"
 BASE = "https://site.example/a/b/page.html"
 
 
@@ -175,13 +174,13 @@ def test_only_declared_fields_and_accepts_soup():
 
 
 @pytest.mark.parametrize("spec_id,page", [
-    ("single-og", "single-og.html"), ("single-og-min", "single-og-min.html"),
-    ("two-step", "two-step-detail-a.html"), ("fuzzy", "fuzzy-detail.html"),
-    ("text", "text-detail.html"),
+    ("single-og", "single-og"), ("single-og-min", "single-og-min"),
+    ("two-step", "two-step-detail-a"), ("fuzzy", "fuzzy-detail"),
+    ("text", "text-detail"),
 ])
 def test_fixtures_shapes(spec_id, page):
-    spec = schema.load_file(FIX / f"{spec_id}.yaml")
-    html = (FIX / page).read_text(encoding="utf-8")
+    spec = schema.load_file(FIXTURE_DIR / f"{spec_id}.yaml")
+    html = PAGES[page]
     out = extract_fields(html, f"https://{spec_id}.example/x", spec.fields)
     assert set(out) == {f.name for f in spec.fields}
     assert out["cover"].startswith("http")

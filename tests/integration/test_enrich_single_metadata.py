@@ -615,7 +615,7 @@ class TestEnrichSingleMetadataIntegration:
         })
 
         assert response.status_code == 400
-        assert "metadata 與 javlibrary 明細網址（detail_url）不可同時提供" in response.json()["detail"]
+        assert "metadata 與 javlibrary／自訂來源明細網址（detail_url）不可同時提供" in response.json()["detail"]
 
     def test_readonly_ingest_with_metadata_raises_400(self, client, mocker):
         """明確宣告 readonly_action="ingest" 又帶 metadata 才是 400（D-151b-2 保留的例外）。

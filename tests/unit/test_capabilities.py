@@ -66,6 +66,10 @@ EXPECTED_TOOL_NAMES = {
     "favorite_actress",
     "get_actress",
     "unfavorite_actress",
+    "custom_source_upload",
+    "custom_source_verify",
+    "custom_sources_list",
+    "custom_source_remove",
     "list_actresses",
     "list_library_actresses",
     "alias_crud_read",
@@ -135,7 +139,7 @@ class TestCapabilitiesEndpoint:
 
     def test_tools_count_is_40(self, client):
         data = client.get("/api/capabilities").json()
-        assert len(data["tools"]) == 44
+        assert len(data["tools"]) == 48
 
     def test_all_tool_names_present(self, client):
         data = client.get("/api/capabilities").json()

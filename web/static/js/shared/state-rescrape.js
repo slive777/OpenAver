@@ -83,6 +83,10 @@ export function rescrapeState() {
         rescrapePreview: null,             // transient（CD-62-2）
         rescrapeNotFound: false,
         rescrapeAccessError: null,         // {kind: 'refused'|'unreachable', source} | null；與 rescrapeNotFound 互斥
+        rescrapeCustomError: null,         // {kind: 'not_found'|'parse_empty'|'refused', source, message} | null；與前兩者互斥
+        rescrapeCustomApplicable: {},      // {[custom:<id>]: bool}；後端判斷，undefined＝請求未回（一律可點）
+        rescrapeCustomApplicableGen: 0,    // 旁支 fetch 世代（FE-TIMING-08）
+        rescrapeCustomDebounce: null,      // 番號輸入停手 300ms 計時器
         rescrapeCandidates: [],            // CD-86-6：多版本候選陣列；單版本/非 javlib 為 []
         rescrapeVersionIdx: 0,             // 當前 preview 游標
         rescrapeCfWaiting: false,          // 70-T6: CF 等待態（polling 中）
@@ -112,11 +116,14 @@ export function rescrapeState() {
             this.rescrapeCandidates = [];
             this.rescrapeVersionIdx = 0;
             this.rescrapeLoadingSource = null;
-            this.rescrapeNotFound = false;
-            this.rescrapeAccessError = null;
+            this._clearRescrapeErrors();
             this.rescrapePreserveTitle = true;
             this._rescrapeVideo = video;
             this._switchTarget = null;     // 62c-3：每次開窗先清；switch-source 入口由 openSwitchSourcePicker 隨後捕捉
+            this.rescrapeCustomApplicable = {};
+            // search 入口是 openRescrape(null,'search'); rescrapeNumber = …（番號在回傳之後才寫）⇒
+            // 讀番號延到 microtask：不變式＝請求的 number 是開窗同步 tick 結束後的 rescrapeNumber。
+            Promise.resolve().then(() => this.refreshRescrapeCustomApplicable());
         },
 
         /**
@@ -175,6 +182,64 @@ export function rescrapeState() {
         },
 
         /**
+         * 自訂來源 pill 清單（method 非 getter）。膠囊出現與否只看 routable（已通過驗收且啟用）。
+         */
+        rescrapeCustomSources() {
+            return this.rescrapeSources
+                .filter(s => s.type === 'custom' && s.routable === true)
+                .sort((a, b) => (a.order - b.order));
+        },
+
+        /**
+         * 向後端問「這個番號哪些自訂來源收」。判斷全在後端，JS 不鏡像 number_pattern（BE-TEST-14）。
+         * 零自訂來源／空白番號不送請求；失敗視同未回（全部可點）。世代守衛丟棄過期回應。
+         */
+        async refreshRescrapeCustomApplicable() {
+            const gen = ++this.rescrapeCustomApplicableGen;
+            const number = (this.rescrapeNumber || '').trim();
+            if (this.rescrapeCustomSources().length === 0 || !number) {
+                this.rescrapeCustomApplicable = {};
+                return;
+            }
+            let map = {};
+            try {
+                const resp = await fetch('/api/custom-sources/applicable', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ number: number }),
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data && data.success && data.applicable && typeof data.applicable === 'object') {
+                        map = { ...data.applicable };
+                    }
+                }
+            } catch (e) {
+                map = {};
+            }
+            if (gen !== this.rescrapeCustomApplicableGen) return;
+            this.rescrapeCustomApplicable = map;
+        },
+
+        /** 番號框 @input：取消 CF poll、清三錯誤、300ms 後刷新 applicable。 */
+        onRescrapeNumberInput() {
+            this._clearRescrapeErrors();
+            if (this.rescrapeCfWaiting) this.cancelCfPoll();
+            if (this.rescrapeCustomDebounce !== null) clearTimeout(this.rescrapeCustomDebounce);
+            this.rescrapeCustomDebounce = setTimeout(() => {
+                this.rescrapeCustomDebounce = null;
+                this.refreshRescrapeCustomApplicable();
+            }, 300);
+        },
+
+        /** 三種失敗狀態互斥：任何時刻至多一個為真值。 */
+        _clearRescrapeErrors() {
+            this.rescrapeNotFound = false;
+            this.rescrapeAccessError = null;
+            this.rescrapeCustomError = null;
+        },
+
+        /**
          * 118a-T9：這個 CF 來源在這台機器上有沒有活著的驗證視窗。
          *
          * cf_sites（per-site，T9 起）優先；不是陣列時 fall back 到 cf_transport_available
@@ -225,14 +290,37 @@ export function rescrapeState() {
          * 預覽失敗落點：後端標了被拒／連不到 → 紅字區塊；其餘（含未知字串）→ 找不到。兩者互斥。
          */
         _applyRescrapeFailure(data, sourceId) {
+            const ce = data && data.custom_error;
+            if (ce === 'not_found' || ce === 'parse_empty' || ce === 'refused') {
+                this._clearRescrapeErrors();
+                this.rescrapeCustomError = { kind: ce, source: data.source || sourceId, message: data.error || '' };
+                return;
+            }
             const kind = data && data.access_error;
             if (kind === 'refused' || kind === 'unreachable') {
-                this.rescrapeNotFound = false;
+                this._clearRescrapeErrors();
                 this.rescrapeAccessError = { kind: kind, source: data.source || sourceId };
                 return;
             }
-            this.rescrapeAccessError = null;
+            this._clearRescrapeErrors();
             this.rescrapeNotFound = true;
+        },
+
+        /**
+         * 自訂來源失敗句（靜態 window.t 字面）。refused 顯示後端已產好的中文句，空才 fallback。
+         */
+        rescrapeCustomMessage(err) {
+            if (!err) return '';
+            if (err.kind === 'not_found') {
+                return window.t('showcase.rescrape.custom_not_found', { source: this._resolveSourceName(err.source) });
+            }
+            if (err.kind === 'parse_empty') {
+                return window.t('showcase.rescrape.custom_parse_failed', { source: this._resolveSourceName(err.source) });
+            }
+            if (err.kind === 'refused') {
+                return err.message || window.t('showcase.rescrape.custom_refused', { source: this._resolveSourceName(err.source) });
+            }
+            return '';
         },
 
         /**
@@ -264,7 +352,9 @@ export function rescrapeState() {
         async rescrapeWithSource(sourceId) {
             if (this.rescrapeLoadingSource !== null) return;          // 連點防護
             if (this.rescrapeCfWaiting) return;                       // 等待態不可重入（防 re-entry + UX）
-            if (!this.rescrapeNumber.trim()) { this.rescrapeAccessError = null; this.rescrapeNotFound = true; return; }
+            // 番號格式不符的自訂來源：不送請求（undefined＝請求未回，可點）
+            if (this.rescrapeCustomApplicable[sourceId] === false) return;
+            if (!this.rescrapeNumber.trim()) { this._clearRescrapeErrors(); this.rescrapeNotFound = true; return; }
             // Search 入口（62c-1）：無預覽卡，繞過 /api/rescrape/preview，直接走 B1 advancedSearch
             // 整包贏（GET /api/search?...&source=），結果進正常結果區，彈窗關閉（spec US5）。
             // CD-86-8 / T4：manual_only（javlibrary / fc-javten）不早 return，繼續走 fetch preview。
@@ -290,8 +380,7 @@ export function rescrapeState() {
                 await this.switchSource();
                 return;
             }
-            this.rescrapeNotFound = false;
-            this.rescrapeAccessError = null;
+            this._clearRescrapeErrors();
             this.rescrapeLoadingSource = sourceId;
             try {
                 const resp = await fetch('/api/rescrape/preview', {
@@ -412,7 +501,7 @@ export function rescrapeState() {
                     this._applyRescrapeFailure(data, sourceId);
                 }
             } catch (e) {
-                this.rescrapeAccessError = null;
+                this._clearRescrapeErrors();
                 this.rescrapeNotFound = true;
             } finally {
                 this.rescrapeLoadingSource = null;
@@ -456,8 +545,7 @@ export function rescrapeState() {
             this.rescrapePreview = null;
             this.rescrapeCandidates = [];
             this.rescrapeVersionIdx = 0;
-            this.rescrapeNotFound = false;
-            this.rescrapeAccessError = null;
+            this._clearRescrapeErrors();
         },
 
         /**
@@ -650,13 +738,18 @@ export function rescrapeState() {
                 this.rescrapeCfWaiting = false;
             }
             this._cfPollSourceId = null;
+            if (this.rescrapeCustomDebounce !== null) {
+                clearTimeout(this.rescrapeCustomDebounce);
+                this.rescrapeCustomDebounce = null;
+            }
+            this.rescrapeCustomApplicableGen++;
+            this.rescrapeCustomApplicable = {};
             this.rescrapeOpen = false;
             this.rescrapeStep = 'pick';
             this.rescrapePreview = null;
             this.rescrapeCandidates = [];
             this.rescrapeVersionIdx = 0;
-            this.rescrapeNotFound = false;
-            this.rescrapeAccessError = null;
+            this._clearRescrapeErrors();
             this.rescrapeLoadingSource = null;
             this._switchTarget = null;     // 62c-3：關窗清掉捕捉的 slot（switch-source 入口）
         },

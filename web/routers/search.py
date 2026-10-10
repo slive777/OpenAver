@@ -42,6 +42,7 @@ from core.image_host_policy import (
 )
 from core.maker_mapping import load_prefix_mapping
 from core.source_config import validate_source_id
+from web.routers._custom_gate import refusal_for # noqa: PLC2701 — 卡片指定的 web 內部底線模組（165-T7b），同 router 層共用 gate 句表，尚未升格為公開名
 from core.source_settings import get_switchable_source_ids_ordered, is_uncensored_mode_effective
 from core.auto_organize_state import mark_manual_activity, request_abort, get_status
 from core.config import load_config, mutate_config
@@ -61,6 +62,17 @@ router = APIRouter(prefix="/api", tags=["search"])
 _MAKER_MAPPING = load_prefix_mapping()
 
 
+def _image_verdict(url: str):
+    """問 `proxy_verdict()` 一次並在拒絕時記 log；回傳 verdict 本體（帶 custom_source 旗標）。"""
+    verdict = proxy_verdict(url)
+    if not verdict.allowed:
+        logger.warning(
+            "proxy_image 拒絕: host=%s scheme=%s 原因=%s",
+            verdict.host, verdict.scheme, verdict.reason,
+        )
+    return verdict
+
+
 def _is_allowed_image_url(url: str) -> bool:
     """判準本體已搬到 `core/image_host_policy.proxy_verdict()`（132b review round-2）。
 
@@ -70,14 +82,7 @@ def _is_allowed_image_url(url: str) -> bool:
 
     本函式現在只剩 log——403 的原因字串仍由這裡輸出，格式不變。
     """
-    verdict = proxy_verdict(url)
-    if verdict.allowed:
-        return True
-    logger.warning(
-        "proxy_image 拒絕: host=%s scheme=%s 原因=%s",
-        verdict.host, verdict.scheme, verdict.reason,
-    )
-    return False
+    return _image_verdict(url).allowed
 
 
 @router.get("/proxy-image")
@@ -85,7 +90,8 @@ def proxy_image(url: str = Query(..., description="圖片 URL")):
     """
     圖片代理 - 解決防盜鏈問題
     """
-    if not _is_allowed_image_url(url):
+    verdict = _image_verdict(url)
+    if not verdict.allowed:
         return Response(status_code=403)
     try:
         # 根據 URL 設置對應的 Referer
@@ -118,6 +124,20 @@ def proxy_image(url: str = Query(..., description="圖片 URL")):
             )
         elif resp.status_code == 200:
             host = (urlparse(url).hostname or "").lower()
+            if verdict.custom_source:
+                # 自訂來源站台只准轉送圖片：上游回 HTML／JSON 等一律不轉。
+                ctype = resp.headers.get("Content-Type", "")
+                # 只轉送常見點陣圖（不含 svg：可內嵌 script）。
+                if ctype.split(";")[0].strip().lower() not in (
+                    "image/jpeg", "image/png", "image/webp", "image/gif", "image/avif",
+                ):
+                    logger.warning("proxy_image 拒絕: host=%s 原因=自訂來源回應非圖片", host)
+                    return Response(status_code=403)
+                return Response(
+                    content=resp.content,
+                    media_type=ctype,
+                    headers={"Cache-Control": "public, max-age=86400"},
+                )
             # 沒標 codec 的 host（既有 28 筆全部）走原路：內容與標頭逐位元不變。
             # 範圍為什麼不擴到全部 host，見 core/organizer.py 同一處的註解。
             if codec_for_host(host) is None:
@@ -215,8 +235,15 @@ def search(
         if source:
             # 指定來源搜索
             from core.scraper import search_jav_single_source, access_error_info
-            from core.scrapers.errors import SourceBlocked, SourceUnreachable
+            from core.scrapers.errors import SourceBlocked, SourceParseEmpty, SourceUnreachable
             from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
+            if source.startswith('custom:'):
+                refused = refusal_for(source, q)
+                if refused:
+                    return JSONResponse(status_code=400, content={
+                        "success": False, "error": refused[1],
+                        "reason": "custom_source_refused", "custom_reason": refused[0],
+                    })
             try:
                 data = search_jav_single_source(
                     q, source, surface_access_errors=True,
@@ -242,6 +269,20 @@ def search(
                 return {
                     "success": False,
                     "error": "JavLibrary 僅限桌面應用程式（standalone）使用",
+                    "data": [],
+                    "total": 0,
+                    "mode": "exact",
+                    "has_more": False,
+                    "actress_profile": None,
+                }
+            except SourceParseEmpty:
+                from web.routers._custom_preview import parse_empty_text  # noqa: PLC2701 — 卡片指定的 web 內部底線模組（165-T7b）；lazy import 以免 import 時載入 core.custom_source*（AC-165-8）
+                logger.warning("search: parse_empty source=%s q=%s", source, q)
+                return {
+                    "success": False,
+                    "error": parse_empty_text(source),
+                    "custom_error": "parse_empty",
+                    "source": source,
                     "data": [],
                     "total": 0,
                     "mode": "exact",

@@ -14,6 +14,6 @@ fields:
   duration: {meta: "og:video:duration", then: [{div: 60}]}
 tests:
   - number: SONE-205
-    expect: {number: SONE-205, title_contains: "好心說不喜歡", cover: "https://fourhoi.com/sone-205/cover-n.jpg", tags_include: ["美少女", "按摩"], tags_max: 12}
+    expect: {number: SONE-205, title_contains: "Sample Title One", cover: "https://img.example/sone-205/cover.jpg", tags_include: ["GenreA", "GenreB"], tags_max: 12}
   - number: ZZZZ-999
     status: not_found

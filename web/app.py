@@ -278,6 +278,7 @@ from web.routers import access as access_router
 from web.routers import wishlist as wishlist_router
 from web.routers import insights as insights_router
 from web.routers import source_probe as source_probe_router
+from web.routers import custom_sources as custom_sources_router
 # Module-level imports for startup_reconnect / _fire_probe so that
 # patch("web.app.startup_reconnect") / patch("web.app._fire_probe") target the
 # correct use-site binding (TASK-63e-1; function-local import would defeat patch).
@@ -313,6 +314,7 @@ app.include_router(access_router.router)
 app.include_router(wishlist_router.router)
 app.include_router(insights_router.router)
 app.include_router(source_probe_router.router)
+app.include_router(custom_sources_router.router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -625,6 +627,19 @@ def get_common_context(request: Request) -> dict:
         else:
             _src['routable'] = True
             _src['available'] = True
+    # 165-T7c：自訂來源只在讀取邊界合成（CD-165-2）——不進持久化 config.sources。
+    # 一律賦新 list（不 append/extend 原 list）；零自訂時追加為空、輸出與升級前相同。
+    from core.custom_source.views import custom_source_views
+    _custom_views = custom_source_views()
+    _custom_entries = [
+        v.config.model_dump() | {
+            'routable': v.routable,
+            'available': True,
+            'custom_status': v.status,
+        }
+        for v in _custom_views
+    ]
+    config['sources'] = list(config.get('sources') or []) + _custom_entries
     # 70-T5：cf_transport_available — standalone 已 register → true；dev/server → false
     from core.cf_transport import get_cf_transport as _get_cf_transport
     _cf_transport_available = _get_cf_transport() is not None

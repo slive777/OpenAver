@@ -12,6 +12,6 @@ fields:
   tags:    {css: ".content-details__meta a", all: true}
 tests:
   - number: FC2-2439990
-    expect: {number: FC2-2439990, title_contains: "一字鮑", cover: "https://cdn1.ppp.porn/contents/videos_screenshots/1000/1549/preview.m3u8.jpg", tags_include: ["日本", "學生"], tags_max: 10}
+    expect: {number: FC2-2439990, title_contains: "Sample Title Text", cover: "https://img.example/text/preview.jpg", tags_include: ["TagA", "TagB"], tags_max: 10}
   - number: FC2-9999999
     status: not_found

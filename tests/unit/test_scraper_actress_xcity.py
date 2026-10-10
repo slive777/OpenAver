@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -11,11 +10,14 @@ from core.scrapers.actress.xcity import (
 )
 
 
-FIXTURES = Path(__file__).parent.parent / "fixtures" / "scrapers"
-
-
-def _fixture(filename):
-    return (FIXTURES / filename).open(encoding="utf-8").read()
+# 搜尋結果頁的最小合成頁：只放 _find_exact_match 會讀的 <a href title>，
+# 含部分相符的姓名與非詳情頁連結，驗的是「只挑完全同名」這條我們自己的規則。
+SEARCH_TSUBOMI = (
+    '<a href="/idol/detail/21862/" title="望月つぼみ">望月つぼみ</a>'
+    '<a href="/idol/?q=つぼみ" title="つぼみ">次のページ</a>'
+    '<a href="/idol/detail/1419/" title="つぼみ">つぼみ</a>'
+    '<a href="/idol/detail/11788/" title="鮎川つぼみ">鮎川つぼみ</a>'
+)
 
 
 def _detail(*rows):
@@ -35,42 +37,21 @@ def _detail_with_photo(photo_src, *rows):
     )
 
 
-def test_parse_xcity_detail_real_fixture_fields():
-    result = _parse_xcity_detail_html(_fixture("xcity_辰巳ゆい.html"), "辰巳ゆい")
-    assert result is not None
-    assert {key: result.get(key) for key in (
-        "birth", "blood", "hometown", "height", "bust", "cup", "waist", "hip",
-        "hobby", "photo_url",
-    )} == {
-        "birth": "1984-06-08",
-        "blood": "B型",
-        "hometown": "岐阜県",
-        "height": "168cm",
-        "bust": "88cm",
-        "cup": "F",
-        "waist": "60cm",
-        "hip": "89cm",
-        "hobby": "ショッピング、車庫入れ",
-        "photo_url": "https://faws.xcity.jp/actress/large/image/person/501.jpg",
-    }
-    assert "favorite" not in result
-
-
 @pytest.mark.parametrize("html", [
-    _fixture("xcity_delisted.html"),
+    "<html><body><p>not found</p></body></html>",
     '<div id="avidolDetails"><h1>  </h1></div>',
 ], ids=["missing_details", "empty_heading"])
 def test_parse_xcity_detail_returns_none_when_delisted(html):
     assert _parse_xcity_detail_html(html, "試験女優") is None
 
 
-def test_parse_xcity_detail_real_noimage_fixture_returns_none():
+def test_parse_xcity_detail_noimage_only_returns_none():
     """TASK-157-F1: idol 11000（白玉あん）實測 — 頁面存在但全部欄位空白，
     僅有共用的 noimage.gif 佔位圖。過濾佔位圖後 name_ja 以外一無所有，
     視同沒找到，讓 orchestrator 的 any(sources.values()) 判斷不被這種
     空殼字典擋住，add_favorite 的本地封面裁圖 fallback（TASK-122-T10）才跑得到。"""
-    result = _parse_xcity_detail_html(_fixture("xcity_noimage.html"), "白玉あん")
-    assert result is None
+    html = _detail_with_photo("//faws.xcity.jp/actress/large/image/noimage.gif", ("出身地", ""))
+    assert _parse_xcity_detail_html(html, "白玉あん") is None
 
 
 def test_parse_xcity_detail_noimage_with_one_real_field_keeps_dict_without_photo():
@@ -118,7 +99,7 @@ def test_parse_xcity_detail_real_photo_no_text_fields_still_kept():
     ("存在しない女優", None),
 ])
 def test_find_exact_match_returns_exact_candidate_only(name, expected):
-    assert _find_exact_match(_fixture("xcity_search_つぼみ.html"), name) == expected
+    assert _find_exact_match(SEARCH_TSUBOMI, name) == expected
 
 
 def test_find_exact_match_no_candidates():
@@ -182,7 +163,7 @@ def test_scrape_xcity_search_request_failure_returns_none(failure):
 
 @pytest.mark.parametrize("failure", [requests.Timeout("timeout"), requests.RequestException("network")])
 def test_scrape_xcity_detail_request_failure_returns_none(failure):
-    search = Mock(status_code=200, text=_fixture("xcity_search_つぼみ.html"))
+    search = Mock(status_code=200, text=SEARCH_TSUBOMI)
     with patch("core.scrapers.actress.xcity.requests.get", side_effect=[search, failure]):
         assert scrape_xcity("つぼみ") is None
 
@@ -195,7 +176,7 @@ def test_scrape_xcity_search_miss_skips_detail_request():
 
 
 def test_scrape_xcity_fetches_exact_candidate_detail():
-    search = Mock(status_code=200, text=_fixture("xcity_search_つぼみ.html"))
+    search = Mock(status_code=200, text=SEARCH_TSUBOMI)
     detail = Mock(status_code=200, text=_detail(("身長", "160cm")))
     with patch("core.scrapers.actress.xcity.requests.get", side_effect=[search, detail]) as get:
         assert scrape_xcity("つぼみ")["height"] == "160cm"

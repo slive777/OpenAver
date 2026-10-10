@@ -14,4 +14,6 @@ fields:
 tests:
   - number: SONE-205
     status: multiple
-    expect: {number: SONE-205, title_contains: "部活少女", tags_include: ["按摩"], tags_max: 15}
+    expect: {number: SONE-205, title_contains: "Sample Title Two", tags_include: ["TagA"], tags_max: 15}
+  - number: ZZZZ-999
+    status: not_found

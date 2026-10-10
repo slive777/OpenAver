@@ -25,7 +25,7 @@
 | `id` | 字串 | 是 | 只能用小寫英文字母、數字與連字號，第一個字元必須是英文字母或數字（不可以連字號開頭），總長 1–32 字，必須等於檔名（不含副檔名），不可與內建來源名稱衝突 |
 | `name` | 字串 | 是 | 顯示名稱，1–40 字，不可含控制字元 |
 | `fetch` | 字串 | 是 | `plain` 或 `tls`，見 §7 |
-| `number_pattern` | 字串（regex） | 是 | 標準化後的番號必須完整符合這個 regex，否則此來源直接略過該番號；最長 200 字 |
+| `number_pattern` | 字串（regex） | 否 | 有寫時，標準化後的番號必須完整符合這個 regex，否則此來源直接略過該番號；最長 200 字。**沒寫（或寫成 `number_pattern:` 留空）＝不限制，任何非空番號都收**。番號沒有固定規則的站（例如國產片）不要寫這個欄位；寫了空字串 `''` 不算不限制，會讓所有番號都不符 |
 | `steps` | list | 是 | 1 段（單段式）或 2 段（兩段式） |
 | `fields` | mapping | 是 | 欄位宣告，至少要有 `title` 或 `cover` |
 | `tests` | list | 是 | 驗收案例，見 §8 |
@@ -67,6 +67,8 @@
 
 只有 `steps[].url` 內的代入值會做 URL 編碼；`keep_if_contains` 的代入值不編碼。大括號必須成對，寫了其他占位符會被拒（reason `bad_template`）。
 
+番號會先被標準化：純字母前綴會補連字號（`MD0318` 變 `MD-0318`、`DA003` 變 `DA-003`），數字開頭的前綴不補（`91cm001` 變 `91CM001`）；單一字母加恰好四位數字也不補（`N0762` 維持 `N0762`）。站上的番號沒有連字號時，網址模板不要用 `{number}`，改用 `{number_digits}` 自己組（例如 `https://site.example/MD{number_digits}`），或搭配 `keep_if_contains` 比對。
+
 `keep_if_contains` 的比對規則：比對連結的 href 與連結文字，不分大小寫；命中的字串以數字開頭時，命中處前一個字元不能是數字，以英文字母開頭時，前一個字元不能是英文字母（中日文等其他文字不算，所以標題「中文字幕SONE-205」仍會命中）；兩種情況命中處後一個字元都不能是數字。所以 `SONE-20` 不會命中 `sone-205`，`243999` 不會命中 `fc2ppv2439990`，但 `SONE-205` 仍會命中 `sone-205c`。
 
 ## 4. 變換表
@@ -94,7 +96,7 @@
 
 ## 6. `not_found` 三判準與結果形狀
 
-抓一個番號的結果只有幾種：`ok`（一筆）、`multiple`（多個版本）、`not_found`（查無）、錯誤，以及番號不符 `number_pattern` 時的略過。
+抓一個番號的結果只有幾種：`ok`（一筆）、`multiple`（多個版本）、`not_found`（查無）、錯誤，以及（有寫 `number_pattern` 時）番號不符 `number_pattern` 的略過。
 
 判定 `not_found` 的三個情況：
 
@@ -125,10 +127,11 @@
 | `bad_id` | `id` 含大寫、底線等不允許的字元、以連字號開頭或超過 32 字；改名 |
 | `reserved_id` | `id` 與內建來源名稱衝突；換一個 |
 | `id_filename_mismatch` | `id` 不等於檔名；兩者改成一致 |
-| `bad_pattern` | regex 無法編譯、過長或沒有 capture group；或 `tests` 的番號不符 `number_pattern` |
+| `bad_pattern` | regex 無法編譯、過長或沒有 capture group；或有寫 `number_pattern` 時，`tests` 的番號不符它 |
 | `bad_template` | URL 模板有不支援的占位符、大括號不成對、主機名稱含占位符，或指向 IP／本機；見 §3、§12 |
 | `bad_selector` | CSS selector 語法錯誤 |
 | `missing_negative_assert` | `tests` 沒有任何負向斷言；見 §8 |
+| `missing_not_found_case` | `tests` 沒有任何一案 `status: not_found`；見 §8 |
 | `fetch_cf_unsupported` | 寫了 `fetch: cf`；此版不支援，見 §7 |
 | `unknown_fetch` | `fetch` 不是 `plain` 或 `tls` |
 | `unknown_transform` | `then` 裡出現未知的變換名；對照 §4 |
@@ -146,7 +149,8 @@
 
 `tests` 是一串案例，每個案例的鍵只有 `number`、`status`、`expect`：
 
-- `number`：真實存在的番號，必須符合自己的 `number_pattern`。
+- `number`：真實存在的番號；有寫 `number_pattern` 時必須符合它。
+  從頁面抽出的 `number` 欄位在比對前也會先被標準化（同 §3 的規則），所以 `expect.number` 要寫標準化後的形狀（如 `MD-0318`、`91CM001`），不是站上顯示的原樣。
 - `status`：`ok`（預設）、`multiple`（預期多版本）、`not_found`（預期查無，不需 `expect`）。
 - `expect`：對抽到的欄位下斷言。鍵是欄位名，加上後綴表示斷言種類：
 
@@ -158,7 +162,7 @@
 | `tags_exclude`（後綴 `_exclude`） | list 欄位不得含這些值（負向）；值須為非空字串 list，只能用在 list 欄位 |
 | `tags_max`（後綴 `_max`） | list 欄位長度不得超過此整數（負向）；值須為非負整數，只能用在 list 欄位 |
 
-規則：每個 `ok`／`multiple` 案例至少一項正向斷言；整份 `tests` 至少要有一項負向斷言（`_exclude` 或 `_max`，只計 `ok`／`multiple` 案例），否則被拒（reason `missing_negative_assert`）。理由：selector 沒限定到內容容器時，常會把導覽列、推薦區的連結一起抓進 `tags`，標籤暴增卻不會讓正向斷言失敗；`tags_max` 能擋住這種「看起來有抽到、其實抽太多」的情況。
+規則：每個 `ok`／`multiple` 案例至少一項正向斷言；整份 `tests` 至少要有一項負向斷言（`_exclude` 或 `_max`，只計 `ok`／`multiple` 案例），否則被拒（reason `missing_negative_assert`）。整份 `tests` 也至少要有一案 `status: not_found`（用一個站上不存在的番號），否則被拒（reason `missing_not_found_case`）；理由：有些站對查無的番號照樣回 200，沒有查無案就驗不出這種軟 404。理由：selector 沒限定到內容容器時，常會把導覽列、推薦區的連結一起抓進 `tags`，標籤暴增卻不會讓正向斷言失敗；`tags_max` 能擋住這種「看起來有抽到、其實抽太多」的情況。
 
 ### 執行階段的錯誤 reason
 
@@ -241,7 +245,7 @@ tests:
 4. **判斷單段或兩段**：網址能由番號直接組出詳情頁就用單段式；要先搜尋再點進去就用兩段式，並寫 `results` 的過濾條件，且第 2 段寫 `- {}`。
 5. **決定 `fetch`**：先 `plain`，被擋再 `tls`（§7）。
 6. **寫 `tests`**：至少兩案，一個真實存在的番號（正向斷言加 `tags_max`）與一個不存在的番號（`status: not_found`）。
-7. **自我檢查**：`id` 等於檔名；`number_pattern` 能完整符合每個測試番號；`fields` 有 `title` 或 `cover`；`then` 的 regex 都有 capture group；沒有用到未知的鍵。載入被拒就對照 §6 的 reason 表修正。
+7. **自我檢查**：`id` 等於檔名；有寫 `number_pattern` 時它要能完整符合每個測試番號（沒寫就沒有這一項）；`fields` 有 `title` 或 `cover`；`then` 的 regex 都有 capture group；沒有用到未知的鍵。載入被拒就對照 §6 的 reason 表修正。
 8. 站方改版或查不到時不要硬湊：走 §11。
 
 ## 11. 表達不了的站
@@ -260,9 +264,111 @@ tests:
 4. **Windows 非 ASCII 路徑**：OpenAver 安裝路徑含非 ASCII 字元時，`fetch: tls` 模式可能無法建立 HTTPS 連線（CA 憑證路徑問題）→ 改用 `fetch: plain`，或把 OpenAver 裝在純英文路徑。
 5. **沒有番號的片不在範圍**：輸入契約就是番號（見 §1）。
 6. **文字編碼只看 HTTP 標頭**：解碼只依回應標頭的 `charset`（沒有就當 UTF-8），不讀 HTML 內的 `<meta charset>`；只在 `<meta>` 宣告 Shift_JIS 等編碼的站可能出現亂碼。
+7. **詳情頁在不同網域的站不支援**：詳情頁網域與搜尋頁／模板網域不同的站，驗收會失敗並說明原因（同站的 `www`／子網域不受影響）；此版不支援，見 §13「已知限制」。
 
 其他需要知道的：
 
 - 站改版會讓來源失效，需要自己重跑驗收並修正 selector。
 - `date` 取自站內欄位，不保證是發行日。
 - 查詢太頻繁時 IP 可能被站方封鎖。
+
+## 13. 上傳、驗收與狀態
+
+這一章給 AI：把寫好的 YAML 上傳、請求驗收、查狀態要打哪些端點，會遇到哪些錯誤碼，以及來源被實際使用前要滿足什麼。上傳不會啟用來源；**驗收通過的當下來源即自動啟用**（使用者仍可在設定頁關掉；同一份內容重新驗收不會把使用者關掉的再打開）。AI 沒有啟用端點，不需要也無法另外啟用。通過後請告訴使用者：「驗收通過即可用，請重新整理搜尋頁／瀏覽頁」（來源清單在頁面載入時注入，啟用後需重新整理才會出現）。
+
+### 端點
+
+下列四個是 AI 要用的端點（埠號 8000 為示意，桌面版實際埠號請依使用者環境）。上傳**一定要帶** `-H 'Content-Type: text/plain'`；用 `application/json` 會得到 422。
+
+上傳（成功回 `{success, id, source_id, status: 'unverified', replaced, next}`；靜態檢查不過回 400 `{success: false, reason, field_path, line, error}`，reason 見 §6）：
+
+```bash
+curl -X POST http://localhost:8000/api/custom-sources -H 'Content-Type: text/plain' --data-binary @my-source.yaml
+```
+
+驗收（會連網跑 `tests`，回 200 `{success, id, status, enabled, verified_at, total, failed, cases: [{index, number, passed, mismatches: [{key, expected, actual, url}]}]}`；`status` 為 `passed` 或 `failed`，`failed` 時照 `mismatches` 修 YAML 後重傳）：
+
+```bash
+curl -X POST http://localhost:8000/api/custom-sources/my-source/verify
+```
+
+列出（回 `{success, sources: [{id, source_id, name, status, enabled, verified_at, last_result, load_error}]}`）：
+
+```bash
+curl http://localhost:8000/api/custom-sources
+```
+
+移除（回 `{success, id}`）：
+
+```bash
+curl -X DELETE http://localhost:8000/api/custom-sources/my-source
+```
+
+另有 `POST /api/custom-sources/{id}/enabled` 與 `POST /api/custom-sources/applicable` 兩個端點，是設定頁與重刮視窗專用，AI 不需呼叫，也不在 capabilities。
+
+### 錯誤碼
+
+業務錯誤回 `{success: false, reason, error, ...}`；`error` 是給人看的中文句。
+
+| code | HTTP | 意思與處理 |
+|---|---|---|
+| `data_root_not_ready` | 409 | 資料根尚未就緒；請使用者先完成資料根設定 |
+| `not_loaded` | 404 | 找不到這個 id 的來源（或 id 格式不合法）；先用列出端點確認 |
+| `load_failed` | 409 | 這個來源的檔案現在載入失敗（回應附 `load_error`）；修好 YAML 後重傳 |
+| `verify_busy` | 409 | 全行程同一時間只能驗一個來源；回應附 `busy_id`，等它結束再試 |
+| `changed_during_verify` | 409 | 驗收期間這個來源被重傳或移除，結果已丟棄；請重新驗收 |
+| `not_passed` | 409 | 啟用時來源尚未通過驗收（僅設定頁會遇到，AI 不需處理） |
+| `yaml_syntax` | 400 | YAML 語法錯誤，包含檔案不是有效的 UTF-8；見 §6 |
+| 其餘載入被拒的 reason | 400 | 上傳時的靜態檢查失敗，reason 與修法見 §6「載入被拒的 reason」 |
+| 413 | 413 | 上傳內容超過 256 KiB；縮小後重傳 |
+| 422 | 422 | 用 `Content-Type: application/json` 送了上傳端點；改成 `text/plain` |
+
+### 狀態
+
+| 狀態 | 意思 |
+|---|---|
+| `unverified` | 尚未驗收：剛上傳、重傳過，或驗收紀錄與現在的檔案對不上 |
+| `verifying` | 正在驗收中 |
+| `passed` | 驗收通過 |
+| `failed` | 驗收沒有通過；照 `mismatches` 修正後重傳 |
+| `load_failed` | 檔案載入失敗（YAML 或 schema 錯誤） |
+
+狀態依序推導：`load_failed` → `verifying` → `unverified` → `passed`／`failed`。紀錄的檔案雜湊與現檔不符、或紀錄損壞，一律視為 `unverified`。驗收失敗必自動關閉該來源；驗收通過即啟用（首次、內容變更、失敗後恢復皆是），但同一份內容在已通過的狀態下重新驗收，會保留使用者手動關閉的狀態。重傳（含內容完全相同）一定把狀態重設為 `unverified` 並關閉。`enabled` 只在 `passed` 時有效。
+
+### 使用 custom:<id> 的條件
+
+`custom:<id>` 用在三處：`search`（`GET /api/search?source=custom:<id>`）、`enrich_single`（`POST /api/enrich-single`）、`rescrape`（`POST /api/rescrape/preview`）。**三個條件缺一就被拒**：已驗收通過、已啟用（驗收通過即啟用，使用者可在設定頁關掉）、番號符合該來源的 `number_pattern`（沒寫 `number_pattern` 的來源不限制番號，只要非空）。
+
+| reason | 意思 |
+|---|---|
+| `not_loaded` | 找不到這個自訂來源 |
+| `load_failed` | 這個自訂來源的檔案載入失敗，需到設定頁檢查 |
+| `verifying` | 正在驗收中，請稍後再試 |
+| `unverified` | 尚未通過驗收，請先驗收 |
+| `failed` | 驗收沒有通過（站方可能改版了），需重跑驗收 |
+| `disabled` | 來源已被關閉（使用者在設定頁關掉） |
+| `pattern_mismatch` | 這個番號不符合此來源接受的格式（只有寫了 `number_pattern` 的來源會出現） |
+
+三處被拒時的回應形狀：
+
+- `search`：HTTP 400 `{success: false, error, reason: 'custom_source_refused', custom_reason}`，`custom_reason` 是上表的 reason。
+- `enrich_single`：HTTP 400，`detail` 是中文句。
+- `rescrape`（preview）：HTTP 200 `{success: false, custom_error: 'refused', custom_reason, error}`。
+
+### 已知限制
+
+- 驗收每案預算 25 秒、整次預算 180 秒；期限只在每個請求開始前檢查，已開始的請求會等它結束，所以實際時間可能略超過；超過預算後尚未開始的案例記為 `error:timeout`；同一時間全行程只能驗一個來源，第二個會得到 `verify_busy`。
+- 用 `application/json` 上傳會得到 422。
+- 詳情頁與搜尋頁／模板網域不同的站，驗收即失敗（mismatch 的 key 為 `detail_host`）；AI 無法用 YAML 解決，走 §11 請使用者開 issue。
+- 網址內帶帳密（userinfo）的站，畫面、NFO 的 `<website>` 與從頁面抽出的網址（封面、劇照及其他欄位）都會去掉帳密（需要帳密才能下載圖片的站，圖片會抓不到；挑多版本確認時的重抓也會失敗）。
+- 封面圖片的網域必須是來源網站本身或其子網域（驗收通過且已啟用的來源才會放行）；封面放在另一個網域 CDN 的站，搜尋頁與重刮預覽的封面仍會載入失敗。
+- 自訂來源的封面圖片只會從公網位址代理（網域解析到本機或內網位址的一律不放行），而且只轉送常見點陣圖格式（不含 SVG）：站方回網頁、SVG 或其他內容時，封面會載入失敗。
+- 驗收通過只代表那幾案在當下通過；站方改版後要重跑驗收。
+- 上傳的規則檔上限 64 KiB（`too_large`）。
+
+### 不做的事
+
+- 批次補完不支援 `custom:*`，一律拒絕。
+- 新片入庫與自動搜尋不會問自訂來源，要事後重刮。
+- 不支援 cookie 與 Cloudflare 驗證（見 §12 第 2 條）。
+- AI 沒有啟用端點：驗收通過即自動啟用，要關閉只能由使用者在設定頁操作。

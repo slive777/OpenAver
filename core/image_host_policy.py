@@ -359,6 +359,8 @@ class ProxyVerdict:
     host: str
     scheme: str
     reason: str | None
+    # True ⟺ 由 Branch 3（自訂來源宣告的站）放行；代理端據此要求上游必須回 image/*。
+    custom_source: bool = False
 
 
 def proxy_verdict(url: str) -> ProxyVerdict:
@@ -415,7 +417,48 @@ def proxy_verdict(url: str) -> ProxyVerdict:
             return ProxyVerdict(False, host, scheme, "巢狀目標不在白名單")
         return ProxyVerdict(True, host, scheme, None)
 
+    # Branch 3: routable 自訂來源宣告的站（T14）。同站規則＝去 www. 後 == base 或其子網域；
+    # scheme 收 http／https，port 只認該 scheme 預設埠（fail-closed，含畸形 port）。
+    if _custom_source_host_allowed(host):
+        if scheme not in ("http", "https"):
+            return ProxyVerdict(False, host, scheme, "scheme 不符")
+        if _effective_port(parsed) != (443 if scheme == "https" else 80):
+            return ProxyVerdict(False, host, scheme, "port 不符")
+        # 子網域可被站方指到內網；與抓頁同一道公網檢查（DNS 全部位址皆公網）。
+        from core.custom_source import guard
+        from core.custom_source.errors import BlockedTarget
+
+        try:
+            guard.check(url)
+        except BlockedTarget:
+            return ProxyVerdict(False, host, scheme, "自訂來源圖片 host 非公網")
+        return ProxyVerdict(True, host, scheme, None, True)
+
     return ProxyVerdict(False, host, scheme, "host 不在名單")
+
+
+def _has_custom_source_files() -> bool:
+    """自訂來源目錄有沒有 yaml／yml——不 import core.custom_source（零自訂來源零影響）。"""
+    from core.data_root import get_data_root
+
+    try:
+        d = get_data_root() / "custom_sources"
+        return d.is_dir() and any(p.suffix in (".yaml", ".yml") for p in d.iterdir())
+    except OSError:
+        return False
+
+
+def _custom_source_host_allowed(host: str) -> bool:
+    """host 是不是某個 routable 自訂來源宣告站的基底或其子網域（每次即時算、不快取）。"""
+    if not _has_custom_source_files():
+        return False
+    from core.custom_source import views
+
+    host = host.removeprefix("www.")
+    for base in views.routable_hosts():
+        if host == base or host.endswith("." + base):
+            return True
+    return False
 
 
 def proxy_rules() -> tuple[frozenset[str], tuple[str, ...]]:
