@@ -1602,6 +1602,7 @@ const RULES = [
     note: `[lint-guard 165-T9-parent-isolation] ${file} 不可出現 customSrc（自訂來源獨立元件，不進 mergeState 分片）`,
   })),
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'x-data="customSources"', note: '[lint-guard 165-T9-mount-point] 設定頁須掛載 customSources 元件' },
+  { file: 'web/templates/help.html', kind: 'required-string', pattern: "t('help.scraper.custom_what')", note: '[lint-guard 165-T11-help-section] 說明頁 Scraper 卡須有「自訂來源」一節（哨兵 key custom_what）' },
 
   // ---- [TestScannerESMGuard] 54c：scanner state 模組 + main.js + scanner.html ----
   ...[

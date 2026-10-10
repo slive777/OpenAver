@@ -261,9 +261,109 @@ tests:
 4. **Windows 非 ASCII 路徑**：OpenAver 安裝路徑含非 ASCII 字元時，`fetch: tls` 模式可能無法建立 HTTPS 連線（CA 憑證路徑問題）→ 改用 `fetch: plain`，或把 OpenAver 裝在純英文路徑。
 5. **沒有番號的片不在範圍**：輸入契約就是番號（見 §1）。
 6. **文字編碼只看 HTTP 標頭**：解碼只依回應標頭的 `charset`（沒有就當 UTF-8），不讀 HTML 內的 `<meta charset>`；只在 `<meta>` 宣告 Shift_JIS 等編碼的站可能出現亂碼。
+7. **詳情頁在不同網域的站不支援**：詳情頁網域與搜尋頁／模板網域不同的站，驗收會失敗並說明原因（同站的 `www`／子網域不受影響）；此版不支援，見 §13「已知限制」。
 
 其他需要知道的：
 
 - 站改版會讓來源失效，需要自己重跑驗收並修正 selector。
 - `date` 取自站內欄位，不保證是發行日。
 - 查詢太頻繁時 IP 可能被站方封鎖。
+
+## 13. 上傳、驗收與狀態
+
+這一章給 AI：把寫好的 YAML 上傳、請求驗收、查狀態要打哪些端點，會遇到哪些錯誤碼，以及來源被實際使用前要滿足什麼。上傳與驗收**都不會啟用**來源：啟用只能由使用者在設定頁按，AI 無法代為啟用。
+
+### 端點
+
+下列四個是 AI 要用的端點（埠號 8000 為示意，桌面版實際埠號請依使用者環境）。上傳**一定要帶** `-H 'Content-Type: text/plain'`；用 `application/json` 會得到 422。
+
+上傳（成功回 `{success, id, source_id, status: 'unverified', replaced, next}`；靜態檢查不過回 400 `{success: false, reason, field_path, line, error}`，reason 見 §6）：
+
+```bash
+curl -X POST http://localhost:8000/api/custom-sources -H 'Content-Type: text/plain' --data-binary @my-source.yaml
+```
+
+驗收（會連網跑 `tests`，回 200 `{success, id, status, verified_at, total, failed, cases: [{index, number, passed, mismatches: [{key, expected, actual, url}]}]}`；`status` 為 `passed` 或 `failed`，`failed` 時照 `mismatches` 修 YAML 後重傳）：
+
+```bash
+curl -X POST http://localhost:8000/api/custom-sources/my-source/verify
+```
+
+列出（回 `{success, sources: [{id, source_id, name, status, enabled, verified_at, last_result, load_error}]}`）：
+
+```bash
+curl http://localhost:8000/api/custom-sources
+```
+
+移除（回 `{success, id}`）：
+
+```bash
+curl -X DELETE http://localhost:8000/api/custom-sources/my-source
+```
+
+另有 `POST /api/custom-sources/{id}/enabled` 與 `POST /api/custom-sources/applicable` 兩個端點，是設定頁與重刮視窗專用，AI 不需呼叫，也不在 capabilities。
+
+### 錯誤碼
+
+業務錯誤回 `{success: false, reason, error, ...}`；`error` 是給人看的中文句。
+
+| code | HTTP | 意思與處理 |
+|---|---|---|
+| `data_root_not_ready` | 409 | 資料根尚未就緒；請使用者先完成資料根設定 |
+| `not_loaded` | 404 | 找不到這個 id 的來源（或 id 格式不合法）；先用列出端點確認 |
+| `load_failed` | 409 | 這個來源的檔案現在載入失敗（回應附 `load_error`）；修好 YAML 後重傳 |
+| `verify_busy` | 409 | 全行程同一時間只能驗一個來源；回應附 `busy_id`，等它結束再試 |
+| `changed_during_verify` | 409 | 驗收期間這個來源被重傳或移除，結果已丟棄；請重新驗收 |
+| `not_passed` | 409 | 啟用時來源尚未通過驗收（僅設定頁會遇到，AI 不需處理） |
+| `yaml_syntax` | 400 | YAML 語法錯誤，包含檔案不是有效的 UTF-8；見 §6 |
+| 其餘載入被拒的 reason | 400 | 上傳時的靜態檢查失敗，reason 與修法見 §6「載入被拒的 reason」 |
+| 413 | 413 | 上傳內容超過 256 KiB；縮小後重傳 |
+| 422 | 422 | 用 `Content-Type: application/json` 送了上傳端點；改成 `text/plain` |
+
+### 狀態
+
+| 狀態 | 意思 |
+|---|---|
+| `unverified` | 尚未驗收：剛上傳、重傳過，或驗收紀錄與現在的檔案對不上 |
+| `verifying` | 正在驗收中 |
+| `passed` | 驗收通過 |
+| `failed` | 驗收沒有通過；照 `mismatches` 修正後重傳 |
+| `load_failed` | 檔案載入失敗（YAML 或 schema 錯誤） |
+
+狀態依序推導：`load_failed` → `verifying` → `unverified` → `passed`／`failed`。紀錄的檔案雜湊與現檔不符、或紀錄損壞，一律視為 `unverified`。驗收失敗必自動關閉該來源；重傳（含內容完全相同）一定把狀態重設為 `unverified` 並關閉。`enabled` 只在 `passed` 時有效。
+
+### 使用 custom:<id> 的條件
+
+`custom:<id>` 用在三處：`search`（`GET /api/search?source=custom:<id>`）、`enrich_single`（`POST /api/enrich-single`）、`rescrape`（`POST /api/rescrape/preview`）。**三個條件缺一就被拒**：已驗收通過、使用者已在設定頁打開、番號符合該來源的 `number_pattern`。
+
+| reason | 意思 |
+|---|---|
+| `not_loaded` | 找不到這個自訂來源 |
+| `load_failed` | 這個自訂來源的檔案載入失敗，需到設定頁檢查 |
+| `verifying` | 正在驗收中，請稍後再試 |
+| `unverified` | 尚未通過驗收，請先驗收 |
+| `failed` | 驗收沒有通過（站方可能改版了），需重跑驗收 |
+| `disabled` | 使用者尚未在設定頁啟用 |
+| `pattern_mismatch` | 這個番號不符合此來源接受的格式 |
+
+三處被拒時的回應形狀：
+
+- `search`：HTTP 400 `{success: false, error, reason: 'custom_source_refused', custom_reason}`，`custom_reason` 是上表的 reason。
+- `enrich_single`：HTTP 400，`detail` 是中文句。
+- `rescrape`（preview）：HTTP 200 `{success: false, custom_error: 'refused', custom_reason, error}`。
+
+### 已知限制
+
+- 驗收每案預算 25 秒、整次預算 180 秒；期限只在每個請求開始前檢查，已開始的請求會等它結束，所以實際時間可能略超過；超過預算後尚未開始的案例記為 `error:timeout`；同一時間全行程只能驗一個來源，第二個會得到 `verify_busy`。
+- 用 `application/json` 上傳會得到 422。
+- 詳情頁與搜尋頁／模板網域不同的站，驗收即失敗（mismatch 的 key 為 `detail_host`）；AI 無法用 YAML 解決，走 §11 請使用者開 issue。
+- 網址內帶帳密（userinfo）的站，畫面與 NFO 的 `<website>` 會去掉帳密，所以挑多版本確認時的重抓會因此失敗。
+- 驗收通過只代表那幾案在當下通過；站方改版後要重跑驗收。
+- 上傳的規則檔上限 64 KiB（`too_large`）。
+
+### 不做的事
+
+- 批次補完不支援 `custom:*`，一律拒絕。
+- 新片入庫與自動搜尋不會問自訂來源，要事後重刮。
+- 不支援 cookie 與 Cloudflare 驗證（見 §12 第 2 條）。
+- AI 無法啟用來源，啟用一定由使用者在設定頁完成。
