@@ -17,6 +17,11 @@ SID = "single-og"
 BASE = "single-og.example"
 
 
+@pytest.fixture(autouse=True)
+def _public_dns(monkeypatch):
+    monkeypatch.setattr("core.custom_source.guard.resolve_host", lambda host: ["8.8.8.8"])
+
+
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     root = tmp_path / "root"
@@ -97,3 +102,19 @@ def test_malformed_port_and_odd_scheme_and_port_fail_closed(env):
     assert proxy_verdict(f"https://{BASE}:8443/c.jpg").allowed is False
     assert proxy_verdict(f"http://{BASE}:443/c.jpg").allowed is False
     assert proxy_verdict(f"ftp://{BASE}/c.jpg").allowed is False
+
+
+def test_custom_host_resolving_to_private_denied(env, monkeypatch):
+    _install(env)
+    for ip in ("127.0.0.1", "192.168.1.5"):
+        monkeypatch.setattr("core.custom_source.guard.resolve_host", lambda host, ip=ip: [ip])
+        v = proxy_verdict(f"https://lan.{BASE}/c.jpg")
+        assert (v.allowed, v.reason) == (False, "自訂來源圖片 host 非公網"), ip
+    monkeypatch.setattr("core.custom_source.guard.resolve_host", lambda host: ["8.8.8.8"])
+    assert proxy_verdict(f"https://lan.{BASE}/c.jpg").allowed is True
+
+
+def test_custom_verdict_flag_only_on_branch3(env):
+    _install(env)
+    assert proxy_verdict(f"https://{BASE}/c.jpg").custom_source is True
+    assert proxy_verdict("https://pics.dmm.co.jp/a.jpg").custom_source is False

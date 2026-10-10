@@ -62,6 +62,17 @@ router = APIRouter(prefix="/api", tags=["search"])
 _MAKER_MAPPING = load_prefix_mapping()
 
 
+def _image_verdict(url: str):
+    """問 `proxy_verdict()` 一次並在拒絕時記 log；回傳 verdict 本體（帶 custom_source 旗標）。"""
+    verdict = proxy_verdict(url)
+    if not verdict.allowed:
+        logger.warning(
+            "proxy_image 拒絕: host=%s scheme=%s 原因=%s",
+            verdict.host, verdict.scheme, verdict.reason,
+        )
+    return verdict
+
+
 def _is_allowed_image_url(url: str) -> bool:
     """判準本體已搬到 `core/image_host_policy.proxy_verdict()`（132b review round-2）。
 
@@ -71,14 +82,7 @@ def _is_allowed_image_url(url: str) -> bool:
 
     本函式現在只剩 log——403 的原因字串仍由這裡輸出，格式不變。
     """
-    verdict = proxy_verdict(url)
-    if verdict.allowed:
-        return True
-    logger.warning(
-        "proxy_image 拒絕: host=%s scheme=%s 原因=%s",
-        verdict.host, verdict.scheme, verdict.reason,
-    )
-    return False
+    return _image_verdict(url).allowed
 
 
 @router.get("/proxy-image")
@@ -86,7 +90,8 @@ def proxy_image(url: str = Query(..., description="圖片 URL")):
     """
     圖片代理 - 解決防盜鏈問題
     """
-    if not _is_allowed_image_url(url):
+    verdict = _image_verdict(url)
+    if not verdict.allowed:
         return Response(status_code=403)
     try:
         # 根據 URL 設置對應的 Referer
@@ -119,6 +124,20 @@ def proxy_image(url: str = Query(..., description="圖片 URL")):
             )
         elif resp.status_code == 200:
             host = (urlparse(url).hostname or "").lower()
+            if verdict.custom_source:
+                # 自訂來源站台只准轉送圖片：上游回 HTML／JSON 等一律不轉。
+                ctype = resp.headers.get("Content-Type", "")
+                # 只轉送常見點陣圖（不含 svg：可內嵌 script）。
+                if ctype.split(";")[0].strip().lower() not in (
+                    "image/jpeg", "image/png", "image/webp", "image/gif", "image/avif",
+                ):
+                    logger.warning("proxy_image 拒絕: host=%s 原因=自訂來源回應非圖片", host)
+                    return Response(status_code=403)
+                return Response(
+                    content=resp.content,
+                    media_type=ctype,
+                    headers={"Cache-Control": "public, max-age=86400"},
+                )
             # 沒標 codec 的 host（既有 28 筆全部）走原路：內容與標頭逐位元不變。
             # 範圍為什麼不擴到全部 host，見 core/organizer.py 同一處的註解。
             if codec_for_host(host) is None:

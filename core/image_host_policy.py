@@ -359,6 +359,8 @@ class ProxyVerdict:
     host: str
     scheme: str
     reason: str | None
+    # True ⟺ 由 Branch 3（自訂來源宣告的站）放行；代理端據此要求上游必須回 image/*。
+    custom_source: bool = False
 
 
 def proxy_verdict(url: str) -> ProxyVerdict:
@@ -422,7 +424,15 @@ def proxy_verdict(url: str) -> ProxyVerdict:
             return ProxyVerdict(False, host, scheme, "scheme 不符")
         if _effective_port(parsed) != (443 if scheme == "https" else 80):
             return ProxyVerdict(False, host, scheme, "port 不符")
-        return ProxyVerdict(True, host, scheme, None)
+        # 子網域可被站方指到內網；與抓頁同一道公網檢查（DNS 全部位址皆公網）。
+        from core.custom_source import guard
+        from core.custom_source.errors import BlockedTarget
+
+        try:
+            guard.check(url)
+        except BlockedTarget:
+            return ProxyVerdict(False, host, scheme, "自訂來源圖片 host 非公網")
+        return ProxyVerdict(True, host, scheme, None, True)
 
     return ProxyVerdict(False, host, scheme, "host 不在名單")
 
