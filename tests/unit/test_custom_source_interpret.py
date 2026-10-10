@@ -298,11 +298,12 @@ def test_first_failure_in_candidate_order_wins():
     assert (result.status, result.reason, result.http_status) == ("error", "parse_empty", None)
 
 
-def test_two_stage_detail_failure_keeps_other_hit():
+@pytest.mark.parametrize("failure", [page("", 500), FetchError("timeout"), FetchError("network")])
+def test_two_stage_detail_failure_keeps_other_hit(failure):
     uc, c = _hrefs("two-step-search.html", "h3.entry-title a")
-    routes = {TWO + "SONE-205": _pg("two-step-search.html"), uc: page("", 500), c: _pg("two-step-detail-b.html")}
-    result, _ = _run(_spec("two-step"), "SONE-205", routes)
-    assert [i.detail_url for i in result.items] == [c]
+    routes = {TWO + "SONE-205": _pg("two-step-search.html"), uc: failure, c: _pg("two-step-detail-b.html")}
+    result, transport = _run(_spec("two-step"), "SONE-205", routes)
+    assert (result.status, len(transport.calls), [i.detail_url for i in result.items]) == ("ok", 3, [c])
 
 
 def test_single_stage_request_budget_is_bounded():

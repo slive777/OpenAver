@@ -73,7 +73,7 @@ def _body_hit(step, text):
     return step.not_found_body is not None and step.not_found_body in text
 
 
-def _fetch_unique(urls, transport, config, errors, nf_step=None):
+def _fetch_unique(urls, transport, config, errors, nf_step=None, stop_on_outage=False):
     pages, seen = [], set()
     for order, requested in enumerate(urls):
         try:
@@ -81,7 +81,7 @@ def _fetch_unique(urls, transport, config, errors, nf_step=None):
         except FetchError as exc:
             log.info("custom source page failed: %s %s", exc, _log_url(requested))
             errors.append((order, exc))
-            if exc.reason in ("network", "timeout"):
+            if stop_on_outage and exc.reason in ("network", "timeout"):
                 break
             continue
         if page is None:
@@ -172,7 +172,7 @@ def _finish(spec, pages, canon, errors):
 def _single_stage(spec, canon, transport, config):
     step, errors = spec.steps[0], []
     urls = [_render(step.url, dict(_values(canon), suffix=s)) for s in step.candidates]
-    pages = _fetch_unique(urls, transport, config, errors, nf_step=step)
+    pages = _fetch_unique(urls, transport, config, errors, nf_step=step, stop_on_outage=True)
     return _finish(spec, pages, canon, errors)
 
 
