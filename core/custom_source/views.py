@@ -40,3 +40,8 @@ def custom_source_views():
 
 def custom_source_configs():
     return [v.config for v in custom_source_views()]
+
+
+def routable_hosts():
+    """可路由（驗收通過＋已啟用＋sha 相符）自訂來源宣告的基底 host；每次即時計算。"""
+    return tuple(h for v in custom_source_views() if v.routable for h in v.loaded.spec.hosts)

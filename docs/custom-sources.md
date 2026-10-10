@@ -358,6 +358,7 @@ curl -X DELETE http://localhost:8000/api/custom-sources/my-source
 - 用 `application/json` 上傳會得到 422。
 - 詳情頁與搜尋頁／模板網域不同的站，驗收即失敗（mismatch 的 key 為 `detail_host`）；AI 無法用 YAML 解決，走 §11 請使用者開 issue。
 - 網址內帶帳密（userinfo）的站，畫面、NFO 的 `<website>` 與從頁面抽出的網址（封面、劇照及其他欄位）都會去掉帳密（需要帳密才能下載圖片的站，圖片會抓不到；挑多版本確認時的重抓也會失敗）。
+- 封面圖片的網域必須是來源網站本身或其子網域（驗收通過且已啟用的來源才會放行）；封面放在另一個網域 CDN 的站，搜尋頁與重刮預覽的封面仍會載入失敗。
 - 驗收通過只代表那幾案在當下通過；站方改版後要重跑驗收。
 - 上傳的規則檔上限 64 KiB（`too_large`）。
 

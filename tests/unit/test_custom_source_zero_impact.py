@@ -45,3 +45,49 @@ def test_non_custom_ids_do_not_load_custom_source():
     detail = f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
     assert proc.returncode == 0, detail
     assert "custom=False" in proc.stdout, detail
+
+
+_CODE_POLICY = (
+    "import sys, core.image_host_policy as p\n"
+    "v = p.proxy_verdict('https://pics.dmm.co.jp/a.jpg')\n"
+    "assert v.allowed\n"
+    "print('custom=' + str(any(m == 'core.custom_source' or m.startswith('core.custom_source.')"
+    " for m in sys.modules)))\n"
+)
+_CODE_IMPORT_ONLY = (
+    "import sys, core.image_host_policy\n"
+    "print('custom=' + str(any(m == 'core.custom_source' or m.startswith('core.custom_source.')"
+    " for m in sys.modules)))\n"
+)
+
+
+def _custom_loaded(code):
+    proc = subprocess.run(
+        [sys.executable, "-c", code], cwd=REPO_ROOT, capture_output=True, text=True, timeout=60,
+    )
+    detail = f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
+    assert proc.returncode == 0, detail
+    return proc.stdout, detail
+
+
+def test_importing_image_host_policy_does_not_load_custom_source():
+    out, detail = _custom_loaded(_CODE_IMPORT_ONLY)
+    assert "custom=False" in out, detail
+
+
+def test_static_host_verdict_does_not_load_custom_source():
+    out, detail = _custom_loaded(_CODE_POLICY)
+    assert "custom=False" in out, detail
+
+
+def test_unknown_host_without_custom_dir_does_not_load_custom_source():
+    code = (
+        "import os, sys, tempfile\n"
+        "os.environ['OPENAVER_DATA_DIR'] = tempfile.mkdtemp()\n"
+        "import core.image_host_policy as p\n"
+        "assert not p.proxy_verdict('https://nope.example/a.jpg').allowed\n"
+        "print('custom=' + str(any(m == 'core.custom_source' or m.startswith('core.custom_source.')"
+        " for m in sys.modules)))\n"
+    )
+    out, detail = _custom_loaded(code)
+    assert "custom=False" in out, detail
