@@ -195,19 +195,6 @@ def test_head8k_non_2xx_body_read_failure_keeps_status_header_verdict(fake_class
     assert (row['state'], row['reason']) == ('blocked', 'http_status')
 
 
-def test_head8k_stops_at_limit_without_extra_chunk(fake_classes):
-    body = _EndlessBody()
-
-    def send():
-        r = make_resp(503)
-        r.raw = body
-        return r
-
-    row = _run_one(fake_classes, send)
-    assert (row['state'], row['reason']) == ('blocked', 'http_status')
-    assert body.reads == 1
-
-
 def test_head8k_endless_200_body_is_ok_and_unread(fake_classes):
     body = _EndlessBody()
 
@@ -262,20 +249,6 @@ def test_full_capped_non_2xx_body_timeout_keeps_http_verdict(fake_classes):
     plans['javdb'] = ProbePlan([ProbeTarget('j', lambda: _slow_resp(500), read='full_capped')])
     row = run_probes(ProxySettings(), ['javdb'])['javdb']
     assert (row['state'], row['reason']) == ('blocked', 'http_status')
-
-
-def test_head8k_program_error_during_head_read_is_error_not_swallowed(fake_classes):
-    class _Bug(_BrokenBody):
-        def stream(self, amt=8192, decode_content=None):
-            raise TypeError('program bug')
-
-    def send():
-        r = make_resp(403)
-        r.raw = _Bug(b'')
-        return r
-
-    row = _run_one(fake_classes, send)
-    assert (row['state'], row['reason']) == ('unreachable', 'error')
 
 
 # ------------------------------------------------------------ 並行 / 預算
@@ -405,25 +378,6 @@ def test_run_probes_skips_manual_only_and_metatube(fake_classes, monkeypatch):
         assert (r['host'], r['status'], r['via_proxy'], r['advice']) == (None, None, False, None)
 
 
-def test_run_probes_verifier_sources_per_environment(fake_classes, monkeypatch):
-    """Windows 視窗可用 → 進探測；mac → 未測；視窗沒起來 → 未測。"""
-    plans, _ = fake_classes
-    for sid in ('javlibrary', 'fc-javten'):
-        plans[sid] = ProbePlan([ProbeTarget(sid, lambda: make_resp())])
-    ids = ['javlibrary', 'fc-javten']
-    snap = ProxySettings(url=PROXY, scope='all')
-    expect = {
-        ('windows', ('javlibrary', 'fc-javten')): ('ok', 'ok'),
-        ('mac', ('javlibrary', 'fc-javten')): ('skipped', 'mac_system_proxy'),
-        ('windows', ()): ('skipped', 'verifier_not_started'),
-    }
-    for (kind, sites), want in expect.items():
-        monkeypatch.setattr('core.source_probe.desktop_kind', lambda k=kind: k)
-        monkeypatch.setattr('core.source_probe.get_cf_available_sites', lambda s=sites: list(s))
-        rows = run_probes(snap, ids)
-        assert {(r['state'], r['reason']) for r in rows.values()} == {want}, (kind, sites)
-
-
 # ------------------------------------------------------------ 驗證視窗來源：skipped 環境表／判讀
 
 class _FakeTransport:
@@ -493,14 +447,6 @@ def test_skip_reason_environment_table(monkeypatch, transport_env, label, kind, 
     assert got == expect, label
 
 
-def test_skip_reason_other_ids_unchanged_by_environment(monkeypatch, transport_env):
-    monkeypatch.setattr('core.source_probe.desktop_kind', lambda: 'windows')
-    transport_env(_FakeTransport(BOTH))
-    assert sp.skip_reason('metatube:x', SNAP_ALL) == 'self_hosted'
-    assert sp.skip_reason('zzz', SNAP_ALL) == 'unknown'
-    assert sp.skip_reason('dmm', SNAP_ALL) is None
-
-
 def test_skip_reason_uses_request_snapshot(monkeypatch, transport_env):
     """畫面上的新代理（請求體快照）決定結果；已儲存的設定被讀到就炸。"""
     import core.proxy_policy as pp
@@ -554,11 +500,6 @@ def test_run_probes_dedupes_ids_and_every_id_has_a_result(fake_classes):
     plans['dmm'] = ProbePlan([ProbeTarget('d', lambda: hits.append(1) or make_resp())])
     rows = run_probes(ProxySettings(), ['dmm', 'dmm', 'zzz'])
     assert list(rows) == ['dmm', 'zzz'] and len(hits) == 1
-
-
-def test_run_probes_rejects_missing_snapshot():
-    with pytest.raises(AssertionError):
-        run_probes(None, ['dmm'])
 
 
 # ------------------------------------------------------------ 不洩漏

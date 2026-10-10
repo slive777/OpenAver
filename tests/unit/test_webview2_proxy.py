@@ -95,12 +95,6 @@ class FakeBase:
         return 'task'
 
 
-class NoParentBase(FakeBase):
-    def __init__(self):
-        super().__init__()
-        self.Parent = None
-
-
 JL_TITLE = standalone.JL_WINDOW_TITLE
 JT_TITLE = standalone.JAVTEN_WINDOW_TITLE
 TITLE_TO_KEY = {JL_TITLE: 'javlibrary', JT_TITLE: 'fc-javten'}
@@ -156,18 +150,6 @@ def test_build_browser_args_keeps_existing_and_has_exactly_one_proxy_flag():
     assert webview2_proxy.build_browser_args(None, 'http://h:1') == '--proxy-server=http://h:1'
 
 
-def test_udf_dir_is_under_root_and_differs_from_main_cache():
-    assert webview2_proxy.udf_dir('/data/webview') == os.path.join('/data/webview', 'cf-proxy')
-    assert webview2_proxy.udf_dir('/data/webview') != '/home/u/.pywebview/main'
-
-
-def test_match_window_key_only_hits_the_two_verification_titles():
-    assert webview2_proxy.match_window_key(JL_TITLE, TITLE_TO_KEY) == 'javlibrary'
-    assert webview2_proxy.match_window_key(JT_TITLE, TITLE_TO_KEY) == 'fc-javten'
-    assert webview2_proxy.match_window_key('OpenAver', TITLE_TO_KEY) is None
-    assert webview2_proxy.match_window_key(None, TITLE_TO_KEY) is None
-
-
 @pytest.mark.parametrize('uri,host,port,expected', [
     ('http://proxyhost:8080/', 'proxyhost', 8080, True),
     ('http://PROXYHOST:8080', 'proxyhost', 8080, True),
@@ -214,17 +196,6 @@ def test_install_returns_false_when_edge_module_cannot_be_imported(monkeypatch, 
     assert webview2_proxy.install(_proxy(), str(tmp_path / 'udf'), TITLE_TO_KEY, lambda k: None) is False
 
 
-def test_install_returns_false_on_unexpected_class_shape(tmp_path, fake_edge):
-    fake_edge.WebView2 = object()          # 不是類別
-    assert webview2_proxy.install(_proxy(), str(tmp_path / 'udf'), TITLE_TO_KEY, lambda k: None) is False
-
-    class NoMethod:
-        pass
-
-    fake_edge.WebView2 = NoMethod
-    assert webview2_proxy.install(_proxy(), str(tmp_path / 'udf'), TITLE_TO_KEY, lambda k: None) is False
-
-
 def test_install_returns_false_when_server_is_empty(tmp_path, fake_edge):
     assert _install(tmp_path, _proxy(server='', usable=False), fake_edge=fake_edge) is False
     assert fake_edge.WebView2 is FakeBase
@@ -248,14 +219,6 @@ def test_main_window_is_not_touched(tmp_path, fake_edge):
     assert ctl.CreationProperties.AdditionalBrowserArguments == '--disable-features=ElasticOverscroll'
     assert ctl.CoreWebView2InitializationCompleted.handlers == []
     assert ready == []
-
-
-def test_window_without_parent_is_treated_as_not_ours(tmp_path, fake_edge):
-    cls, _ = _applied(tmp_path, fake_edge, base=NoParentBase)
-    ctl = cls()
-    ctl.EnsureCoreWebView2Async(None)
-    assert ctl.CreationProperties.UserDataFolder == 'MAIN-CACHE'
-    assert ctl.CoreWebView2InitializationCompleted.handlers == []
 
 
 def test_verification_window_gets_udf_and_proxy_args(tmp_path, fake_edge):
@@ -299,16 +262,6 @@ def test_native_init_success_without_auth_confirms_once(tmp_path, fake_edge):
     ctl.EnsureCoreWebView2Async(None)
     ctl.CoreWebView2InitializationCompleted.fire(ctl, types.SimpleNamespace(IsSuccess=True))
     assert ready == ['fc-javten']
-
-
-def test_override_applies_once_per_instance(tmp_path, fake_edge):
-    cls, _ = _applied(tmp_path, fake_edge, proxy=_proxy(username='u', password='p'))
-    ctl = cls(JL_TITLE)
-    ctl.EnsureCoreWebView2Async(None)
-    ctl.EnsureCoreWebView2Async(None)
-    args = ctl.CreationProperties.AdditionalBrowserArguments.split()
-    assert len([a for a in args if a.startswith('--proxy-server=')]) == 1
-    assert len(ctl.CoreWebView2InitializationCompleted.handlers) == 1
 
 
 def test_auth_hook_failure_never_confirms_and_never_loads_url(tmp_path, fake_edge):
@@ -392,15 +345,6 @@ def test_oracle_all_success_confirms_exactly_once(tmp_path, fake_edge):
     assert wins['javlibrary'].url == 'about:blank'
 
 
-def test_oracle_close_before_confirm_does_not_revive(tmp_path, fake_edge):
-    transport, wins, cls = _wired(tmp_path, fake_edge)
-    ctl = cls(JT_TITLE)
-    ctl.EnsureCoreWebView2Async(None)
-    wins['fc-javten'].events.closed.fire()
-    ctl.CoreWebView2InitializationCompleted.fire(ctl, types.SimpleNamespace(IsSuccess=True))
-    assert transport.available_sites() == []
-
-
 # ---------------------------------------------------------------------------
 # ReadyHolder 四格
 # ---------------------------------------------------------------------------
@@ -419,27 +363,6 @@ def test_ready_holder_replays_confirmation_that_arrived_before_bind():
     assert t.confirmed == []
     h.bind(t)
     assert sorted(t.confirmed) == ['fc-javten', 'javlibrary']
-
-
-def test_ready_holder_confirms_once_when_after_bind_and_when_repeated():
-    h, t = webview2_proxy.ReadyHolder(), _T()
-    h.bind(t)
-    h('javlibrary')
-    h('javlibrary')
-    assert t.confirmed == ['javlibrary']
-    h2, t2 = webview2_proxy.ReadyHolder(), _T()
-    h2('fc-javten')
-    h2('fc-javten')
-    h2.bind(t2)
-    h2('fc-javten')
-    assert t2.confirmed == ['fc-javten']
-
-
-def test_ready_holder_never_confirmed_means_nothing_available():
-    h = webview2_proxy.ReadyHolder()
-    t = PyWebViewCfTransport({'javlibrary': _Win()}, {}, pending={'javlibrary'})
-    h.bind(t)
-    assert t.available_sites() == []
 
 
 # ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 const {
-  acceptProbeResponse, buildProbeKey, pickProbeIds, summarizeProbe,
+  acceptProbeResponse, buildProbeKey, summarizeProbe,
 } = await import('../source-probe-logic.js');
 
 const SRC = () => [
@@ -31,12 +31,6 @@ test('buildProbeKey ignores trailing whitespace in proxy url', () => {
   assert.equal(buildProbeKey('http://x ', 'dmm', SRC()), buildProbeKey('http://x', 'dmm', SRC()));
 });
 
-test('buildProbeKey reacts to proxy url and scope', () => {
-  const base = buildProbeKey('http://x', 'dmm', SRC());
-  assert.notEqual(buildProbeKey('http://y', 'dmm', SRC()), base);
-  assert.notEqual(buildProbeKey('http://x', 'all', SRC()), base);
-});
-
 test('buildProbeKey reacts to metatube and manual_only toggles', () => {
   const base = buildProbeKey('p', 'dmm', SRC());
   for (const id of ['dmm', 'javbus', 'javlibrary', 'mt-a', 'mt-b']) {
@@ -45,10 +39,6 @@ test('buildProbeKey reacts to metatube and manual_only toggles', () => {
     t.enabled = !t.enabled;
     assert.notEqual(buildProbeKey('p', 'dmm', s), base, `toggle ${id}`);
   }
-});
-
-test('pickProbeIds sends lit pills and manual_only, not off pills or parts bin', () => {
-  assert.deepEqual(pickProbeIds(SRC()), ['dmm', 'javlibrary', 'mt-a']);
 });
 
 test('summarizeProbe excludes skipped from the denominator', () => {

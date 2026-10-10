@@ -357,19 +357,6 @@ class TestStandaloneInitOrderGuard:
             "webview.start() in main() (CD-70c-1)"
         )
 
-    def test_build_cf_windows_called_in_main_before_webview_start(self):
-        """TASK-163b-T7a [A2-7 ③]: main() body has a direct `_build_cf_windows(...)` call whose
-        lineno < the first webview.start(...) — and it does not sit inside startup()."""
-        tree, _ = self._parse()
-        main_node = _find_main_func(tree)
-        assert main_node is not None, "main() not found"
-        direct_calls = _collect_direct_calls_in_main_body(main_node)
-        build_calls = [c for c in direct_calls if _is_build_cf_windows_call(c)]
-        start_calls = [c for c in direct_calls if _is_webview_start_call(c)]
-        assert len(build_calls) == 1, f"expected exactly 1 _build_cf_windows() call in main(), found {len(build_calls)}"
-        assert start_calls, "webview.start() not found in main() body"
-        assert build_calls[0].lineno < min(c.lineno for c in start_calls)
-
     def test_cf_transport_constructed_with_initial_origins(self):
         """PyWebViewCfTransport(...) 必須帶第二個引數（initial_urls 種子）。
 

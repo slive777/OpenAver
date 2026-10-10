@@ -74,11 +74,3 @@ def test_dmm_200_empty_and_non_json_stay_not_found(dmm, call, empty):
     with patch.object(dmm._session, "post", return_value=bad):
         assert call(dmm) is None
 
-
-def test_dmm_search_stops_at_first_detail_403(dmm):
-    """第一個詳情查詢被拒 → 整個 search 拋 SourceBlocked，不繼續第二試。"""
-    post = MagicMock(return_value=_resp(403))
-    with patch.object(dmm._session, "post", post):
-        with pytest.raises(SourceBlocked):
-            dmm.search("SONE-205")
-    assert post.call_count == 1

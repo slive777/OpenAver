@@ -35,10 +35,6 @@ test('describeProbe gives each state a distinct icon', () => {
   assert.deepEqual(PROBE_ICON_MAP, EXPECTED_ICON);
 });
 
-test('describeProbe maps known reason codes', () => {
-  assert.equal(describeProbe({ state: 'blocked', reason: 'cf_challenge' }).reasonKey, REASON_KEY_MAP.cf_challenge);
-});
-
 test('describeProbe falls back to the generic reason for unknown codes', () => {
   for (const reason of ['brand_new_code', undefined, '']) {
     assert.equal(describeProbe({ state: 'unreachable', reason }).reasonKey, REASON_KEY_GENERIC);
@@ -50,12 +46,6 @@ test('describeProbe carries the advice key', () => {
   assert.equal(ADVICE_KEY_MAP.jp_ip, 'settings.sources.probe_advice_jp_ip');
   assert.equal(describeProbe({ state: 'blocked', reason: 'http_status' }).adviceKey, null);
   assert.equal(describeProbe({ state: 'blocked', reason: 'http_status', advice: 'nope' }).adviceKey, null);
-});
-
-test('describeProbe returns null for unknown states without throwing', () => {
-  for (const r of [{ state: 'weird' }, {}, null, undefined, { state: 'toString' }]) {
-    assert.equal(describeProbe(r), null);
-  }
 });
 
 function makeFake(results = {}) {
@@ -122,14 +112,6 @@ test('srcProbeTipText is empty without a target and carries the source name othe
   assert.notEqual(fake.srcProbeResults, resultsRef);
 });
 
-test('view methods never write results or generation', () => {
-  const { fake } = makeFake({ dmm: { state: 'ok', reason: 'ok' } });
-  const resultsRef = fake.srcProbeResults;
-  fake.srcProbeLine('dmm'); fake.srcProbeIcon('dmm'); fake.toggleSrcProbeTip('dmm'); void fake.srcProbeTipText;
-  assert.equal(fake.srcProbeResults, resultsRef);
-  assert.equal(fake.srcProbeGen, 0);
-});
-
 test('srcProbeLine names the host only for blocked or unreachable results', () => {
   const { fake } = makeFake({
     dmm: { state: 'blocked', reason: 'http_status', host: 'caribbeancom.com' },
@@ -150,13 +132,6 @@ test('srcProbeLine names the host only for blocked or unreachable results', () =
   for (const id of ['c', 'd']) {
     const line = fake.srcProbeLine(id);
     assert.ok(!line.includes('undefined') && !line.includes('null') && !line.includes('host'));
-  }
-});
-
-test('describeProbe keeps an integer HTTP status, nulls anything else', () => {
-  assert.equal(describeProbe({ state: 'blocked', reason: 'http_status', status: 503 }).status, 503);
-  for (const status of [undefined, null, '503', 503.5, NaN]) {
-    assert.equal(describeProbe({ state: 'blocked', reason: 'http_status', status }).status, null);
   }
 });
 

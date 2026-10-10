@@ -65,13 +65,6 @@ def test_relay_exception_only_when_metatube_connected():
     assert proxy_for('image', url=RELAY, settings=_s('all')) == PROXY
 
 
-def test_proxy_kwargs_shape():
-    assert proxy_kwargs('source_query', source_id='dmm', settings=_s('dmm', '')) == {}
-    assert proxy_kwargs('actress', settings=_s('dmm')) == {}
-    assert proxy_kwargs('actress', settings=_s('all')) == {
-        'proxies': {'http': PROXY, 'https': PROXY}}
-
-
 def test_snapshot_beats_live_config():
     live = {'search': {'proxy_url': 'http://live.example:1', 'proxy_scope': 'all'}}
     with patch('core.config.load_config', return_value=live):

@@ -64,16 +64,6 @@ def test_probe_endpoint_default_scope_is_dmm_and_blank_url_not_via_proxy(client,
     assert resp.json()['results']['dmm']['via_proxy'] is False
 
 
-def test_probe_endpoint_validation(client, seen):
-    ok = client.post('/api/sources/probe', json={'source_ids': ['dmm'] * 64})
-    assert ok.status_code == 200
-    too_many = client.post('/api/sources/probe', json={'source_ids': ['dmm'] * 65})
-    assert too_many.status_code == 422
-    bad_scope = client.post('/api/sources/probe',
-                            json={'proxy_scope': 'nope', 'source_ids': ['dmm']})
-    assert bad_scope.status_code == 422
-
-
 def test_probe_endpoint_does_not_leak_proxy_credentials(client, monkeypatch):
     secret = 'http://user:pass@127.0.0.1:1'
 

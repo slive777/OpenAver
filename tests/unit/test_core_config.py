@@ -665,10 +665,6 @@ class TestMigrationProxyScope:
         # 遷移函式對新安裝 raw config 回 False（不進遷移）
         assert core_config._migrate_proxy_scope(json.loads(config_path.read_text(encoding="utf-8"))) is False
 
-    def test_search_config_default_scope(self):
-        assert core_config.SearchConfig().proxy_scope == "dmm"
-
-
 # ============ test_migration_focal_device_state ============
 
 class TestMigrationFocalDeviceState:

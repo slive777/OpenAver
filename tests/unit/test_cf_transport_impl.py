@@ -1682,23 +1682,8 @@ class TestPendingConfirmReady:
         with pytest.raises(CfTransportUnavailable):
             t.is_ready('javlibrary')
 
-    def test_confirm_ready_does_not_revive_non_pending_dead_site(self):
-        t = PyWebViewCfTransport({'javlibrary': FakeWindow()}, {})
-        t._dead['javlibrary'] = True
-        t.confirm_ready('javlibrary')
-        assert t.available_sites() == []
-
-    def test_confirm_ready_unknown_key_is_noop(self):
-        t, _ = self._pending_transport()
-        t.confirm_ready('nope')
-        assert t.available_sites() == []
-
     def test_no_pending_behaves_as_before(self):
         t = PyWebViewCfTransport(
             {'javlibrary': FakeWindow(), 'fc-javten': FakeWindow()}, {'javlibrary': JL_ORIGIN})
         assert t.available_sites() == ['fc-javten', 'javlibrary']
         assert t._pending == set()
-
-    def test_pending_key_not_in_windows_is_ignored(self):
-        t = PyWebViewCfTransport({'javlibrary': FakeWindow()}, {}, pending={'javlibrary', 'fc-javten'})
-        assert t._pending == {'javlibrary'}

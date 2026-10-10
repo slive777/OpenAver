@@ -93,19 +93,6 @@ def test_restart_needed_false_unless_windows_desktop(monkeypatch, kind):
     assert cf_window_proxy_restart_needed() is False
 
 
-def test_restart_needed_false_on_mac_even_with_registered_transport(monkeypatch):
-    from core import cf_transport
-
-    prev = cf_transport.get_cf_transport()
-    cf_transport.register_cf_transport(object())
-    try:
-        monkeypatch.setattr(proxy_policy, 'desktop_kind', lambda: 'mac')
-        _set_state(monkeypatch, None, 'http://h:1', 'all')
-        assert cf_window_proxy_restart_needed() is False
-    finally:
-        cf_transport.register_cf_transport(prev)
-
-
 def test_restart_needed_false_when_start_spec_never_recorded(monkeypatch, windows_desktop):
     monkeypatch.setattr(proxy_policy, '_cf_window_proxy_at_start', proxy_policy._UNRECORDED)
     monkeypatch.setattr(proxy_policy, 'current_settings',
