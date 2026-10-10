@@ -23,10 +23,6 @@ def _no_real_dns_or_sleep(monkeypatch):
     monkeypatch.setattr("core.custom_source.fetch.rate_limit", lambda delay=0: None)
 
 
-def _cfg():
-    return ScraperConfig(proxy_settings=ProxySettings())
-
-
 def _txt(name):
     return (FIXTURE_DIR / name).read_text(encoding="utf-8")
 
@@ -54,9 +50,10 @@ def _cands(*suffixes):
 
 def _run(spec, number, routes):
     transport = FakeTransport(routes)
-    return scrape(spec, number, _cfg(), transport), transport
+    return scrape(spec, number, CFG, transport), transport
 
 
+CFG = ScraperConfig(proxy_settings=ProxySettings())
 CAND = "https://candidates.example/video/chinese-subtitles/sone-205"
 SOG = "https://single-og.example/sone-205"
 TWO = "https://two-step.example/search/"
@@ -146,10 +143,21 @@ def test_duplicate_and_fragment_links_collapse_to_one_request(hrefs, status, cou
 ])
 def test_empty_filter_string_matches_nothing(number, hit, status, calls):
     html = "".join(f'<div class="card-video__title"><a href="/v/n{i}">Title {i}</a></div>' for i in range(5)) + hit
-    spec = dataclasses.replace(_spec("text"), number_pattern="[A-Z0-9-]+")
-    routes = {TEXT: page(html), TEXT + "1234": page(html), "https://text.example/v/1234": _pg("text-detail.html")}
+    spec = dataclasses.replace(_step0("text", url="https://text.example/search/?q={number}"), number_pattern="[A-Z0-9-]+")
+    routes = {"https://text.example/search/?q=" + number: page(html), "https://text.example/v/1234": _pg("text-detail.html")}
     result, transport = _run(spec, number, routes)
     assert (result.status, len(transport.calls)) == (status, calls)
+
+
+@pytest.mark.parametrize("name, number, requested", [
+    ("candidates", "ABC-123-C", False), ("candidates", "ABC-123", True),
+    ("text", "ABC-123-C", False), ("text", "ABC-123", True),
+])
+def test_empty_url_placeholder_skips_request(name, number, requested):
+    spec = dataclasses.replace(_step0(name, url="https://a.example/v/{number_digits}"), number_pattern="[A-Z0-9-]+")
+    result, transport = _run(spec, number, {"https://a.example/v/123": page("", 404)})
+    assert bool(transport.calls) is requested
+    assert requested or result.status == "not_found"
 
 
 def test_candidates_deduped_by_final_url():
@@ -201,8 +209,7 @@ def test_results_filter_empty_is_not_found():
 
 
 def test_body_contains_hit_is_not_found():
-    marked = _step0("two-step", not_found_body="sone-205c")
-    result, transport = _run(marked, "SONE-205", _routes_for("two-step"))
+    result, transport = _run(_step0("two-step", not_found_body="sone-205c"), "SONE-205", _routes_for("two-step"))
     assert (result.status, transport.calls) == ("not_found", [TWO + "SONE-205"])
     result, _ = _run(_step0("single-og", not_found_body="<h1"), "SONE-205", _routes_for("single-og"))
     assert result.status == "not_found"
@@ -231,9 +238,8 @@ def test_search_page_404_is_error_not_not_found():
 
 def test_transport_unavailable_and_unexpected_never_raise(monkeypatch):
     monkeypatch.setattr(interpret, "make_transport", Mock(side_effect=FetchError("transport_unavailable")))
-    result = scrape(_spec("single-og"), "SONE-205", _cfg())
+    result = scrape(_spec("single-og"), "SONE-205", CFG)
     assert (result.status, result.reason) == ("error", "transport_unavailable")
-
     monkeypatch.setattr(interpret, "extract_fields", Mock(side_effect=ValueError("boom")))
     result, _ = _run(_spec("single-og"), "SONE-205", _routes_for("single-og"))
     assert (result.status, result.reason) == ("error", "unexpected")
@@ -249,8 +255,7 @@ def test_transport_unavailable_and_unexpected_never_raise(monkeypatch):
     (page("", 404), page("", 404), "not_found", None, 0),
 ])
 def test_partial_failure_returns_successes(c_route, uc_route, status, reason, count):
-    spec = _cands("c", "uc")
-    result, _ = _run(spec, "SONE-205", {CAND + "c/": c_route, CAND + "uc/": uc_route})
+    result, _ = _run(_cands("c", "uc"), "SONE-205", {CAND + "c/": c_route, CAND + "uc/": uc_route})
     assert (result.status, result.reason, len(result.items)) == (status, reason, count)
 
 
@@ -259,11 +264,8 @@ def _boundary_hit(keep, prefix, suffix):
     return not (prefix and prefix[-1] in blocked) and not (suffix and suffix[0] in "0123456789")
 
 
-_BOUNDARY_GRID = list(itertools.product(
+@pytest.mark.parametrize("keep, prefix, suffix", itertools.product(
     ("sone-205", "2439990"), ("", " ", "/", "-", "中文字幕", "x", "1"), ("", "c", "uc", " ", "/", "0")))
-
-
-@pytest.mark.parametrize("keep, prefix, suffix", _BOUNDARY_GRID)
 def test_link_match_respects_number_boundaries(keep, prefix, suffix):
     hit = _boundary_hit(keep, prefix, suffix)
     assert interpret._link_matches(keep, prefix + keep + suffix, "") is hit
@@ -277,8 +279,7 @@ def test_link_match_respects_number_boundaries(keep, prefix, suffix):
 ])
 def test_outage_stops_remaining_candidates(routes, calls, status, reason, count):
     result, transport = _run(_cands("a", "b", "c"), "SONE-205", {f"{CAND}{k}/": v for k, v in routes.items()})
-    assert len(transport.calls) == calls
-    assert (result.status, result.reason, len(result.items)) == (status, reason, count)
+    assert (len(transport.calls), result.status, result.reason, len(result.items)) == (calls, status, reason, count)
 
 
 @pytest.mark.parametrize("url, routes, secrets", [
@@ -325,13 +326,13 @@ def test_single_stage_request_budget_is_bounded():
 ])
 def test_scrape_detail(spec_name, number, route, status, calls):
     transport = FakeTransport({SOG: route})
-    result = scrape_detail(_spec(spec_name), SOG, number, _cfg(), transport)
+    result = scrape_detail(_spec(spec_name), SOG, number, CFG, transport)
     assert (result.status, len(transport.calls)) == (status, calls)
 
 
 @pytest.mark.parametrize("name", ["single-og", "single-og-min", "two-step", "fuzzy", "text", "candidates"])
 def test_fixture_tests_all_pass(name):
-    results = run_tests(_spec(name), _cfg(), FakeTransport(_routes_for(name)))
+    results = run_tests(_spec(name), CFG, FakeTransport(_routes_for(name)))
     assert results and all(r.passed for r in results), format_results(results)
 
 
@@ -353,7 +354,7 @@ def test_run_tests_reports_key_expected_actual(expect, key, expected, actual_of)
     if key == "tags_exclude":
         expect = ((key, (fields["tags"][0],)),)
         expected = [fields["tags"][0]]
-    results = run_tests(_with_cases((("tags_max", 99),), expect), _cfg(), FakeTransport(_routes_for("single-og")))
+    results = run_tests(_with_cases((("tags_max", 99),), expect), CFG, FakeTransport(_routes_for("single-og")))
     assert results[0].passed and results[1].index == 2 and not results[1].passed
     mismatch = results[1].mismatches[0]
     assert (mismatch.key, mismatch.expected) == (key, expected)
@@ -362,11 +363,9 @@ def test_run_tests_reports_key_expected_actual(expect, key, expected, actual_of)
 
 
 def test_run_tests_status_mismatch_and_format():
-    spec = dataclasses.replace(_spec("single-og"), tests=(
-        schema.Case("ZZZZ-999", "ok", (("title", "x"),)),
-        schema.Case("ZZZZ-999", "not_found", ()),
-    ))
-    results = run_tests(spec, _cfg(), FakeTransport(_routes_for("single-og")))
+    cases = (schema.Case("ZZZZ-999", "ok", (("title", "x"),)), schema.Case("ZZZZ-999", "not_found", ()))
+    spec = dataclasses.replace(_spec("single-og"), tests=cases)
+    results = run_tests(spec, CFG, FakeTransport(_routes_for("single-og")))
     first = results[0].mismatches[0]
     assert (results[0].index, first.key, first.expected, first.actual, first.url) == (1, "status", "ok", "not_found", "")
     assert results[1].passed
@@ -376,5 +375,5 @@ def test_run_tests_status_mismatch_and_format():
 
 
 def test_format_results_all_pass_has_no_fail():
-    ok = run_tests(_spec("single-og"), _cfg(), FakeTransport(_routes_for("single-og")))
+    ok = run_tests(_spec("single-og"), CFG, FakeTransport(_routes_for("single-og")))
     assert "FAIL" not in format_results(ok)

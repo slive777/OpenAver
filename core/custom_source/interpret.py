@@ -50,6 +50,8 @@ def _values(canon):
 
 
 def _render(template, values, encode=True):
+    if not all(values[k] for k in _PLACEHOLDER_RE.findall(template) if k != "suffix"):
+        return ""
     shown = {k: quote(v, safe="") for k, v in values.items()} if encode else values
     return _PLACEHOLDER_RE.sub(lambda match: shown.get(match.group(1), ""), template)
 
@@ -171,7 +173,7 @@ def _finish(spec, pages, canon, errors):
 
 def _single_stage(spec, canon, transport, config):
     step, errors = spec.steps[0], []
-    urls = [_render(step.url, dict(_values(canon), suffix=s)) for s in step.candidates]
+    urls = [u for u in (_render(step.url, dict(_values(canon), suffix=s)) for s in step.candidates) if u]
     pages = _fetch_unique(urls, transport, config, errors, nf_step=step, stop_on_outage=True)
     return _finish(spec, pages, canon, errors)
 
@@ -179,7 +181,9 @@ def _single_stage(spec, canon, transport, config):
 def _two_stage(spec, canon, transport, config):
     step = spec.steps[0]
     values = _values(canon)
-    search = fetch_page(_render(step.url, values), transport, config)
+    if not (url := _render(step.url, values)):
+        return ScrapeResult("not_found")
+    search = fetch_page(url, transport, config)
     if search.status != 200:
         raise FetchError("http_status", search.status)
     if _body_hit(step, search.text):
@@ -207,12 +211,8 @@ def scrape(spec, number, config, transport=None):
     return _guarded(spec, number, config, transport, lambda canon, tr: stage(spec, canon, tr, config))
 
 
-def _detail_page(spec, canon, transport, config, url):
-    return _finish(spec, _fetch_unique([url], transport, config, (errors := [])), canon, errors)
-
-
 def scrape_detail(spec, detail_url, number, config, transport=None):
-    return _guarded(spec, number, config, transport, lambda canon, tr: _detail_page(spec, canon, tr, config, detail_url))
+    return _guarded(spec, number, config, transport, lambda canon, tr: _finish(spec, _fetch_unique([detail_url], tr, config, (errors := [])), canon, errors))
 
 
 def _as_list(value):
