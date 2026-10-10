@@ -13,4 +13,5 @@ fields:
   tags:    {css: ".tags-items a.tag-item", all: true}
 tests:
   - number: SONE-205
+    status: multiple
     expect: {number: SONE-205, title_contains: "部活少女", tags_include: ["按摩"], tags_max: 15}

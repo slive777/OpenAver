@@ -29,6 +29,7 @@ SCRAPE_ERROR_REASONS = frozenset({
     "redirect_limit",
     "parse_empty",
     "transport_unavailable",
+    "unexpected",
 })
 
 
