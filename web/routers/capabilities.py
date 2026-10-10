@@ -13,6 +13,11 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api", tags=["capabilities"])
 
 
+_CUSTOM_SOURCES_DOC_URL = "https://github.com/slive777/OpenAver/blob/main/docs/custom-sources.md"
+_CUSTOM_SOURCES_ENABLE_NOTE = "驗收通過後請使用者到設定頁打開；啟用不在 API，AI 無法代為啟用。"
+_CUSTOM_SOURCE_ID_NOTE = "也可填 `custom:<id>`（使用者自訂來源）：須已上傳、驗收通過，且使用者已在設定頁打開，三者缺一都會被拒絕。"
+
+
 _TOOLS: list[dict] = [
     {
         "name": "search",
@@ -33,7 +38,7 @@ _TOOLS: list[dict] = [
                 "source": {
                     "type": "string",
                     "enum": get_source_enum(include_auto=False),
-                    "description": "指定來源必須搭配精確模式（mode=exact），其他模式帶了會被拒絕",
+                    "description": "指定來源必須搭配精確模式（mode=exact），其他模式帶了會被拒絕。" + _CUSTOM_SOURCE_ID_NOTE,
                 },
                 "since": {
                     "type": "string",
@@ -244,7 +249,7 @@ _TOOLS: list[dict] = [
                     "type": "string",
                     "enum": get_source_enum(include_auto=True),
                     "default": "auto",
-                    "description": "刮削來源（**預設值就是 auto**——不指定就會自動把每個欄位各自取第一個有值的來源、拼成一份，不是「整包用第一家的資料」；指定單一來源時才是整包用那家的；部分地區 dmm 需要日本 IP（設定頁 Proxy 欄或日本 VPN））",
+                    "description": "刮削來源（**預設值就是 auto**——不指定就會自動把每個欄位各自取第一個有值的來源、拼成一份，不是「整包用第一家的資料」；指定單一來源時才是整包用那家的；部分地區 dmm 需要日本 IP（設定頁 Proxy 欄或日本 VPN））" + _CUSTOM_SOURCE_ID_NOTE,
                 },
                 "javbus_lang": {
                     "type": "string",
@@ -293,7 +298,7 @@ _TOOLS: list[dict] = [
                     "type": "string",
                     "enum": get_source_enum(include_auto=True),
                     "default": "auto",
-                    "description": "重刮來源（明確選源整包贏；可為停用來源 / metatube:{provider}；auto=多源合併）",
+                    "description": "重刮來源（明確選源整包贏；可為停用來源 / metatube:{provider}；auto=多源合併）" + _CUSTOM_SOURCE_ID_NOTE,
                 },
                 "mode": {
                     "type": "string",
@@ -971,6 +976,97 @@ _TOOLS: list[dict] = [
         "idempotent": True,
         "retry_safe": True,
         "_example_template": "curl -X DELETE '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C'",
+    },
+    {
+        "name": "custom_source_upload",
+        "description": (
+            "上傳一份自訂來源 YAML 規則檔：只做靜態檢查、不連目標站；通過則存檔並出現在設定頁，狀態「未驗證」。"
+            "同 id 再傳＝覆蓋，狀態重設且自動關閉。"
+            "這份 YAML 可由 AI 自己撰寫；格式說明見（網址單獨一行）：\n"
+            + _CUSTOM_SOURCES_DOC_URL
+            + "\n風險：之後的驗收與重刮都會對該站發請求，內容與合法性由撰寫者負責；上傳本身不執行程式碼，來源預設關閉。\n"
+            + _CUSTOM_SOURCES_ENABLE_NOTE
+        ),
+        "method": "POST",
+        "path": "/api/custom-sources",
+        "input_schema": {
+            "type": "object",
+            "description": "request body 為 YAML 純文字（Content-Type: text/plain），不是 JSON",
+            "properties": {
+                "body": {"type": "string", "description": "YAML 規則檔全文（text/plain）"},
+            },
+            "required": ["body"],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "id": "string — YAML 內的 id",
+            "status": "string — 上傳後為未驗證",
+        },
+        "side_effect": True,
+        "confirmation_required": True,
+        "idempotent": False,
+        "retry_safe": False,
+        "_example_template": "curl -X POST {base}/api/custom-sources -H 'Content-Type: text/plain' --data-binary @my-source.yaml",
+    },
+    {
+        "name": "custom_source_verify",
+        "description": (
+            "驗收一個已上傳的自訂來源：同步等待，會對該站發請求（每案最多 25 秒、整次最多 180 秒），一次只能驗一個。"
+            "回傳每條案例通過與否，失敗案例附預期／實際／網址。會對外站發出請求，須經使用者確認。"
+        ),
+        "method": "POST",
+        "path": "/api/custom-sources/{id}/verify",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "YAML 內的 `id`，小寫英數與連字號、最長 32 字元（URL path parameter）"},
+            },
+            "required": ["id"],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "cases": "[object] — 每條案例的通過與否；失敗案例含預期／實際／網址",
+        },
+        "side_effect": True,
+        "confirmation_required": True,
+        "idempotent": False,
+        "retry_safe": False,
+        "cost_hint": "會對目標站發出多次請求，最長可達 180 秒",
+        "_example_template": "curl -X POST {base}/api/custom-sources/my-source/verify",
+    },
+    {
+        "name": "custom_sources_list",
+        "description": "列出所有自訂來源，回傳欄位：id、名稱、狀態、上次驗收時間、是否啟用、載入失敗原因。唯讀，不修改任何資料",
+        "method": "GET",
+        "path": "/api/custom-sources",
+        "input_schema": {"type": "object", "properties": {}},
+        "output_schema": {
+            "sources": "[object] — id、名稱、狀態、上次驗收時間、是否啟用、載入失敗原因",
+        },
+        "side_effect": False,
+        "retry_safe": True,
+        "_example_template": "curl {base}/api/custom-sources",
+    },
+    {
+        "name": "custom_source_remove",
+        "description": "刪除一個自訂來源：刪除該 YAML 與其驗收紀錄，已啟用的也會被刪，不可復原",
+        "method": "DELETE",
+        "path": "/api/custom-sources/{id}",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "YAML 內的 `id`，小寫英數與連字號、最長 32 字元（URL path parameter）"},
+            },
+            "required": ["id"],
+        },
+        "output_schema": {
+            "success": "boolean",
+        },
+        "side_effect": True,
+        "confirmation_required": True,
+        "idempotent": True,
+        "retry_safe": True,
+        "_example_template": "curl -X DELETE {base}/api/custom-sources/my-source",
     },
     {
         "name": "alias_crud_read",
