@@ -79,6 +79,7 @@ _EXPECTED_WRITE_SITES = {
     ('core/enricher.py', '_write_external_images', 'crop_to_poster'): 1,     # ④ cover → poster
     ('core/organizer.py', 'crop_to_poster', 'copy2'): 1,                     # 葉節點：已是直向、直接複製
     ('core/organizer.py', 'organize_file', 'atomic_move'): 1,               # 144-T0：影片本體搬進片庫，非衍生圖
+    ('core/organizer.py', '_acquire_cover', 'copyfile'): 1,                  # 183-T5a：上傳暫存封面 → 正典封面位置
     ('core/organizer.py', 'generate_jellyfin_images', 'copy2'): 1,           # ① cover → fanart
     ('core/organizer.py', 'generate_jellyfin_images', 'crop_to_poster'): 1,  # ② cover → poster
     ('core/readonly_assets.py', '_copy_curator_sidecar', 'copy2'): 1,      # ⑨⑩ curator sidecar → slot
@@ -123,6 +124,13 @@ _PREFLIGHT_EXEMPT = {
         '呼叫點**恆為「不同檔」**，加上去只是一行永遠成立的廢話。'
         '⚠️ 這條例外只涵蓋「搬影片本體」這一個用途：任何**新的** `atomic_move` 呼叫點都會讓上面'
         '`_EXPECTED_WRITE_SITES` 的對帳轉紅，屆時必須重新判斷它需不需要 preflight，不得沿用本條。',
+    ('core/organizer.py', '_acquire_cover'):
+        '183-T5a 的 `shutil.copyfile(uploaded_cover, cover_path)`：來源恆為資料根 '
+        '`tmp/cover-upload/<token>.jpg`（伺服器端 `resolve_cover_token` 解析出的路徑，client 只給 '
+        'token、不給路徑），目標在媒體庫影片旁，兩者結構上不可能是同一個檔，'
+        '`same_target_verdict` 恆為「不同檔」。'
+        '⚠️ 這條例外只涵蓋「上傳暫存封面 → 正典封面位置」這一個用途：任何新增的寫入點都會讓上面 '
+        '`_EXPECTED_WRITE_SITES` 的對帳轉紅，屆時必須重新判斷，不得沿用本條。',
     ('core/organizer.py', 'crop_to_poster'):
         '葉節點函式：它的每一個呼叫端（②④⑥）都已在呼叫前 preflight，'
         '且它自身整段包在 try/except 裡，SameFileError 只會回 False、不會毀檔。',
