@@ -3,6 +3,7 @@
  * 包含：data 初始值、constants、computed methods、file list helpers
  */
 import { isFileSearching as isPathSearching } from '../batch-search-rules.js';
+import { organizeState } from '../blank-card-rules.js';
 
 export function searchStateBase() {
     return {
@@ -83,6 +84,12 @@ export function searchStateBase() {
         editedChineseTitleValue: '',
         editingActors: false,
         editedActorsValue: '',
+        _uploadingCover: false,
+        // TASK-183-T2：空白結果卡的番號／片商行內編輯（與 title 三件組同形）
+        editingNumber: false,
+        editedNumberValue: '',
+        editingMaker: false,
+        editedMakerValue: '',
         // TASK-106 Option C Part 1: 編輯開啟當下捕獲的候選物件參照（identity guard）。
         // confirmEditTitle/confirmEditChineseTitle/confirmEditActors 開頭都拿 this.current()
         // 與各自欄位比對，不同即代表 current() 已換到別的候選/檔——不管是被 navigate/switchToFile/
@@ -96,6 +103,8 @@ export function searchStateBase() {
         _editSourceTitle: null,
         _editSourceChineseTitle: null,
         _editSourceActors: null,
+        _editSourceNumber: null,
+        _editSourceMaker: null,
         // TASK-106 Codex PR#116 P2: date picker 的 stale-candidate 身分守衛捕獲欄位（與
         // title/chineseTitle/actors 同源 pattern，見上方 Codex PR#115 P2 段落理由）。
         _editSourceDate: null,
@@ -298,7 +307,7 @@ export function searchStateBase() {
 
         searchAllButtonText() {
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched && !f.has_nfo);
-            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo);
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo && organizeState(f) !== 'ready');
             const batch = this.batchState;
 
             if (searchableFiles.length === 0 && failedFiles.length === 0) {
@@ -319,7 +328,7 @@ export function searchStateBase() {
                 return batch.isPaused ? 'bi-play-fill' : 'bi-pause-fill';
             }
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched && !f.has_nfo);
-            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo);
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo && organizeState(f) !== 'ready');
             if (searchableFiles.length === 0 && failedFiles.length > 0) {
                 return 'bi-arrow-clockwise';
             }
@@ -328,7 +337,7 @@ export function searchStateBase() {
 
         searchAllDisabled() {
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched && !f.has_nfo);
-            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo);
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo && organizeState(f) !== 'ready');
             return searchableFiles.length === 0 && failedFiles.length === 0 && !this.batchState.isProcessing;
         },
 
@@ -464,6 +473,7 @@ export function searchStateBase() {
         // ===== T1d: File List Helper Methods =====
 
         fileStatusIcon(file) {
+            if (organizeState(file) === 'ready') return '✓';
             if (!file.number) return '?';
             if (file.searched) {
                 return (file.searchResults && file.searchResults.length > 0) ? '✓' : '✗';
@@ -477,6 +487,7 @@ export function searchStateBase() {
 
         fileStatusClass(file) {
             let cls = 'file-status';
+            if (organizeState(file) === 'ready') return cls;
             if (!file.number) cls += ' text-warning';
             else if (file.searched && (!file.searchResults || file.searchResults.length === 0)) {
                 cls += ' text-error';
@@ -485,7 +496,8 @@ export function searchStateBase() {
         },
 
         canScrapeFile(file) {
-            return file.searched && file.searchResults && file.searchResults.length > 0 && !file.scraped;
+            const state = organizeState(file);
+            return (state === 'ready' || state === 'needs_number') && !file.scraped;
         },
 
         // 139b-T12：兩種「這一列需要人手介入」都給鉛筆。

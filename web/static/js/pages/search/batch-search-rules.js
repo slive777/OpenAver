@@ -13,9 +13,10 @@ export function isFileSearching(activePaths, path) {
 
 /**
  * isDetailEmpty(file) → boolean
- * 詳細區是否沒東西可看：沒有該片、沒有番號、或沒有任何搜尋結果（含尚未搜、查無）。
+ * 詳細區是否沒東西可看：沒有該片、沒有番號、或沒有任何搜尋結果（含尚未搜、查無）；有空白結果卡（file.blankCard）的片除外。
  */
 export function isDetailEmpty(file) {
+    if (file && file.blankCard) return false;   // TASK-183：停在空白卡上（可能有未按 ✓ 的編輯）視為非空，不 arm follow
     return !file || !file.number || !(file.searchResults && file.searchResults.length > 0);
 }
 

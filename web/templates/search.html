@@ -660,7 +660,7 @@
                          @touchstart.passive="_dtTouchStart($event)"
                          @touchend.passive="_dtTouchEnd($event)">
                         <img id="resultCover" x-ref="coverImg" class="av-card-full-cover-img"
-                             x-show="!coverError && current().cover"
+                             x-show="current().cover && (!coverError || current()._blank)"
                              :src="coverUrl()"
                              @error="handleCoverError()"
                              @load="_coverLoaded = true; coverError = ''; _coverRetried = false; _updateCoverHeight()"
@@ -671,15 +671,29 @@
                             <div class="shimmer"></div>
                         </div>
                         <!-- 封面錯誤 -->
-                        <div x-show="coverError" class="cover-error-placeholder">
+                        <div x-show="coverError && !(current()._blank && current().cover)" class="cover-error-placeholder">
                             <i class="bi bi-exclamation-triangle text-5xl text-warning"></i>
                             <p x-text="coverError" class="mt-2"></p>
-                            <small>{{ t('search.error.hint') }}</small>
+                            <small x-show="!current()._blank">{{ t('search.error.hint') }}</small>
+                            <button type="button" class="btn btn-sm btn-outline mt-2"
+                                    :disabled="_uploadingCover"
+                                    x-show="current()._blank && canEditFile() && !current().cover"
+                                    @click="$refs.blankCoverInput.click()">
+                                <i class="bi bi-upload"></i> {{ t('search.cover.upload') }}
+                            </button>
                         </div>
                         <!-- 無封面 -->
                         <div x-show="!coverError && !current().cover" class="cover-error-placeholder">
                             <i class="bi bi-image text-5xl"></i>
+                            <button type="button" class="btn btn-sm btn-outline mt-2"
+                                    :disabled="_uploadingCover"
+                                    x-show="current()._blank && canEditFile() && !current().cover"
+                                    @click="$refs.blankCoverInput.click()">
+                                <i class="bi bi-upload"></i> {{ t('search.cover.upload') }}
+                            </button>
                         </div>
+                        <input type="file" accept="image/*" x-ref="blankCoverInput" style="display:none"
+                               @change="uploadBlankCover($event)">
                         <button class="nav-btn prev" id="btnPrev"
                                 x-show="showNavigation()"
                                 :disabled="!canGoPrev() || (isSearchingFile && searchingFileDirection === 'prev')"
@@ -699,6 +713,14 @@
                         <div class="nav-indicator" id="navIndicator"
                              x-show="showNavigation()"
                              x-text="navIndicatorText()">1/1</div>
+                    </div>
+                    {# TASK-183：空白卡已上傳封面後仍可換圖（上傳鈕在有封面時被隱藏）；沿用同一個 file input 與 uploadBlankCover #}
+                    <div class="text-center" x-show="current()._blank && canEditFile() && current().cover" x-cloak>
+                        <button type="button" id="replaceBlankCoverBtn" class="btn btn-sm btn-outline mt-2"
+                                :disabled="_uploadingCover"
+                                @click="$refs.blankCoverInput.click()">
+                            <i class="bi bi-arrow-repeat"></i> {{ t('search.cover.replace') }}
+                        </button>
                     </div>
                     <!-- T7: Sample Images 縮圖列 -->
                     <div class="sample-strip"
@@ -721,19 +743,38 @@
                 </div>
                 <div class="av-card-full-info">
                 <div class="av-card-full-header">
-                    <h4 class="av-num" id="resultNumber" x-text="current().number || '-'">-</h4>
+                    <h4 class="av-num" id="resultNumber" x-text="current().number || '-'" x-show="!(editingNumber && current()._blank && canEditFile())">-</h4>
+                    {# TASK-183-T2：空白結果卡才露出的番號編輯（有結果的卡零變動） #}
+                    <button id="editNumberBtn" class="info-icon-btn" x-show="current()._blank && canEditFile() && !editingNumber" x-cloak @click="startEditNumber()" title="{{ t('search.action.edit_number') }}">
+                        <i class="bi bi-pencil text-muted"></i>
+                    </button>
+                    <div class="info-value-with-actions" x-show="editingNumber && current()._blank && canEditFile()" x-cloak>
+                        <input type="text" x-ref="numberInput" x-model="editedNumberValue"
+                               @keydown.enter="confirmEditNumber()"
+                               @keydown.escape="cancelEditNumber()"
+                               class="input input-bordered info-value flex-1 min-w-0"
+                               placeholder="{{ t('search.placeholder.number') }}">
+                        <div class="av-card-full-footer-actions">
+                            <button class="info-icon-btn text-success" @click="confirmEditNumber()" title="{{ t('common.action.confirm') }}">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                            <button class="info-icon-btn text-error" @click="cancelEditNumber()" title="{{ t('common.action.cancel') }}">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
                     <span id="localBadge" class="local-badge"
                           x-show="hasLocalBadge()"
                           :title="localBadgeTitle()"
                           @click="openLocal(current()._localStatus?.paths?.[0])">📁</span>
                     {# US2：目前來源膠囊（action 變體；source 空 → 整顆不渲染） #}
-                    <template x-if="current().source || current()._source">
+                    <template x-if="current().source || current()._source || current()._blank">
                         {{ source_pill(
-                            name="_resolveSourceName(current().source || current()._source)",
+                            name="_resolveSourceName(current().source || current()._source || 'auto')",
                             variant='action',
                             loading_expr='isSwitchingSource',
                             extra_classes='result-source-pill',
-                            attrs=':class="{ \'source-pill--uncensored\': !(rescrapeSources.find(x => x.id === (current().source || current()._source))?.is_censored ?? true), \'is-loading\': isSwitchingSource, \'shake\': switchSourceShake }" :disabled="isSwitchingSource" @click="openSwitchSourcePicker()" :title="t(\'search.source_pill.tooltip\')"'
+                            attrs=':class="{ \'source-pill--uncensored\': !(rescrapeSources.find(x => x.id === (current().source || current()._source || \'auto\'))?.is_censored ?? true), \'is-loading\': isSwitchingSource, \'shake\': switchSourceShake }" :disabled="isSwitchingSource" @click="openSwitchSourcePicker()" :title="t(\'search.source_pill.tooltip\')"'
                         ) }}
                     </template>
                     <button class="info-icon-btn"
@@ -745,7 +786,7 @@
                     <!-- TASK-140-T6: 加入書籤（本地沒有 ＋ 未加入）-->
                     <button class="info-icon-btn"
                             @click="addToWishlistFromDetail(current())"
-                            x-show="cardActionState(current()) === 'bookmark-add'"
+                            x-show="cardActionState(current()) === 'bookmark-add' && !current()._blank"
                             x-transition:enter="transition ease-out duration-150"
                             x-transition:enter-start="opacity-0"
                             x-transition:enter-end="opacity-100"
@@ -755,7 +796,7 @@
                     <!-- TASK-140-T6: 從書籤移除（本地沒有 ＋ 已加入）-->
                     <button class="info-icon-btn"
                             @click="removeFromWishlist(current()?.number, 'search')"
-                            x-show="cardActionState(current()) === 'bookmark-remove'"
+                            x-show="cardActionState(current()) === 'bookmark-remove' && !current()._blank"
                             x-transition:enter="transition ease-out duration-150"
                             x-transition:enter-start="opacity-0"
                             x-transition:enter-end="opacity-100"
@@ -801,7 +842,7 @@
                     </div>
                     <!-- 中文標題 -->
                     <div id="chineseTitleRow" class="av-card-full-footer-content mt-2"
-                         x-show="hasChineseTitle()">
+                         x-show="hasChineseTitle() || current()._blank">
                         <span class="info-label" id="chineseTitleLabel" x-text="chineseTitleLabel()">{{ t('search.label.chinese_title') }}</span>
                         <!-- 顯示模式 -->
                         <div class="info-value-with-actions" id="chineseTitleContainer" x-show="!(editingChineseTitle && canEditFile())">
@@ -835,8 +876,8 @@
                     <div class="info-grid-pair">
                         <div class="info-cell">
                             <span class="info-label">{{ t('search.label.date') }}</span>
-                            <span class="info-value" id="resultDate" x-show="!canEditFile() || current().date" x-text="current().date || '-'">-</span>
-                            <input type="date" x-show="canEditFile() && !current().date" id="resultDateInput"
+                            <span class="info-value" id="resultDate" x-show="!canEditFile() || (current().date && !current()._blank)" x-text="current().date || '-'">-</span>
+                            <input type="date" x-show="canEditFile() && (!current().date || current()._blank)" id="resultDateInput"
                                    class="input input-bordered info-value"
                                    :value="current().date || ''"
                                    @focus="startEditDate()"
@@ -852,7 +893,26 @@
                     <div class="info-grid-pair">
                         <div class="info-cell">
                             <span class="info-label">{{ t('search.label.maker') }}</span>
-                            <span class="info-value" id="resultMaker" x-text="current().maker || '-'">-</span>
+                            <span class="info-value" id="resultMaker" x-text="current().maker || '-'" x-show="!(editingMaker && current()._blank && canEditFile())">-</span>
+                            {# TASK-183-T2：空白結果卡才露出的片商編輯 #}
+                            <button id="editMakerBtn" class="info-icon-btn" x-show="current()._blank && canEditFile() && !editingMaker" x-cloak @click="startEditMaker()" title="{{ t('search.action.edit_maker') }}">
+                                <i class="bi bi-pencil text-muted"></i>
+                            </button>
+                            <div class="info-value-with-actions" x-show="editingMaker && current()._blank && canEditFile()" x-cloak>
+                                <input type="text" x-ref="makerInput" x-model="editedMakerValue"
+                                       @keydown.enter="confirmEditMaker()"
+                                       @keydown.escape="cancelEditMaker()"
+                                       class="input input-bordered info-value flex-1 min-w-0"
+                                       placeholder="{{ t('search.placeholder.maker') }}">
+                                <div class="av-card-full-footer-actions">
+                                    <button class="info-icon-btn text-success" @click="confirmEditMaker()" title="{{ t('common.action.confirm') }}">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    <button class="info-icon-btn text-error" @click="cancelEditMaker()" title="{{ t('common.action.cancel') }}">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="info-cell" x-show="current().label">
                             <span class="info-label">{{ t('search.label.label') }}</span>

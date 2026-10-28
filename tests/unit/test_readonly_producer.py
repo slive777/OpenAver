@@ -3812,7 +3812,7 @@ class TestResolveIngestPlan:
                 javbus_lang='zh-tw',
             )
 
-        mock_single.assert_called_once_with('SRC-001', 'javbus', javbus_lang='zh-tw')
+        mock_single.assert_called_once_with('SRC-001', 'javbus', javbus_lang='zh-tw', skip_format_check=False)
         mock_search.assert_not_called()
         assert cover_strategy == ('download', 'http://x/c.jpg')
 

@@ -150,14 +150,19 @@ function detectSuffixes(filename, keywords) {
  * scrapeFile - Pure API call helper (used by Alpine methods)
  */
 async function scrapeFile(file, metadata) {
+    const body = {
+        file_path: file.path,
+        number: metadata.number,
+        metadata: metadata
+    };
+    // 封面上傳 token 只隨「採用的空白卡」送出；有結果的卡一律不帶（避免舊上傳圖蓋掉站方封面）
+    if (metadata?.manual_entry === true && file.blankCard?._coverUploadToken) {
+        body.cover_upload_token = file.blankCard._coverUploadToken;
+    }
     const response = await fetch('/api/scrape-single', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            file_path: file.path,
-            number: metadata.number,
-            metadata: metadata
-        })
+        body: JSON.stringify(body)
     });
     return await response.json();
 }

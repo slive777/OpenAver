@@ -13,6 +13,7 @@ import { toastState }              from '@/shared/state-toast.js';
 import { searchStateWishlist }    from '@/search/state/wishlist.js';
 import { searchStateEmptyExplainer } from '@/search/state/empty-explainer.js';
 import { searchStateMakerLatest }    from '@/search/state/maker-latest.js';
+import { searchStateBlankCard }      from '@/search/state/blank-card.js';
 import { mergeState }              from '@/shared/merge-state.js';
 
 let _dragTimeoutHandle = null;
@@ -39,6 +40,7 @@ export function searchPage() {
         searchStateWishlist(),
         searchStateEmptyExplainer(),
         searchStateMakerLatest(),
+        searchStateBlankCard(),
         {
             // ===== 頁面組裝層 lifecycle（從 state/index.js 搬移）=====
             _armDragHeartbeat(e) {

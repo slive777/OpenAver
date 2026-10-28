@@ -12,7 +12,7 @@ including SourceBlocked / SourceUnreachable (BE-PY-03). No retries.
 Request budget (pressure on JavDB): an autouse fixture gates `HTTPAdapter.send`
 for the JavDB API hosts, so EVERY request really sent counts (mirror-host
 fallback and redirects included; it calls the real send, never mocks a
-response): >= 2.0 s between two requests, hard cap 24 requests per run. Detail
+response): >= 2.0 s between two requests, hard cap 26 requests per run. Detail
 workers are thereby serialized. Every request goes through the proxy
 http://192.168.1.177:8888/ (owner 2026-10-22): the provider is built on a
 JavDBScraper whose ProxySettings(url=_PROXY, scope="all") makes `_proxies()` return
@@ -34,7 +34,7 @@ pytestmark = pytest.mark.smoke
 _PROXY = "http://192.168.1.177:8888/"
 _PROXIES = {"http": _PROXY, "https": _PROXY}
 _MIN_GAP = 2.0  # seconds between two JavDB requests (end of previous -> start of next)
-_MAX_CALLS = 24
+_MAX_CALLS = 26
 _MIN_ITEMS = 20
 
 _STATE = {"calls": 0, "last_end": None, "min_gap": None, "max_gap": None, "stopped": None, "proxies": "n/a"}
@@ -282,3 +282,24 @@ def test_actor_alt_names_japanese_canonical_for_trad_and_romaji(provider, actor_
     assert "三上悠亜" in trad, f"alt_names(ACTOR,'三上悠亞') 缺日文正名: {trad}"
     assert not [t for t in trad if t.isascii()], f"alt_names 出現純 ASCII token: {trad}"
     assert romaji == trad, (trad, romaji)
+
+
+def test_skip_format_check_finds_nonstandard_numbers(provider, monkeypatch):
+    """183: with skip_format_check the typed string goes to the App data channel as-is.
+
+    Only the App channel is exercised: the HTML fallback goes through curl_cffi (not HTTPAdapter.send), so it would
+    be neither counted nor paced here -> swapped for a no-op. A made-up number must come back None, never another film.
+    """
+    from core.proxy_policy import ProxySettings
+    from core.scrapers.javdb import JavDBScraper
+    from core.scrapers.models import ScraperConfig
+
+    monkeypatch.setattr(JavDBScraper, "search_via_html", lambda self, n: None)
+    scraper = JavDBScraper(
+        ScraperConfig(proxy_settings=ProxySettings(url=_PROXY, scope="all")), skip_format_check=True,
+    )
+    for number in ("MKD-S85", "XXX-AV-20433", "S2MBD-011"):
+        video = scraper.search(number)
+        assert video is not None, f"search({number!r}) 查無（旗標 True 應照原樣問到 javdb）"
+        assert video.number == number, (number, video.number)
+    assert scraper.search("ZZQ-X77") is None

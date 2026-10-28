@@ -5983,7 +5983,7 @@ const RULES = [
   { file: 'web/static/js/pages/search/state/search-flow.js', kind: 'required-string', anyOf: true, pattern: ['currentResult', 'this.searchResults[this.currentIndex]'], scope: /([\s\S]{0,200}firstValid[\s\S]{0,200})/, note: '[lint-guard 162c-test_repoint_is_conditional] 使用者搜尋多筆番號、串流中途已自行點選某筆有效結果 → 串流結束時被無條件拉回第一筆（或原停在失敗空白項卻沒被導向有效項），看到錯的那一筆 — 遷自 test_frontend_lint.py' },
 
   // 162c: TestLightboxModeNormalization
-  { file: 'web/static/js/pages/search/state/persistence.js', kind: 'required-string', pattern: ['lightboxOpen', '= false', 'actressProfile', 'lightboxIndex'], scope: { anchor: /restoreState\s*\(\s*\)/, window: 3000 }, note: '[lint-guard 162c-test_lightbox_mode_normalization_contains] 使用者在女優（hero）搜尋頁重新整理 → 還原後燈箱殘留開著，或打開女優燈箱時沒有女優資料（空白燈箱、關不掉或內容錯） — 遷自 test_frontend_lint.py' },
+  { file: 'web/static/js/pages/search/state/persistence.js', kind: 'required-string', pattern: ['lightboxOpen', '= false', 'actressProfile', 'lightboxIndex'], scope: { anchor: /restoreState\s*\(\s*\)/, window: 3500 }, note: '[lint-guard 162c-test_lightbox_mode_normalization_contains] 使用者在女優（hero）搜尋頁重新整理 → 還原後燈箱殘留開著，或打開女優燈箱時沒有女優資料（空白燈箱、關不掉或內容錯） — 遷自 test_frontend_lint.py' },
   { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', pattern: /if\s*\(\s*!this\.actressProfile\s*\)\s*return/, scope: { anchor: /openActressLightbox\s*\(\s*\)/, window: 300 }, note: '[lint-guard 162c-test_lightbox_mode_normalization_contains] 使用者在女優（hero）搜尋頁重新整理 → 還原後燈箱殘留開著，或打開女優燈箱時沒有女優資料（空白燈箱、關不掉或內容錯） — 遷自 test_frontend_lint.py' },
 
   // 162c: TestShowcaseAnimationsGuard
@@ -6218,13 +6218,13 @@ const RULES = [
   {
     file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string',
     pattern: /t\.arr\s*\[\s*t\.idx\s*\]\s*=[^=]/,
-    scope: /rescrapeConfirm\s*\(\s*\)[\s\S]*?rescrapeEntryPoint\s*===\s*['"]switch-source['"]([\s\S]{0,1100})/,
+    scope: /rescrapeConfirm\s*\(\s*\)[\s\S]*?rescrapeEntryPoint\s*===\s*['"]switch-source['"]([\s\S]{0,1600})/,
     note: '[lint-guard 162c-test_switch_source_confirm_branch_present] rescrapeConfirm switch-source 須 in-place 賦值 t.arr[t.idx]= — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/static/js/shared/state-rescrape.js', kind: 'forbidden-string',
     pattern: '_commitSearchResults',
-    scope: /rescrapeConfirm\s*\(\s*\)[\s\S]*?rescrapeEntryPoint\s*===\s*['"]switch-source['"]([\s\S]{0,1100})/,
+    scope: /rescrapeConfirm\s*\(\s*\)[\s\S]*?rescrapeEntryPoint\s*===\s*['"]switch-source['"]([\s\S]{0,1600})/,
     note: '[lint-guard 162c-test_switch_source_confirm_branch_present] rescrapeConfirm switch-source 不得呼叫 _commitSearchResults — 遷自 test_frontend_lint.py',
   },
   {
@@ -7600,8 +7600,9 @@ const RULES = [
   {
     file: 'web/templates/search.html', kind: 'required-string',
     pattern: [
-      '!canEditFile() || current().date',
-      'canEditFile() && !current().date',
+      // PR#256：空白卡填了日期後仍要能改，互補閘多一個 _blank 例外（一般卡行為不變）
+      '!canEditFile() || (current().date && !current()._blank)',
+      'canEditFile() && (!current().date || current()._blank)',
       ":value=\"current().date || ''\"",
     ],
     note: '[lint-guard 162c-test_search_html_date_span_and_picker_complementary_gating] 檔案模式挑發售日 → date span／picker 互補閘＋:value 反應性重設 — 遷自 test_contract_api_routes.py',

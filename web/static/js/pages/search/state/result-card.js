@@ -45,7 +45,8 @@ const INLINE_EDIT_FIELDS = {
         buffer: 'editedChineseTitleValue',
         source: '_editSourceChineseTitle',
         ref: 'chineseTitleInput',
-        read: (ctx) => ctx.chineseTitleText() || '',
+        // 空白卡只讀 translated_title：chineseTitleText() 空時回 '-'，會把 '-' 預填進編輯框
+        read: (ctx, c) => c._blank ? (c.translated_title || '') : (ctx.chineseTitleText() || ''),
         write: (ctx, c, raw) => { c.translated_title = raw.trim(); c._chineseTitleEdited = true; },
     },
     actors: {
@@ -56,6 +57,32 @@ const INLINE_EDIT_FIELDS = {
         read: (ctx, c) => (c.actors || []).join(', '),
         // 刻意不 .trim()：交給 parseActorsInput 逐段 trim。也刻意沒有 _xxxEdited 旗標。
         write: (ctx, c, raw) => { c.actors = parseActorsInput(raw); },
+    },
+    // TASK-183-T2：空白結果卡的番號／片商（模板只在 current()._blank 時露出鉛筆）
+    number: {
+        editing: 'editingNumber',
+        buffer: 'editedNumberValue',
+        source: '_editSourceNumber',
+        ref: 'numberInput',
+        read: (ctx, c) => c.number || '',
+        write: (ctx, c, raw) => {
+            c.number = raw.trim();
+            // 空白卡改番號要回寫到所屬檔案：「重試失敗」「搜尋全部」讀的是 file.number，
+            // 不同步就會繼續搜舊番號。照 enterNumber（file-list.js）的做法兩處都寫。
+            // 以 index 取檔，不比對物件身分（Alpine proxy 會讓 === 失效）。一般結果卡不動 file.number。
+            if (ctx.listMode === 'file' && c._blank) {
+                const f = ctx.fileList?.[ctx.currentFileIndex];
+                if (f && f.blankCard) f.number = c.number;
+            }
+        },
+    },
+    maker: {
+        editing: 'editingMaker',
+        buffer: 'editedMakerValue',
+        source: '_editSourceMaker',
+        ref: 'makerInput',
+        read: (ctx, c) => c.maker || '',
+        write: (ctx, c, raw) => { c.maker = raw.trim(); },
     },
 };
 
@@ -93,8 +120,9 @@ export function searchStateResultCard() {
 
     current() {
         if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
-            const results = this.fileList[this.currentFileIndex].searchResults || [];
-            return results[this.currentIndex] || {};
+            const file = this.fileList[this.currentFileIndex];
+            const results = file.searchResults || [];
+            return results[this.currentIndex] || file.blankCard || {};
         }
         return this.searchResults[this.currentIndex] || {};
     },
@@ -130,12 +158,14 @@ export function searchStateResultCard() {
 
     chineseTitleLabel() {
         const c = this.current();
+        if (c._blank) return window.t('search.label.chinese_title');
         if (c.translated_title) return window.t('search.label.chinese_title_ai');
         return window.t('search.label.chinese_title');
     },
 
     chineseTitleText() {
         const c = this.current();
+        if (c._blank) return c.translated_title || '-';
         return c.translated_title || this.chineseTitle() || '-';
     },
 
@@ -152,6 +182,8 @@ export function searchStateResultCard() {
         // 時改用 cover（見 resolveResultCoverUrl）。proxy 包裹仍在此呼叫點處理（裁決 2）。
         const cover = this.resolveCoverUrl(c);
         if (!cover) return '';
+        // 本機暫存的上傳封面不是外站圖，套 proxy 會被拒
+        if (cover.startsWith('/api/scrape-cover/')) return cover;
         return `/api/proxy-image?url=${encodeURIComponent(cover)}`;
     },
 
@@ -160,6 +192,7 @@ export function searchStateResultCard() {
         return this.appConfig?.translate?.enabled &&
                !this.chineseTitle() &&
                !c.translated_title &&
+               !c._blank &&
                c.title &&
                this.hasJapanese(c.title) &&
                !this.isBatchTranslating(this.currentIndex);
@@ -186,6 +219,16 @@ export function searchStateResultCard() {
     startEditChineseTitle() { startInlineEdit(this, 'chineseTitle'); },
     confirmEditChineseTitle() { confirmInlineEdit(this, 'chineseTitle'); },
     cancelEditChineseTitle() { cancelInlineEdit(this, 'chineseTitle'); },
+
+    // ===== TASK-183-T2: Number / Maker Edit Methods（空白結果卡）=====
+
+    startEditNumber() { startInlineEdit(this, 'number'); },
+    confirmEditNumber() { confirmInlineEdit(this, 'number'); },
+    cancelEditNumber() { cancelInlineEdit(this, 'number'); },
+
+    startEditMaker() { startInlineEdit(this, 'maker'); },
+    confirmEditMaker() { confirmInlineEdit(this, 'maker'); },
+    cancelEditMaker() { cancelInlineEdit(this, 'maker'); },
 
     // ===== T3: Actor Edit Methods =====
 
@@ -510,6 +553,13 @@ export function searchStateResultCard() {
 
         // Preview 失敗、cover fallback 可用 → 改試 cover（見上方函式註解）
         const c = this.current();
+
+        // 空白卡上傳的暫存封面逾期（GET 404）→ 卡回到「有上傳鈕」，使用者可重新上傳
+        if (c._blank && c._coverUploadToken) {
+            if ((img.getAttribute('src') || '') !== expected) return; // Stale @error
+            this._dropBlankCover(c);
+            return;
+        }
         if (shouldFallbackToCover(c)) {
             const attrSrc = img.getAttribute('src') || '';
             if (attrSrc !== expected) {

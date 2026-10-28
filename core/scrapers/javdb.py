@@ -42,6 +42,15 @@ _cainfo_override = _UNSET   # _UNSET=未算 / None=no-op 或降級 / bytes=CAINF
 _ca_warned = False
 
 
+_CONTROL_CHARS = re.compile(r'[\x00-\x1f\x7f]')
+
+
+def _is_sane_free_text(text: str) -> bool:
+    """skip_format_check 的最低門檻：非空、長度 ≤ 64、不含控制字元。"""
+    text = text.strip()
+    return bool(text) and len(text) <= 64 and not _CONTROL_CHARS.search(text)
+
+
 def _parse_rating_votes(text: str) -> tuple[Optional[float], Optional[int]]:
     """'4.58分, 由48人評價' → (4.58, 48)。抽不到的那一半回 None，不拋。"""
     rating: Optional[float] = None
@@ -208,6 +217,11 @@ class JavDBScraper(BaseScraper):
     """
 
     SAMPLE_NUMBER = "SONE-205"
+
+    def __init__(self, config=None, *, skip_format_check: bool = False):
+        super().__init__(config)
+        # 進階搜尋（使用者明確選 javdb）照打的字去問：略過 validate_number，改過 _is_sane_free_text
+        self.skip_format_check = skip_format_check
 
     def _get_source_name(self) -> str:
         return "javdb"
@@ -418,7 +432,9 @@ class JavDBScraper(BaseScraper):
         """
         number = self.normalize_number(number)
 
-        if not self.validate_number(number):
+        if not self.skip_format_check and not self.validate_number(number):
+            raise ValueError(f"Invalid number format: {number}")
+        if self.skip_format_check and not _is_sane_free_text(number):
             raise ValueError(f"Invalid number format: {number}")
 
         try:

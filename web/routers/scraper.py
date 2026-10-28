@@ -14,11 +14,13 @@ import os
 from dataclasses import asdict
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Any, Dict, List, Literal, Optional
 
+from core import cover_upload
+from core.actress_photo import CONTENT_TYPE_MAP
 from core.database import VideoRepository, organize_failures
 from core.db_inflow import try_inflow_upsert
 from core.focal_trigger import maybe_submit_video_focal
@@ -120,6 +122,8 @@ class ScrapeRequest(BaseModel):
     number: Optional[str] = None
     # 前端可直接傳入 metadata，避免重新搜尋
     metadata: Optional[dict] = None
+    # 183-T5a：空白卡上傳封面後拿到的暫存 token（見 POST /api/scrape-cover/upload）
+    cover_upload_token: Optional[str] = None
 
 
 # 唯讀來源 guard 的錯誤訊息（單一真理來源；sync helper 與 batch async loop 共用）。
@@ -181,6 +185,51 @@ def _readonly_source_error(file_path: str) -> Optional[dict]:
     return None
 
 
+_COVER_UPLOAD_EXPIRED_MSG = "封面暫存已失效，請重新上傳封面"
+_COVER_UPLOAD_FAILED_MSG = "上傳封面失敗，請稍後再試"
+_COVER_NOT_FOUND_MSG = "查無此封面"
+
+# ruff B008：fastapi.File 不在 immutable-calls 允許清單，用模組層單例（同 actress.py）。
+_COVER_UPLOAD_FILE_PARAM = File(...)
+
+
+@router.post("/scrape-cover/upload")
+async def upload_scrape_cover(file: UploadFile = _COVER_UPLOAD_FILE_PARAM):
+    """
+    空白卡上傳封面（multipart 欄位 `file`）：驗證＋正規化成 JPEG 暫存，回 token。
+
+    驗證順序（全部先於任何寫入）：大小 >10MB → 413；Content-Type 不在白名單 → 415；
+    像素 >50M → 413；PIL 驗證失敗 → 415。UI 專用兩步暫存，不揭露進 capabilities。
+    """
+    try:
+        if file.size is not None and file.size > cover_upload.MAX_BYTES:
+            return JSONResponse(status_code=413, content={"error": cover_upload.ERR_TOO_LARGE})
+        data = await file.read()
+        if len(data) > cover_upload.MAX_BYTES:
+            return JSONResponse(status_code=413, content={"error": cover_upload.ERR_TOO_LARGE})
+        if file.content_type not in CONTENT_TYPE_MAP:
+            return JSONResponse(
+                status_code=415, content={"error": cover_upload.ERR_UNSUPPORTED_FORMAT})
+        jpeg, err = await asyncio.to_thread(cover_upload.validate_and_normalize_cover, data)
+        if err is not None:
+            return JSONResponse(status_code=err[0], content={"error": err[1]})
+        await asyncio.to_thread(cover_upload.sweep_expired_covers)
+        token = await asyncio.to_thread(cover_upload.store_cover, jpeg)
+        return {"token": token, "url": f"/api/scrape-cover/{token}"}
+    except Exception:
+        logger.exception("[scraper] 上傳封面失敗")
+        return JSONResponse(status_code=500, content={"error": _COVER_UPLOAD_FAILED_MSG})
+
+
+@router.get("/scrape-cover/{token}")
+def get_scrape_cover(token: str):
+    """回暫存封面（同步 def，磁碟呼叫交 threadpool）；token 無效／逾期 → 404。"""
+    path = cover_upload.resolve_cover_token(token)
+    if path is None:
+        return JSONResponse(status_code=404, content={"error": _COVER_NOT_FOUND_MSG})
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
 @router.post("/scrape-single")
 def scrape_single(request: ScrapeRequest) -> dict:
     """
@@ -203,6 +252,13 @@ def scrape_single(request: ScrapeRequest) -> dict:
     _err = _readonly_source_error(file_path)
     if _err:
         return _err
+
+    # 183-T5a：封面上傳 token 失效 → 整理不開始、影片不動（fail-closed）。
+    uploaded_cover = None
+    if request.cover_upload_token:
+        uploaded_cover = cover_upload.resolve_cover_token(request.cover_upload_token)
+        if uploaded_cover is None:
+            return {"success": False, "error": _COVER_UPLOAD_EXPIRED_MSG}
 
     # 如果沒有提供番號，嘗試從檔名提取
     if not number:
@@ -242,7 +298,9 @@ def scrape_single(request: ScrapeRequest) -> dict:
     logger.debug(f"[scraper] cover URL: {metadata.get('cover', 'NO COVER')}")
 
     # 執行整理（scraper_config 已包含 suffix_keywords，organize_file 自行偵測）
-    result = organize_file(file_path, metadata, scraper_config)
+    result = organize_file(file_path, metadata, scraper_config, uploaded_cover=uploaded_cover)
+    if result.get('success') and request.cover_upload_token:
+        cover_upload.discard_cover_token(request.cover_upload_token)
 
     # 覆蓋保護：目標路徑已存在時回傳 duplicate 狀態（不覆蓋）
     if result.get('duplicate'):
@@ -348,6 +406,7 @@ class EnrichRequest(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     allow_number_change: bool = False
     preserve_title: bool = False
+    skip_format_check: bool = False  # 進階搜尋 / 燈箱 ⚙：source 為 javdb 時照原樣查（rescrape 分支與 refresh_full 才生效）
 
 
 class BatchEnrichItem(BaseModel):
@@ -371,6 +430,7 @@ class BatchEnrichRequest(BaseModel):
 class RescrapePreviewRequest(BaseModel):
     number: str
     source: str = "auto"
+    skip_format_check: bool = False  # 進階搜尋：source 為 javdb 時照原樣查
 
 
 @router.post("/rescrape/preview")
@@ -396,12 +456,12 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
         elif request.source == "auto":
             result = search_jav(
                 request.number,
-                source="auto",
+                source="auto", skip_format_check=request.skip_format_check,
             )
         else:
             result = search_jav_single_source(
                 request.number, request.source,
-                surface_access_errors=True,
+                surface_access_errors=True, skip_format_check=request.skip_format_check,
             )
 
         if result is None:
@@ -744,6 +804,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 scraper_data=scraper_data, scrape_source=request.source,
                 javbus_lang=request.javbus_lang, write_cover=resolved_write_cover,
                 overwrite_existing=request.overwrite_existing, preserve_title=request.preserve_title,
+                skip_format_check=request.skip_format_check,
                 after_produce=lambda: thumbnail_cache.invalidate(canonical),
             )
             if result.success:
@@ -808,6 +869,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             javbus_lang=request.javbus_lang,
             scraper_data=scraper_data,
             path_mappings=path_mappings, preserve_title=request.preserve_title,
+            skip_format_check=request.skip_format_check,
         )
         # feature/71 T8: 換封面成功 → 失效舊縮圖（下次進畫面時重生，CD-9 / spec 2.A.7）。
         # request.file_path 已是 DB 的 file:/// URI（前端送 currentLightboxVideo.path /

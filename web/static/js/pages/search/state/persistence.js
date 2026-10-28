@@ -156,6 +156,10 @@ export function searchStatePersistence() {
                     this.hasMoreResults = currentFile.hasMoreResults || false;
                     this.pageState = 'result';
                     hasResult = true;
+                } else if (currentFile?.blankCard) {
+                    // TASK-183-T2：查無但有空白結果卡（使用者可能已填內容）→ F5 後直接還原成 result 頁
+                    this.pageState = 'result';
+                    hasResult = true;
                 }
             }
 

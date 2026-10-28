@@ -110,7 +110,7 @@ async function ensureCached(state, number) {
     }
 
     try {
-        const resp = await fetch(`/api/search?q=${encodeURIComponent(number)}&mode=exact&source=${source}`);
+        const resp = await fetch(`/api/search?q=${encodeURIComponent(number)}&mode=exact&source=${source}&skip_format_check=true`);
         const json = await resp.json();
 
         if (json.success && json.data && json.data.length > 0) {

@@ -55,6 +55,9 @@ BLOCKING_FUNC_NAMES = frozenset({
     # feature/152d TASK-D2：record_manual_outcome 同樣走 mutate_config（同步磁碟寫入）。
     # classify_manual_reason 是純函式、不碰 config，故意不加。
     "record_manual_outcome",
+    # feature/183 T5a：core/cover_upload.py 的磁碟／PIL 呼叫（upload 端點一律 to_thread）
+    "validate_and_normalize_cover", "store_cover", "resolve_cover_token",
+    "discard_cover_token", "sweep_expired_covers",
 })
 
 # Attribute-call 後綴（接在任意物件後 .exists() / .stat() / .iterdir() / .save()）

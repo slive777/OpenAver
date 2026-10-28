@@ -4,6 +4,7 @@
  */
 import { isCloudTranslateProvider, translateAllSummary } from '../../../shared/translate-provider.js';
 import { isDetailEmpty, shouldAutoJump } from '../batch-search-rules.js';
+import { organizeState, skipAutoTranslate } from '../blank-card-rules.js';
 
 // T4: 追蹤正在批次翻譯的片索引（從 core.js 搬移）
 const batchTranslatingIndices = new Set();
@@ -60,6 +61,13 @@ async function translateBatchHelper(titles) {
 // ⚠️ 安全面沒有變大：`cover` / `sample_images` 本來就是前端可控且未經白名單的值
 // （下載端沒有白名單，spec §1.2），preview_* 沒有新增任何攻擊面。
 export function buildOrganizeMetadata(file) {
+    if (!(file.searchResults?.length > 0) && file.blankCard) {
+        // 空白卡：手填值原樣送出，去掉內部鍵；user_tags 取檔案層級（183-T4）
+        const { _blank, _source, _coverUploadToken, _titleEdited, _chineseTitleEdited, ...rest } = file.blankCard;
+        // 有上傳封面時，cover 是本機預覽網址不是可下載的 URL；整理時封面由 token 決定
+        if (_coverUploadToken) { delete rest.cover; delete rest.preview_cover_url; }
+        return { ...rest, user_tags: file.user_tags || [], manual_entry: true };
+    }
     return { ...file.searchResults[file.selectedCandidateIndex ?? 0] };
 }
 
@@ -203,7 +211,7 @@ export function searchStateBatch() {
 
         // === 新的批次開始 ===
         const searchableFiles = this.fileList.filter(f => f.number && !f.searched && !f.has_nfo && !f.skipReason);
-        const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo && !f.skipReason);
+        const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo && !f.skipReason && organizeState(f) !== 'ready');
 
         let targetFiles;
         if (searchableFiles.length > 0) {
@@ -411,13 +419,20 @@ export function searchStateBatch() {
             this.fileList[this.currentFileIndex].selectedCandidateIndex = this.currentIndex;
         }
 
-        const scrapableFiles = this.fileList.filter(f =>
-            f.searched && f.searchResults && f.searchResults.length > 0 && !f.scraped
-        );
+        const scrapableFiles = this.fileList.filter(f => organizeState(f) === 'ready' && !f.scraped);
+        // 只填標題、沒番號的檔不整理；整批只彙整成一則提示
+        const needsNumberFiles = this.fileList.filter(f => organizeState(f) === 'needs_number' && !f.scraped);
 
         if (scrapableFiles.length === 0) {
-            this.showToast(window.t('search.toast.no_scrapable_files'), 'info');
+            if (needsNumberFiles.length > 0) {
+                this.showToast(window.t('search.toast.number_required'), 'info');
+            } else {
+                this.showToast(window.t('search.toast.no_scrapable_files'), 'info');
+            }
             return;
+        }
+        if (needsNumberFiles.length > 0) {
+            this.showToast(window.t('search.toast.number_required'), 'info');
         }
 
         this.isScrapeAllProcessing = true;
@@ -438,6 +453,11 @@ export function searchStateBatch() {
         let duplicateCount = 0;
 
         for (const file of scrapableFiles) {
+            // 批次進行中使用者可能清掉後面某張空白卡的標題／番號：輪到時再判一次，不再可整理就不送出
+            if (organizeState(file) !== 'ready') {
+                this.scrapeProgress.processed++;
+                continue;
+            }
             const index = this.fileList.indexOf(file);
             let dbSyncResult = null;
 
@@ -447,7 +467,7 @@ export function searchStateBatch() {
             // 後端卻整理另一個來源（buildOrganizeMetadata 用 selectedCandidateIndex）。界限保護
             // 防越界（selectedCandidateIndex 在 T2' loadMore 硬關＋fresh-baseline 後恆在界內，
             // 此 clamp 為防禦性；scrapableFiles 已濾掉空 searchResults，length ≥ 1）。
-            this.currentIndex = Math.min(file.selectedCandidateIndex ?? 0, file.searchResults.length - 1);
+            this.currentIndex = Math.max(0, Math.min(file.selectedCandidateIndex ?? 0, file.searchResults.length - 1));
             this._resetCoverState();
 
             const metadata = { ...buildOrganizeMetadata(file) };
@@ -459,7 +479,7 @@ export function searchStateBatch() {
                 const chineseFromFile = file.chineseTitle;
                 const appConfig = this.appConfig;
                 if (appConfig?.translate?.enabled && !chineseFromFile &&
-                    metadata.title && this.hasJapanese(metadata.title)) {
+                    metadata.title && this.hasJapanese(metadata.title) && !skipAutoTranslate(metadata)) {
                     const tr = await this.translateWithOllama(metadata.title, 'translate', metadata);
                     if (tr.success) metadata.translated_title = tr.result;
                 }
@@ -536,7 +556,12 @@ export function searchStateBatch() {
 
     async scrapeSingle(index) {
         const file = this.fileList[index];
-        if (!file || !file.searchResults || file.searchResults.length === 0) {
+        const state = file ? organizeState(file) : 'none';
+        if (state === 'needs_number') {
+            this.showToast(window.t('search.toast.number_required'), 'info');
+            return;
+        }
+        if (state !== 'ready') {
             this.showToast(window.t('search.toast.no_search_results'), 'info');
             return;
         }
@@ -556,7 +581,7 @@ export function searchStateBatch() {
             const chineseFromFile = file.chineseTitle;
             const appConfig = this.appConfig;
             if (appConfig?.translate?.enabled && !chineseFromFile &&
-                metadata.title && this.hasJapanese(metadata.title)) {
+                metadata.title && this.hasJapanese(metadata.title) && !skipAutoTranslate(metadata)) {
                 const tr = await this.translateWithOllama(metadata.title, 'translate', metadata);
                 if (tr.success) metadata.translated_title = tr.result;
             }
