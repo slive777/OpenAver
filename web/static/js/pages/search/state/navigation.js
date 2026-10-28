@@ -63,6 +63,8 @@ export function searchStateNavigation() {
         this.editingTitle = false;
         this.editingChineseTitle = false;
         this.editingActors = false;
+        this.editingNumber = false;
+        this.editingMaker = false;
     },
 
     /**

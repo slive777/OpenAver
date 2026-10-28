@@ -83,6 +83,11 @@ export function searchStateBase() {
         editedChineseTitleValue: '',
         editingActors: false,
         editedActorsValue: '',
+        // TASK-183-T2：空白結果卡的番號／片商行內編輯（與 title 三件組同形）
+        editingNumber: false,
+        editedNumberValue: '',
+        editingMaker: false,
+        editedMakerValue: '',
         // TASK-106 Option C Part 1: 編輯開啟當下捕獲的候選物件參照（identity guard）。
         // confirmEditTitle/confirmEditChineseTitle/confirmEditActors 開頭都拿 this.current()
         // 與各自欄位比對，不同即代表 current() 已換到別的候選/檔——不管是被 navigate/switchToFile/
@@ -96,6 +101,8 @@ export function searchStateBase() {
         _editSourceTitle: null,
         _editSourceChineseTitle: null,
         _editSourceActors: null,
+        _editSourceNumber: null,
+        _editSourceMaker: null,
         // TASK-106 Codex PR#116 P2: date picker 的 stale-candidate 身分守衛捕獲欄位（與
         // title/chineseTitle/actors 同源 pattern，見上方 Codex PR#115 P2 段落理由）。
         _editSourceDate: null,

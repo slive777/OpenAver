@@ -120,7 +120,9 @@
     "placeholder": {
       "query": "搜尋番號、女優或拖入檔案...",
       "tag": "標籤名稱",
-      "actors": "演員名稱（可用、，,分隔多人）"
+      "actors": "演員名稱（可用、，,分隔多人）",
+      "number": "番號",
+      "maker": "片商名稱"
     },
     "auto_pill": {
       "tooltip": "點擊挑選來源"
@@ -145,6 +147,8 @@
       "translate_ai": "AI 翻譯",
       "edit_chinese_title": "編輯中文片名",
       "edit_actors": "編輯演員",
+      "edit_number": "編輯番號",
+      "edit_maker": "編輯片商",
       "switch_source": "切換版本",
       "open_source_url": "開啟來源頁面",
       "open_folder": "開啟資料夾",

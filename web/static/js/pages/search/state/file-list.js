@@ -31,6 +31,7 @@ export function searchStateFileList() {
             this.currentIndex = 0;
             this._resetCoverState();
             this.coverError = window.t('search.filelist.unrecognized', { filename: file.filename });
+            this._ensureBlankCard(file);
             this.pageState = 'result';
             return;
         }
@@ -68,6 +69,7 @@ export function searchStateFileList() {
             this.coverError = file.skipReason === 'duplicate'
                 ? window.t('search.filelist.duplicate_detail', { number: file.number })
                 : window.t('search.filelist.not_found', { number: file.number });
+            this._ensureBlankCard(file);
             this.pageState = 'result';
         }
     },
@@ -141,6 +143,7 @@ export function searchStateFileList() {
                             this.hasMoreResults = false;
                             this.currentIndex = 0;
 
+                            this._ensureBlankCard(file);
                             this.pageState = 'result';
                         }
                         resolve();
@@ -159,6 +162,7 @@ export function searchStateFileList() {
                         this.hasMoreResults = false;
                         this.currentIndex = 0;
 
+                        this._ensureBlankCard(file);
                         this.pageState = 'result';
                         resolve();
                     }
@@ -181,6 +185,7 @@ export function searchStateFileList() {
                 this.hasMoreResults = false;
                 this.currentIndex = 0;
 
+                this._ensureBlankCard(file);
                 this.pageState = 'result';
                 resolve();
             };
@@ -267,6 +272,7 @@ export function searchStateFileList() {
         file.number = number.trim();
         file.searched = false;
         file.searchResults = [];
+        file.blankCard = null;   // TASK-183-T2：重輸番號 → 空白卡作廢，重搜仍查無才重建（空的）
         file.skipReason = '';
         file.duplicateTarget = undefined;
         // T6 review：scrapeStatus 也要一起清。setFileList() 現在會在**列檔階段**就把記憶命中的
