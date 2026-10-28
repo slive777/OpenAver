@@ -3,6 +3,7 @@
  * 包含：data 初始值、constants、computed methods、file list helpers
  */
 import { isFileSearching as isPathSearching } from '../batch-search-rules.js';
+import { organizeState } from '../blank-card-rules.js';
 
 export function searchStateBase() {
     return {
@@ -305,7 +306,7 @@ export function searchStateBase() {
 
         searchAllButtonText() {
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched && !f.has_nfo);
-            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo);
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo && organizeState(f) !== 'ready');
             const batch = this.batchState;
 
             if (searchableFiles.length === 0 && failedFiles.length === 0) {
@@ -326,7 +327,7 @@ export function searchStateBase() {
                 return batch.isPaused ? 'bi-play-fill' : 'bi-pause-fill';
             }
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched && !f.has_nfo);
-            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo);
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo && organizeState(f) !== 'ready');
             if (searchableFiles.length === 0 && failedFiles.length > 0) {
                 return 'bi-arrow-clockwise';
             }
@@ -335,7 +336,7 @@ export function searchStateBase() {
 
         searchAllDisabled() {
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched && !f.has_nfo);
-            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo);
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0) && !f.has_nfo && organizeState(f) !== 'ready');
             return searchableFiles.length === 0 && failedFiles.length === 0 && !this.batchState.isProcessing;
         },
 
@@ -471,6 +472,7 @@ export function searchStateBase() {
         // ===== T1d: File List Helper Methods =====
 
         fileStatusIcon(file) {
+            if (organizeState(file) === 'ready') return '✓';
             if (!file.number) return '?';
             if (file.searched) {
                 return (file.searchResults && file.searchResults.length > 0) ? '✓' : '✗';
@@ -484,6 +486,7 @@ export function searchStateBase() {
 
         fileStatusClass(file) {
             let cls = 'file-status';
+            if (organizeState(file) === 'ready') return cls;
             if (!file.number) cls += ' text-warning';
             else if (file.searched && (!file.searchResults || file.searchResults.length === 0)) {
                 cls += ' text-error';
@@ -492,7 +495,8 @@ export function searchStateBase() {
         },
 
         canScrapeFile(file) {
-            return file.searched && file.searchResults && file.searchResults.length > 0 && !file.scraped;
+            const state = organizeState(file);
+            return (state === 'ready' || state === 'needs_number') && !file.scraped;
         },
 
         // 139b-T12：兩種「這一列需要人手介入」都給鉛筆。

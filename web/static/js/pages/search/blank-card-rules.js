@@ -42,3 +42,33 @@ export function adoptIntoBlankFile(fileList, target, variant) {
     if (!file.number) file.number = variant.number;
     return true;
 }
+
+const hasText = (v) => String(v || '').trim() !== '';
+
+/**
+ * isBlankOrganizable(card) → 空白卡的番號與標題都有字才算可整理（TASK-183-T4）
+ */
+export function isBlankOrganizable(card) {
+    return hasText(card.number) && hasText(card.title);
+}
+
+/**
+ * organizeState(file) → 'ready'｜'needs_number'｜'none'
+ * ready：有搜尋結果（優先於殘留的 blankCard），或空白卡番號＋標題皆填。
+ * needs_number：只填了標題、番號空白。其餘（含只填標籤／日期／演員）為 none。
+ */
+export function organizeState(file) {
+    if (file.searched && file.searchResults?.length > 0) return 'ready';
+    const card = file.blankCard;
+    if (!card) return 'none';
+    if (isBlankOrganizable(card)) return 'ready';
+    if (hasText(card.title)) return 'needs_number';
+    return 'none';
+}
+
+/**
+ * skipAutoTranslate(metadata) → 手填的中文片名不被自動翻譯蓋掉
+ */
+export function skipAutoTranslate(metadata) {
+    return metadata.manual_entry === true && hasText(metadata.translated_title);
+}

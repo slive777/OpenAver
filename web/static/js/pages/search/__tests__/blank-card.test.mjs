@@ -108,3 +108,151 @@ test('blank-card T3a: adoptIntoBlankFile writes only the file at target.filePath
         assert.strictEqual(searchStateResultCard().current.call(makeFakeThis(A)), variant);
     }
 });
+
+// TASK-183-T4：可整理判定。整理會搬檔，所以「不該整理的絕不送出」是核心。
+// 新函式用動態 import 取，避免它還不存在時整個檔案載入失敗。
+globalThis.document = globalThis.document || {
+    getElementById: () => null, querySelector: () => null, querySelectorAll: () => [],
+};
+const { searchStateBatch } = await import('../state/batch.js');
+const rules = await import('../blank-card-rules.js');
+
+const card = (extra = {}) => ({
+    _blank: true, _source: 'auto', number: '', title: '', translated_title: '', date: '',
+    maker: '', actors: [], tags: [], cover: '', source: '', ...extra,
+});
+const bf = (path, number, blankCard, extra = {}) => ({
+    path, filename: path.slice(1), number, searched: true, scraped: false, searchResults: [],
+    selectedCandidateIndex: 0, chineseTitle: '', blankCard, user_tags: [], ...extra,
+});
+
+function makeBatchState(fileList, { onScrape, translate, enabled = false } = {}) {
+    const calls = { scraped: [], toasts: [], metas: [], translated: 0 };
+    window.SearchFile = {
+        scrapeFile: async (file, metadata) => {
+            calls.scraped.push(file.path); calls.metas.push(metadata);
+            await onScrape?.(file, metadata);
+            return { success: true };
+        },
+    };
+    const state = {
+        ...searchStateBatch(), fileList, listMode: 'file', currentFileIndex: 0, currentIndex: 0,
+        searchResults: [], isScrapeAllProcessing: false,
+        scrapeProgress: { total: 0, processed: 0, isProcessing: false },
+        appConfig: { translate: { enabled } },
+        showToast(msg) { calls.toasts.push(msg); },
+        $nextTick(fn) { fn(); }, scrapePercent() { return 0; }, _resetCoverState() {},
+        hasJapanese: () => true,
+        async translateWithOllama() { calls.translated++; return { success: true, result: 'AI譯文' }; },
+    };
+    return { state, calls };
+}
+
+test('blank-card T4: only ready files reach scrapeFile; none and needs_number never do', async () => {
+    const { organizeState } = rules;
+    const R = { number: 'JURA-1', title: 'r' };
+    // 真值表
+    assert.equal(organizeState(bf('/a', 'A-1', card({ number: 'A-1', title: 'T' }))), 'ready');
+    assert.equal(organizeState(bf('/a', '', card({ number: 'A-1', title: 'T' }))), 'ready');
+    assert.equal(organizeState(bf('/a', 'A-1', null, { searchResults: [R] })), 'ready');
+    assert.equal(organizeState(bf('/a', 'A-1', card({ number: '', title: 'T' }))), 'needs_number');
+    assert.equal(organizeState(bf('/a', 'A-1', card({ number: '  ', title: 'T' }))), 'needs_number');
+    assert.equal(organizeState(bf('/a', 'A-1', card({ number: 'A-1', title: '' }))), 'none');
+    assert.equal(organizeState(bf('/a', 'A-1', card({ number: 'A-1', title: '   ' }))), 'none');
+    assert.equal(organizeState(bf('/a', 'A-1', card({ number: 'A-1', actors: ['x'], date: '2024-01-01', tags: ['t'] }))), 'none');
+    assert.equal(organizeState(bf('/a', 'A-1', null)), 'none');
+    assert.equal(organizeState({ number: 'A-1' }), 'none');
+
+    // 批次：ready（空白卡）＋T3a 採用後的 ready 才送；none／needs_number 不送；needs_number 只一則 toast
+    {
+        const files = [
+            bf('/none.mp4', 'JURA-9', card({ number: 'JURA-9' }), { user_tags: ['只填標籤'] }),
+            bf('/need1.mp4', '', card({ title: '標題一' })),
+            bf('/ready.mp4', 'JURA-1113', card({ number: 'JURA-1113', title: '手動標題' })),
+            bf('/need2.mp4', '', card({ title: '標題二' })),
+            bf('/adopted.mp4', 'JURA-111', null, { searchResults: [R] }),
+        ];
+        const { state, calls } = makeBatchState(files);
+        await state.scrapeAll();
+        assert.deepEqual(calls.scraped, ['/ready.mp4', '/adopted.mp4']);
+        assert.equal(calls.toasts.filter(m => m === 'search.toast.number_required').length, 1);
+        assert.equal(files[0].scraped, false);
+        assert.equal(files[1].scraped, false);
+        assert.equal(calls.metas[1].manual_entry, undefined);
+    }
+    // 批次進行中：第一片的 scrapeFile 掛起時，使用者把第二張 ready 空白卡的標題清空 → 第二片不送出
+    {
+        const A = bf('/a.mp4', 'JURA-1', card({ number: 'JURA-1', title: 'A' }));
+        const B = bf('/b.mp4', 'JURA-2', card({ number: 'JURA-2', title: 'B' }));
+        let release;
+        const gate = new Promise(r => { release = r; });
+        const { state, calls } = makeBatchState([A, B], { onScrape: (f) => (f === A ? gate : undefined) });
+        const run = state.scrapeAll();
+        try {
+            await Promise.resolve();
+            B.blankCard.title = '';
+        } finally {
+            release();
+        }
+        await run;
+        assert.deepEqual(calls.scraped, ['/a.mp4']);
+        assert.equal(B.scraped, false);
+        assert.deepEqual(calls.toasts, ['search.toast.scrape_complete']);
+    }
+    // 整批只有 none → 沿用 no_scrapable_files；整批只有 needs_number → 只跳 number_required
+    {
+        const { state, calls } = makeBatchState([bf('/none.mp4', 'J-1', card({ number: 'J-1' }))]);
+        await state.scrapeAll();
+        assert.deepEqual(calls.scraped, []);
+        assert.deepEqual(calls.toasts, ['search.toast.no_scrapable_files']);
+    }
+    {
+        const { state, calls } = makeBatchState([bf('/need.mp4', '', card({ title: 'T' }))]);
+        await state.scrapeAll();
+        assert.deepEqual(calls.scraped, []);
+        assert.deepEqual(calls.toasts, ['search.toast.number_required']);
+    }
+    // 單片
+    {
+        const files = [bf('/none.mp4', 'J-1', card({ number: 'J-1' })), bf('/need.mp4', '', card({ title: 'T' }))];
+        const { state, calls } = makeBatchState(files);
+        await state.scrapeSingle(0);
+        await state.scrapeSingle(1);
+        assert.deepEqual(calls.scraped, []);
+        assert.deepEqual(calls.toasts, ['search.toast.no_search_results', 'search.toast.number_required']);
+        assert.equal(files[1].isScraping, undefined);
+    }
+});
+
+test("blank-card T4: batch sends a ready blank card's own number/title/user_tags with manual_entry and no internal keys", async () => {
+    const f = bf('/ready.mp4', '', card({
+        number: 'JURA-1113', title: '手動標題', translated_title: '手填中文', actors: ['某演員'],
+        _titleEdited: true, _chineseTitleEdited: true, _coverUploadToken: 'tok',
+    }), { user_tags: ['我的標籤'] });
+    const { state, calls } = makeBatchState([f]);
+    await state.scrapeAll();
+    assert.equal(calls.metas.length, 1);
+    const m = calls.metas[0];
+    assert.equal(m.number, 'JURA-1113');
+    assert.equal(m.title, '手動標題');
+    assert.equal(m.translated_title, '手填中文');
+    assert.deepEqual(m.actors, ['某演員']);
+    assert.deepEqual(m.user_tags, ['我的標籤']);
+    assert.equal(m.manual_entry, true);
+    for (const k of ['_blank', '_source', '_titleEdited', '_chineseTitleEdited', '_coverUploadToken']) {
+        assert.equal(k in m, false, k);
+    }
+    assert.equal(Object.values(m).includes(undefined), false);
+    assert.equal(f.scraped, true);
+});
+
+test('blank-card T4: hand-filled translated_title skips auto translate; empty one still translates', async () => {
+    const run = async (translated_title) => {
+        const f = bf('/r.mp4', 'JURA-1113', card({ number: 'JURA-1113', title: 'テストタイトル', translated_title }));
+        const { state, calls } = makeBatchState([f], { enabled: true });
+        await state.scrapeSingle(0);
+        return { sent: calls.metas[0].translated_title, translated: calls.translated };
+    };
+    assert.deepEqual(await run('手填中文'), { sent: '手填中文', translated: 0 });
+    assert.deepEqual(await run(''), { sent: 'AI譯文', translated: 1 });
+});

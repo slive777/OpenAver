@@ -1207,7 +1207,7 @@ def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在�
     # 標題優先順序：翻譯 > 檔名提取 > 日文原始
     original_title = metadata.get('title', '')  # 日文原始標題
     translated_title = metadata.get('translated_title', '')  # LLM 翻譯/優化的標題
-    extracted_title = extract_chinese_title(original_filename, number, actors)
+    extracted_title = None if metadata.get('manual_entry') else extract_chinese_title(original_filename, number, actors)
 
     # 剝除 extracted_title 尾端的 VR cluster（含可選 bracket/paren 包裝，Codex P2 二次修正）
     # _detect_vr_cluster 把 []() 當分隔符 → cluster 不含 bracket，但 extracted_title 保留 bracket，
