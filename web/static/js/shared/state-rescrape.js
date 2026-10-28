@@ -169,6 +169,12 @@ export function rescrapeState() {
                 idx: this.currentIndex,
                 number: this.current()?.number,
             };
+            // 183-T3b：目前檔是「無候選的空白卡」→ 在 target 上標 blank + 以 path 認檔（不比 index／物件身分）
+            const blankFile = this.listMode === 'file' ? this.fileList[this.currentFileIndex] : null;
+            if (blankFile && !(blankFile.searchResults?.length > 0) && blankFile.blankCard) {
+                this._switchTarget.blank = true;
+                this._switchTarget.filePath = blankFile.path;
+            }
         },
 
         /**
@@ -415,7 +421,7 @@ export function rescrapeState() {
             // spec-74 §US2：picker「自動」= 原本 🔄 tap 的「換到下一個來源」循環功能。
             // 必須在 POST /api/rescrape/preview fetch 之前短路（DROP：switch-source + auto 不再打 preview）；
             // 具體 source pick 不受影響，繼續走下面 fetch + in-place replace 分支。
-            if (this.rescrapeEntryPoint === 'switch-source' && sourceId === 'auto') {
+            if (!this._switchTarget?.blank && this.rescrapeEntryPoint === 'switch-source' && sourceId === 'auto') {
                 this.closeRescrape();
                 await this.switchSource();
                 return;
@@ -474,6 +480,22 @@ export function rescrapeState() {
                         // 單版本 → 現有靜默 in-place 替換（race/stale 檢查保留）
                         // ── race 防覆蓋錯卡：await 回來判 slot 是否還在原位（強化 1：含 liveArr 顯式 identity 比對）──
                         const t = this._switchTarget;
+                        // 183-T3b：空白卡（t.arr 是空陣列，走下面 stale 判定必被丟棄）→ 先岔出去掛回開窗那個檔
+                        if (t && t.blank) {
+                            const blankVariant = (() => {
+                                if (data.candidates && data.candidates.length > 0) {
+                                    const { success: _s, ...c } = { success: true, ...data.candidates[0] };
+                                    return c;
+                                }
+                                const { success, ...v } = data;
+                                return v;
+                            })();
+                            if (this._adoptIntoBlankFile(t, blankVariant)) {
+                                window.SearchUI?.seedSwitchState?.(blankVariant.number || t.number, sourceId, blankVariant);
+                            }
+                            this.closeRescrape();
+                            return;
+                        }
                         const liveArr = (t && t.listMode === 'file' && this.fileList[t.fileIndex])
                             ? this.fileList[t.fileIndex].searchResults
                             : this.searchResults;
@@ -647,6 +669,16 @@ export function rescrapeState() {
                 if (this.rescrapeEntryPoint === 'switch-source') {
                     if (!this.rescrapePreview) { return; }
                     const t = this._switchTarget;
+                    // 183-T3b：空白卡 → 先岔出去掛回開窗那個檔（不走下面 stale 判定）
+                    if (t && t.blank) {
+                        const { success: _s, sourceName: _sn, sourceCensored: _sc,
+                                _previewFailed: _pf, ...blankVariant } = this.rescrapePreview;
+                        if (this._adoptIntoBlankFile(t, blankVariant)) {
+                            window.SearchUI?.seedSwitchState?.(blankVariant.number || t.number, this._rescrapeCommitSource, blankVariant);
+                        }
+                        this.closeRescrape();
+                        return;
+                    }
                     // 採用當下重驗 stale（鏡射 rescrapeWithSource :220-228）
                     const liveArr = (t && t.listMode === 'file' && this.fileList[t.fileIndex])
                         ? this.fileList[t.fileIndex].searchResults : this.searchResults;

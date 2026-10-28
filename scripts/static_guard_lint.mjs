@@ -6218,13 +6218,13 @@ const RULES = [
   {
     file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string',
     pattern: /t\.arr\s*\[\s*t\.idx\s*\]\s*=[^=]/,
-    scope: /rescrapeConfirm\s*\(\s*\)[\s\S]*?rescrapeEntryPoint\s*===\s*['"]switch-source['"]([\s\S]{0,1100})/,
+    scope: /rescrapeConfirm\s*\(\s*\)[\s\S]*?rescrapeEntryPoint\s*===\s*['"]switch-source['"]([\s\S]{0,1600})/,
     note: '[lint-guard 162c-test_switch_source_confirm_branch_present] rescrapeConfirm switch-source 須 in-place 賦值 t.arr[t.idx]= — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/static/js/shared/state-rescrape.js', kind: 'forbidden-string',
     pattern: '_commitSearchResults',
-    scope: /rescrapeConfirm\s*\(\s*\)[\s\S]*?rescrapeEntryPoint\s*===\s*['"]switch-source['"]([\s\S]{0,1100})/,
+    scope: /rescrapeConfirm\s*\(\s*\)[\s\S]*?rescrapeEntryPoint\s*===\s*['"]switch-source['"]([\s\S]{0,1600})/,
     note: '[lint-guard 162c-test_switch_source_confirm_branch_present] rescrapeConfirm switch-source 不得呼叫 _commitSearchResults — 遷自 test_frontend_lint.py',
   },
   {
