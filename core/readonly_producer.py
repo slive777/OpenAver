@@ -378,7 +378,7 @@ def resolve_ingest_plan(
     action: str = 'ingest',
     scraper_data: Optional[dict] = None,
     source: Optional[str] = None,
-    javbus_lang: Optional[str] = None,
+    javbus_lang: Optional[str] = None, skip_format_check: bool = False,
 ) -> tuple:
     """Metadata + cover two-axis decision for one source file (CD-104-3a).
 
@@ -551,7 +551,7 @@ def resolve_ingest_plan(
         if scraper_data:
             meta = scraper_data
         elif source and source not in (None, 'auto'):
-            meta = search_jav_single_source(number, source, javbus_lang=javbus_lang) if number else None
+            meta = search_jav_single_source(number, source, javbus_lang=javbus_lang, skip_format_check=skip_format_check) if number else None
         else:
             meta = search_jav(number, source="auto", javbus_lang=javbus_lang) if number else None
         cover_strategy = ('download', meta['cover']) if meta and meta.get('cover') else ('none',)
@@ -1035,7 +1035,7 @@ def enrich_one_readonly(
     overwrite_existing: bool,
     after_produce: Optional[Callable[[], None]] = None,
     focal_before_cover_recheck: bool = False,
-    preserve_title: bool = False,
+    preserve_title: bool = False, skip_format_check: bool = False,
 ) -> EnrichResult:
     """單片/批次唯讀 enrich 共用的「產出核心」——薄搬移自
     `web/routers/scraper.py` 單片 enrich 端點（POST /enrich-single）的唯讀分支
@@ -1088,7 +1088,7 @@ def enrich_one_readonly(
     meta, cover_strategy = resolve_ingest_plan(
         fs_path, number, scraper_cfg,
         action=action, scraper_data=scraper_data, source=scrape_source,
-        javbus_lang=javbus_lang,
+        javbus_lang=javbus_lang, skip_format_check=skip_format_check,
     )
     if not meta:
         # FIX P2-A / FIX#4 (P2 parity closeout): mirror non-readonly

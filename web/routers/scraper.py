@@ -348,6 +348,7 @@ class EnrichRequest(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     allow_number_change: bool = False
     preserve_title: bool = False
+    skip_format_check: bool = False  # 進階搜尋 / 燈箱 ⚙：source 為 javdb 時照原樣查（rescrape 分支與 refresh_full 才生效）
 
 
 class BatchEnrichItem(BaseModel):
@@ -371,6 +372,7 @@ class BatchEnrichRequest(BaseModel):
 class RescrapePreviewRequest(BaseModel):
     number: str
     source: str = "auto"
+    skip_format_check: bool = False  # 進階搜尋：source 為 javdb 時照原樣查
 
 
 @router.post("/rescrape/preview")
@@ -396,12 +398,12 @@ def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
         elif request.source == "auto":
             result = search_jav(
                 request.number,
-                source="auto",
+                source="auto", skip_format_check=request.skip_format_check,
             )
         else:
             result = search_jav_single_source(
                 request.number, request.source,
-                surface_access_errors=True,
+                surface_access_errors=True, skip_format_check=request.skip_format_check,
             )
 
         if result is None:
@@ -744,6 +746,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 scraper_data=scraper_data, scrape_source=request.source,
                 javbus_lang=request.javbus_lang, write_cover=resolved_write_cover,
                 overwrite_existing=request.overwrite_existing, preserve_title=request.preserve_title,
+                skip_format_check=request.skip_format_check,
                 after_produce=lambda: thumbnail_cache.invalidate(canonical),
             )
             if result.success:
@@ -808,6 +811,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             javbus_lang=request.javbus_lang,
             scraper_data=scraper_data,
             path_mappings=path_mappings, preserve_title=request.preserve_title,
+            skip_format_check=request.skip_format_check,
         )
         # feature/71 T8: 換封面成功 → 失效舊縮圖（下次進畫面時重生，CD-9 / spec 2.A.7）。
         # request.file_path 已是 DB 的 file:/// URI（前端送 currentLightboxVideo.path /

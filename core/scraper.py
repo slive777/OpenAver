@@ -271,7 +271,7 @@ def build_card(video: Video, number: str) -> Dict[str, Any]:
 
 def search_jav(
     number: str, source: str = 'auto', javbus_lang: Optional[str] = None,
-    surface_access_errors: bool = False,
+    surface_access_errors: bool = False, *, skip_format_check: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """
     搜尋 JAV 資訊（向後相容函數）
@@ -290,6 +290,7 @@ def search_jav(
     if not validate_source_id(source):
         logger.warning(f"[Search] 未知來源: {source}")
         return None
+    skip_format_check = bool(skip_format_check) and source == 'javdb'
 
     # javbus_lang 校驗 + config fallback（auto 與 explicit javbus 共用）
     if javbus_lang is not None and javbus_lang not in VALID_JAVBUS_LANGS:
@@ -306,7 +307,7 @@ def search_jav(
         'dmm': lambda: [DMMScraper()],
         'javbus': lambda: [JavBusScraper(lang=_javbus_lang)],
         'jav321': lambda: [JAV321Scraper()],
-        'javdb': lambda: [JavDBScraper()],
+        'javdb': lambda: [JavDBScraper(skip_format_check=skip_format_check)],
         'd2pass': lambda: [D2PassScraper()],
         'heyzo': lambda: [HEYZOScraper()],
         'fc2': lambda: [FC2OfficialScraper()],
@@ -441,12 +442,12 @@ def search_jav(
 
 def search_jav_single_source(
     number: str, source: str, javbus_lang: Optional[str] = None,
-    surface_access_errors: bool = False,
+    surface_access_errors: bool = False, *, skip_format_check: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """指定單一來源搜尋"""
     return search_jav(
         number, source=source, javbus_lang=javbus_lang,
-        surface_access_errors=surface_access_errors,
+        surface_access_errors=surface_access_errors, skip_format_check=skip_format_check,
     )
 
 

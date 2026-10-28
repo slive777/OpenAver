@@ -430,6 +430,7 @@ export function rescrapeState() {
                     body: JSON.stringify({
                         number: this.rescrapeNumber.trim(),
                         source: sourceId,
+                        skip_format_check: true,
                     }),
                 });
                 const data = await resp.json();
@@ -684,6 +685,7 @@ export function rescrapeState() {
                         detail_url: this.rescrapePreview?.url || null,  // CD-86-13: 取 .url 非 .detail_url
                         readonly_action: 'rescrape',                    // T4: 無條件送（非唯讀端後端忽略，CD-104-5）
                         preserve_title: this.rescrapeShowPreserveTitle() && this.rescrapePreserveTitle,
+                        skip_format_check: true,                        // 進階入口：後端只對明確 javdb 放寬
                     }),
                 });
                 const result = await resp.json();

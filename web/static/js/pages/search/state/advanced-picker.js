@@ -51,7 +51,7 @@ export function searchStateAdvancedPicker() {
             this._fallbackAbortController = new AbortController();
             try {
                 const url = `/api/search?q=${encodeURIComponent(query)}`
-                    + `&mode=exact&source=${encodeURIComponent(source)}`;
+                    + `&mode=exact&source=${encodeURIComponent(source)}&skip_format_check=true`;
                 const response = await fetch(url, { signal: this._fallbackAbortController.signal });
                 const data = await response.json();
 

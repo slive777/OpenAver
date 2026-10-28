@@ -331,6 +331,7 @@ def search(
     maker: Optional[str] = Query(None, description="片商顯示名"),
     spellings: Annotated[Optional[List[str]], Query(description="片商的片庫寫法（可重複）")] = None,
     cursor: CursorParam = None,
+    skip_format_check: bool = Query(False, description="進階搜尋：source 為 javdb 時照原樣查，略過番號格式檢查"),
 ) -> dict:
     """
     搜尋 JAV 資訊
@@ -399,9 +400,7 @@ def search(
                         "reason": "custom_source_refused", "custom_reason": refused[0],
                     })
             try:
-                data = search_jav_single_source(
-                    q, source, surface_access_errors=True,
-                )
+                data = search_jav_single_source(q, source, surface_access_errors=True, skip_format_check=skip_format_check)
             # CD-70c-4: search entry does NOT wire the interactive CF flow (no begin_solve,
             # no cf_needed). The JavLibrary pill is hidden in search context when
             # cf_transport_available is false (frontend isJlUnavailable), so this path is
