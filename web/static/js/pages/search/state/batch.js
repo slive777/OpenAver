@@ -64,6 +64,8 @@ export function buildOrganizeMetadata(file) {
     if (!(file.searchResults?.length > 0) && file.blankCard) {
         // 空白卡：手填值原樣送出，去掉內部鍵；user_tags 取檔案層級（183-T4）
         const { _blank, _source, _coverUploadToken, _titleEdited, _chineseTitleEdited, ...rest } = file.blankCard;
+        // 有上傳封面時，cover 是本機預覽網址不是可下載的 URL；整理時封面由 token 決定
+        if (_coverUploadToken) { delete rest.cover; delete rest.preview_cover_url; }
         return { ...rest, user_tags: file.user_tags || [], manual_entry: true };
     }
     return { ...file.searchResults[file.selectedCandidateIndex ?? 0] };

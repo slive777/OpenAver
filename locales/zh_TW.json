@@ -255,6 +255,7 @@
       "unknown_title": "未知標題"
     },
     "cover": {
+      "upload": "上傳封面",
       "alt": "封面",
       "load_failed": "封面載入失敗"
     },
@@ -329,6 +330,7 @@
       "search_complete": "批次搜尋完成：成功 {success}，失敗 {failed}",
       "no_scrapable_files": "沒有可整理的檔案",
       "number_required": "請先填入番號",
+      "cover_upload_failed": "封面上傳失敗，請換一張圖再試",
       "scrape_complete": "批次整理完成：成功 {success}，失敗 {failed}",
       "scrape_complete_dup": "批次整理完成：成功 {success}，失敗 {failed}，重複 {duplicate}",
       "no_search_results": "此檔案沒有搜尋結果",

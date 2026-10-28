@@ -84,6 +84,7 @@ export function searchStateBase() {
         editedChineseTitleValue: '',
         editingActors: false,
         editedActorsValue: '',
+        _uploadingCover: false,
         // TASK-183-T2：空白結果卡的番號／片商行內編輯（與 title 三件組同形）
         editingNumber: false,
         editedNumberValue: '',

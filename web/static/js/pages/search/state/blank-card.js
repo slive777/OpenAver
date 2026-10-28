@@ -36,5 +36,45 @@ export function searchStateBlankCard() {
         this.saveState();
         return true;
     },
+
+    /**
+     * 空白卡上傳封面。回應只寫「按下當下」捕捉的那個檔的 blankCard（captured-ref），
+     * 之後使用者切到別片、或整份清單被換掉，都不會掛錯地方。
+     */
+    async uploadBlankCover(ev) {
+        const f = ev?.target?.files?.[0];
+        if (ev?.target) ev.target.value = '';
+        if (!f) return;
+        const file = this.fileList[this.currentFileIndex];
+        const card = file?.blankCard;
+        if (!card || this._uploadingCover) return;
+        this._uploadingCover = true;
+        try {
+            const fd = new FormData();
+            fd.append('file', f);
+            const resp = await fetch('/api/scrape-cover/upload', { method: 'POST', body: fd });
+            const data = resp.ok ? await resp.json() : null;
+            if (!data || typeof data.token !== 'string' || !data.token) {
+                this.showToast(window.t('search.toast.cover_upload_failed'), 'error');
+                return;
+            }
+            card.cover = data.url;
+            card._coverUploadToken = data.token;
+            if (this.fileList[this.currentFileIndex]?.path === file.path) this._resetCoverState();
+            this.saveState();
+        } catch (e) {
+            this.showToast(window.t('search.toast.cover_upload_failed'), 'error');
+        } finally {
+            this._uploadingCover = false;
+        }
+    },
+
+    /** 暫存封面逾期（GET 404）：卡回到沒有封面，使用者可重新上傳。 */
+    _dropBlankCover(card) {
+        card.cover = '';
+        card._coverUploadToken = '';
+        this._resetCoverState();
+        this.saveState();
+    },
     };
 }

@@ -173,6 +173,8 @@ export function searchStateResultCard() {
         // 時改用 cover（見 resolveResultCoverUrl）。proxy 包裹仍在此呼叫點處理（裁決 2）。
         const cover = this.resolveCoverUrl(c);
         if (!cover) return '';
+        // 本機暫存的上傳封面不是外站圖，套 proxy 會被拒
+        if (cover.startsWith('/api/scrape-cover/')) return cover;
         return `/api/proxy-image?url=${encodeURIComponent(cover)}`;
     },
 
@@ -542,6 +544,13 @@ export function searchStateResultCard() {
 
         // Preview 失敗、cover fallback 可用 → 改試 cover（見上方函式註解）
         const c = this.current();
+
+        // 空白卡上傳的暫存封面逾期（GET 404）→ 卡回到「有上傳鈕」，使用者可重新上傳
+        if (c._blank && c._coverUploadToken) {
+            if ((img.getAttribute('src') || '') !== expected) return; // Stale @error
+            this._dropBlankCover(c);
+            return;
+        }
         if (shouldFallbackToCover(c)) {
             const attrSrc = img.getAttribute('src') || '';
             if (attrSrc !== expected) {

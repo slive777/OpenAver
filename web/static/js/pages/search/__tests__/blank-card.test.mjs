@@ -256,3 +256,81 @@ test('blank-card T4: hand-filled translated_title skips auto translate; empty on
     assert.deepEqual(await run('手填中文'), { sent: '手填中文', translated: 0 });
     assert.deepEqual(await run(''), { sent: 'AI譯文', translated: 1 });
 });
+
+// TASK-183-T5b：上傳封面只掛到按下當下那個檔；token 只隨「採用的空白卡」送出。
+// 假 fetch 是自家端點（/api/scrape-cover/upload、/api/scrape-single）的協定 mock，可掛起、finally flush。
+const { searchStateBlankCard } = await import('../state/blank-card.js');
+
+function deferredFetch() {
+    const pending = [];
+    const calls = [];
+    return {
+        calls,
+        fetch: (url, opts) => { calls.push({ url, opts }); return new Promise(r => pending.push(r)); },
+        settleNext(resp) { pending.shift()(resp); },
+        flush() { while (pending.length) pending.shift()({ ok: false, status: 500, json: async () => ({}) }); },
+    };
+}
+const okUpload = { ok: true, status: 200, json: async () => ({ token: 'tok-A', url: '/api/scrape-cover/tok-A' }) };
+const evFor = () => ({ target: { files: [new Blob(['x'], { type: 'image/jpeg' })], value: 'C:\\fake.jpg' } });
+const uploadState = (fileList) => ({
+    ...searchStateBlankCard(), fileList, currentFileIndex: 0, _uploadingCover: false,
+    showToast() {}, saveState() {}, _resetCoverState() {},
+});
+
+test('blank-card T5b: upload lands on the file it started from; token rides only with the blank card it came from', async () => {
+    const prevFetch = globalThis.fetch;
+    const prevSF = window.SearchFile;
+    await import('../file.js');
+    const realScrapeFile = window.SearchFile.scrapeFile;
+    window.SearchFile = prevSF;
+    const df = deferredFetch();
+    globalThis.fetch = df.fetch;
+    try {
+        // (a) U1：A 上傳中切到 B → 只有 A 拿到 token 與預覽圖
+        {
+            const A = bf('/a.mp4', 'A-1', card());
+            const B = bf('/b.mp4', 'B-2', card());
+            const state = uploadState([A, B]);
+            const p = state.uploadBlankCover(evFor());
+            state.currentFileIndex = 1;
+            df.settleNext(okUpload);
+            await p;
+            assert.equal(A.blankCard._coverUploadToken, 'tok-A');
+            assert.equal(A.blankCard.cover, '/api/scrape-cover/tok-A');
+            assert.ok(!B.blankCard._coverUploadToken);
+            assert.equal(B.blankCard.cover, '');
+        }
+        // (b) U2：上傳中整份 fileList 換成同 path 的新物件 → 新物件沒有 token，舊物件有（請求真的落地）
+        {
+            const oldA = bf('/a.mp4', 'A-1', card());
+            const newA = bf('/a.mp4', 'A-1', card());
+            const state = uploadState([oldA]);
+            const p = state.uploadBlankCover(evFor());
+            state.fileList = [newA];
+            df.settleNext(okUpload);
+            await p;
+            assert.equal(oldA.blankCard._coverUploadToken, 'tok-A');
+            assert.ok(!newA.blankCard._coverUploadToken);
+        }
+        // (c) U3：scrapeFile 只在 manual_entry===true 時帶殘留 token（正向格＋兩個負向格）
+        {
+            const bodyOf = async (file, metadata) => {
+                const n = df.calls.length;
+                const p = realScrapeFile(file, metadata);
+                df.settleNext({ ok: true, json: async () => ({ success: true }) });
+                await p;
+                return JSON.parse(df.calls[n].opts.body);
+            };
+            const withTok = bf('/a.mp4', 'A-1', card({ _coverUploadToken: 'tok-X' }));
+            assert.equal('cover_upload_token' in await bodyOf(withTok, { number: 'A-1' }), false);
+            assert.equal((await bodyOf(withTok, { number: 'A-1', manual_entry: true })).cover_upload_token, 'tok-X');
+            const noTok = bf('/a.mp4', 'A-1', card());
+            assert.equal('cover_upload_token' in await bodyOf(noTok, { number: 'A-1', manual_entry: true }), false);
+        }
+    } finally {
+        df.flush();
+        globalThis.fetch = prevFetch;
+        window.SearchFile = prevSF;
+    }
+});

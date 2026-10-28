@@ -660,7 +660,7 @@
                          @touchstart.passive="_dtTouchStart($event)"
                          @touchend.passive="_dtTouchEnd($event)">
                         <img id="resultCover" x-ref="coverImg" class="av-card-full-cover-img"
-                             x-show="!coverError && current().cover"
+                             x-show="current().cover && (!coverError || current()._blank)"
                              :src="coverUrl()"
                              @error="handleCoverError()"
                              @load="_coverLoaded = true; coverError = ''; _coverRetried = false; _updateCoverHeight()"
@@ -671,15 +671,29 @@
                             <div class="shimmer"></div>
                         </div>
                         <!-- 封面錯誤 -->
-                        <div x-show="coverError" class="cover-error-placeholder">
+                        <div x-show="coverError && !(current()._blank && current().cover)" class="cover-error-placeholder">
                             <i class="bi bi-exclamation-triangle text-5xl text-warning"></i>
                             <p x-text="coverError" class="mt-2"></p>
-                            <small>{{ t('search.error.hint') }}</small>
+                            <small x-show="!current()._blank">{{ t('search.error.hint') }}</small>
+                            <button type="button" class="btn btn-sm btn-outline mt-2"
+                                    :disabled="_uploadingCover"
+                                    x-show="current()._blank && canEditFile() && !current().cover"
+                                    @click="$refs.blankCoverInput.click()">
+                                <i class="bi bi-upload"></i> {{ t('search.cover.upload') }}
+                            </button>
                         </div>
                         <!-- 無封面 -->
                         <div x-show="!coverError && !current().cover" class="cover-error-placeholder">
                             <i class="bi bi-image text-5xl"></i>
+                            <button type="button" class="btn btn-sm btn-outline mt-2"
+                                    :disabled="_uploadingCover"
+                                    x-show="current()._blank && canEditFile() && !current().cover"
+                                    @click="$refs.blankCoverInput.click()">
+                                <i class="bi bi-upload"></i> {{ t('search.cover.upload') }}
+                            </button>
                         </div>
+                        <input type="file" accept="image/*" x-ref="blankCoverInput" style="display:none"
+                               @change="uploadBlankCover($event)">
                         <button class="nav-btn prev" id="btnPrev"
                                 x-show="showNavigation()"
                                 :disabled="!canGoPrev() || (isSearchingFile && searchingFileDirection === 'prev')"
