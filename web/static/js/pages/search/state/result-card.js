@@ -65,7 +65,16 @@ const INLINE_EDIT_FIELDS = {
         source: '_editSourceNumber',
         ref: 'numberInput',
         read: (ctx, c) => c.number || '',
-        write: (ctx, c, raw) => { c.number = raw.trim(); },
+        write: (ctx, c, raw) => {
+            c.number = raw.trim();
+            // 空白卡改番號要回寫到所屬檔案：「重試失敗」「搜尋全部」讀的是 file.number，
+            // 不同步就會繼續搜舊番號。照 enterNumber（file-list.js）的做法兩處都寫。
+            // 以 index 取檔，不比對物件身分（Alpine proxy 會讓 === 失效）。一般結果卡不動 file.number。
+            if (ctx.listMode === 'file' && c._blank) {
+                const f = ctx.fileList?.[ctx.currentFileIndex];
+                if (f && f.blankCard) f.number = c.number;
+            }
+        },
     },
     maker: {
         editing: 'editingMaker',

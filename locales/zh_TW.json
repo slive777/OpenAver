@@ -256,6 +256,7 @@
     },
     "cover": {
       "upload": "上傳封面",
+      "replace": "更換封面",
       "alt": "封面",
       "load_failed": "封面載入失敗"
     },

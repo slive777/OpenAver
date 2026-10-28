@@ -346,3 +346,52 @@ test('blank-card T5b: upload lands on the file it started from; token rides only
         window.SearchFile = prevSF;
     }
 });
+
+// PR#256 Codex P2：空白卡改番號要回寫 file.number，否則「重試失敗／搜尋全部」仍搜舊番號。
+test('blank-card PR256: confirming the card number syncs file.number; a normal result edit leaves it alone', () => {
+    const rc = searchStateResultCard();
+    const mk = (file) => ({
+        ...rc, ...makeFakeThis(file),
+        editedNumberValue: '', saveState() {}, $nextTick() {}, $refs: {},
+    });
+
+    // (a) 空白卡：確認後 blankCard.number 與 file.number 一起換；清空也同步為 ''
+    const blank = { _blank: true, number: 'OLD-001' };
+    const file = { number: 'OLD-001', searchResults: [], blankCard: blank };
+    const s = mk(file);
+    s.startEditNumber();
+    s.editedNumberValue = '  NEW-002 ';
+    s.confirmEditNumber();
+    assert.equal(blank.number, 'NEW-002');
+    assert.equal(file.number, 'NEW-002');
+    s.startEditNumber();
+    s.editedNumberValue = '';
+    s.confirmEditNumber();
+    assert.equal(blank.number, '');
+    assert.equal(file.number, '');
+
+    // (b) 一般結果卡（非 _blank）：不動 file.number
+    const R = { number: 'R-1', title: 't' };
+    const file2 = { number: 'FILE-9', searchResults: [R], blankCard: { _blank: true, number: 'FILE-9' } };
+    const s2 = mk(file2);
+    s2.startEditNumber();
+    s2.editedNumberValue = 'R-2';
+    s2.confirmEditNumber();
+    assert.equal(R.number, 'R-2');
+    assert.equal(file2.number, 'FILE-9');
+});
+
+// PR#256 Codex P2：已上傳封面的空白卡可再上傳換圖，新 token 取代舊的。
+test('blank-card PR256: re-uploading on a blank card that already has a cover replaces cover and token', async () => {
+    const prevFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ token: 'tok-NEW', url: '/api/scrape-cover/tok-NEW' }) });
+    try {
+        const A = bf('/a.mp4', 'A-1', card({ cover: '/api/scrape-cover/tok-OLD', _coverUploadToken: 'tok-OLD' }));
+        const state = uploadState([A]);
+        await state.uploadBlankCover(evFor());
+        assert.equal(A.blankCard.cover, '/api/scrape-cover/tok-NEW');
+        assert.equal(A.blankCard._coverUploadToken, 'tok-NEW');
+    } finally {
+        globalThis.fetch = prevFetch;
+    }
+});

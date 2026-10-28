@@ -714,6 +714,14 @@
                              x-show="showNavigation()"
                              x-text="navIndicatorText()">1/1</div>
                     </div>
+                    {# TASK-183：空白卡已上傳封面後仍可換圖（上傳鈕在有封面時被隱藏）；沿用同一個 file input 與 uploadBlankCover #}
+                    <div class="text-center" x-show="current()._blank && canEditFile() && current().cover" x-cloak>
+                        <button type="button" id="replaceBlankCoverBtn" class="btn btn-sm btn-outline mt-2"
+                                :disabled="_uploadingCover"
+                                @click="$refs.blankCoverInput.click()">
+                            <i class="bi bi-arrow-repeat"></i> {{ t('search.cover.replace') }}
+                        </button>
+                    </div>
                     <!-- T7: Sample Images 縮圖列 -->
                     <div class="sample-strip"
                          x-show="displayMode === 'detail' && (current().sample_images || []).length > 0"
@@ -868,8 +876,8 @@
                     <div class="info-grid-pair">
                         <div class="info-cell">
                             <span class="info-label">{{ t('search.label.date') }}</span>
-                            <span class="info-value" id="resultDate" x-show="!canEditFile() || current().date" x-text="current().date || '-'">-</span>
-                            <input type="date" x-show="canEditFile() && !current().date" id="resultDateInput"
+                            <span class="info-value" id="resultDate" x-show="!canEditFile() || (current().date && !current()._blank)" x-text="current().date || '-'">-</span>
+                            <input type="date" x-show="canEditFile() && (!current().date || current()._blank)" id="resultDateInput"
                                    class="input input-bordered info-value"
                                    :value="current().date || ''"
                                    @focus="startEditDate()"

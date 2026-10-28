@@ -7600,8 +7600,9 @@ const RULES = [
   {
     file: 'web/templates/search.html', kind: 'required-string',
     pattern: [
-      '!canEditFile() || current().date',
-      'canEditFile() && !current().date',
+      // PR#256：空白卡填了日期後仍要能改，互補閘多一個 _blank 例外（一般卡行為不變）
+      '!canEditFile() || (current().date && !current()._blank)',
+      'canEditFile() && (!current().date || current()._blank)',
       ":value=\"current().date || ''\"",
     ],
     note: '[lint-guard 162c-test_search_html_date_span_and_picker_complementary_gating] 檔案模式挑發售日 → date span／picker 互補閘＋:value 反應性重設 — 遷自 test_contract_api_routes.py',
