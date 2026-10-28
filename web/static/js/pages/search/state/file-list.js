@@ -272,7 +272,9 @@ export function searchStateFileList() {
         file.number = number.trim();
         file.searched = false;
         file.searchResults = [];
-        file.blankCard = null;   // TASK-183-T2：重輸番號 → 空白卡作廢，重搜仍查無才重建（空的）
+        // TASK-183-T2：已有空白卡就保留（手填欄位與封面不清空），只更新番號；沒有就維持 null
+        if (file.blankCard) file.blankCard.number = file.number;
+        else file.blankCard = null;
         file.skipReason = '';
         file.duplicateTarget = undefined;
         // T6 review：scrapeStatus 也要一起清。setFileList() 現在會在**列檔階段**就把記憶命中的

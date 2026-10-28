@@ -9,6 +9,7 @@ globalThis.window.t = (key) => key;
 
 register(new URL('./alias-loader.mjs', import.meta.url), import.meta.url);
 const { searchStateResultCard } = await import('../state/result-card.js');
+const { searchStateFileList } = await import('../state/file-list.js');
 const { adoptIntoBlankFile } = await import('../blank-card-rules.js');
 
 function makeFakeThis(file) {
@@ -37,6 +38,17 @@ test('blank-card T2: current() returns stable file.blankCard when no candidates,
     const R = { number: 'JURA-1113', title: 't' };
     const b = makeFakeThis({ searchResults: [R], blankCard: { _blank: true } });
     assert.strictEqual(current.call(b), R);
+
+    // (c) 列表鉛筆改番號：保留空白卡（手填欄位與封面 token 不清空），只換番號
+    const filled = { _blank: true, number: 'OLD-001', title: '手填標題', _coverUploadToken: 'tok' };
+    const file = { number: 'OLD-001', searchResults: [], blankCard: filled };
+    const state = { ...searchStateFileList(), fileList: [file], switchToFile() {} };
+    globalThis.prompt = () => ' NEW-002 ';
+    state.enterNumber(0);
+    assert.strictEqual(file.blankCard, filled);
+    assert.equal(filled.number, 'NEW-002');
+    assert.equal(filled.title, '手填標題');
+    assert.equal(filled._coverUploadToken, 'tok');
 });
 
 // TASK-183-T3a：進階搜尋的結果只掛到開窗那個檔；A 不在或已有正式結果就整個丟棄。
