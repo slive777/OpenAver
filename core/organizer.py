@@ -1135,10 +1135,47 @@ def _reclaim_placeholder(file_path: str, target_path: str) -> None:
         pass
 
 
+def _acquire_cover(base_stem: str, ext_mode: str, metadata: Dict[str, Any],
+                   uploaded_cover: Optional[str]) -> Optional[str]:
+    """
+    取得封面並落地到影片旁（檔名跟隨影片命名）；回封面實際路徑，沒有封面或失敗回 None。
+
+    uploaded_cover 是伺服器端暫存檔路徑（由 router 層驗過 token 後解析出來，不經 client
+    可控的 metadata）；有值就複製、不下載。複製失敗與下載失敗同形：回 None，整理仍成功。
+    """
+    if uploaded_cover:
+        cover_path = resolve_cover_target(base_stem, ext_mode)
+        try:
+            shutil.copyfile(uploaded_cover, cover_path)  # copyfile 不是 copy2（BE-SEC-02）
+        except Exception:
+            logger.warning("上傳封面複製失敗 %s", uploaded_cover, exc_info=True)
+            return None
+        return cover_path
+    # 下載封面（檔名跟隨影片命名）
+    img_url = metadata.get('cover', '')
+    if not img_url:
+        return None
+    cover_path = resolve_cover_target(base_stem, ext_mode)
+    # CD-126-3（owner 2026-08-23 裁決納入）：原址優先，取不到才退 metatube 代理。
+    # 後端重刮與前端整理（`buildOrganizeMetadata()`）**兩條都有值**——Codex PR
+    # review P2-1 之後前端不再剝除 preview 欄位。113c-T3b 的不變式是「代理網址
+    # 不落磁碟」，剝除只是當時採用的手段；改由 TestT6PreviewNotPersisted 直接
+    # 斷言 NFO／new_folder 下所有文字檔都不含代理 URL 來守。
+    # 讀不到（非 metatube 來源）就跟今天完全一樣，不需要 if-else 去分辨來源。
+    preview_cover = metadata.get('preview_cover_url') or ''
+    cover_ok = (
+        download_image(img_url, cover_path, fallback_url=preview_cover)
+        if preview_cover
+        else download_image(img_url, cover_path)
+    )
+    return cover_path if cover_ok else None
+
+
 def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在其中加 containment 防線，加的是「呼叫一個新的小函式」，不得讓本函式本身更複雜（見 plan-110b）
     file_path: str,
     metadata: Dict[str, Any],
-    config: Dict[str, Any]
+    config: Dict[str, Any],
+    uploaded_cover: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     整理單個檔案
@@ -1414,24 +1451,10 @@ def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在�
 
         result['new_filename'] = target_path
 
-        # 下載封面（檔名跟隨影片命名）
-        img_url = metadata.get('cover', '')
-        if img_url:
-            cover_path = resolve_cover_target(os.path.join(target_dir, filename_base), ext_mode)
-            # CD-126-3（owner 2026-08-23 裁決納入）：原址優先，取不到才退 metatube 代理。
-            # 後端重刮與前端整理（`buildOrganizeMetadata()`）**兩條都有值**——Codex PR
-            # review P2-1 之後前端不再剝除 preview 欄位。113c-T3b 的不變式是「代理網址
-            # 不落磁碟」，剝除只是當時採用的手段；改由 TestT6PreviewNotPersisted 直接
-            # 斷言 NFO／new_folder 下所有文字檔都不含代理 URL 來守。
-            # 讀不到（非 metatube 來源）就跟今天完全一樣，不需要 if-else 去分辨來源。
-            preview_cover = metadata.get('preview_cover_url') or ''
-            cover_ok = (
-                download_image(img_url, cover_path, fallback_url=preview_cover)
-                if preview_cover
-                else download_image(img_url, cover_path)
-            )
-            if cover_ok:
-                result['cover_path'] = cover_path
+        cover_path = _acquire_cover(
+            os.path.join(target_dir, filename_base), ext_mode, metadata, uploaded_cover)
+        if cover_path:
+            result['cover_path'] = cover_path
 
         # 外部管理器模式：依 ext_mode 決定 poster/fanart 命名規則（ext_mode 已在早偵測層定義）
         # jellyfin/emby 與 kodi 均使用 stem 長格式（{stem}-poster.jpg / {stem}-fanart.jpg），
