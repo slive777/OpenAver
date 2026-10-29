@@ -1286,7 +1286,9 @@ _TOOLS: list[dict] = [
             "串流回傳女優候選照片列表（SSE）。"
             "從 4 個雲端來源（graphis/gfriends/wiki/xcity）並行抓取，"
             "加上本機影片封面 crop，最多 6 張。"
-            "每張照片準備好立即 push，前端即時展示。不修改資料庫。"
+            "可帶 exclude（逗號分隔候選 id）略過已看過的圖。"
+            "三源（gfriends／wiki／xcity）各自完成即送；Graphis 每輪先送 2 張，"
+            "空位先由本機封面補，本機不夠才由 Graphis 其餘新圖補滿，合計 ≤6。不修改資料庫。"
         ),
         "side_effect": False,
         "method": "GET",
@@ -1303,12 +1305,16 @@ _TOOLS: list[dict] = [
                     "minimum": 0,
                     "description": "重抓輪替序號：0/省略=主名；N=依 alias 穩定排序輪替，無 alias 時任意 N 行為同 0",
                 },
+                "exclude": {
+                    "type": "string",
+                    "description": "已看過的候選 id（8 位 hex，逗號分隔）；格式錯誤的 token 會被忽略",
+                },
             },
             "required": ["name"],
         },
         "output_schema": {
             "candidates": "SSE stream — event: candidate（重複 N 次）+ event: done",
-            "candidate_data": '{"source": str, "thumb_url": str, "full_url": str, "video_path"?: str}',
+            "candidate_data": '{"id": str, "source": str, "thumb_url": str, "full_url": str, "video_path"?: str}',
             "done_data": '{"total": int}',
         },
         "_example_template": "curl -N '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C/photo-candidates'",

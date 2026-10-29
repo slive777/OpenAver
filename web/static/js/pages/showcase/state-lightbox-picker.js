@@ -8,6 +8,7 @@
 import { waitForMount } from '@/shared/dom-timing.js';
 import { computeMaskDragRoom, MASK_MIN_DRAG_ROOM } from '@/shared/mask-geometry.js';
 import { syncActressFields } from '@/shared/actress-sync.js';
+import { addSeen, buildCandidatesUrl } from '@/shared/picker-seen.js';
 
 export function stateLightboxPicker() {
     // 供 BurstPicker.playPickerBurst/Float/HoverIn/HoverOut/ExitAll 使用
@@ -44,6 +45,9 @@ export function stateLightboxPicker() {
         // 🔄 輪替序號（CD-4）。歸零只在 openActressPicker 首開判別，
         // ⛔ 不進 _resetPicker——那也是 🔄 重抓路徑的一環，在 reset 清會抹掉剛 +1 的值。
         _pickerAttempt: 0,
+        // 這一次換照片已看過的候選 id。只在 openActressPicker 首開分支歸零，
+        // ⛔ 不進 _resetPicker（理由同 _pickerAttempt）。
+        _pickerSeen: [],
         _pickerSSE: null,
         _pickerBurstFired: false,       // SSE 收齊後一次 burst（防 done/error 重複觸發）
         _pickerReadyAbort: null,        // _burstAllPickerCandidates waitForMount 的 per-run AbortController
@@ -135,7 +139,7 @@ export function stateLightboxPicker() {
             // (CD-4)：🔴 必須在 _resetPicker()（下方會把 _pickerOpen 翻 false）
             // 之前讀 _pickerOpen 判別首開/重抓——換女優必經關→開，歸零由結構保證。
             if (this._pickerOpen) { this._pickerAttempt++; }   // 🔄 重抓（同一 picker session）
-            else { this._pickerAttempt = 0; }                  // 首開（含換女優後首開）→ 主名重來
+            else { this._pickerAttempt = 0; this._pickerSeen = []; }   // 首開（含換女優後首開）→ 主名重來、看過集合歸零
 
             // Tear down any in-flight SSE before starting a new one
             if (this._pickerSSE) { this._pickerSSE.close(); this._pickerSSE = null; }
@@ -210,8 +214,7 @@ export function stateLightboxPicker() {
         _startPickerSSE(name, runId) {
             // (CD-5)：0 不帶參數（首開 URL 與 0.12.3 逐位一致）；
             // 顯式 > 0 而非 truthiness（0 是合法值，gotchas「|| 吞 numeric 0」）
-            const url = `/api/actresses/${encodeURIComponent(name)}/photo-candidates`
-                + (this._pickerAttempt > 0 ? `?attempt=${this._pickerAttempt}` : '');
+            const url = buildCandidatesUrl(name, this._pickerAttempt, this._pickerSeen);
             const sse = new EventSource(url);
             this._pickerSSE = sse;
             this._pickerBurstFired = false;
@@ -223,6 +226,7 @@ export function stateLightboxPicker() {
                 if (this._pickerRunId !== runId) { sse.close(); return; }
                 try {
                     const candidate = JSON.parse(e.data);
+                    this._pickerSeen = addSeen(this._pickerSeen, candidate.id);
                     this._candidates = [...this._candidates, candidate];
                 } catch (err) {
                     console.warn('[Picker] Failed to parse candidate:', err);

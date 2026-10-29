@@ -246,6 +246,48 @@ def test_graphis_canary():
     )
 
 
+def test_graphis_pool_canary(monkeypatch):
+    """185: Graphis 條目搜尋／條目頁解析／名字比對（只打活站，無捏造輸入）。"""
+    import random
+    import re
+    import time
+
+    from core.scrapers.actress import graphis_pool as gp
+
+    if not _probe_graphis():
+        pytest.skip("Graphis 無法連線 (https://graphis.ne.jp/)")
+    monkeypatch.setattr(gp, "proxy_kwargs", lambda *a, **k: {})  # BE-TEST-55 恆直連
+
+    def _eid(url):
+        return re.search(r"/model/([^/]+)/", url).group(1)
+
+    gp._SEARCH_CACHE.clear()
+    gp._ENTRY_CACHE.clear()
+    try:
+        names = {"miru", "坂道みる"}
+        pool = gp._assemble_pool("miru", names, time.time() + 12, random.Random(0))
+        assert pool is not None, "miru 條目搜尋失敗（站方改版或被擋）"
+        ids = {_eid(u) for u in pool}
+        assert {"260904_miru3", "200403_miru-sakamichi2"} <= ids, f"缺 miru 條目: {ids}"
+        assert "080801_emiru-momose_daily" not in ids, f"混入他人條目: {ids}"
+        assert len(pool) >= 10, f"池過小: {len(pool)}"
+        bad = [u for u in pool if not gp.is_collectible_url(u, _eid(u))]
+        assert not bad, f"不合白名單: {bad}"
+        assert any(re.search(r"/photo/\d{3}/pic\.jpg$", u) for u in pool), \
+            "池內無任何 photo/NNN/pic.jpg（條目頁解析失效，只剩底圖）"
+
+        empty = gp._assemble_pool("河北彩伽", {"河北彩伽"}, time.time() + 12, random.Random(0))
+        assert empty == [], f"河北彩伽應為空池（None=搜尋失敗）: {empty!r}"
+
+        monkeypatch.setattr(gp, "_names_for", lambda pk, qn: set(names))
+        cands = gp.graphis_candidates("miru", "miru", "wiki", set(), budget_s=8.0)
+        assert 1 <= len(cands) <= 6, f"完整入口候選數異常: {cands}"
+        assert all(gp.is_collectible_url(u, _eid(u)) for u in cands), cands
+    finally:
+        gp._SEARCH_CACHE.clear()
+        gp._ENTRY_CACHE.clear()
+
+
 def test_gfriends_canary():
     _run_actress_canary(
         "gfriends",

@@ -320,6 +320,7 @@ class TestPhotoCandidates:
             return f"https://example.com/{source}/photo.jpg"
 
         with patch("web.routers.actress._fetch_single_source", side_effect=mock_fetch), \
+             patch("web.routers.actress.graphis_candidates", return_value=[]), \
              patch("web.routers.actress._get_random_videos_with_covers", return_value=[]):
             resp = client.get(f"/api/actresses/{ACTRESS_NAME}/photo-candidates")
 
@@ -331,8 +332,8 @@ class TestPhotoCandidates:
         assert "done" in event_names
 
         candidates = [e for e in events if e["event"] == "candidate"]
-        # 雲端 mock 成功（gfriends 被過濾，因 photo_source=gfriends），最多 3 來源
-        assert len(candidates) <= 3
+        # 雲端 mock 成功（gfriends 被過濾，因 photo_source=gfriends），最多 3 來源 + Graphis（此處回空）
+        assert len(candidates) <= 5
         for c in candidates:
             assert "source" in c["data"]
             assert "thumb_url" in c["data"]
@@ -355,12 +356,132 @@ class TestPhotoCandidates:
             return None
 
         with patch("web.routers.actress._fetch_single_source", side_effect=mock_fetch), \
+             patch("web.routers.actress.graphis_candidates", return_value=[]), \
              patch("web.routers.actress._get_random_videos_with_covers", return_value=[]):
             resp = client.get(f"/api/actresses/{ACTRESS_NAME}/photo-candidates")
 
         assert resp.status_code == 200
         assert "gfriends" not in called_sources
-        assert set(called_sources) == {"graphis", "wiki", "xcity"}
+        assert set(called_sources) == {"wiki", "xcity"}  # Graphis 不再經 _fetch_single_source
+
+    # --- spec-185 T3：Graphis 拆出、遞補、exclude ---------------------------
+
+    @staticmethod
+    def _sse(client, exclude=None, *, fetch, graphis, videos=()):
+        """跑一次 SSE，回傳 (candidates, done_total, graphis 收到的引數 list)。"""
+        from unittest.mock import MagicMock
+        g_calls = []
+
+        def g_stub(*a):
+            g_calls.append(a)
+            return graphis(*a)
+
+        vids = []
+        for i, cover in enumerate(videos):
+            v = MagicMock()
+            v.path, v.cover_path = to_file_uri(f"/v/{i}.mp4"), cover
+            vids.append(v)
+        params = {"exclude": exclude} if exclude is not None else {}
+        with patch("web.routers.actress._fetch_single_source", side_effect=fetch), \
+             patch("web.routers.actress.graphis_candidates", side_effect=g_stub), \
+             patch("web.routers.actress.AliasRepository") as al, \
+             patch("web.routers.actress.VideoRepository") as vr:
+            al.return_value.resolve.side_effect = lambda n: {n}
+            vr.return_value.get_videos_by_actress_names.return_value = vids
+            resp = client.get(f"/api/actresses/{ACTRESS_NAME}/photo-candidates", params=params)
+        assert resp.status_code == 200
+        evs = _parse_sse_events(resp.text)
+        done = [e for e in evs if e["event"] == "done"]
+        assert len(done) == 1
+        return [e["data"] for e in evs if e["event"] == "candidate"], done[0]["data"]["total"], g_calls
+
+    def test_graphis_failure_degrades(self, client, monkeypatch):
+        """Graphis 回空／丟例外／逾時 → 與沒有 Graphis 時輸出相同、仍有 done"""
+        self._save_actress_with_source(client, "local_crop")
+        monkeypatch.setattr("web.routers.actress._GRAPHIS_TIMEOUT_S", 0.2)
+        fetch = lambda n, s: f"https://example.com/{s}/p.jpg"
+        covers = [to_file_uri("/c/a.jpg"), to_file_uri("/c/b.jpg")]
+
+        def boom(*a):
+            raise RuntimeError("x")
+
+        def slow(*a):
+            time.sleep(1)
+            return ["https://example.com/g/late.jpg"]
+
+        base, bt, _ = self._sse(client, fetch=fetch, graphis=lambda *a: [], videos=covers)
+        assert {c["source"] for c in base} >= {"gfriends", "wiki", "xcity", "local_crop"}
+        for g in (boom, slow):
+            got, total, _ = self._sse(client, fetch=fetch, graphis=g, videos=covers)
+            assert sorted(c["id"] for c in got) == sorted(c["id"] for c in base)
+            assert total == bt
+
+    def test_quota_and_backfill(self, client):
+        """Graphis 固定 2、空位本機優先、本機不夠才由 Graphis 補到 6、photo_source=graphis 仍執行 Graphis"""
+        from web.routers.actress import candidate_id
+        self._save_actress_with_source(client, "local_crop")
+        urls3 = {s: f"https://example.com/{s}/p.jpg" for s in ("gfriends", "wiki", "xcity")}
+        picks = [f"https://example.com/g/{i}.jpg" for i in range(6)]
+        covers = [to_file_uri(f"/c/{i}.jpg") for i in range(4)]
+        ex = ",".join(candidate_id(u) for u in urls3.values())
+
+        def slow_fetch(n, s):
+            time.sleep(0.2)
+            return urls3[s]
+
+        def slow_graphis(*a):
+            time.sleep(0.3)
+            return picks
+
+        def counts(got):
+            return tuple(sum(c["source"] == k for c in got) for k in ("graphis", "local_crop"))
+
+        # (i) 三源各 1：Graphis 恰 2、本機補 1（早到／晚到）
+        for fetch, graphis in ((slow_fetch, lambda *a: picks), (lambda n, s: urls3[s], slow_graphis)):
+            got, total, _ = self._sse(client, fetch=fetch, graphis=graphis, videos=covers)
+            assert counts(got) == (2, 1) and total == 6
+        # (ii)(iii)(iv) 三源全被 exclude：本機優先，不夠才由 Graphis 補
+        for n_local, expect in ((4, (2, 4)), (1, (5, 1)), (0, (6, 0))):
+            got, total, _ = self._sse(client, ex, fetch=lambda n, s: urls3[s], graphis=lambda *a: picks, videos=covers[:n_local])
+            assert counts(got) == expect and total == 6
+
+        from core.database import ActressRepository
+        assert ActressRepository().update_fields(ACTRESS_NAME, {"photo_source": "graphis"})
+        got, _, calls = self._sse(client, fetch=lambda n, s: None, graphis=lambda *a: picks)
+        assert calls[0][2] == "graphis"
+        assert any(c["source"] == "graphis" for c in got)
+
+    def test_exclude_filter_dedupe_and_empty(self, client, monkeypatch):
+        """exclude 濾三源／Graphis／本機、跨來源去重、全空→0 張＋done、畸形 exclude 不 422"""
+        from web.routers.actress import candidate_id, local_crop_url
+        from unittest.mock import MagicMock
+        self._save_actress_with_source(client, "local_crop")
+        covers = [to_file_uri("/c/a.jpg"), to_file_uri("/c/b.jpg")]
+        crop = lambda c: local_crop_url(MagicMock(cover_path=c))
+        urls3 = {s: f"https://example.com/{s}/p.jpg" for s in ("gfriends", "wiki", "xcity")}
+        picks = [f"https://example.com/g/{i}.jpg" for i in range(3)]
+        hit = [candidate_id(urls3["wiki"]), candidate_id(picks[0]), candidate_id(crop(covers[0]))]
+        ex = ",".join(hit + ["deadbeef"])
+        got, _, calls = self._sse(client, ex, fetch=lambda n, s: urls3[s], graphis=lambda *a: picks, videos=covers)
+        ids = [c["id"] for c in got]
+        assert not set(ids) & set(hit) and len(ids) == len(set(ids))
+        assert {c["source"] for c in got} >= {"gfriends", "xcity", "graphis", "local_crop"}
+        assert [c["thumb_url"] for c in got if c["source"] == "local_crop"] == [crop(covers[1])]
+        assert set(calls[0][3]) == set(hit + ["deadbeef"])
+
+        same = "https://example.com/same.jpg"
+        got, _, _ = self._sse(client, fetch=lambda n, s: same, graphis=lambda *a: [same])
+        assert [c["full_url"] for c in got] == [same]
+
+        # 兩部影片共用同一封面＋第三部不同、名額只剩 2：共用封面不佔名額，仍送 2 張不同本機候選
+        monkeypatch.setattr("web.routers.actress.random.shuffle", lambda x: None)
+        shared = [to_file_uri("/c/s.jpg"), to_file_uri("/c/s.jpg"), to_file_uri("/c/t.jpg")]
+        got, _, _ = self._sse(client, fetch=lambda n, s: urls3[s], graphis=lambda *a: picks[:1], videos=shared)
+        local = [c["thumb_url"] for c in got if c["source"] == "local_crop"]
+        assert len(local) == 2 and len(set(local)) == 2
+
+        got, total, _ = self._sse(client, "zzz,,'", fetch=lambda n, s: None, graphis=lambda *a: [])
+        assert got == [] and total == 0
 
 
 # ---------------------------------------------------------------------------
