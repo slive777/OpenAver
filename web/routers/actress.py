@@ -779,7 +779,8 @@ def _get_random_videos_with_covers(actress_name: str, count: int, exclude_ids=fr
 async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0), exclude: str = Query("")):
     """
     SSE 串流回傳女優候選照片（最多 6 張）。
-    雲端 0–3 張並行抓取 + 本機影片封面 crop 補足至 6 張。
+    雲端最多 5 張（gfriends／wiki／xcity 最多 3 張 + Graphis 遞補，合計 ≤5）並行抓取，
+    本機影片封面 crop 補足至總數最多 6 張。
     actress 不存在 → JSONResponse 404。
 
     attempt（TASK-102b-T1，spec-102 Part B）：optional 輪替序號，stateless。
