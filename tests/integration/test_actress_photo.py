@@ -69,6 +69,7 @@ def test_local_candidates_alias_expand_primary(client):
          patch('web.routers.actress.AliasRepository') as mock_alias_repo_cls, \
          patch('web.routers.actress.VideoRepository') as mock_video_repo_cls, \
          patch('web.routers.actress.init_db'), \
+         patch('web.routers.actress.graphis_candidates', return_value=[]), \
          patch('web.routers.actress._fetch_single_source', return_value=None):
 
         # ActressRepository().get_by_name("alice") → mock_actress
@@ -138,6 +139,7 @@ def test_cloud_attempt_rotation_sequence(client):
              patch('web.routers.actress.AliasRepository') as mock_alias_repo_cls, \
              patch('web.routers.actress.VideoRepository') as mock_video_repo_cls, \
              patch('web.routers.actress.init_db'), \
+             patch('web.routers.actress.graphis_candidates', return_value=[]), \
              patch('web.routers.actress._fetch_single_source', side_effect=mock_fetch):
 
             mock_actress_repo_cls.return_value.get_by_name.return_value = mock_actress
@@ -242,7 +244,8 @@ class TestActressPathMappingsReverse:
         from web.app import app
         test_client = TestClient(app)
 
-        with patch('web.routers.actress._fetch_single_source', return_value=None):
+        with patch('web.routers.actress.graphis_candidates', return_value=[]), \
+             patch('web.routers.actress._fetch_single_source', return_value=None):
             response = test_client.get("/api/actresses/carol/photo-candidates")
         assert response.status_code == 200
 

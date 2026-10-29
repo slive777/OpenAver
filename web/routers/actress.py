@@ -30,6 +30,9 @@ from core.atomic_write import atomic_write
 from core.database.version_tracker import bump_showcase_revision
 from core.database.actress_library import get_favorite_actress_stats
 from core.maker_mapping import load_prefix_mapping
+from core.scrapers.actress.graphis_pool import (
+    candidate_id, parse_exclude, graphis_candidates,
+)
 
 from core.database import (
     ActressRepository, AliasRepository, VideoRepository, Actress, init_db,
@@ -719,13 +722,26 @@ def _fetch_single_source(name: str, source: str) -> Optional[str]:
         return None
 
 
-def _get_random_videos_with_covers(actress_name: str, count: int) -> list:
+_GRAPHIS_TIMEOUT_S = 5.0  # 呼叫時讀取（不綁預設參數），測試可 monkeypatch
+
+
+def local_crop_url(video) -> str:
+    """本機影片封面 → actress-crop URL；cover_path 空或轉不出 FS 路徑回 ''（skip broken candidate）。"""
+    # Fix 1 (T2): cover_path 在 DB 存 file:/// URI，crop endpoint 需要 FS path
+    cover_fs_path = uri_to_fs_path(str(video.cover_path)) if video.cover_path else ""  # uri-no-reverse: URL identifier stays canonical; actress_crop reverse-maps at disk I/O
+    if not cover_fs_path:
+        return ""
+    return f"/api/actresses/actress-crop?path={quote(cover_fs_path)}&spec=v1"
+
+
+def _get_random_videos_with_covers(actress_name: str, count: int, exclude_ids=frozenset()) -> list:
     """
     取得女優隨機影片（有封面的）。
 
     使用 AliasRepository.resolve 展開 alias set，以 get_videos_by_actress_names
     多名查詢，涵蓋所有 alias 標記的影片。無 alias 時 resolve 回 {actress_name}，
     行為等價舊版。雲端路徑不受影響（仍只用 primary name）。
+    exclude_ids：crop URL 的 candidate_id 命中者先濾掉再 shuffle／截取。
 
     Returns:
         Video list（最多 count 筆，有 cover_path 且非空）
@@ -738,7 +754,17 @@ def _get_random_videos_with_covers(actress_name: str, count: int) -> list:
         videos = repo.get_videos_by_actress_names(names)
         with_covers = [v for v in videos if v.cover_path]
         random.shuffle(with_covers)
-        return with_covers[:count]
+        picked, picked_ids = [], set(exclude_ids)  # 同時排除 exclude 與已選 crop id（共用封面不佔名額）
+        for v in with_covers:
+            url = local_crop_url(v)
+            cid = candidate_id(url)
+            if not url or cid in picked_ids:
+                continue
+            picked_ids.add(cid)
+            picked.append(v)
+            if len(picked) >= count:
+                break
+        return picked
     except Exception as e:
         logger.warning("[actress] _get_random_videos_with_covers 失敗: %s", e)
         return []
@@ -750,7 +776,7 @@ def _get_random_videos_with_covers(actress_name: str, count: int) -> list:
 # ---------------------------------------------------------------------------
 
 @router.get("/{name}/photo-candidates")
-async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0)):
+async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0), exclude: str = Query("")):
     """
     SSE 串流回傳女優候選照片（最多 6 張）。
     雲端 0–3 張並行抓取 + 本機影片封面 crop 補足至 6 張。
@@ -759,6 +785,9 @@ async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0)):
     attempt（TASK-102b-T1，spec-102 Part B）：optional 輪替序號，stateless。
     0/省略＝請求 name；N>0＝依 alias 穩定排序輪替雲端查詢名，只影響雲端 4 源，
     本機補位與 current_source 排除邏輯不受影響（CD-7）。
+
+    exclude（spec-185）：逗號分隔的候選 id（8 位 hex），容錯解析；命中者不再送。
+    Graphis 候選獨立於三源（gfriends/wiki/xcity），最多 5 張雲端總額，缺的由本機補。
     """
     _, actress = await asyncio.to_thread(_load_actress, name)
     if actress is None:
@@ -768,7 +797,8 @@ async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0)):
         )
 
     current_source = actress.photo_source
-    cloud_sources = [s for s in ["graphis", "gfriends", "wiki", "xcity"] if s != current_source]
+    cloud_sources = [s for s in ["gfriends", "wiki", "xcity"] if s != current_source]
+    exclude_ids = parse_exclude(exclude)
 
     def _resolve_query_names(n: str) -> list:
         # CD-2：序位 0 = 請求的 name（URL path param），不是 record.primary_name。
@@ -791,11 +821,16 @@ async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0)):
         "[actress] photo-candidates attempt=%d query_name=%s", attempt, query_name
     )  # CD-10(b)：不對此行寫斷言
 
+    def _event(payload: dict) -> str:
+        return f"event: candidate\ndata: {json.dumps({**payload, 'id': candidate_id(payload['full_url'])})}\n\n"
+
     async def generate():
+        seen_ids = set()
+        cloud_total = 0
         total = 0
         max_cloud = 3
+        cloud_count = 0  # 三源實際送出張數（n3）
 
-        # 雲端並行抓取
         async def fetch_source(src: str):
             try:
                 url = await asyncio.wait_for(
@@ -806,33 +841,79 @@ async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0)):
             except Exception:
                 return (src, None)
 
-        if cloud_sources:
-            tasks = [asyncio.ensure_future(fetch_source(src)) for src in cloud_sources]
-            for coro in asyncio.as_completed(tasks):
-                src, url = await coro
-                if url and total < max_cloud:
-                    event_data = json.dumps({
-                        "source": src,
-                        "thumb_url": url,
-                        "full_url": url,
-                    })
-                    yield f"event: candidate\ndata: {event_data}\n\n"
-                    total += 1
+        async def fetch_graphis():
+            try:
+                r = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        graphis_candidates, actress.name, query_name,
+                        actress.photo_source, exclude_ids,
+                    ),
+                    timeout=_GRAPHIS_TIMEOUT_S,
+                )
+                return [u for u in (r or []) if isinstance(u, str) and u]
+            except Exception as e:
+                logger.warning("[actress] graphis_candidates 失敗: %s", e)
+                return []
+
+        def take_graphis(urls):
+            """回傳可送出的 Graphis 事件字串（已濾 exclude／已送過者）。"""
+            out = []
+            for u in urls:
+                cid = candidate_id(u)
+                if cid in exclude_ids or cid in seen_ids:
+                    continue
+                seen_ids.add(cid)
+                out.append(_event({"source": "graphis", "thumb_url": u, "full_url": u}))
+            return out
+
+        graphis_task = asyncio.ensure_future(fetch_graphis())
+        src_tasks = [asyncio.ensure_future(fetch_source(src)) for src in cloud_sources]
+        pending = set(src_tasks) | {graphis_task}
+        picks = None
+        early_done = False  # Graphis 先完成並已送 picks[:2]
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            for t in done:
+                if t is graphis_task:
+                    picks = t.result()
+                    if pending - {graphis_task}:
+                        for ev in take_graphis(picks[:2]):
+                            yield ev
+                            cloud_total += 1
+                        early_done = True
+                    continue
+                src, url = t.result()
+                if url and candidate_id(url) not in exclude_ids and cloud_count < max_cloud:
+                    cid = candidate_id(url)
+                    if cid in seen_ids:
+                        continue
+                    seen_ids.add(cid)
+                    yield _event({"source": src, "thumb_url": url, "full_url": url})
+                    cloud_count += 1
+                    cloud_total += 1
+        if picks:
+            n3 = cloud_count
+            g_target = min(len(picks), 5 - n3)
+            for ev in take_graphis(picks[2:g_target] if early_done else picks[:g_target]):
+                yield ev
+                cloud_total += 1
+        total = cloud_total
 
         # 本機 crop 補足
         needed = 6 - total
         if needed > 0:
             local_videos = await asyncio.to_thread(
-                _get_random_videos_with_covers, name, needed
+                _get_random_videos_with_covers, name, needed, exclude_ids
             )
             for video in local_videos:
-                # Fix 1 (T2): cover_path 在 DB 存 file:/// URI，crop endpoint 需要 FS path
-                cover_fs_path = uri_to_fs_path(str(video.cover_path)) if video.cover_path else ""  # uri-no-reverse: URL identifier stays canonical; actress_crop reverse-maps at disk I/O
-                if not cover_fs_path:
+                crop_url = local_crop_url(video)
+                if not crop_url:
                     # skip broken candidate，避免送空路徑的 URL
                     continue
-                encoded_path = quote(cover_fs_path)
-                crop_url = f"/api/actresses/actress-crop?path={encoded_path}&spec=v1"
+                cid = candidate_id(crop_url)
+                if cid in exclude_ids or cid in seen_ids:
+                    continue
+                seen_ids.add(cid)
                 # Fix 2 (T2): video.path 在 DB 已是 file:/// URI（gallery_scanner.scan_file 透過 to_file_uri 寫入）
                 # 若萬一是 FS path（legacy / 異常），coerce_to_file_uri 做 idempotent 轉換
                 try:
@@ -840,13 +921,12 @@ async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0)):
                 except Exception as e:
                     logger.warning("[actress] coerce_to_file_uri 失敗 path=%s: %s", video.path, e)
                     video_path_uri = str(video.path)
-                event_data = json.dumps({
+                yield _event({
                     "source": "local_crop",
                     "video_path": video_path_uri,
                     "thumb_url": crop_url,
                     "full_url": crop_url,
                 })
-                yield f"event: candidate\ndata: {event_data}\n\n"
                 total += 1
 
         # done event
