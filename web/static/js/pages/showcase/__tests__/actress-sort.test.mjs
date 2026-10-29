@@ -117,3 +117,29 @@ test('height asc：有值升冪、缺值（noHt）恆排最後', () => {
 // ── cup ────────────────────────────────────────────────────────────────────
 
 
+
+// ── recent（184-T2）────────────────────────────────────────────────────────
+
+test('recent 排序：分數降冪、同分依作品數、asc 整份反過來、缺分數視同 0', () => {
+    // 給定順序刻意打亂：拿掉第二級或 asc 沒反轉都會算出不同順序
+    const LIST = [
+        { name: 'lowA',   recent_score: 1,  video_count: 5 },
+        { name: 'zeroB',  recent_score: 0,  video_count: 9 },
+        { name: 'topC',   recent_score: 10, video_count: 2 },
+        { name: 'noneD',  video_count: 3 },                    // 缺 recent_score ＝ 0
+        { name: 'tieE',   recent_score: 5,  video_count: 1 },
+        { name: 'tieF',   recent_score: 5,  video_count: 8 },
+        { name: 'zeroG',  recent_score: 0,  video_count: 4 },
+    ];
+    const run = (order) => {
+        const c = Object.assign({}, stateActress(), {
+            actressSort: 'recent', actressOrder: order, actressSearch: '',
+        });
+        _setActresses(LIST);
+        c.applyActressFilterAndSort();
+        return namesOf(c.paginatedActresses);
+    };
+    const desc = ['topC', 'tieF', 'tieE', 'lowA', 'zeroB', 'zeroG', 'noneD'];
+    assert.deepEqual(run('desc'), desc);
+    assert.deepEqual(run('asc'), desc.slice().reverse());
+});

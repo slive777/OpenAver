@@ -410,6 +410,9 @@
                             <i class="bi bi-funnel"></i>
                         </button>
                         <div class="toolbar-dropdown" x-show="actressSortOpen" x-transition.opacity.duration.150ms @click.stop>
+                            <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'recent' }"
+                               @click.prevent="actressSort = 'recent'; onActressSortChange(); actressSortOpen = false">
+                                <i class="bi bi-clock-history"></i> {{ t('showcase.sort.actress.recent') }}</a>
                             <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'video_count' }"
                                @click.prevent="actressSort = 'video_count'; onActressSortChange(); actressSortOpen = false">
                                 <i class="bi bi-film"></i> {{ t('showcase.sort.actress.video_count') }}</a>

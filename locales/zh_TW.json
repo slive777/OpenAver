@@ -1204,6 +1204,7 @@
       "mdate": "修改時間",
       "random": "隨機",
       "actress": {
+        "recent": "最近常收",
         "video_count": "作品數",
         "name": "姓名",
         "added_at": "收藏時間",

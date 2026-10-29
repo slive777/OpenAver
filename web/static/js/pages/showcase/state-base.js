@@ -286,6 +286,7 @@ export function stateBase() {
             showFavoriteActresses: false,
             actressSort: null,
             actressOrder: null,
+            actressSortVersion: 0,
             actressSearch: '',
             pills: [],
             cardShape: 'cover',
@@ -565,8 +566,14 @@ export function stateBase() {
             }
             // ★ 44a: 女優模式 — 只從 _persistedShowcase，不加 URL params（避免汙染 shareable link）
             this.showFavoriteActresses = state.showFavoriteActresses === true;  // 嚴格 === true
-            this.actressSort = state.actressSort || 'video_count';
-            this.actressOrder = state.actressOrder || 'desc';
+            // 184: 一次性切換到「最近常收」。`|| 0` 是刻意（舊存檔缺旗標 ＝ undefined，FE-JS-01 勿改 ??）
+            const migrated = (state.actressSortVersion || 0) >= 1;
+            this.actressSort = migrated ? (state.actressSort || 'recent') : 'recent';
+            this.actressOrder = migrated ? (state.actressOrder || 'desc') : 'desc';
+            // 同步段立刻寫回，不等使用者動作（FE-TIMING-12）；旗標只在此與 saveState 寫、只寫 1
+            this._persistedShowcase.actressSort = this.actressSort;
+            this._persistedShowcase.actressOrder = this.actressOrder;
+            this._persistedShowcase.actressSortVersion = 1;
             // 129-T2 / CD-129-6：女優分頁的搜尋字比照影片分頁持久化（spec S5）。
             // 不走 URL params（與 showFavoriteActresses/actressSort/actressOrder 一致，
             // 避免污染分享連結）；也**不**還原 actressPills——CD-116a-5 不翻案。
@@ -589,6 +596,7 @@ export function stateBase() {
             this._persistedShowcase.showFavoriteActresses = this.showFavoriteActresses;  // ★ 44a
             this._persistedShowcase.actressSort = this.actressSort;                      // ★ 44a
             this._persistedShowcase.actressOrder = this.actressOrder;                    // ★ 44a
+            this._persistedShowcase.actressSortVersion = 1;                              // ★ 184
             this._persistedShowcase.actressSearch = this.actressSearch;                  // ★ 129-T2
             this._persistedShowcase.pills = serializePills(this.pills);
             this._persistedShowcase.cardShape = this.cardShape;
