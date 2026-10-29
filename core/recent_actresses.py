@@ -58,11 +58,23 @@ def recent_actresses_available() -> bool:
     return bool(rank_recent(get_favorite_actress_stats().values(), 1))
 
 
-def _resolve_refs(provider, stats) -> list:
-    """前 TOP_N 名用收藏名 resolve；回 None 的略過、不補位。例外原樣往外丟。"""
+def _top_names(stats) -> list[str]:
     values = stats.values() if isinstance(stats, dict) else stats
-    refs = (provider.resolve(Kind.ACTOR, s.name) for s in rank_recent(values, TOP_N))
+    return [s.name for s in rank_recent(values, TOP_N)]
+
+
+def _resolve_refs(provider, names) -> list:
+    """前 TOP_N 名用收藏名 resolve；回 None 的略過、不補位。例外原樣往外丟。"""
+    refs = (provider.resolve(Kind.ACTOR, name) for name in names)
     return [ref for ref in refs if ref is not None]
+
+
+def _region_empty(names) -> MakerSearchResult:
+    """被擋地區 DMM 回 200＋空，resolve 會把空結果存進行程內快取；清掉這批名字，設好 Proxy 再點才會重查。"""
+    from core.search_providers.dmm import forget_probes
+
+    forget_probes(names)
+    return _fail("recent_region_empty")
 
 
 def _list_all(provider, refs, now):
@@ -100,15 +112,16 @@ def search_recent_actresses(*, now=None, status_callback=None, result_callback=N
     if status_callback:
         status_callback("dmm", "searching")
     try:
-        refs = _resolve_refs(provider, _default_stats() if stats is None else stats)
+        names = _top_names(_default_stats() if stats is None else stats)
+        refs = _resolve_refs(provider, names)
         if not refs:
-            return _fail("recent_region_empty")
+            return _region_empty(names)
         items, first_empty = _list_all(provider, refs, now)
     except Exception as err:
         logger.warning("recent actresses failed (%s)", type(err).__name__)
         return _fail("maker_unreachable")
     if first_empty:
-        return _fail("recent_region_empty")
+        return _region_empty(names)
     if not items:
         return _fail("recent_none")
     cards = _stream(provider, items, result_callback)

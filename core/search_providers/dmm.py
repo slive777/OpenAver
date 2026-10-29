@@ -88,6 +88,12 @@ def clear_probe_cache() -> None:
     _PROBE_CACHE.clear()
 
 
+def forget_probes(names) -> None:
+    """只忘掉這些名字的探測快取（被擋地區的空結果不該留到下一次點擊）。"""
+    for name in names:
+        _PROBE_CACHE.pop(fold(name), None)
+
+
 def _same_name(candidate, wanted) -> bool:
     """名稱精確相等（fold 後）。子字串不算：列表是依關鍵字撈的，共演者、標題碰巧含該字的人都會在 rows 裡。"""
     return fold(candidate) == fold(wanted)

@@ -88,6 +88,13 @@ def test_search_recent_error_codes():
     # region：解析得到但第一頁 raw_count=0
     out, got = _run(StubProvider(set(STATS), [_page([], raw=0)]), STATS)
     assert out == MakerSearchResult([], False, "recent_region_empty") and got == []
+    # region 之後：這批名字的 DMM 查詢快取已清（設好 Proxy 再點才會重查）；別的名字不動
+    from core.search_providers import dmm
+    dmm.clear_probe_cache()
+    dmm._PROBE_CACHE.update({dmm.fold(n): dmm.Probe([]) for n in ("a00", "a01", "other")})
+    _run(StubProvider(known=set()), STATS)
+    assert list(dmm._PROBE_CACHE) == ["other"]
+    dmm.clear_probe_cache()
     # none：有列但全被過濾
     out, got = _run(StubProvider(set(STATS), [_page([], raw=7)]), STATS)
     assert out == MakerSearchResult([], False, "recent_none") and got == []
