@@ -989,7 +989,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "list_actresses",
-        "description": "列出所有已收藏女優，每筆含 video_count（本地收藏片數）、created_at（收藏時間）、照片 URL 等完整資料。適合 AI 查看用戶收藏總覽或依條件篩選女優。",
+        "description": "列出所有已收藏女優，每筆含 video_count（本地收藏片數）、recent_score（依影片檔時間算的「最近常收」分數，半衰期 120 天，越大越近期，0 代表小而舊的片庫）、created_at（收藏時間）、照片 URL 等完整資料。適合 AI 查看用戶收藏總覽或依條件篩選女優。",
         "method": "GET",
         "path": "/api/actresses",
         "input_schema": {
@@ -999,7 +999,7 @@ _TOOLS: list[dict] = [
         },
         "output_schema": {
             "success": "boolean",
-            "actresses": "Actress[] — 完整女優資料陣列，每筆含 name/photo_url/video_count/created_at/is_favorite 等欄位",
+            "actresses": "Actress[] — 完整女優資料陣列，每筆含 name/photo_url/video_count/recent_score(number)/created_at/is_favorite 等欄位",
             "total": "integer — 收藏女優總數",
         },
         "side_effect": False,

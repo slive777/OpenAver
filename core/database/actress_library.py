@@ -5,10 +5,12 @@
 `actress.py` 與 `alias.py` 之間仍然零依賴，這個模組才是組合點。分組是領域邏輯
 （「誰跟誰是同一人、算幾片」），不是 HTTP 關注點，所以不放 router 層。
 """
+import time
 from typing import List
 
 from .actress import ActressRepository
 from .alias import AliasRepository
+from core.recent_rules import FavStat, effective_score, video_weight
 
 
 def get_library_actresses() -> List[dict]:
@@ -91,3 +93,48 @@ def get_library_actresses() -> List[dict]:
         )
     result.sort(key=lambda g: (-g["video_count"], g["primary_name"]))
     return result
+
+
+def _alias_name_sets(alias_repo) -> dict:
+    """name -> 該名字所屬 group 的全部名字（與 _alias_base.resolve 同序：primary 優先於 alias）。"""
+    records = alias_repo.get_all()
+    lookup: dict = {}
+    for record in records:  # 先填 alias
+        group = {record.primary_name} | set(record.aliases)
+        for alias in record.aliases:
+            lookup[alias] = group
+    for record in records:  # primary 後填、覆蓋 alias
+        lookup[record.primary_name] = {record.primary_name} | set(record.aliases)
+    return lookup
+
+
+def get_favorite_actress_stats(now=None, *, actress_repo=None, alias_repo=None) -> dict:
+    """一次掃描算出每位收藏女優的 FavStat(name, video_count, score)（CD-184-3 ②）。
+
+    - video_count 與 count_videos_for_actress_names(resolve(name)) 同口徑（rowid 去重）。
+    - score = sum(video_weight) 後套 effective_score；每請求現算、不快取。
+    - 全函式只開 3 次連線（pairs、alias get_all、favorites get_all）。
+    """
+    if now is None:
+        now = time.time()
+    actress_repo = actress_repo or ActressRepository()
+    alias_repo = alias_repo or AliasRepository()
+    pairs = actress_repo.get_video_actress_mtime_pairs()
+    lookup = _alias_name_sets(alias_repo)
+    favorites = [a.name for a in actress_repo.get_all()]
+
+    rowid_mtime: dict = {}
+    rowids_by_name: dict = {}
+    for rowid, name, mtime in pairs:
+        rowid_mtime[rowid] = mtime
+        rowids_by_name.setdefault(name, set()).add(rowid)
+
+    stats: dict = {}
+    for fav in favorites:
+        all_rowids: list = []
+        for n in lookup.get(fav, {fav}):
+            all_rowids.extend(rowids_by_name.get(n, ()))
+        distinct = set(all_rowids)  # 同片掛多個名字只算一次
+        raw = sum(video_weight(rowid_mtime[r], now) for r in distinct)
+        stats[fav] = FavStat(fav, len(distinct), effective_score(raw))
+    return stats

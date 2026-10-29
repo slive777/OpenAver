@@ -335,6 +335,27 @@ class ActressRepository:
         """Count videos featuring this actress (backward-compatible single-name wrapper)."""
         return self.count_videos_for_actress_names({name})
 
+    def get_video_actress_mtime_pairs(self) -> List[tuple]:
+        """回傳全部 (videos.rowid, actress_name, videos.mtime)，供 actress_library 算
+        「最近常收」分數（spec-184 CD-184-3 ①）。骨架同 get_video_actress_pairs。
+
+        OperationalError → log 後回 []（刻意與 get_video_actress_pairs 往上拋不同：
+        分數只影響排序，不該讓女優清單端點 500）。
+        """
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                """SELECT videos.rowid, json_each.value, videos.mtime
+                   FROM videos, json_each(videos.actresses)
+                   WHERE json_valid(videos.actresses)"""
+            )
+            return cursor.fetchall()
+        except sqlite3.OperationalError:
+            logger.exception("get_video_actress_mtime_pairs json_each failed")
+            return []
+        finally:
+            conn.close()
+
     def get_video_actress_pairs(self) -> List[tuple]:
         """回傳全部 (videos.rowid, actress_name) 配對，供上層（core.database.actress_library）
         依 alias group 聚合用。本方法只吐出原始配對，不做任何分組判斷——分組是 alias
