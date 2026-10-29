@@ -27,10 +27,9 @@ def _fail(code: str) -> MakerSearchResult:
 
 def _default_provider():
     """預設路徑：設定頁關掉 DMM ⇒ None（呼叫端回 maker_unreachable）。"""
-    from core import scraper
     from core.search_providers import registry
 
-    if not scraper.is_source_enabled("dmm"):
+    if not _dmm_enabled():
         return None
     return registry.new_provider("dmm")
 
@@ -39,6 +38,24 @@ def _default_stats() -> dict:
     from core.database.actress_library import get_favorite_actress_stats
 
     return get_favorite_actress_stats()
+
+
+def _dmm_enabled() -> bool:
+    from core import scraper
+
+    return bool(scraper.is_source_enabled("dmm"))
+
+
+def recent_actresses_available() -> bool:
+    """搜尋頁該不該顯示「常收女優」：DMM 開著、資料庫存在、且有至少一位分數 > 0 的收藏女優。"""
+    from core.database import get_db_path
+    from core.database.actress_library import get_favorite_actress_stats
+
+    if not _dmm_enabled():
+        return False
+    if not get_db_path().exists():
+        return False
+    return bool(rank_recent(get_favorite_actress_stats().values(), 1))
 
 
 def _resolve_refs(provider, stats) -> list:
