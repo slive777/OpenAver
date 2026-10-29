@@ -19,9 +19,11 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 from core.logger import get_logger
 from core.maker_names import maker_key_of
+from core.recent_rules import RecentRow, select_recent
 from core.name_match import fold, split_paren_name
 from core.scrapers.dmm import DMMScraper, Facts, ListResult, _actress_main_name
 from core.scrapers.errors import SourceBlocked
@@ -51,6 +53,35 @@ class Probe:
 
 
 _PROBE_CACHE: dict[str, Probe] = {}
+
+
+@dataclass
+class ActorsPage:
+    """list_actors_page 的回傳：items 為通過過濾的作品；raw_count 為站方回的列數（過濾前）。"""
+
+    items: list[WorkItem]
+    raw_count: int
+    has_next: bool
+    reached_cutoff: bool
+
+
+_JST = timezone(timedelta(hours=9))
+
+
+def _parse_when(value) -> datetime | None:
+    """deliveryStartAt → aware datetime；失敗＝None；無時區當 +09:00（DMM 為日本時間）。"""
+    try:
+        when = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    return when if when.tzinfo is not None else when.replace(tzinfo=_JST)
+
+
+def _recent_row(row: dict, now: datetime) -> RecentRow:
+    when = _parse_when(row.get("deliveryStartAt"))
+    upcoming = row.get("releaseStatus") == "PRE_ORDER" or (when is not None and when > now)
+    count = sum(1 for a in row.get("actresses") or [] if isinstance(a, dict))
+    return RecentRow(row["id"], when, upcoming, count)
 
 
 def clear_probe_cache() -> None:
@@ -298,6 +329,16 @@ class DMMProvider:
             raise ValueError(f"dmm list_entity: unsupported kind {ref.kind}")
         flt = {key: {"ids": [{"id": ref.id}], "op": "OR"}}
         return self._page(self._scraper.list_contents(None, filter=flt, limit=w.limit, offset=w.offset))
+
+    def list_actors_page(self, refs: list[EntityRef], w: Window, now: datetime, seen: set) -> ActorsPage:
+        """多位女優一次 OR 查詢的一頁，套「近 90 天＋預購、女優 ≤4 人」；kept 恰一次 fetch_facts。
+        seen 跨頁共用（去重）。列表失敗原樣往外拋。"""
+        flt = {"actressIds": {"ids": [{"id": r.id} for r in refs], "op": "OR"}}
+        result = self._scraper.list_contents(None, filter=flt, limit=w.limit, offset=w.offset)
+        by_id = {r["id"]: r for r in result.rows if r.get("id")}
+        kept, reached = select_recent([_recent_row(r, now) for r in by_id.values()], now, seen)
+        page = self._page(result._replace(rows=[by_id[k.content_id] for k in kept]))
+        return ActorsPage(page.items, len(result.rows), result.has_next, reached)
 
     def _detail_or_shallow(self, content_id: str, shallow: Video) -> Video:
         """詳情卡；失敗（例外或回 None）退 shallow（與今天相同）。"""
