@@ -545,8 +545,9 @@
                 </div>
             </div>
             <small class="state-page-hint">{{ t('search.empty.drag_hint') }}</small>
-            <div class="maker-latest" x-show="makerCapsules.length > 0">
+            <div class="maker-latest" x-show="makerCapsules.length > 0 || recentActressAvailable">
                 <span class="maker-latest-title" x-text="window.t('search.maker_latest.title')">{{ t('search.maker_latest.title') }}</span>
+                <button type="button" class="maker-latest-chip" x-show="recentActressAvailable" @click="startRecentActressSearch()" x-text="window.t('search.recent_actresses.label')">{{ t('search.recent_actresses.label') }}</button>
                 <template x-for="capsule in makerCapsules" :key="capsule.key">
                     <button type="button" class="maker-latest-chip" @click="startMakerSearch(capsule)" x-text="capsule.label"></button>
                 </template>
@@ -613,7 +614,8 @@
         <div id="errorState" class="state-page error w-full" x-show="pageState === 'error' && listMode !== 'wishlist'" x-cloak>
             <i class="bi bi-exclamation-triangle state-page-icon"></i>
             <p class="state-page-text error-text" id="errorMessage" x-text="errorText || window.t('search.filelist.search_failed')">{{ t('search.filelist.search_failed') }}</p>
-            <small class="state-page-hint">{{ t('search.error.hint_retry') }}</small>
+            <small class="state-page-hint" x-show="errorKind !== 'recent_region_empty'">{{ t('search.error.hint_retry') }}</small>
+            <a href="/settings" class="state-page-hint" x-show="errorKind === 'recent_region_empty'" x-cloak x-text="window.t('search.error.recent_region_link')">{{ t('search.error.recent_region_link') }}</a>
             {{ source_pill(
                 name="t('search.error.advanced_search_cta')",
                 censored=true,

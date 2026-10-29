@@ -166,9 +166,6 @@
       "running": "目前正在执行一轮",
       "config_failed": "操作失败，请稍后再试"
     },
-    "maker_latest": {
-      "title": "片商最新作品"
-    },
     "empty": {
       "hint": "输入番号搜索，或加入视频文件",
       "drag_hint": "也可直接拖入文件或文件夹",
@@ -286,8 +283,7 @@
       "prefix": "系列搜索",
       "actress": "模糊搜索",
       "keyword": "全文搜索",
-      "uncensored": "无码搜索",
-      "maker": "片商最新作品"
+      "uncensored": "无码搜索"
     },
     "filelist": {
       "search_all_title": "搜索所有尚未搜索的文件",

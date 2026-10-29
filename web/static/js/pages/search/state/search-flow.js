@@ -647,6 +647,10 @@ export function searchStateSearchFlow() {
             this.errorKind = 'maker_not_found';
             this.pageState = 'error';
             this.hideMakerCapsule?.(maker.key);
+        } else if (data?.error_code === 'recent_region_empty') {
+            this.errorText = window.t('search.error.recent_region_empty');
+            this.errorKind = 'recent_region_empty';
+            this.pageState = 'error';
         } else {
             this.errorText = window.t('search.error.no_data');
             this.errorKind = 'no_data';

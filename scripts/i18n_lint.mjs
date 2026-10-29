@@ -45,7 +45,7 @@ const LOCALE_FILES = { zh_TW: 'zh_TW.json', zh_CN: 'zh_CN.json', en: 'en.json', 
 // SCOPED_FORBIDDEN_WORDS = focal 這組文案的語氣規則（CD-152d-4b），只掃 SCOPED_FORBIDDEN_KEYS。
 // 兩套不可以合併——合併就會擋下「尋找燦爛的演出片段」這類合法用詞（「爛」是「燦爛」子字串）。
 // spec-180：舊頁名／舊詞回流守衛（CD-180-14）；不禁單獨的「最愛」「Favorite」（女優收藏要用）
-const FORBIDDEN_WORDS = ['推薦', '風味', '列表生成', '產生網頁', '生成网页', '产生网页', 'リスト生成', 'ページ生成', '最愛資料夾', '最爱文件夹', 'お気に入りフォルダ', 'Favorite Folder', 'Favorite folder', 'favorite folder', 'Scanner']; // 未來擴充只改此陣列（CD-96a-4 / CD-96-11）
+const FORBIDDEN_WORDS = ['推薦', '熱門', '熱度', '風味', '列表生成', '產生網頁', '生成网页', '产生网页', 'リスト生成', 'ページ生成', '最愛資料夾', '最爱文件夹', 'お気に入りフォルダ', 'Favorite Folder', 'Favorite folder', 'favorite folder', 'Scanner']; // 未來擴充只改此陣列（CD-96a-4 / CD-96-11）
 const SCOPED_FORBIDDEN_WORDS = ['太慢', '爛', '跑不動', '效能不足'];
 const SCOPED_FORBIDDEN_KEYS = [
   'settings.scraper.focal_help',

@@ -166,9 +166,6 @@
       "running": "Currently running",
       "config_failed": "Action failed, please try again later"
     },
-    "maker_latest": {
-      "title": "Latest from Makers"
-    },
     "empty": {
       "hint": "Enter an ID to search, or add video files",
       "drag_hint": "You can also drag and drop files or folders",
@@ -286,8 +283,7 @@
       "prefix": "Series Search",
       "actress": "Fuzzy Search",
       "keyword": "Full-text Search",
-      "uncensored": "Uncensored Search",
-      "maker": "Latest from Maker"
+      "uncensored": "Uncensored Search"
     },
     "filelist": {
       "search_all_title": "Search all files not yet searched",

@@ -166,9 +166,6 @@
       "running": "現在実行中です",
       "config_failed": "操作に失敗しました。しばらくしてからもう一度お試しください"
     },
-    "maker_latest": {
-      "title": "メーカー最新作"
-    },
     "empty": {
       "hint": "番号を入力して検索、またはファイルを追加",
       "drag_hint": "ファイルやフォルダを直接ドロップすることもできます",
@@ -286,8 +283,7 @@
       "prefix": "シリーズ検索",
       "actress": "あいまい検索",
       "keyword": "全文検索",
-      "uncensored": "無修正検索",
-      "maker": "メーカー最新作"
+      "uncensored": "無修正検索"
     },
     "filelist": {
       "search_all_title": "未検索のファイルをすべて一括検索",

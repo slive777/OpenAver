@@ -9375,8 +9375,8 @@ const RULES = [
     note: '[lint-guard 173-T13-no-direct-url] 搜尋 URL 改回手拼 → 使用者搜片商（名稱可能含 & 或載入更多）時送出的是關鍵字查詢，拿到不相干的作品卻看似正常',
   })),
   {
-    file: 'web/templates/search.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="makerCapsules\.length > 0"/,
-    note: '[lint-guard 173-T13-row-xshow] 膠囊列少了單一隱藏條件 → 關掉 JavBus 或沒有片商達門檻時，使用者的空狀態仍留一行「片商最新作品」小標卻沒有膠囊',
+    file: 'web/templates/search.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="makerCapsules\.length > 0 \|\| recentActressAvailable"/,
+    note: '[lint-guard 173-T13-row-xshow／184-T4] 膠囊列少了兩者任一的隱藏條件 → 片商膠囊與常收女優都不可用時，使用者的空狀態仍留一行「新片查詢」小標卻沒有膠囊',
   },
   {
     file: 'web/templates/search.html', kind: 'required-string',

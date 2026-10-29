@@ -171,7 +171,10 @@
       "config_failed": "操作失敗，請稍後再試"
     },
     "maker_latest": {
-      "title": "片商最新作品"
+      "title": "新片查詢"
+    },
+    "recent_actresses": {
+      "label": "常收女優"
     },
     "empty": {
       "hint": "輸入番號搜尋，或加入影片檔案",
@@ -196,6 +199,8 @@
       "tag_nfo_write_blocked": "標籤已存，但沒有權限寫入 NFO",
       "no_data": "找不到資料",
       "maker_not_found": "找不到「{maker}」的作品頁",
+      "recent_region_empty": "DMM 沒有回傳結果，部分地區需要日本 IP",
+      "recent_region_link": "到設定頁調整 Proxy",
       "search_failed": "搜尋失敗",
       "network_error": "網路錯誤，請重試",
       "no_translation_needed": "當前片無需翻譯",
@@ -293,7 +298,7 @@
       "actress": "模糊搜尋",
       "keyword": "全文搜尋",
       "uncensored": "無碼搜尋",
-      "maker": "片商最新作品"
+      "maker": "新片查詢"
     },
     "filelist": {
       "search_all_title": "搜尋所有尚未搜尋的檔案",
