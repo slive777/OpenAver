@@ -5,6 +5,9 @@
 import { isFileSearching as isPathSearching } from '../batch-search-rules.js';
 import { organizeState } from '../blank-card-rules.js';
 
+// 每批 local-status 查詢的番號上限；對齊後端 web/routers/search.py 的 [:100] 截斷，超過會被靜默丟掉
+const LOCAL_STATUS_CHUNK_SIZE = 100;
+
 export function searchStateBase() {
     return {
         // ===== Page State =====
@@ -354,9 +357,7 @@ export function searchStateBase() {
             const numberList = results
                 .map(r => r.number)
                 .filter(n => n);
-            const numbers = numberList.join(',');
-
-            if (!numbers) return;
+            if (numberList.length === 0) return;
 
             // TASK-140-T5：membership hydration。
             // 🔴 **兩件事都要獨立：發出要平行，「處理」也要平行**（Codex review P2）。
@@ -390,13 +391,21 @@ export function searchStateBase() {
 
             const localStatusTask = (async () => {
                 try {
-                    const resp = await fetch(`/api/search/local-status?numbers=${encodeURIComponent(numbers)}`);
-                    if (!resp.ok) {
-                        console.warn('[LocalStatus] API 請求失敗:', resp.status);
-                        return;
+                    // 分批並行查詢；任一批失敗（非 2xx 或丟例外）＝整包不套用，與原本單次失敗一致
+                    const chunks = [];
+                    for (let i = 0; i < numberList.length; i += LOCAL_STATUS_CHUNK_SIZE) {
+                        chunks.push(numberList.slice(i, i + LOCAL_STATUS_CHUNK_SIZE));
                     }
-
-                    const data = await resp.json();
+                    const parts = await Promise.all(chunks.map(async (chunk) => {
+                        const resp = await fetch(`/api/search/local-status?numbers=${encodeURIComponent(chunk.join(','))}`);
+                        if (!resp.ok) {
+                            console.warn('[LocalStatus] API 請求失敗:', resp.status);
+                            return null;
+                        }
+                        return resp.json();
+                    }));
+                    if (parts.some(p => p === null)) return;
+                    const data = Object.assign({}, ...parts);
 
                     // 更新搜尋結果的本地狀態
                     results.forEach(result => {
