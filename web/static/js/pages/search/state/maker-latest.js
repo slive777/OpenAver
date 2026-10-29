@@ -9,6 +9,8 @@ export function searchStateMakerLatest() {
         makerCapsules: [],
         _makerRows: [],
         _makerHiddenKeys: [],
+        recentActressAvailable: false,
+        _recentActressKey: '',
 
         async loadMakerCapsules() {
             let rows = [];
@@ -30,6 +32,34 @@ export function searchStateMakerLatest() {
 
         rebuildMakerCapsules() {
             this.makerCapsules = rankMakerCapsules(this._makerRows, this._makerHiddenKeys, { min: 5, max: 5 });
+        },
+
+        async loadRecentActressCapsule() {
+            let ok = false;
+            let key = '';
+            try {
+                const res = await fetch('/api/search/recent-actresses');
+                const data = await res.json();
+                if (data && data.success === true && data.available === true && typeof data.key === 'string' && data.key) {
+                    ok = true;
+                    key = data.key;
+                }
+            } catch (e) {
+                console.error('loadRecentActressCapsule failed:', e);
+            }
+            this._recentActressKey = key;
+            this.recentActressAvailable = ok;
+        },
+
+        startRecentActressSearch() {
+            if (!this._recentActressKey) return;
+            return this.doSearch('', {
+                maker: {
+                    key: this._recentActressKey,
+                    label: window.t('search.recent_actresses.label'),
+                    spellings: [],
+                },
+            });
         },
 
         startMakerSearch(capsule) {

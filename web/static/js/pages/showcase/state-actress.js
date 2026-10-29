@@ -144,7 +144,7 @@ export function stateActress() {
         filteredActressCount: 0,        // mirror _filteredActresses.length
         paginatedActresses: [],         // CD-9：全量 = _filteredActresses，不分頁
         actressSearch: '',              // 女優搜尋框（獨立於 search）
-        actressSort: 'video_count',     // 預設排序
+        actressSort: 'recent',          // 預設排序（184：最近常收）
         actressOrder: 'desc',           // 預設降冪
         actressLoading: false,          // 載入中
         actressLightboxIndex: -1,       // 指向 _filteredActresses 的索引
@@ -365,6 +365,12 @@ export function stateActress() {
                 if (sort === 'name') {
                     var cmp = a.name.localeCompare(b.name, 'ja');
                     return order === 'asc' ? cmp : -cmp;
+                }
+                if (sort === 'recent') {
+                    // 184: 先算 desc 的 cmp，asc 整份取負。`|| 0` 是刻意（缺 recent_score ＝ 0，FE-JS-01 勿改 ??）
+                    var cmp = (b.recent_score || 0) - (a.recent_score || 0);
+                    if (cmp === 0) cmp = (b.video_count || 0) - (a.video_count || 0);
+                    return order === 'asc' ? -cmp : cmp;
                 }
                 var va, vb;
                 if (sort === 'video_count') {

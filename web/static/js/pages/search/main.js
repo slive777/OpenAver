@@ -88,6 +88,7 @@ export function searchPage() {
                 // 3. 還原 sessionStorage 狀態
                 this.restoreState();
                 this.loadMakerCapsules();   // 不 await：吞錯在方法內，膠囊晚到不擋 init
+                this.loadRecentActressCapsule();   // 同上（184）
 
                 // 4. 載入書籤數量（badge；失敗不擋後續 init）
                 await this.loadWishlistCount();

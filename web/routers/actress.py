@@ -28,6 +28,7 @@ from pydantic import BaseModel, ValidationError
 from PIL import Image
 from core.atomic_write import atomic_write
 from core.database.version_tracker import bump_showcase_revision
+from core.database.actress_library import get_favorite_actress_stats
 from core.maker_mapping import load_prefix_mapping
 
 from core.database import (
@@ -208,7 +209,17 @@ def _flatten_aliases(raw) -> list:
     return [a.get("ja", "") if isinstance(a, dict) else str(a) for a in raw]
 
 
-def _actress_to_response(actress: Actress, video_count: int = 0) -> dict:
+def _safe_recent_score(name: str, repo, alias_repo) -> float:
+    """add_favorite 用：取單一女優的 recent_score，任何例外 → 0.0（排序分數不該擋收藏）。"""
+    try:
+        st = get_favorite_actress_stats(actress_repo=repo, alias_repo=alias_repo).get(name)
+        return st.score if st else 0.0
+    except Exception:
+        logger.warning("[actress] recent_score 計算失敗 name=%s", name, exc_info=True)
+        return 0.0
+
+
+def _actress_to_response(actress: Actress, video_count: int = 0, *, recent_score: float = 0.0) -> dict:
     """將 Actress dataclass 轉為 API response dict"""
     local_path = get_local_photo_path(actress.name)
     if local_path is not None:
@@ -242,6 +253,7 @@ def _actress_to_response(actress: Actress, video_count: int = 0) -> dict:
         "crop_mode": actress.crop_mode,
         "created_at": actress.created_at.isoformat() if actress.created_at else None,
         "video_count": video_count,
+        "recent_score": round(recent_score, 6),
         "is_favorite": True,
     }
 
@@ -407,11 +419,12 @@ def add_favorite(req: FavoriteRequest):
     # 寫回 actress_aliases 表，聯集只存在於這次 HTTP 回應（CD-117-9）。
     sync_primary = sync_result["primary_name"]
     covered_names = alias_repo.resolve(sync_primary) | {name}
+    recent_score = _safe_recent_score(actress.name, repo, alias_repo)
     return JSONResponse(
         status_code=200,
         content={
             "success": True,
-            "actress": _actress_to_response(actress, video_count),
+            "actress": _actress_to_response(actress, video_count, recent_score=recent_score),
             "photo_downloaded": photo_downloaded,
             "skipped_aliases": skipped_aliases,
             "covered_names": sorted(covered_names),
@@ -631,12 +644,16 @@ def list_actresses():
     """
     init_db()
     repo = ActressRepository()
-    alias_repo = AliasRepository()
     actresses = repo.get_all()
+    stats = get_favorite_actress_stats(actress_repo=repo, alias_repo=AliasRepository())
     result = []
     for actress in actresses:
-        video_count = repo.count_videos_for_actress_names(alias_repo.resolve(actress.name))
-        result.append(_actress_to_response(actress, video_count))
+        st = stats.get(actress.name)
+        result.append(_actress_to_response(
+            actress,
+            st.video_count if st else 0,
+            recent_score=st.score if st else 0.0,
+        ))
     return JSONResponse(
         status_code=200,
         content={

@@ -172,6 +172,51 @@ test('checkLocalStatus: 平行呼叫 POST /api/wishlist/membership 並寫回 _wi
 });
 
 
+test('checkLocalStatus: 150 個番號分兩批查 local-status（每批 ≤100），兩批結果都套到對應卡', async () => {
+    const calls = mockFetch((url) => {
+        if (url.includes('/api/search/local-status')) {
+            const nums = decodeURIComponent(url.split('numbers=')[1]).split(',');
+            const body = {};
+            nums.forEach((n) => { body[n] = { exists: true }; });
+            return jsonResponse(body);
+        }
+        return jsonResponse({});
+    });
+    const results = Array.from({ length: 150 }, (_, i) => ({ number: `ABC-${String(i + 1).padStart(3, '0')}` }));
+    const events = [];
+    globalThis.CustomEvent = class { constructor(type, init) { this.type = type; this.detail = init.detail; } };
+    globalThis.dispatchEvent = (e) => events.push(e);
+
+    await searchStateBase().checkLocalStatus.call({}, results);
+
+    const localCalls = calls.filter((c) => c.url.includes('/api/search/local-status'));
+    assert.equal(localCalls.length, 2);
+    for (const c of localCalls) {
+        assert.ok(decodeURIComponent(c.url.split('numbers=')[1]).split(',').length <= 100);
+    }
+    assert.equal(results[0]._localStatus?.exists, true);
+    assert.equal(results[149]._localStatus?.exists, true);
+    const matchEvents = events.filter((e) => e.type === 'search:local-match');
+    assert.equal(matchEvents.length, 1);
+    assert.equal(matchEvents[0].detail.numbers.length, 150);
+});
+
+test('checkLocalStatus: 任一批失敗＝整包不套用 _localStatus', async () => {
+    let n = 0;
+    mockFetch((url) => {
+        if (url.includes('/api/search/local-status')) {
+            n++;
+            return n === 1
+                ? jsonResponse({}, { ok: false, status: 500 })
+                : jsonResponse({ 'ABC-150': { exists: true } });
+        }
+        return jsonResponse({});
+    });
+    const results = Array.from({ length: 150 }, (_, i) => ({ number: `ABC-${String(i + 1).padStart(3, '0')}` }));
+    await searchStateBase().checkLocalStatus.call({}, results);
+    assert.ok(results.every((r) => r._localStatus === undefined));
+});
+
 // ─── switchToWishlist displayMode ─────────────────────────────────────────
 
 

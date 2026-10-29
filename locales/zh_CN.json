@@ -166,9 +166,6 @@
       "running": "目前正在执行一轮",
       "config_failed": "操作失败，请稍后再试"
     },
-    "maker_latest": {
-      "title": "片商最新作品"
-    },
     "empty": {
       "hint": "输入番号搜索，或加入视频文件",
       "drag_hint": "也可直接拖入文件或文件夹",
@@ -286,8 +283,7 @@
       "prefix": "系列搜索",
       "actress": "模糊搜索",
       "keyword": "全文搜索",
-      "uncensored": "无码搜索",
-      "maker": "片商最新作品"
+      "uncensored": "无码搜索"
     },
     "filelist": {
       "search_all_title": "搜索所有尚未搜索的文件",
@@ -1481,7 +1477,6 @@
       "method_partial": "<strong>部分番号</strong>：如 <code>SONE-0</code>，搜索 001~009",
       "method_series": "<strong>系列搜索</strong>：如 <code>SONE</code>，搜索该系列最新作品",
       "method_actress": "<strong>女优名</strong>：如 <code>河北彩花</code>，搜索该演员作品",
-      "method_maker": "<strong>片商最新作品</strong>：搜索页空白时列出最近 12 个月最常收藏的片商，点一下查看该片商的最新作品（含片商自己出的总集篇）；也可以直接在搜索框输入片商名称。由设置页排在最前面、查得到该片商的来源回答，被拦或关闭时改问下一个（按“载入更多”时不换来源）",
       "drag_auto": "将视频文件拖入窗口，自动提取番号并搜索",
       "drag_batch": "支持多文件批次处理",
       "drag_generate": "搜索成功后可点「整理此片」重命名文件、下载封面、建立文件夹与 NFO",

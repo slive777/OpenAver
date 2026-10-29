@@ -63,6 +63,8 @@ from core.scrapers.utils import SOURCE_NAMES
 from core.query_intent import classify_query
 from core.maker_names import known_makers
 from core.search_providers.relay import maker_capsule_policy
+from core.recent_actresses import recent_actresses_available, search_recent_actresses
+from core.recent_rules import RECENT_ACTRESSES_KEY
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -135,6 +137,16 @@ def get_maker_capsules() -> dict:
         return {"success": False}
 
 
+@router.get("/search/recent-actresses")
+def get_recent_actresses_availability() -> dict:
+    """搜尋頁「常收女優」膠囊該不該顯示（DMM 開著＋有分數 > 0 的收藏女優）與其保留鍵。"""
+    try:
+        return {"success": True, "available": recent_actresses_available(), "key": RECENT_ACTRESSES_KEY}
+    except Exception:
+        logger.exception("recent-actresses availability failed")
+        return {"success": False}
+
+
 def _maker_param_error(maker_key: str, spellings, offset: int) -> Optional[str]:
     """maker 分支入口驗證；回 None 表示通過。"""
     if not 1 <= len(maker_key) <= 200:
@@ -168,6 +180,8 @@ def _run_maker_search(maker_key, maker, spellings, offset, status_callback=None,
     """解析＋列表（由呼叫端放進背景執行緒）；未預期例外一律當連不上，不當找不到。"""
     label = maker or maker_key
     try:
+        if maker_key == RECENT_ACTRESSES_KEY:
+            return search_recent_actresses(status_callback=status_callback, result_callback=result_callback)
         db_path = get_db_path()
         init_db(db_path)
         titles = _library_titles(db_path)

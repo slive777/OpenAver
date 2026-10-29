@@ -62,6 +62,7 @@ class TestActressListEndpoint:
             assert "video_count" in actress_data
             assert "created_at" in actress_data
             assert isinstance(actress_data["video_count"], int)
+            assert isinstance(actress_data["recent_score"], (int, float))
             assert actress_data["is_favorite"] is True
 
     def test_list_video_count_exact_match(self, client_with_db):

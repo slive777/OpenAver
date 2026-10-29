@@ -401,7 +401,7 @@
             <!-- 女優模式 Toolbar Controls (T3) -->
             <div class="toolbar-section toolbar-controls" x-show="showFavoriteActresses">
                 <div class="control-group">
-                    <!-- 女優排序 dropdown（6 選項） -->
+                    <!-- 女優排序 dropdown（7 選項） -->
                     <div class="toolbar-dropdown-wrap" x-data="{ actressSortOpen: false }" @click.outside="actressSortOpen = false">
                         <button class="btn-icon"
                                 @click="actressSortOpen = !actressSortOpen"
@@ -410,6 +410,9 @@
                             <i class="bi bi-funnel"></i>
                         </button>
                         <div class="toolbar-dropdown" x-show="actressSortOpen" x-transition.opacity.duration.150ms @click.stop>
+                            <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'recent' }"
+                               @click.prevent="actressSort = 'recent'; onActressSortChange(); actressSortOpen = false">
+                                <i class="bi bi-clock-history"></i> {{ t('showcase.sort.actress.recent') }}</a>
                             <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'video_count' }"
                                @click.prevent="actressSort = 'video_count'; onActressSortChange(); actressSortOpen = false">
                                 <i class="bi bi-film"></i> {{ t('showcase.sort.actress.video_count') }}</a>

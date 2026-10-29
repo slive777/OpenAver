@@ -171,7 +171,10 @@
       "config_failed": "操作失敗，請稍後再試"
     },
     "maker_latest": {
-      "title": "片商最新作品"
+      "title": "新片查詢"
+    },
+    "recent_actresses": {
+      "label": "常收女優"
     },
     "empty": {
       "hint": "輸入番號搜尋，或加入影片檔案",
@@ -196,6 +199,10 @@
       "tag_nfo_write_blocked": "標籤已存，但沒有權限寫入 NFO",
       "no_data": "找不到資料",
       "maker_not_found": "找不到「{maker}」的作品頁",
+      "recent_region_empty": "DMM 沒有回傳結果，部分地區需要日本 IP",
+      "recent_none": "找不到結果",
+      "recent_unreachable": "暫時連不上 DMM",
+      "recent_region_link": "到設定頁調整 Proxy",
       "search_failed": "搜尋失敗",
       "network_error": "網路錯誤，請重試",
       "no_translation_needed": "當前片無需翻譯",
@@ -293,7 +300,7 @@
       "actress": "模糊搜尋",
       "keyword": "全文搜尋",
       "uncensored": "無碼搜尋",
-      "maker": "片商最新作品"
+      "maker": "新片查詢"
     },
     "filelist": {
       "search_all_title": "搜尋所有尚未搜尋的檔案",
@@ -1204,6 +1211,7 @@
       "mdate": "修改時間",
       "random": "隨機",
       "actress": {
+        "recent": "最近常收",
         "video_count": "作品數",
         "name": "姓名",
         "added_at": "收藏時間",
@@ -1490,7 +1498,7 @@
       "method_partial": "<strong>部分番號</strong>：如 <code>SONE-0</code>，搜尋 001~009",
       "method_series": "<strong>系列搜尋</strong>：如 <code>SONE</code>，搜尋該系列最新作品",
       "method_actress": "<strong>女優名</strong>：如 <code>河北彩花</code>，搜尋該演員作品；繁中、簡中、羅馬字也找得到（需開啟 JavDB）",
-      "method_maker": "<strong>片商最新作品</strong>：搜尋頁空白時列出最近 12 個月最常收的片商，點一下看該片商的最新作品（含片商自己出的總集編）；也可以直接在搜尋框打片商名稱。由設定頁排最前面、查得到該片商的來源回答，被擋或關閉時改問下一個（按「載入更多」時不換來源）",
+      "method_maker": "<strong>新片查詢</strong>：搜尋頁空白時會出現一排按鈕，直接看新片；<strong>常收女優</strong>：取女優頁「最近常收」排前 10 名的女優，一次列出她們近 90 天內上市和還沒上市（預購）的片，不用按「載入更多」；5 位女優以上的合輯不列，單人精選集照常列出。只查 DMM，部分地區需要日本 IP；DMM 沒回傳結果時，畫面會帶你去設定頁調整 Proxy；<strong>片商</strong>：列出最近 12 個月最常收的片商，點一下看該片商的最新作品（含片商自己出的總集編）；也可以直接在搜尋框打片商名稱。由設定頁排最前面、查得到該片商的來源回答，被擋或關閉時改問下一個（按「載入更多」時不換來源）",
       "drag_auto": "將影片檔案拖入視窗，自動提取番號並搜尋",
       "drag_batch": "支援多檔案批次處理",
       "drag_generate": "整理歸檔：點「整理此片」會依命名規則改名、搬進歸檔資料夾，並下載封面 + 寫 NFO（想讓 OpenAver 建一個乾淨命名媒體庫用這條）",

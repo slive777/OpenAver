@@ -328,3 +328,35 @@ def test_d6_renamed_actress_names_resolve_to_same_id(provider):
     assert _STATE["calls"] - before >= 2, f"兩個名字沒有各發出請求（快取命中會讓這格變空殼）: {_STATE['calls'] - before}"
     assert new_name is not None and old_name is not None, (new_name, old_name)
     assert new_name.id == old_name.id, (new_name.id, old_name.id)
+
+
+# releaseStatus five values seen live on 2026-10-29 (in core/ only PRE_ORDER has our own semantics; the rest are site names)
+_KNOWN_RELEASE_STATUS = frozenset({"PRE_ORDER", "PRE_RELEASE", "LATEST_RELEASE", "NEW_RELEASE", "SEMI_NEW_RELEASE"})
+
+
+def test_recent_or_list_first_page(provider, actor_ref):
+    """184-T3b: one OR query over two actresses returns a first page our parser can use (rows, dates, actress lists)."""
+    _require_live()
+    from collections import Counter
+    from datetime import datetime, timezone
+
+    from core.search_providers.types import Kind, Window
+
+    second = provider.resolve(Kind.ACTOR, "二階堂麗")
+    assert second is not None, "resolve(ACTOR,'二階堂麗') 查無"
+    mark = len(_LISTS)
+    page = provider.list_actors_page([actor_ref, second], Window(0, 100), datetime.now(timezone.utc), set())
+    rec = _LISTS[mark:][-1]
+    assert rec["filter"]["actressIds"]["op"] == "OR", rec["filter"]
+    assert rec["rows"], "OR 列表第一頁 rows 為空"
+    bad = []
+    for row in rec["rows"]:
+        try:
+            datetime.fromisoformat(row["deliveryStartAt"])
+        except (KeyError, TypeError, ValueError):
+            bad.append(row.get("id"))
+    assert not bad, f"deliveryStartAt 無法解析: {bad}"
+    assert all(isinstance(row.get("actresses"), list) for row in rec["rows"])
+    statuses = Counter(row.get("releaseStatus") for row in rec["rows"])
+    print(f"\n[recent canary] rows={len(rec['rows'])} kept={len(page.items)} releaseStatus={dict(statuses)}")
+    assert set(statuses) & _KNOWN_RELEASE_STATUS, f"releaseStatus 分佈={dict(statuses)}"

@@ -647,6 +647,20 @@ export function searchStateSearchFlow() {
             this.errorKind = 'maker_not_found';
             this.pageState = 'error';
             this.hideMakerCapsule?.(maker.key);
+        } else if (data?.error_code === 'recent_region_empty') {
+            this.errorText = window.t('search.error.recent_region_empty');
+            this.errorKind = 'recent_region_empty';
+            this.pageState = 'error';
+        } else if (data?.error_code === 'recent_none') {
+            // 184：DMM 有回但過濾後沒片 ⇒ 「找不到結果」、不提示稍後再試
+            this.errorText = window.t('search.error.recent_none');
+            this.errorKind = 'recent_none';
+            this.pageState = 'error';
+        } else if (data?.error_code === 'maker_unreachable' && this._recentActressKey && maker?.key === this._recentActressKey) {
+            // 184：僅「常收女優」膠囊的連不上 DMM 獨立顯示；一般片商膠囊維持 no_data
+            this.errorText = window.t('search.error.recent_unreachable');
+            this.errorKind = 'recent_unreachable';
+            this.pageState = 'error';
         } else {
             this.errorText = window.t('search.error.no_data');
             this.errorKind = 'no_data';
