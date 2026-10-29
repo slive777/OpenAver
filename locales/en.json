@@ -1477,7 +1477,6 @@
       "method_partial": "<strong>Partial ID</strong>: e.g. <code>SONE-0</code>, searches 001–009",
       "method_series": "<strong>Series Search</strong>: e.g. <code>SONE</code>, finds latest in series",
       "method_actress": "<strong>Actress Name</strong>: e.g. <code>Kaho Imai</code>, finds her works",
-      "method_maker": "<strong>Latest from Makers</strong>: when the Search page is empty, it lists the makers you collected most over the last 12 months. Click one to see its latest works (including the maker's own compilations). You can also type a maker name straight into the search box. The answer comes from the highest-ranked source in Settings that knows this maker; if it's blocked or turned off, the next source is asked (\"Load more\" keeps the same source)",
       "drag_auto": "Drag video files into the window to auto-extract ID and search",
       "drag_batch": "Supports batch processing of multiple files",
       "drag_generate": "After a successful search, click 'Organize' to rename files, download covers, create folders and write NFO",
