@@ -779,8 +779,8 @@ def _get_random_videos_with_covers(actress_name: str, count: int, exclude_ids=fr
 async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0), exclude: str = Query("")):
     """
     SSE 串流回傳女優候選照片（最多 6 張）。
-    雲端最多 5 張（gfriends／wiki／xcity 最多 3 張 + Graphis 遞補，合計 ≤5）並行抓取，
-    本機影片封面 crop 補足至總數最多 6 張。
+    三源（gfriends／wiki／xcity 最多 3 張）與 Graphis 並行抓取；Graphis 固定先送 2 張，
+    空位由本機影片封面 crop 補，本機不夠才由 Graphis 其餘新圖補，總數 ≤6。
     actress 不存在 → JSONResponse 404。
 
     attempt（TASK-102b-T1，spec-102 Part B）：optional 輪替序號，stateless。
@@ -788,7 +788,7 @@ async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0), exclud
     本機補位與 current_source 排除邏輯不受影響（CD-7）。
 
     exclude（spec-185）：逗號分隔的候選 id（8 位 hex），容錯解析；命中者不再送。
-    Graphis 候選獨立於三源（gfriends/wiki/xcity），最多 5 張雲端總額，缺的由本機補。
+    Graphis 候選獨立於三源（gfriends/wiki/xcity），不佔三源名額；配額見上（Graphis 2、本機補、不夠再 Graphis 補，≤6）。
     """
     _, actress = await asyncio.to_thread(_load_actress, name)
     if actress is None:
@@ -871,17 +871,14 @@ async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0), exclud
         src_tasks = [asyncio.ensure_future(fetch_source(src)) for src in cloud_sources]
         pending = set(src_tasks) | {graphis_task}
         picks = None
-        early_done = False  # Graphis 先完成並已送 picks[:2]
         while pending:
             done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
             for t in done:
                 if t is graphis_task:
                     picks = t.result()
-                    if pending - {graphis_task}:
-                        for ev in take_graphis(picks[:2]):
-                            yield ev
-                            cloud_total += 1
-                        early_done = True
+                    for ev in take_graphis(picks[:2]):  # Graphis 固定 2 張（早到晚到同）
+                        yield ev
+                        cloud_total += 1
                     continue
                 src, url = t.result()
                 if url and candidate_id(url) not in exclude_ids and cloud_count < max_cloud:
@@ -892,12 +889,6 @@ async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0), exclud
                     yield _event({"source": src, "thumb_url": url, "full_url": url})
                     cloud_count += 1
                     cloud_total += 1
-        if picks:
-            n3 = cloud_count
-            g_target = min(len(picks), 5 - n3)
-            for ev in take_graphis(picks[2:g_target] if early_done else picks[:g_target]):
-                yield ev
-                cloud_total += 1
         total = cloud_total
 
         # 本機 crop 補足
@@ -929,6 +920,14 @@ async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0), exclud
                     "full_url": crop_url,
                 })
                 total += 1
+
+        # 本機不夠 → Graphis 其餘新圖補到 6
+        if picks and total < 6:
+            for ev in take_graphis(picks[2:]):
+                yield ev
+                total += 1
+                if total >= 6:
+                    break
 
         # done event
         done_data = json.dumps({"total": total})

@@ -74,7 +74,7 @@ def select_next(pool, exclude_ids, k):
 _UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 _TTL = 3600
 _LIMITS = (128, 256)
-_K = 5
+_K = 6
 _LOCK = threading.Lock()
 _SEARCH_CACHE = {}  # query -> (ts, [(entry_id, jp_name)])，只存成功（含 0 條目）
 _ENTRY_CACHE = {}   # entry_id -> (ts, [photo_url])，條目頁失敗不存
@@ -237,7 +237,7 @@ def _select_excluding_current(pool, exclude_ids, person_key, deadline):
 
 
 def graphis_candidates(person_key, query_name, photo_source, exclude_ids, *, budget_s=4.0, rng=None):
-    """最多 5 個 Graphis 候選 URL；任何失敗回 []（不丟）。"""
+    """最多 6 個 Graphis 候選 URL；任何失敗回 []（不丟）。"""
     try:
         deadline = _now() + budget_s
         try:

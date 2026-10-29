@@ -417,12 +417,13 @@ class TestPhotoCandidates:
             assert total == bt
 
     def test_quota_and_backfill(self, client):
-        """雲端總額 ≤5（Graphis 2＋三源各 1）、三源不被擠掉、三源全被 exclude 時 Graphis 補滿、photo_source=graphis 仍執行 Graphis"""
+        """Graphis 固定 2、空位本機優先、本機不夠才由 Graphis 補到 6、photo_source=graphis 仍執行 Graphis"""
         from web.routers.actress import candidate_id
         self._save_actress_with_source(client, "local_crop")
         urls3 = {s: f"https://example.com/{s}/p.jpg" for s in ("gfriends", "wiki", "xcity")}
-        picks = [f"https://example.com/g/{i}.jpg" for i in range(5)]
-        covers = [to_file_uri("/c/a.jpg"), to_file_uri("/c/b.jpg")]
+        picks = [f"https://example.com/g/{i}.jpg" for i in range(6)]
+        covers = [to_file_uri(f"/c/{i}.jpg") for i in range(4)]
+        ex = ",".join(candidate_id(u) for u in urls3.values())
 
         def slow_fetch(n, s):
             time.sleep(0.2)
@@ -432,17 +433,17 @@ class TestPhotoCandidates:
             time.sleep(0.3)
             return picks
 
+        def counts(got):
+            return tuple(sum(c["source"] == k for c in got) for k in ("graphis", "local_crop"))
+
+        # (i) 三源各 1：Graphis 恰 2、本機補 1（早到／晚到）
         for fetch, graphis in ((slow_fetch, lambda *a: picks), (lambda n, s: urls3[s], slow_graphis)):
             got, total, _ = self._sse(client, fetch=fetch, graphis=graphis, videos=covers)
-            cloud = [c for c in got if c["source"] != "local_crop"]
-            assert [c["source"] for c in cloud].count("graphis") == 2
-            assert {c["source"] for c in cloud} >= set(urls3)
-            assert len(cloud) == 5 and 1 <= total - 5 and total <= 6
-
-        ex = ",".join(candidate_id(u) for u in urls3.values())
-        got, total, _ = self._sse(client, ex, fetch=lambda n, s: urls3[s], graphis=lambda *a: picks, videos=covers)
-        assert [c["source"] for c in got].count("graphis") == 5
-        assert any(c["source"] == "local_crop" for c in got) and total <= 6
+            assert counts(got) == (2, 1) and total == 6
+        # (ii)(iii)(iv) 三源全被 exclude：本機優先，不夠才由 Graphis 補
+        for n_local, expect in ((4, (2, 4)), (1, (5, 1)), (0, (6, 0))):
+            got, total, _ = self._sse(client, ex, fetch=lambda n, s: urls3[s], graphis=lambda *a: picks, videos=covers[:n_local])
+            assert counts(got) == expect and total == 6
 
         from core.database import ActressRepository
         assert ActressRepository().update_fields(ACTRESS_NAME, {"photo_source": "graphis"})

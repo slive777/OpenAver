@@ -1287,9 +1287,8 @@ _TOOLS: list[dict] = [
             "從 4 個雲端來源（graphis/gfriends/wiki/xcity）並行抓取，"
             "加上本機影片封面 crop，最多 6 張。"
             "可帶 exclude（逗號分隔候選 id）略過已看過的圖。"
-            "三源（gfriends／wiki／xcity）各自完成即送；Graphis 先完成時先送最多 2 張，"
-            "三源結束後依剩餘配額遞補（雲端合計 ≤5）；Graphis 晚完成時依剩餘配額一次送出；"
-            "本機封面在雲端結束後補到總數 ≤6。不修改資料庫。"
+            "三源（gfriends／wiki／xcity）各自完成即送；Graphis 每輪先送 2 張，"
+            "空位先由本機封面補，本機不夠才由 Graphis 其餘新圖補滿，合計 ≤6。不修改資料庫。"
         ),
         "side_effect": False,
         "method": "GET",
