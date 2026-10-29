@@ -12,9 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### 📸 換照片：Graphis 每次給新照片
-- 換照片時，Graphis 每次最多給 2 張新照片（大頭照、橫幅、寫真集封面），按 🔄 重抓會換一批新的。
+- 換照片時，Graphis 每次給 2 張新照片（大頭照、橫幅、寫真集封面），按 🔄 重抓會換一批新的。
 - 名字或你設定的別名「完全相同」的 Graphis 條目才會收進來：例如 miru 與改名前的坂道みる都算同一人，但不會混進名字相近的其他人。
-- gfriends、Wiki、XCity 沒有新圖時，空位由 Graphis 的新圖補上；仍會保留至少一張本機封面可選。
+- gfriends、Wiki、XCity 沒有新圖時，空位先給本機封面；本機封面不夠時，才由 Graphis 的其他新圖補滿。
 
 ### Changed
 
