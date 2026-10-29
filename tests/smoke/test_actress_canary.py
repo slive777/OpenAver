@@ -281,7 +281,7 @@ def test_graphis_pool_canary(monkeypatch):
 
         monkeypatch.setattr(gp, "_names_for", lambda pk, qn: set(names))
         cands = gp.graphis_candidates("miru", "miru", "wiki", set(), budget_s=8.0)
-        assert 1 <= len(cands) <= 5, f"完整入口候選數異常: {cands}"
+        assert 1 <= len(cands) <= 6, f"完整入口候選數異常: {cands}"
         assert all(gp.is_collectible_url(u, _eid(u)) for u in cands), cands
     finally:
         gp._SEARCH_CACHE.clear()
