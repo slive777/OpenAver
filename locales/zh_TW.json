@@ -200,6 +200,8 @@
       "no_data": "找不到資料",
       "maker_not_found": "找不到「{maker}」的作品頁",
       "recent_region_empty": "DMM 沒有回傳結果，部分地區需要日本 IP",
+      "recent_none": "找不到結果",
+      "recent_unreachable": "暫時連不上 DMM",
       "recent_region_link": "到設定頁調整 Proxy",
       "search_failed": "搜尋失敗",
       "network_error": "網路錯誤，請重試",

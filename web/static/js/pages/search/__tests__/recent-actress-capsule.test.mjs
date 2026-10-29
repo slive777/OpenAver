@@ -19,12 +19,13 @@ function merge(...parts) {
 }
 
 test('recent_region_empty 錯誤頁：空結果不被畫成查無結果、不隱藏膠囊，其他 code 仍為 no_data', () => {
-    const run = (data) => {
+    const run = (data, recentKey) => {
         const hidden = [];
         const s = merge(searchStateBase(), searchStateSearchFlow());
         s.currentMode = 'maker';
         s.currentMaker = { key: 'k1', label: 'L1', spellings: [] };
         s.hideMakerCapsule = (k) => hidden.push(k);
+        if (recentKey) s._recentActressKey = recentKey;
         s._applyMakerError(data);
         return { s, hidden };
     };
@@ -33,7 +34,16 @@ test('recent_region_empty 錯誤頁：空結果不被畫成查無結果、不隱
     assert.equal(r.s.errorText, 'search.error.recent_region_empty');
     assert.equal(r.s.pageState, 'error');
     assert.deepEqual(r.hidden, []);
-    for (const code of ['recent_none', 'maker_unreachable', undefined]) {
+    const rn = run({ error_code: 'recent_none' });
+    assert.equal(rn.s.errorKind, 'recent_none');
+    assert.equal(rn.s.errorText, 'search.error.recent_none');
+    assert.deepEqual(rn.hidden, []);
+    const ru = run({ error_code: 'maker_unreachable' }, 'k1');
+    assert.equal(ru.s.errorKind, 'recent_unreachable');
+    assert.equal(ru.s.errorText, 'search.error.recent_unreachable');
+    assert.deepEqual(ru.hidden, []);
+    // 一般片商膠囊的 maker_unreachable、以及無 code，仍為 no_data
+    for (const code of ['maker_unreachable', undefined]) {
         const x = run(code ? { error_code: code } : {});
         assert.equal(x.s.errorKind, 'no_data', String(code));
         assert.equal(x.s.errorText, 'search.error.no_data');

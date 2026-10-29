@@ -614,7 +614,7 @@
         <div id="errorState" class="state-page error w-full" x-show="pageState === 'error' && listMode !== 'wishlist'" x-cloak>
             <i class="bi bi-exclamation-triangle state-page-icon"></i>
             <p class="state-page-text error-text" id="errorMessage" x-text="errorText || window.t('search.filelist.search_failed')">{{ t('search.filelist.search_failed') }}</p>
-            <small class="state-page-hint" x-show="errorKind !== 'recent_region_empty'">{{ t('search.error.hint_retry') }}</small>
+            <small class="state-page-hint" x-show="errorKind !== 'recent_region_empty' && errorKind !== 'recent_none'">{{ t('search.error.hint_retry') }}</small>
             <a href="/settings" class="state-page-hint" x-show="errorKind === 'recent_region_empty'" x-cloak x-text="window.t('search.error.recent_region_link')">{{ t('search.error.recent_region_link') }}</a>
             {{ source_pill(
                 name="t('search.error.advanced_search_cta')",
