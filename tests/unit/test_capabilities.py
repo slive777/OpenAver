@@ -85,6 +85,10 @@ EXPECTED_TOOL_NAMES = {
     "clear_notifications",
     "similar_covers_by_number",
     "similar_covers",
+    "ai_sample_embeddings",
+    "ai_similar_test",
+    "ai_similar_status",
+    "ai_similar_index",
     "tag_alias_crud_read",
     "tag_alias_crud_write",
     "tags_top",
@@ -133,6 +137,14 @@ class TestCapabilitiesEndpoint:
         assert "upload_actress_photo" in tools["submit_actress"]["description"]
         assert "10MB" in tools["upload_actress_photo"]["description"]
         assert "50M" in tools["upload_actress_photo"]["description"]
+
+    def test_ai_index_tool_requires_confirmation(self, client):
+        """建立索引會對使用者的外部端點發出約等於封面數的請求、換模型時覆蓋向量：AI 助理必須先問使用者。"""
+        data = client.get("/api/capabilities").json()
+        tools = {t["name"]: t for t in data["tools"]}
+        assert tools["ai_similar_index"]["side_effect"] is True
+        assert tools["ai_similar_index"]["confirmation_required"] is True
+
 
     def test_no_server_mode_toggle_exposed(self, client):
         """AC-A7（TASK-80a-T5）：LAN 伺服器模式翻轉**不得**揭露給 AI agent。
