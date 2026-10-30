@@ -1,4 +1,4 @@
-# Changelog Archive (v0.1.0 ~ v0.17.18)
+# Changelog Archive (v0.1.0 ~ v0.18.0)
 
 All notable changes to this project will be documented in this file.
 
@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 版本索引
 
 > 定位某版完整內容：搜尋 `## [版本號]`（編輯器 Ctrl-F 或 `grep -n '## \[X.Y.Z\]'`），再讀該段；無需載入整檔。
+
+### 0.18.x
+
+- [0.18.0] 2026-10-24 — 零畫面改動：影像處理元件安全更新 ＋ 開發用的模板綁定檢查工具
 
 ### 0.17.x
 
@@ -242,6 +246,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [0.1.3] 2026-01-17 — path_utils 集中化路徑處理，NFO updater / image proxy 全部改用
 - [0.1.1] 2026-01-17 — 圖片 proxy Windows 路徑修正 + Settings 手動更新檢查按鈕
 - [0.1.0] 2026-01-15 — 初始版本（Spotlight Search + Gallery Generator + Ollama 翻譯 + PyWebView）
+
+## [0.18.0] - 2026-10-24
+
+> 這版零畫面改動，只更新一個背後的元件，並多了一個開發用的檢查工具。
+
+### Fixed
+
+#### 🔒 影像元件安全更新
+- 更新影像處理元件，處理從網路下載的封面圖時更安全。
+
+### Changed
+
+#### 🧰 開發檢查工具
+- 新增一個檢查工具，改畫面時會自動核對按鈕與欄位綁的名字是否真的存在，打錯字就會在開發階段被擋下來。這部分沒有任何畫面或行為改動。
 
 ## [0.17.18] - 2026-10-23
 
