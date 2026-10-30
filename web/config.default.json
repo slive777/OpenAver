@@ -209,5 +209,13 @@
     "consecutive_timeout_count": 0,
     "judged_at_version": "",
     "set_by_user": false
+  },
+  "ai_services": {
+    "image_similar": {
+      "enabled": false,
+      "url": "",
+      "api_key": "",
+      "model": ""
+    }
   }
 }

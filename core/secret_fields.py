@@ -16,6 +16,7 @@ SECRET_FIELDS: tuple[str, ...] = (
     "translate.claude.api_key",
     "translate.openai_official.api_key",
     "metatube.token",
+    "ai_services.image_similar.api_key",
 )
 
 # CD-114c-2: U+2022 BULLET × 4 (not ASCII *, not U+25CF).

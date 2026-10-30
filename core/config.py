@@ -246,6 +246,19 @@ class FocalDeviceState(BaseModel):
     set_by_user: bool = False  # True = 使用者決定；自動關閉／版本 reset 不得覆寫
 
 
+class ImageSimilarConfig(BaseModel):
+    """圖片相似自架 embeddings 端點設定（CD-186-8）。"""
+    enabled: bool = False
+    url: str = ""
+    api_key: str = ""
+    model: str = ""
+
+
+class AIServicesConfig(BaseModel):
+    """AI 功能卡共用巢（186）；伺服器擁有狀態不進此處。"""
+    image_similar: ImageSimilarConfig = ImageSimilarConfig()
+
+
 class AppConfig(BaseModel):
     scraper: ScraperConfig = ScraperConfig()
     search: SearchConfig = SearchConfig()
@@ -258,6 +271,7 @@ class AppConfig(BaseModel):
     thumbnail_cache_enabled: bool = False  # 縮圖快取開關（feature/71 T2）；預設關閉；top-level additive migration 補缺漏
     metatube: MetatubeConfig = MetatubeConfig()  # CD-63b-3；Pydantic default 自動補缺漏（no migration needed）
     focal_device: FocalDeviceState = FocalDeviceState()
+    ai_services: AIServicesConfig = AIServicesConfig()
 
 
 # ============ 載入 / 儲存 ============
@@ -317,6 +331,19 @@ def _ensure_openai_official_nest(t: dict) -> bool:
             'model': ''
         }
         logger.info("[Config] 遷移配置：添加 OpenAI Official 支持")
+        return True
+    return False
+
+
+def _ensure_ai_services(raw_config: dict) -> bool:
+    """Top-level ai_services／image_similar 缺才補（186-T3／BE-CONFIG-02）。"""
+    if 'ai_services' not in raw_config:
+        raw_config['ai_services'] = AIServicesConfig().model_dump()
+        return True
+    if 'image_similar' not in raw_config.get('ai_services', {}):
+        raw_config.setdefault('ai_services', {})['image_similar'] = (
+            ImageSimilarConfig().model_dump()
+        )
         return True
     return False
 
@@ -652,7 +679,7 @@ def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；
         if 'focal_device' not in raw_config:
             raw_config['focal_device'] = FocalDeviceState().model_dump()
             need_save = True
-
+        need_save = _ensure_ai_services(raw_config) or need_save
         if 'scraper' in raw_config and 'nfo_title_format' not in raw_config['scraper']:
             raw_config['scraper']['nfo_title_format'] = '[{num}]{title}'
             need_save = True
