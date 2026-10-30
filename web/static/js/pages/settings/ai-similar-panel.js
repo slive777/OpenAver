@@ -18,6 +18,8 @@ const TEST_URL = '/api/ai/similar/test';
 const INDEX_URL = '/api/ai/similar/index';
 const STOP_URL = '/api/ai/similar/index/stop';
 const POLL_MS = 1000;
+/** 建索引中 status 連續失敗上限（約 30 秒）後才停輪詢。 */
+const POLL_FAIL_MAX = 30;
 
 export function aiSimilarPanel() {
     return {
@@ -28,6 +30,7 @@ export function aiSimilarPanel() {
         aiSimIndexBusy: false,
         aiSimPollTimer: null,
         aiSimGen: 0,
+        aiSimFailCount: 0,
         aiSimDestroyed: false,
 
         init() {
@@ -143,9 +146,18 @@ export function aiSimilarPanel() {
             }
             if (gen !== this.aiSimGen || this.aiSimDestroyed) return;
             if (!data) {
+                // 建索引中短暫斷線：保留舊狀態，繼續排下一次；連續失敗滿 POLL_FAIL_MAX 才停
+                if (this.aiSimStatus?.running && this.aiTab === 'similar') {
+                    this.aiSimFailCount += 1;
+                    if (this.aiSimFailCount < POLL_FAIL_MAX) {
+                        this._aiSimEnsurePoll();
+                        return;
+                    }
+                }
                 this._aiSimStopPoll();
                 return;
             }
+            this.aiSimFailCount = 0;
             this.aiSimStatus = data;
             if (data.running) {
                 this._aiSimEnsurePoll();
