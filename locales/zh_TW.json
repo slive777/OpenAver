@@ -614,6 +614,7 @@
         "btn_build": "建立索引",
         "btn_rebuild": "重建索引",
         "btn_continue": "繼續",
+        "btn_retry_unreadable": "重試讀不到的封面（{n} 張）",
         "btn_stop": "停止",
         "save_first": "先儲存設定",
         "test_ok": "連線成功・模型 {model}・維度 {dim}",

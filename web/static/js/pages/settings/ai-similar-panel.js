@@ -203,7 +203,7 @@ export function aiSimilarPanel() {
         async startIndex() {
             if (this.indexDisabled()) return;
             const action = this.indexAction();
-            if (action !== 'build' && action !== 'rebuild' && action !== 'continue') return;
+            if (action !== 'build' && action !== 'rebuild' && action !== 'continue' && action !== 'retry') return;
             this.aiSimIndexBusy = true;
             try {
                 const res = await fetch(INDEX_URL, { method: 'POST' });

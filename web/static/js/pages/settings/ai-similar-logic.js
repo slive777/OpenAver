@@ -27,7 +27,7 @@ export function panelMode(form) {
     return form.aiSimilarEnabled ? 'fields' : 'empty';
 }
 
-/** 索引鈕動作：stop／rebuild／continue／build／null。 */
+/** 索引鈕動作：stop／rebuild／continue／build／retry／null。 */
 export function indexAction(status, testPassedThisSession) {
     if (!status) return null;
     if (status.running) return 'stop';
@@ -35,6 +35,8 @@ export function indexAction(status, testPassedThisSession) {
     const hasModel = Boolean(status.model);
     if (hasModel && (status.pending > 0 || !status.complete)) return 'continue';
     if (!hasModel && testPassedThisSession) return 'build';
+    // 已完成但有讀不到的封面：NAS 接回後可重試（後端會清 unreadable 再算）
+    if (hasModel && status.unreadable > 0) return 'retry';
     return null;
 }
 

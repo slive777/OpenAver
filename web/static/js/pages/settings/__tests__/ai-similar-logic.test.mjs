@@ -45,13 +45,21 @@ test('indexAction_table', () => {
         running: false, model_changed: false, model: '', pending: 0, complete: false,
     }, true), 'build');
 
-    // 其餘 null（未測過、已完成）
+    // 其餘 null（未測過、已完成且無 unreadable）
     assert.equal(indexAction({
         running: false, model_changed: false, model: null, pending: 0, complete: false,
     }, false), null);
     assert.equal(indexAction({
-        running: false, model_changed: false, model: 'm', pending: 0, complete: true,
+        running: false, model_changed: false, model: 'm', pending: 0, complete: true, unreadable: 0,
     }, true), null);
+
+    // 已完成＋unreadable>0 → retry；unreadable==0 維持 null（上一列）
+    assert.equal(indexAction({
+        running: false, model_changed: false, model: 'm', pending: 0, complete: true, unreadable: 3,
+    }, true), 'retry');
+    assert.equal(indexAction({
+        running: false, model_changed: false, model: 'm', pending: 0, complete: true, unreadable: 0,
+    }, false), null);
 });
 
 test('statusLine_table', () => {

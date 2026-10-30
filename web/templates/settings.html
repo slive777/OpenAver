@@ -1488,7 +1488,7 @@
                                 </button>
                                 <button type="button" class="btn btn-sm btn-primary"
                                         id="aiSimilarIndexBtn"
-                                        x-show="indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue'"
+                                        x-show="indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue' || indexAction() === 'retry'"
                                         :data-action="indexAction()"
                                         @click="startIndex()"
                                         :disabled="indexDisabled()">
@@ -1499,9 +1499,11 @@
                                           x-text="window.t('settings.ai.similar.btn_rebuild')"></span>
                                     <span x-show="!aiSimIndexBusy && indexAction() === 'continue'"
                                           x-text="window.t('settings.ai.similar.btn_continue')"></span>
+                                    <span x-show="!aiSimIndexBusy && indexAction() === 'retry'"
+                                          x-text="window.t('settings.ai.similar.btn_retry_unreadable', { n: aiSimStatus?.unreadable || 0 })"></span>
                                 </button>
                                 <span class="settings-hint ai-similar-save-first"
-                                      x-show="isDirty && (indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue')"
+                                      x-show="isDirty && (indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue' || indexAction() === 'retry')"
                                       x-text="window.t('settings.ai.similar.save_first')"></span>
                             </div>
 
