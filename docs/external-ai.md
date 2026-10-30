@@ -59,7 +59,7 @@ Four assertions, the same ones the settings page "Test" button runs:
 3. Two **different** samples give cosine similarity below **0.9**.
 4. `model` is a non-empty string and identical in all replies.
 
-Samples are not real covers. Sample A is a masked demo image that lives in the OpenAver repository (right half taken, as above); sample B is a picture drawn by the script below, with no randomness. The script needs Python 3.9+ and Pillow, downloads sample A from GitHub, and exits with code 0 only when all four assertions pass.
+Samples are not real covers. Sample A is a masked demo image that lives in the OpenAver repository (right half taken, as above); sample B is a picture drawn by the script below, with no randomness. The script needs Python 3.9+ and Pillow, downloads sample A from GitHub, and exits with code 0 only when all four assertions pass. Save it as `check_embeddings.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -129,6 +129,8 @@ print(f"model={m1} dim={len(a1)} cos_same={cos(a1, a2):.4f} cos_diff={cos(a1, b1
 sys.exit(0 if all(checks.values()) else 1)
 ```
 
+Run it with the Python that has Pillow (the `venv` from the next section works):
+
 ```bash
 python3 check_embeddings.py "$EP" ${EP_KEY:+"$EP_KEY"}
 ```
@@ -149,13 +151,19 @@ The easiest path that runs anywhere is **onnxruntime loading an ONNX file direct
 - Output: 512 numbers (`image_embeds`), then L2-normalize.
 - Preprocessing (CLIP standard): RGB, resize to 224x224, divide by 255, subtract mean `[0.48145466, 0.4578275, 0.40821073]`, divide by std `[0.26862954, 0.26130258, 0.27577711]`, channels first.
 
+Use a virtual environment so the service always finds the packages it was installed with (many Linux distributions refuse `pip install` into the system Python). Pick a folder for everything: `/opt/openaver-embeddings` for a system-wide service, `~/openaver-embeddings` for a per-user service. The examples below run inside that folder.
+
+<!-- verify:skip -->
 ```bash
-# skip: installs packages and downloads the model
-pip install onnxruntime numpy pillow
+# one-time setup: virtual environment, packages, model download (about 85 MiB)
+python3 -m venv venv
+venv/bin/pip install onnxruntime numpy pillow
 curl -L -o vision_model_quantized.onnx https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main/onnx/vision_model_quantized.onnx
 ```
 
-A complete server in one file (standard library HTTP server plus the three packages above). Run it as `python clip_server.py vision_model_quantized.onnx 8000`; it listens on `0.0.0.0`.
+On Windows the same thing is `python -m venv venv` and `venv\Scripts\pip install onnxruntime numpy pillow`.
+
+A complete server in one file (standard library HTTP server plus the three packages above). Save it as `clip_server.py`, next to the model file. Run it as `venv/bin/python clip_server.py vision_model_quantized.onnx 8000`; it listens on `0.0.0.0`.
 
 ```python
 """Minimal OpenAI-style /v1/embeddings server for image similarity (CLIP ViT-B/32, CPU)."""
@@ -223,7 +231,7 @@ A server started in a terminal dies when the session ends or the machine reboots
 
 - **Bind `0.0.0.0`, not `127.0.0.1`.** The reference server above already does. Open the port in the host firewall for the LAN (for example `ufw allow 8000/tcp`; on Windows, an inbound rule for that TCP port).
 - **OpenAver in Docker or on a NAS:** inside a container, `localhost` means the container itself. Give OpenAver the endpoint's **LAN IP** (`http://192.168.1.50:8000`), or a Docker network name if both run under the same compose file.
-- **Linux, systemd** (`/etc/systemd/system/openaver-embeddings.service`, then `systemctl enable --now openaver-embeddings`):
+- **Linux, systemd, with root** (`/etc/systemd/system/openaver-embeddings.service`, then `systemctl enable --now openaver-embeddings`):
 
 ```ini
 [Unit]
@@ -231,12 +239,37 @@ Description=OpenAver image embeddings
 After=network-online.target
 
 [Service]
-ExecStart=/usr/bin/python3 /opt/openaver-embeddings/clip_server.py /opt/openaver-embeddings/vision_model_quantized.onnx 8000
+ExecStart=/opt/openaver-embeddings/venv/bin/python /opt/openaver-embeddings/clip_server.py /opt/openaver-embeddings/vision_model_quantized.onnx 8000
 Restart=always
 User=nobody
 
 [Install]
 WantedBy=multi-user.target
+```
+
+- **Linux, systemd, without root** (a per-user service; save it as `~/.config/systemd/user/openaver-embeddings.service`). There is no `User=`, and `%h` means your home folder:
+
+```ini
+[Unit]
+Description=OpenAver image embeddings
+After=network-online.target
+
+[Service]
+ExecStart=%h/openaver-embeddings/venv/bin/python %h/openaver-embeddings/clip_server.py %h/openaver-embeddings/vision_model_quantized.onnx 8000
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
+```
+
+<!-- verify:skip -->
+```bash
+# start it now and at every login; "linger" makes it start at boot even when nobody is logged in
+mkdir -p ~/.config/systemd/user
+systemctl --user daemon-reload
+systemctl --user enable --now openaver-embeddings
+loginctl enable-linger "$USER"
 ```
 
 - **macOS, launchd** (`~/Library/LaunchAgents/com.openaver.embeddings.plist`, then `launchctl load ~/Library/LaunchAgents/com.openaver.embeddings.plist`):
@@ -247,7 +280,7 @@ WantedBy=multi-user.target
 <plist version="1.0"><dict>
   <key>Label</key><string>com.openaver.embeddings</string>
   <key>ProgramArguments</key><array>
-    <string>/usr/bin/python3</string><string>/Users/me/openaver-embeddings/clip_server.py</string>
+    <string>/Users/me/openaver-embeddings/venv/bin/python</string><string>/Users/me/openaver-embeddings/clip_server.py</string>
     <string>/Users/me/openaver-embeddings/vision_model_quantized.onnx</string><string>8000</string>
   </array>
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
@@ -351,7 +384,7 @@ Example reply (the exact values depend on the endpoint):
 ```json
 {
   "ok": true,
-  "elapsed_ms": 252,
+  "elapsed_ms": 334,
   "model": "clip-vit-base-patch32",
   "dim": 512
 }
@@ -369,16 +402,16 @@ curl -s "$OA/api/ai/similar/status"
 {
   "running": true,
   "job_kind": "build",
-  "done": 131,
-  "indexed": 131,
+  "done": 139,
+  "indexed": 139,
   "total": 2308,
-  "pending": 2177,
+  "pending": 2169,
   "unreadable": 0,
   "unreachable": false,
   "kind": null,
   "check": null,
   "model": "clip-vit-base-patch32",
-  "last_success_at": 1793398964.683211,
+  "last_success_at": 1793400438.4876072,
   "model_changed": false,
   "complete": false
 }
