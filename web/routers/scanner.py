@@ -57,6 +57,7 @@ from core.platform_info import DSM_PERMISSION_HINT, is_synology
 from core.proxy_policy import proxy_kwargs
 from web.routers.notifications import emit_notification as _emit_notif
 from core.wishlist_reconcile import reconcile_wishlist, format_wishlist_removed_message
+from core.ai_services import similar_index
 
 logger = get_logger(__name__)
 
@@ -261,6 +262,14 @@ def _skipped_scan_warning(directory: str, root: str, skipped_paths: dict[str, OS
     if isinstance(skipped_paths.get(root), PermissionError):
         return _permission_denied_warning(directory)
     return f"  {directory}: {len(skipped_paths)} 個路徑讀取失敗，跳過刪除偵測以免誤刪（詳見 debug.log）"
+
+
+def _schedule_ai_incremental() -> None:
+    """掃描收尾：排程圖片相似的增量補算（186-T4b）。失敗只記 log，不得影響掃描收尾。"""
+    try:
+        similar_index.schedule_incremental()
+    except Exception:  # 186-T4b: 增量排程失敗不得影響掃描收尾
+        logger.exception("圖片相似增量排程失敗（掃描完成收尾）")
 
 
 def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Generator[str, None, None]:  # noqa: C901 — avlist SSE 生成主流程；109 已判定為「列 backlog、現在別搬」（60–100 處測試 patch target 焊死該函式，拆分成本由測試面而非邏輯面決定）
@@ -745,6 +754,8 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                     message=f"完成 {len(all_videos)} 部",
                     task_type="scanner_generate",
                 )
+
+            _schedule_ai_incremental()
 
             # TASK-90b-T4: abort 時跳過 done event——client 已斷線收不到，且
             # payload 的 output_path/video_count 語意上宣稱「已完成產生」，

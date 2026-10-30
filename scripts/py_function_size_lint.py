@@ -126,7 +126,7 @@ EXEMPTIONS: dict[tuple[str, str], tuple[int, str]] = {
         "同上，純 JS 字面值；正解是抽成靜態 .js 檔由前端載入，而非拆函式。",
     ),
     ("web/routers/scanner.py", "generate_avlist"): (
-        514,
+        515,
         "avlist SSE 生成主流程；109 已判定為「列 backlog、現在別搬」（60–100 處測試 patch "
         "target 焊死該函式，拆分成本由測試面而非邏輯面決定，與既有 C901 noqa 理由一致）。"
         " ／ 500→514（feature/141-wishlist-motion T5）：掃描完成收尾掛書籤對帳（spec-141 F2），"
@@ -134,7 +134,9 @@ EXEMPTIONS: dict[tuple[str, str], tuple[int, str]] = {
         "`_run_sample_images_cleanup_pass` 那段「呼叫端自己包一層、不中斷主流程」逐字同形。"
         "**沒有跟著 scraper.py 抽 helper 是刻意的**：那一支是因為唯讀／一般兩個出口要跑同一件事"
         "（重複）＋ ruff C901 撞上限（硬錯誤）才抽；這裡只有一個呼叫點，抽出去只會讓兩個 router "
-        "各存一份同名 helper，比 inline 更糟。",
+        "各存一份同名 helper，比 inline 更糟。"
+        " ／ 514→515（feature/186-ai-services-card T4b）：掃描收尾加 AI 圖片相似增量排程一行呼叫"
+        "（try/except 已抽成模組級 `_schedule_ai_incremental`）。",
     ),
     ("core/organizer.py", "organize_file"): (
         374,
