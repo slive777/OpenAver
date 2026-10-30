@@ -25,6 +25,7 @@ def _seed_secrets(client) -> dict:
     cfg.setdefault("translate", {}).setdefault("openai", {})["api_key"] = SECRET_PLAIN
     cfg.setdefault("translate", {}).setdefault("gemini", {})["api_key"] = SECRET_PLAIN
     cfg.setdefault("translate", {}).setdefault("claude", {})["api_key"] = SECRET_PLAIN
+    cfg.setdefault("translate", {}).setdefault("openai_official", {})["api_key"] = SECRET_PLAIN
     cfg.setdefault("metatube", {})["token"] = TOKEN_PLAIN
     cfg.setdefault("metatube", {})["url"] = METATUBE_URL_WITH_USERINFO
     cfg.setdefault("search", {})["proxy_url"] = PROXY_URL_WITH_USERINFO
@@ -54,11 +55,12 @@ class TestAC7FullBodyMasking:
         assert data["translate"]["openai"]["api_key"] == mask_secret(SECRET_PLAIN)
         assert data["translate"]["gemini"]["api_key"] == mask_secret(SECRET_PLAIN)
         assert data["translate"]["claude"]["api_key"] == mask_secret(SECRET_PLAIN)
+        assert data["translate"]["openai_official"]["api_key"] == mask_secret(SECRET_PLAIN)
         assert data["metatube"]["token"] == mask_secret(TOKEN_PLAIN)
 
 
 class TestAC8FieldParity:
-    """B16: every field except the four SECRET_FIELDS paths equals baseline."""
+    """B16: every field except the SECRET_FIELDS paths equals baseline."""
 
     def test_non_secret_fields_match_baseline(self, client, temp_config_path):
         baseline = _seed_secrets(client)
@@ -71,13 +73,15 @@ class TestAC8FieldParity:
         restored["translate"]["openai"]["api_key"] = baseline["translate"]["openai"]["api_key"]
         restored["translate"]["gemini"]["api_key"] = baseline["translate"]["gemini"]["api_key"]
         restored["translate"]["claude"]["api_key"] = baseline["translate"]["claude"]["api_key"]
+        restored["translate"]["openai_official"]["api_key"] = baseline["translate"]["openai_official"]["api_key"]
         restored["metatube"]["token"] = baseline["metatube"]["token"]
         assert restored == baseline
 
-        # Positive shape checks for the four secret paths.
+        # Positive shape checks for the secret paths.
         assert masked["translate"]["openai"]["api_key"] == mask_secret(SECRET_PLAIN)
         assert masked["translate"]["gemini"]["api_key"] == mask_secret(SECRET_PLAIN)
         assert masked["translate"]["claude"]["api_key"] == mask_secret(SECRET_PLAIN)
+        assert masked["translate"]["openai_official"]["api_key"] == mask_secret(SECRET_PLAIN)
         assert masked["metatube"]["token"] == mask_secret(TOKEN_PLAIN)
 
 

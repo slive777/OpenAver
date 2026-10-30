@@ -133,6 +133,12 @@ class OpenAIConfig(BaseModel):
     use_custom_model: bool = False
 
 
+class OpenAIOfficialConfig(BaseModel):
+    """串接結構：OpenAI 官方配置（無 base_url；網址由常數固定）"""
+    api_key: str = ""
+    model: str = ""
+
+
 class ClaudeConfig(BaseModel):
     """串接結構：Claude 配置"""
     api_key: str = ""
@@ -149,13 +155,14 @@ class MetatubeConfig(BaseModel):
 
 class TranslateConfig(BaseModel):
     enabled: bool = False
-    provider: str = "ollama"  # "ollama" | "gemini" | "openai" | "claude"
+    provider: str = "ollama"  # "ollama" | "gemini" | "openai" | "claude" | "openai_official"
     batch_size: int = 10  # 批次翻譯大小
 
     # 嵌套結構
     ollama: OllamaConfig = OllamaConfig()
     gemini: GeminiConfig = GeminiConfig()
     openai: OpenAIConfig = OpenAIConfig()
+    openai_official: OpenAIOfficialConfig = OpenAIOfficialConfig()
     claude: ClaudeConfig = ClaudeConfig()
 
     # 舊字段（保留向後兼容）
@@ -300,6 +307,18 @@ def _migrate_proxy_scope(raw_config: dict) -> bool:
     except Exception as exc:
         logger.warning("[Config] proxy_scope 遷移發生例外，略過：%s", exc)
         return False
+
+
+def _ensure_openai_official_nest(t: dict) -> bool:
+    """巢不存在才補 openai_official；不改 provider（TASK-186-T1）。"""
+    if 'openai_official' not in t:
+        t['openai_official'] = {
+            'api_key': '',
+            'model': ''
+        }
+        logger.info("[Config] 遷移配置：添加 OpenAI Official 支持")
+        return True
+    return False
 
 
 def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；每加一個設定欄位的向後相容 migration 就得在此多開一支分支，這是它存在的理由而非缺陷；收斂設計已列 backlog（見 OpenAver架構評估-回應.md §七）
@@ -454,7 +473,7 @@ def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；
                 }
                 need_save = True
                 logger.info("[Config] 遷移配置：添加 Claude 支持")
-
+            need_save = _ensure_openai_official_nest(t) or need_save
         # Migration: folder_format → folder_layers（舊版只存 folder_format）
         s = raw_config.get('scraper', {})
         if 'folder_layers' not in s and 'folder_format' in s:

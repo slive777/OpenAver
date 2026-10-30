@@ -57,6 +57,10 @@
     "claude": {
       "api_key": "",
       "model": "claude-haiku-5-5"
+    },
+    "openai_official": {
+      "api_key": "",
+      "model": ""
     }
   },
   "gallery": {

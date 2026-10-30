@@ -84,6 +84,20 @@ ROWS = [
         extra_body={"url": OLLAMA_URL},
         compare_headers=False,
     ),
+    Row(
+        id="openai_official",
+        make_service=lambda m, loc: OpenAICompatibleTranslateService(
+            {"base_url": "https://api.openai.com/v1", "api_key": KEY, "model": m}, loc
+        ),
+        endpoint="/api/openai/official/test",
+        config_target="web.routers.openai_translate.load_config",
+        config=lambda: {
+            "general": {"locale": "zh-TW"},
+            "translate": {"openai_official": {"api_key": KEY}},
+        },
+        model="gpt-4o-mini",
+        success_body={"choices": [{"message": {"content": "新人女優出道"}, "finish_reason": "stop"}]},
+    ),
 ]
 
 

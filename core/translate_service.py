@@ -458,11 +458,12 @@ def create_translate_service(config: Dict, target_language: str = "zh-TW") -> Tr
     Args:
         config: translate 配置字典
             {
-                "provider": "ollama" | "gemini" | "openai" | "claude",
+                "provider": "ollama" | "gemini" | "openai" | "claude" | "openai_official",
                 "ollama": {...},
                 "gemini": {...},
                 "claude": {...},
-                "openai": {...}
+                "openai": {...},
+                "openai_official": {...}
             }
         target_language: 目標語言代碼（zh-TW / zh-CN / en / ja），預設 zh-TW
 
@@ -485,6 +486,19 @@ def create_translate_service(config: Dict, target_language: str = "zh-TW") -> Tr
     elif provider == "openai":
         openai_config = config.get("openai", {})
         return OpenAICompatibleTranslateService(openai_config, target_language)
+
+    elif provider == "openai_official":
+        from core.openai_client import OPENAI_OFFICIAL_BASE_URL
+
+        official = config.get("openai_official", {}) or {}
+        return OpenAICompatibleTranslateService(
+            {
+                "base_url": OPENAI_OFFICIAL_BASE_URL,
+                "api_key": official.get("api_key", ""),
+                "model": official.get("model", ""),
+            },
+            target_language,
+        )
 
     elif provider == "claude":
         claude_config = config.get("claude", {})

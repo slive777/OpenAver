@@ -26,6 +26,7 @@ METATUBE_NEW = "mt-token-new-xxxx"
 
 CLAUDE_PLAIN = "sk-ant-claude-secret-dddd"
 CLAUDE_NEW = "sk-ant-claude-new-wwww"
+OPENAI_OFFICIAL_PLAIN = "sk-openai-official-eeee"
 
 CONNECT_URL = "http://192.168.1.10:8080"
 
@@ -307,6 +308,29 @@ class TestR6OpenAIModels:
         assert resp.json()["success"] is True
         headers = mock_client.get.call_args.kwargs["headers"]
         assert headers["Authorization"] == f"Bearer {OPENAI_PLAIN}"
+
+
+class TestR6OpenAIOfficialModels:
+    def test_r6oo1_mask_uses_official_stored(self, client):
+        """官方 models 遮罩還原必須讀 openai_official，不可誤送相容金鑰。"""
+        assert OPENAI_PLAIN != OPENAI_OFFICIAL_PLAIN
+        cfg = load_config()
+        cfg.setdefault("translate", {}).setdefault("openai", {})["api_key"] = OPENAI_PLAIN
+        cfg.setdefault("translate", {}).setdefault("openai_official", {})[
+            "api_key"
+        ] = OPENAI_OFFICIAL_PLAIN
+        save_config(cfg)
+
+        mock_cm, mock_client = _make_mock_httpx_client(
+            get_response=_ok_http_response({"data": []})
+        )
+        with patch("web.routers.openai_translate.httpx.AsyncClient", return_value=mock_cm):
+            client.post(
+                "/api/openai/official/models",
+                json={"api_key": mask_secret(OPENAI_OFFICIAL_PLAIN)},
+            )
+        headers = mock_client.get.call_args.kwargs["headers"]
+        assert headers["Authorization"] == f"Bearer {OPENAI_OFFICIAL_PLAIN}"
 
 
 class TestR6ClaudeModels:
