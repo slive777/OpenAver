@@ -1729,3 +1729,36 @@ html.theme-transition-active::view-transition-new(root) {
     background: color-mix(in oklch, var(--surface-2) 55%, transparent);
     border-radius: var(--radius-sm);
 }
+
+/* ==================== AI 功能卡（186-T2）==================== */
+
+#settings-components .ai-tabs-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+/* DaisyUI tabs-border 底線：用 accent token 覆寫 currentColor（FE-CSS-23） */
+#settings-components .ai-tabs-row .tabs-border > .tab.tab-active,
+#settings-components .ai-tabs-row .tabs-border > .tab[aria-selected="true"] {
+    color: var(--accent);
+    --tab-border-color: var(--accent);
+}
+
+#settings-components .ai-connections {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+#settings-components .ai-similar-empty-desc {
+    margin: 0.75rem 0;
+}
+
+#settings-components .ai-similar-empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}

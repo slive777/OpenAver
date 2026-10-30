@@ -1211,12 +1211,18 @@ const RULES = [
   },
   {
     file: 'web/templates/settings.html', kind: 'structure-count',
-    pattern: 'class="settings-section"', count: 3,
-    note: '[TestSettingsPanelStructureGuard] test_form_wraps_all_three_sections — 恰 3 個 .settings-section（exact）',
+    pattern: 'class="settings-section"', count: 4,
+    note: '[TestSettingsPanelStructureGuard] test_form_wraps_all_three_sections — 恰 4 個 .settings-section（exact；186-T2 新增 sec-ai）',
   },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'id="sec-search"', note: '[TestSettingsPanelStructureGuard] test_form_wraps_all_three_sections — section id' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'id="sec-gallery"', note: '[TestSettingsPanelStructureGuard] test_form_wraps_all_three_sections — section id' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])id="sec-ai"/, note: '[186-T2] AI 功能卡 section id 必須存在' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'id="sec-system"', note: '[TestSettingsPanelStructureGuard] test_form_wraps_all_three_sections — section id' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="selectAiTab\('translate'\)"/, note: '[186-T2] 翻譯分頁鈕必須呼叫 selectAiTab' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="selectAiTab\('similar'\)"/, note: '[186-T2] 圖片相似分頁鈕必須呼叫 selectAiTab' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'fetchOpenAIOfficialModels()', note: '[186-T2] 官方 OpenAI 連線測試必須接線' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'testOpenAIOfficialTranslation()', note: '[186-T2] 官方 OpenAI 翻譯測試必須接線' },
+  { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('aiServicesCard'", note: '[186-T2] aiServicesCard 必須具名註冊於 main.js' },
   { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'class="settings-panel"', note: '[TestSettingsPanelStructureGuard] test_sections_single_column_no_activetab_gating — 舊 wrapper 不得殘留' },
   { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'x-show="activeTab', note: '[TestSettingsPanelStructureGuard] test_sections_single_column_no_activetab_gating — 不可 activeTab x-show gating' },
   { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'x-if="activeTab', note: '[TestSettingsPanelStructureGuard] test_sections_single_column_no_activetab_gating — 不可 activeTab x-if gating' },
@@ -4857,8 +4863,8 @@ const RULES = [
   // 拆掉其中一顆仍會過；count 讓「少一顆」直接紅）。131b branch review P3。
   {
     file: 'web/templates/settings.html', kind: 'structure-count',
-    pattern: 'x-data="helpPopover"', count: 9,
-    note: '[131b-T4] settings 的 9 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應（console ReferenceError，畫面無事發生）。133b-T1 新增第 7 顆（顯示表格與清單）時同步 +1；152c-T9 新增第 8 顆（人臉自動對焦狀態）時同步 +1；154b-T4 新增 NFO 標題格式說明浮層 +1',
+    pattern: 'x-data="helpPopover"', count: 10,
+    note: '[131b-T4] settings 的 10 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應（console ReferenceError，畫面無事發生）。133b-T1 新增第 7 顆（顯示表格與清單）時同步 +1；152c-T9 新增第 8 顆（人臉自動對焦狀態）時同步 +1；154b-T4 新增 NFO 標題格式說明浮層 +1；186-T2 新增 AI 功能卡說明 +1',
   },
   {
     file: 'web/templates/scanner.html', kind: 'structure-count',

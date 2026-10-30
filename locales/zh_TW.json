@@ -593,6 +593,20 @@
       "favorite_folder_example_prefix": "範例：C:\\Users\\&lt;你的使用者名稱&gt;\\下載",
       "favorite_folder_example_prefix_synology": "範例：/volume1/&lt;共用資料夾&gt;/下載"
     },
+    "ai": {
+      "title": "AI 功能",
+      "tab_translate": "翻譯",
+      "tab_similar": "圖片相似",
+      "help_body": "這張卡集中管理翻譯與圖片相似。金鑰與網址放在下方連線區；翻譯分頁只選引擎與模型。圖片相似需要自架向量端點，沒有可略過。",
+      "help_docs_link": "外部 AI 說明（GitHub：docs/external-ai.md）",
+      "connections_title": "連線",
+      "similar": {
+        "enabled_label": "啟用圖片相似",
+        "empty_desc": "這個能力需要你自己架一個小服務（或請 AI 助理替你架），OpenAver 會把封面送過去換成向量，讓星空也看得懂「封面長得像」。沒有的話可以略過，其他功能不受影響。",
+        "btn_assistant": "交給 AI 助理設定",
+        "btn_docs": "看文件"
+      }
+    },
     "translate": {
       "enabled_label": "啟用標題翻譯",
       "provider_label": "翻譯服務",
@@ -616,7 +630,8 @@
       "openai_api_key_placeholder": "留空 = 不送 Authorization header",
       "openai_api_key_hint": "本地 LLM 可留空，雲端服務需填入 API Key",
       "openai_model_placeholder": "e.g. gpt-4o-mini",
-      "openai_custom_model": "自訂..."
+      "openai_custom_model": "自訂...",
+      "openai_official": "OpenAI（官方）"
     },
     "scraper": {
       "suffix_keywords_label": "版本標記",
@@ -811,7 +826,18 @@
       "gemini_http_error": "HTTP 請求失敗",
       "gemini_translate_failed": "翻譯測試失敗",
       "gemini_blocked": "這個測試片名被服務商的內容審查擋下了；換模型通常沒用，可改用其他翻譯服務",
-      "ja_skip": "日文模式：跳過翻譯"
+      "ja_skip": "日文模式：跳過翻譯",
+      "openai_official_auth_failed": "認證失敗，請檢查 API Key",
+      "openai_official_forbidden": "無存取權限",
+      "openai_official_not_found": "模型不存在，請按『測試』重新選擇",
+      "openai_official_rate_limited": "額度不足或請求太頻繁",
+      "openai_official_http_error": "HTTP 請求失敗",
+      "openai_official_connection_timeout": "連線逾時",
+      "openai_official_connection_failed": "連線失敗",
+      "openai_official_translate_failed": "翻譯測試失敗",
+      "openai_official_missing_model": "請先選擇模型",
+      "openai_official_missing_key": "認證失敗，請檢查 API Key",
+      "openai_official_blocked": "這個測試片名被服務商的內容審查擋下了；換模型通常沒用，可改用其他翻譯服務"
     }
   },
   "scanner": {
