@@ -135,6 +135,19 @@ class EmbeddingRepository:
             return None
         return {"model": row[0], "dim": row[1], "vec": row[2], "cover_path": row[3]}
 
+    def load_valid_vectors(self, model: str, dim: int) -> list[tuple[int, str, array]]:
+        """一次載入全部有效向量列（CD-186-13）：JOIN videos；
+        ``model== ∧ dim== ∧ dim>0 ∧ cover_path`` 相符。回 ``(video_id, number, array('f'))``。"""
+        with closing(connection.get_connection(self.db_path)) as conn:
+            rows = conn.execute(
+                "SELECT v.id, v.number, e.vec FROM videos v "
+                "JOIN video_embeddings e ON e.video_id = v.id "
+                "WHERE e.model = ? AND e.dim = ? AND e.dim > 0 "
+                "AND e.cover_path = v.cover_path AND v.cover_path != ''",
+                (model, int(dim)),
+            ).fetchall()
+        return [(r[0], r[1] or "", unpack_vector(r[2])) for r in rows]
+
     # ── pending / counts ────────────────────────────────────────────────────
 
     def pending(self, model: Optional[str], dim: Optional[int]) -> list[tuple[int, str]]:

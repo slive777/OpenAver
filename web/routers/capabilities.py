@@ -1439,7 +1439,7 @@ _TOOLS: list[dict] = [
             "required": ["number"],
         },
         "output_schema": {
-            "model_id": "string — ranker 版本識別（固定 'rule-based:v1'，非 ML model id）",
+            "model_id": "string — rule-based:v1＝只用規則；rule-based:v1+rrf:<model>＝規則＋封面向量融合，<model> 是使用者自架端點回報的模型名",
             "query_video": "{video_id, number, title, cover_url}",
             "results": "[{video_id, number, title, cover_url, cosine_score, penalty_applied, actresses}]",
         },
@@ -1461,7 +1461,7 @@ _TOOLS: list[dict] = [
             "required": ["video_id"],
         },
         "output_schema": {
-            "model_id": "string — ranker 版本識別（固定 'rule-based:v1'，非 ML model id）",
+            "model_id": "string — rule-based:v1＝只用規則；rule-based:v1+rrf:<model>＝規則＋封面向量融合，<model> 是使用者自架端點回報的模型名",
             "query_video": "{video_id, number, title, cover_url}",
             "results": "[{video_id, number, title, cover_url, cosine_score, penalty_applied, actresses}]",
         },

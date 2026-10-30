@@ -76,12 +76,45 @@ def model_changed(index_model: Optional[str], index_dim: Optional[int]) -> bool:
         return (observed_model, observed_dim) != (index_model, index_dim)
 
 
+def fusion_gate_from_state(config: dict, state: dict) -> bool:
+    """CD-186-13 狀態半的純判斷：enabled ∧ model 已設 ∧ complete=='1' ∧ 觀察值相容。
+
+    ``state`` 須是呼叫端已讀好的 ``get_index_state()`` 結果；本函式不再讀 DB。
+    """
+    cfg = (config.get("ai_services") or {}).get("image_similar") or {}
+    if not cfg.get("enabled"):
+        return False
+    if not state["model"] or state["complete"] != "1":
+        return False
+    return not model_changed(state["model"], state["dim"])
+
+
 def fusion_gate_open(config: dict, db_path: Optional[Path] = None) -> bool:
     """CD-186-13 的狀態半：enabled ∧ index_model 已設 ∧ index_complete=='1' ∧ 觀察值相容。"""
     cfg = (config.get("ai_services") or {}).get("image_similar") or {}
     if not cfg.get("enabled"):
         return False
+    return fusion_gate_from_state(config, EmbeddingRepository(db_path).get_index_state())
+
+
+def format_similar_model_id(index_model: Optional[str] = None, *, fused: bool = False) -> str:
+    """CD-186-15：融合未參與＝``rule-based:v1``；參與＝``rule-based:v1+rrf:<model[:128]>``。"""
+    if fused and index_model:
+        return f"rule-based:v1+rrf:{index_model[:128]}"
+    return "rule-based:v1"
+
+
+def fusion_vectors(config: dict, db_path: Optional[Path] = None):
+    """CD-186-13：閘開時回 ``dict[int, array]``；否則 ``None``。
+
+    ``enabled`` 為假時必須在碰任何 DB 之前就回 ``None``。
+    索引狀態只讀一次：同一份 ``state`` 同時判斷閘與決定載哪個 (model, dim)。
+    """
+    cfg = (config.get("ai_services") or {}).get("image_similar") or {}
+    if not cfg.get("enabled"):
+        return None
     state = EmbeddingRepository(db_path).get_index_state()
-    if not state["model"] or state["complete"] != "1":
-        return False
-    return not model_changed(state["model"], state["dim"])
+    if not fusion_gate_from_state(config, state):
+        return None
+    from core.ai_services.embedding_cache import EmbeddingMatrixCache
+    return EmbeddingMatrixCache.get(state["model"], state["dim"], db_path)

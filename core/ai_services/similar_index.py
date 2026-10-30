@@ -252,6 +252,8 @@ def _worker_main(ctx: _Ctx) -> None:
     except Exception:
         logger.exception("[similar_index] worker crashed")
     finally:
+        from core.ai_services.embedding_cache import EmbeddingMatrixCache
+        EmbeddingMatrixCache.invalidate()
         if not ctx.released:
             with _STATE_LOCK:
                 _release_job_locked(ctx, outcome)

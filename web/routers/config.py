@@ -194,6 +194,8 @@ def update_config(config: AppConfig) -> dict:
 
             mutate_config(_write_preserving_server_owned)
             _reset_translate_service()  # 重置翻譯服務，讓新配置生效
+            from core.ai_services.embedding_cache import EmbeddingMatrixCache
+            EmbeddingMatrixCache.invalidate()
             return {"success": True, "message": "設定已儲存", "cf_window_proxy_restart_needed": cf_window_proxy_restart_needed() or cf_handoff.restart_needed_here(current_settings())}
         except Exception as e:
             logger.error("儲存設定失敗: %s", e)
