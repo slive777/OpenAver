@@ -1762,3 +1762,38 @@ html.theme-transition-active::view-transition-new(root) {
     flex-wrap: wrap;
     gap: 0.5rem;
 }
+
+#settings-components .ai-similar-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0.75rem 0 1rem;
+}
+
+#settings-components .ai-similar-status {
+    margin: 0.25rem 0 0;
+}
+
+#settings-components .ai-similar-index-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#settings-components .ai-similar-save-first {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+#settings-components .ai-similar-test-result {
+    margin: 0.25rem 0 0;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--fluent-radius-sm);
+    background: var(--surface-2);
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    font-family: inherit;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}

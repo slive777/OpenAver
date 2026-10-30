@@ -1423,18 +1423,98 @@
                         </div>
                     </div>
 
-                    <!-- 圖片相似分頁（空狀態外殼；T6 接線） -->
-                    <div id="aiPanelSimilar" role="tabpanel" x-show="aiTab === 'similar'">
-                        <!-- T6 接線 -->
+                    <!-- 圖片相似分頁（T6 接線） -->
+                    <div id="aiPanelSimilar" role="tabpanel" x-show="aiTab === 'similar'"
+                         x-data="aiSimilarPanel">
                         <div class="settings-form-group">
                             <label class="settings-label">
-                                <input type="checkbox" class="toggle toggle-primary" disabled>
+                                <input type="checkbox" class="toggle toggle-primary"
+                                       id="aiSimilarEnabled"
+                                       x-model="form.aiSimilarEnabled">
                                 <span class="label-text">{{ t('settings.ai.similar.enabled_label') }}</span>
                             </label>
                         </div>
                         <p class="settings-hint ai-similar-empty-desc">{{ t('settings.ai.similar.empty_desc') }}</p>
+
+                        <div class="ai-similar-fields" x-show="panelMode() === 'fields'">
+                            <div class="settings-form-row">
+                                <label class="row-label" for="aiSimilarUrl">{{ t('settings.ai.similar.url_label') }}</label>
+                                <div class="flex-1 flex flex-col gap-1">
+                                    <div class="variable-input-group">
+                                        <input type="text" class="input input-bordered input-sm flex-1"
+                                               id="aiSimilarUrl"
+                                               x-model="form.aiSimilarUrl"
+                                               :placeholder="window.t('settings.ai.similar.url_placeholder')">
+                                        <button class="btn btn-sm btn-outline" type="button"
+                                                id="aiSimilarTestBtn"
+                                                @click="runTest()"
+                                                :disabled="testDisabled()">
+                                            <span x-show="aiSimTestBusy" class="loading loading-spinner loading-sm"></span>
+                                            <span x-show="!aiSimTestBusy" x-text="window.t('settings.action.test')"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-form-row">
+                                <label class="row-label" for="aiSimilarApiKey">{{ t('settings.ai.similar.api_key_label') }}</label>
+                                <div class="flex-1">
+                                    <input type="password" class="input input-bordered input-sm w-full"
+                                           id="aiSimilarApiKey"
+                                           x-model="form.aiSimilarApiKey"
+                                           :placeholder="window.t('settings.ai.similar.api_key_placeholder')">
+                                </div>
+                            </div>
+                            <div class="settings-form-row">
+                                <label class="row-label" for="aiSimilarModel">{{ t('settings.ai.similar.model_label') }}</label>
+                                <div class="flex-1">
+                                    <input type="text" class="input input-bordered input-sm w-full"
+                                           id="aiSimilarModel"
+                                           x-model="form.aiSimilarModel"
+                                           :placeholder="window.t('settings.ai.similar.model_placeholder')">
+                                </div>
+                            </div>
+
+                            <p class="settings-hint ai-similar-status"
+                               id="aiSimilarStatusLine"
+                               x-show="aiSimStatus !== null"
+                               x-text="statusLineText()"></p>
+
+                            <div class="ai-similar-index-row">
+                                <button type="button" class="btn btn-sm btn-outline"
+                                        id="aiSimilarStopBtn"
+                                        x-show="indexAction() === 'stop'"
+                                        @click="stopIndex()">
+                                    <span x-text="window.t('settings.ai.similar.btn_stop')"></span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-primary"
+                                        id="aiSimilarIndexBtn"
+                                        x-show="indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue'"
+                                        :data-action="indexAction()"
+                                        @click="startIndex()"
+                                        :disabled="indexDisabled()">
+                                    <span x-show="aiSimIndexBusy" class="loading loading-spinner loading-sm"></span>
+                                    <span x-show="!aiSimIndexBusy && indexAction() === 'build'"
+                                          x-text="window.t('settings.ai.similar.btn_build')"></span>
+                                    <span x-show="!aiSimIndexBusy && indexAction() === 'rebuild'"
+                                          x-text="window.t('settings.ai.similar.btn_rebuild')"></span>
+                                    <span x-show="!aiSimIndexBusy && indexAction() === 'continue'"
+                                          x-text="window.t('settings.ai.similar.btn_continue')"></span>
+                                </button>
+                                <span class="settings-hint ai-similar-save-first"
+                                      x-show="isDirty && (indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue')"
+                                      x-text="window.t('settings.ai.similar.save_first')"></span>
+                            </div>
+
+                            <pre class="ai-similar-test-result"
+                                 id="aiSimilarTestResult"
+                                 x-show="aiSimTestResultHtml"
+                                 x-text="aiSimTestResultHtml"></pre>
+                        </div>
+
                         <div class="ai-similar-empty-actions">
-                            <button type="button" class="btn btn-sm btn-outline" disabled>{{ t('settings.ai.similar.btn_assistant') }}</button>
+                            <button type="button" class="btn btn-sm btn-outline"
+                                    id="aiSimilarAssistantBtn"
+                                    @click="copyAssistantPrompt()">{{ t('settings.ai.similar.btn_assistant') }}</button>
                             <a class="btn btn-sm btn-ghost"
                                href="https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md"
                                target="_blank" rel="noopener noreferrer">{{ t('settings.ai.similar.btn_docs') }}</a>

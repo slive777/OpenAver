@@ -275,6 +275,9 @@ export function stateBase() {
         // non-null = standalone 模式：currentLightboxVideo 顯示此物件，prev/next 暫禁。
         similarExitVideo: null,
 
+        // 186-T6: warmup 回傳的可融合番號（大寫去重陣列；整個重新賦值）
+        boostedNumbers: [],
+
         // 53a-T2: 持久化容器（$persist 自動同步 localStorage 的 'showcase_state' key）
         // sort/order/actressSort/actressOrder 用 null sentinel，讓 restoreState 走 URL > _persisted > config > fallback 優先序
         _persistedShowcase: this.$persist({
@@ -370,8 +373,25 @@ export function stateBase() {
 
             await this.fetchVideos();
             // 57e hotfix：fire-and-forget warm-up SimilarRankerCache，避免 magic icon 首次點擊 cold-start race。
-            // 失敗靜默（端點不存在的舊 server / 網路斷線都不影響 showcase 主流程）。
-            fetch('/api/similar/warmup').catch(() => {});
+            // 186-T6：讀 boosted_numbers（缺欄／失敗 → []）；仍 fire-and-forget，不拖慢 init。
+            fetch('/api/similar/warmup')
+                .then((res) => (res.ok ? res.json() : null))
+                .then((data) => {
+                    const raw = data && Array.isArray(data.boosted_numbers)
+                        ? data.boosted_numbers : [];
+                    const seen = new Set();
+                    const out = [];
+                    for (const n of raw) {
+                        const u = String(n || '').toUpperCase();
+                        if (!u || seen.has(u)) continue;
+                        seen.add(u);
+                        out.push(u);
+                    }
+                    this.boostedNumbers = out;
+                })
+                .catch(() => {
+                    this.boostedNumbers = [];
+                });
             await _loadAliasMap();      // 45-P2: 無條件載入 alias map（影片搜尋也需要）
             await _loadTagAliasMap();   // A3-4: 無條件載入 tag alias map
             await _loadCoverBadgeManifest();
