@@ -384,7 +384,7 @@ Example reply (the exact values depend on the endpoint):
 ```json
 {
   "ok": true,
-  "elapsed_ms": 334,
+  "elapsed_ms": 296,
   "model": "clip-vit-base-patch32",
   "dim": 512
 }
@@ -402,16 +402,16 @@ curl -s "$OA/api/ai/similar/status"
 {
   "running": true,
   "job_kind": "build",
-  "done": 139,
-  "indexed": 139,
+  "done": 160,
+  "indexed": 160,
   "total": 2308,
-  "pending": 2169,
+  "pending": 2148,
   "unreadable": 0,
   "unreachable": false,
   "kind": null,
   "check": null,
   "model": "clip-vit-base-patch32",
-  "last_success_at": 1793400438.4876072,
+  "last_success_at": 1793402847.8335638,
   "model_changed": false,
   "complete": false
 }
@@ -420,13 +420,13 @@ curl -s "$OA/api/ai/similar/status"
 - `running`: an index job is running right now (`job_kind` says whether it is a full `build` or an `incremental` top-up after a scan).
 - `indexed` and `total`: covers that already have a vector, and covers in the library.
 - `pending`: covers still waiting. `running: false` with `pending > 0` means the index is incomplete (stopped, interrupted, or new covers arrived).
-- `unreadable`: covers whose image file could not be read and were skipped. `indexed + unreadable + pending = total`.
+- `unreadable`: covers whose image file could not be read and were skipped. `indexed + unreadable + pending = total`. Calling `POST $OA/api/ai/similar/index` again retries them once (for example after a NAS comes back).
 - `unreachable`: the endpoint could not be reached the last time OpenAver tried.
 - `model_changed`: the endpoint now answers with a different `model` than the index was built with; the index must be rebuilt.
 
 #### Build or rebuild the index (ask the user first)
 
-Sends roughly one request to the user's endpoint for every cover in the library (thousands), and if the model changed it replaces the existing vectors. **Get the user's confirmation before calling it.** It runs the consistency test first and refuses to start when the test fails. The reply has `status` set to `started`, `already_running`, or `test_failed` (the last one also carries `kind` and `check`). The settings page has a Stop button; stopping keeps what is already computed, and starting again only fills in the missing ones.
+Sends roughly one request to the user's endpoint for every cover in the library (thousands), and if the model changed it replaces the existing vectors. **Get the user's confirmation before calling it.** It runs the consistency test first and refuses to start when the test fails. The reply has `status` set to `started`, `already_running`, or `test_failed` (the last one also carries `kind` and `check`). The settings page has a Stop button; stopping keeps what is already computed, and starting again only fills in the missing ones and gives covers that could not be read one more try.
 
 ```bash
 curl -s -X POST "$OA/api/ai/similar/index"

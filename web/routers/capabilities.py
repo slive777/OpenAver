@@ -1533,7 +1533,7 @@ _TOOLS: list[dict] = [
             "indexed": "integer — 已有向量的封面數",
             "total": "integer — 片庫中有封面的影片數",
             "pending": "integer — 待處理張數",
-            "unreadable": "integer — 封面讀不到、已試過而跳過的片數（indexed + unreadable + pending = total）",
+            "unreadable": "integer — 封面讀不到、已試過而跳過的片數（indexed + unreadable + pending = total）；再呼叫一次 ai_similar_index 會重試一次（例如 NAS 接回之後）",
             "unreachable": "boolean — 端點上次嘗試時是否連不上",
             "kind": "string|null — 最近一次錯誤的類別",
             "check": "string|null — 最近一次錯誤是哪一條檢查沒過",
