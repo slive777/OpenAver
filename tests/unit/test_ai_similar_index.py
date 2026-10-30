@@ -106,6 +106,14 @@ class Env:
         self.covers[vid] = cover
         return vid
 
+    def restore_cover(self, n: int) -> None:
+        Image.new("RGB", (64, 64), (n * 37 % 256, n * 91 % 256, n * 53 % 256)).save(self.tmp / f"c{n}.jpg")
+
+    def stamp(self, video_id: int) -> float:
+        with closing(db_connection.get_connection(self.db)) as conn:
+            return conn.execute(
+                "SELECT updated_at FROM video_embeddings WHERE video_id = ?", (video_id,)).fetchone()[0]
+
     def rows(self, where: str = "1=1") -> int:
         with closing(db_connection.get_connection(self.db)) as conn:
             return conn.execute(f"SELECT COUNT(*) FROM video_embeddings WHERE {where}").fetchone()[0]
@@ -187,8 +195,9 @@ def test_pending_and_resume(tmp_path, monkeypatch):
     env = Env(tmp_path, monkeypatch, "resume")
     m, k = 6, 3
     vids = [env.add_video() for _ in range(m)]
-    unreadable = 5  # 第 5 部（停止點 k 之後）封面檔不見 → I7：寫 dim=0 列、工作繼續
-    (env.tmp / f"c{unreadable}.jpg").unlink()
+    unreadable, still_bad = 5, 6  # 停止點 k 之後兩部封面檔不見 → I7：寫 dim=0 列、工作繼續
+    for n in (unreadable, still_bad):
+        (env.tmp / f"c{n}.jpg").unlink()
     _stop_at(env, k)
     assert _build_and_join()["status"] == "started"
     assert env.rows() == k
@@ -201,14 +210,24 @@ def test_pending_and_resume(tmp_path, monkeypatch):
 
     env.fake.covers, env.fake.on_cover = 0, None
     assert _build_and_join()["status"] == "started"
-    assert env.fake.covers == m - k - 1  # 讀不到的那部沒送請求
+    assert env.fake.covers == m - k - 2  # 讀不到的兩部沒送請求
     assert (env.rows(), env.complete()) == (m, "1")
     assert env.repo.get_row(vids[unreadable - 1])["dim"] == 0
     st = similar_index.status()
-    assert (st["pending"], st["unreadable"], st["indexed"]) == (0, 1, m - 1)
+    assert (st["pending"], st["unreadable"], st["indexed"]) == (0, 2, m - 2)
+
+    env.restore_cover(unreadable)  # NAS 接回：再按建立 → 讀不到的各重試一次，不迴圈
+    env.fake.covers, stamp = 0, env.stamp(vids[still_bad - 1])
+    _build_and_join()
+    assert env.fake.covers == 1  # 只有放回封面的那部送請求；仍讀不到的重試也不送
+    assert env.stamp(vids[still_bad - 1]) > stamp  # 但它確實被重試過（重寫 dim=0 列）
+    assert env.repo.get_row(vids[unreadable - 1])["dim"] > 0
+    st = similar_index.status()
+    assert (st["pending"], st["unreadable"], st["complete"]) == (0, 1, True)
     env.fake.covers = 0
-    _build_and_join()  # 讀不到的那部不再被重試
-    assert env.fake.covers == 0
+    _build_and_join()  # 仍讀不到的每次工作只重試一次、不迴圈：零請求、unreadable 仍 1、pending 0
+    st = similar_index.status()
+    assert (env.fake.covers, st["unreadable"], st["pending"]) == (0, 1, 0)
 
 
 def test_single_job(tmp_path, monkeypatch):

@@ -158,6 +158,7 @@ def _prepare_build() -> tuple:
         return None, {"ok": False, "status": "test_failed", "kind": test.kind, "check": test.check}
     similar_state.observe_success(test.model, test.dim)
     repo.begin_index(test.model, test.dim)
+    repo.clear_unreadable(test.model)  # 使用者發起的工作：讀不到的片重試一次（增量不做）
     return _Ctx("build", repo, cfg, _path_mappings(config), test.model, test.dim), None
 
 

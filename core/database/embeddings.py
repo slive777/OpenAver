@@ -125,6 +125,16 @@ class EmbeddingRepository:
             )
             conn.commit()
 
+    def clear_unreadable(self, model: str) -> int:
+        """刪掉該模型下 ``dim=0``（封面讀不到、試過了）的列，讓它們回到待處理。
+        只給使用者發起的建立工作用（每次工作重試一次）；回刪除列數。"""
+        with closing(connection.get_connection(self.db_path)) as conn:
+            n = conn.execute(
+                "DELETE FROM video_embeddings WHERE model = ? AND dim = 0", (model,)
+            ).rowcount
+            conn.commit()
+        return n
+
     def get_row(self, video_id: int) -> Optional[dict]:
         with closing(connection.get_connection(self.db_path)) as conn:
             row = conn.execute(
