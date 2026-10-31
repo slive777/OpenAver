@@ -34,8 +34,8 @@ def set_notification_sink(fn: Callable[..., None]) -> None:
     _notification_sink = fn
 
 
-def is_disabled_in(cfg: dict) -> bool:
-    """Same rule as is_disabled(), answered from a config dict the caller already holds.
+def local_disabled_in(cfg: dict) -> bool:
+    """Local-device disabled rule, answered from a config dict the caller already holds.
 
     Exists so the disabled-read rule has exactly one implementation. Callers that
     already loaded the config (e.g. a page handler that got it from
@@ -54,6 +54,11 @@ def is_disabled_in(cfg: dict) -> bool:
     if bool(fd.get("set_by_user", False)):
         return bool(fd.get("disabled", False))
     return bool(fd.get("disabled", False)) and fd.get("judged_at_version", "") == VERSION
+
+
+def is_disabled_in(cfg: dict) -> bool:
+    """Same rule as is_disabled(); delegates to local_disabled_in (187a-T2)."""
+    return local_disabled_in(cfg)
 
 
 def is_disabled() -> bool:

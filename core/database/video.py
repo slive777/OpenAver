@@ -1,7 +1,7 @@
 """core.database.video — Video 資料模型與 VideoRepository（spec-87 子模組）。"""
 import sqlite3
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, fields
 from pathlib import Path
 from typing import Optional, List, Tuple
 from datetime import datetime
@@ -153,6 +153,9 @@ class Video:
             if isinstance(data['updated_at'], str):
                 data['updated_at'] = datetime.fromisoformat(data['updated_at'])
 
+        # focal_model 等不進 dataclass 的 DB 欄位：過濾後再建，避免 TypeError 癱瘓讀取
+        allowed = {f.name for f in fields(cls)}
+        data = {k: v for k, v in data.items() if k in allowed}
         return cls(**data)
 
 
@@ -1343,14 +1346,16 @@ class VideoRepository:
         finally:
             conn.close()
 
-    def update_auto_focal(self, path: str, focal: str, expected_cover_path: str) -> bool:
+    def update_auto_focal(
+        self, path: str, focal: str, expected_cover_path: str, model: str = 'local-pigo',
+    ) -> bool:
         """安全更新 auto_focal 欄位（不碰其他欄位，CD-98a-6 mutator，鏡射 update_user_tags）。
 
-        同時蓋章 focal_attempted_at = CURRENT_TIMESTAMP（單條 UPDATE 原子寫，Codex PR#105
-        P2 修復）：背景 worker 與 force-detect endpoint 都經此方法 commit 偵測結果——不論
-        找到臉（focal='x,y'）或無臉（focal=''），都代表「偵測跑過了」，須排除於後續
-        get_empty_focal_candidates 的重掃 backfill 之外，否則無臉封面每次重掃都被當
-        「沒偵測過」無限重排。
+        同時蓋章 focal_attempted_at = CURRENT_TIMESTAMP，並寫入 focal_model（單條 UPDATE
+        原子寫，Codex PR#105 P2 + 187a-T2）：背景 worker 與 force-detect endpoint 都經
+        此方法 commit 偵測結果——不論找到臉（focal='x,y'）或無臉（focal=''），都代表
+        「偵測跑過了」，須排除於後續 get_empty_focal_candidates 的重掃 backfill 之外，
+        否則無臉封面每次重掃都被當「沒偵測過」無限重排。
 
         `AND crop_mode != 'manual'`（CD-9/99a-T1b）：本方法現為 update_auto_focal
         唯一 production caller（core/focal_trigger.py 的 worker commit lambda）——
@@ -1374,6 +1379,8 @@ class VideoRepository:
             expected_cover_path: 被分析的那張封面的 DB-key `cover_path`（file:/// URI
                 或空字串）。必須與呼叫端分析封面時使用的值同源（CD-99b-4），不可用
                 反解後的 FS path。
+            model: 焦點來源模型標籤（187a-T2）；預設 'local-pigo'。與 auto_focal
+                同條 UPDATE 寫入；守衛擋下時兩欄皆不變。
 
         Returns:
             bool: 是否成功更新（path 不存在、crop_mode='manual'、或 cover_path 已不
@@ -1383,10 +1390,11 @@ class VideoRepository:
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "UPDATE videos SET auto_focal = ?, focal_attempted_at = CURRENT_TIMESTAMP, "
+                "UPDATE videos SET auto_focal = ?, focal_model = ?, "
+                "focal_attempted_at = CURRENT_TIMESTAMP, "
                 "updated_at = CURRENT_TIMESTAMP WHERE path = ? AND crop_mode != 'manual' "
                 "AND cover_path = ?",
-                (focal, path, expected_cover_path)
+                (focal, model, path, expected_cover_path)
             )
             conn.commit()
             return cursor.rowcount > 0

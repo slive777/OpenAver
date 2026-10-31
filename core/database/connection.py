@@ -167,6 +167,7 @@ def init_db(db_path: Path = None) -> None:
             auto_focal TEXT DEFAULT '',
             crop_mode TEXT NOT NULL DEFAULT 'auto',
             focal_attempted_at TIMESTAMP DEFAULT NULL,
+            focal_model TEXT NOT NULL DEFAULT 'local-pigo',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -367,6 +368,10 @@ def init_db(db_path: Path = None) -> None:
     # 每次重掃無限重排。nullable：NULL = 從未偵測過，非 NULL = 偵測跑過（不論有臉/無臉）。
     if 'focal_attempted_at' not in existing_cols:
         cursor.execute("ALTER TABLE videos ADD COLUMN focal_attempted_at TIMESTAMP DEFAULT NULL")
+
+    # Migration: focal_model（187a-T2；舊列 DEFAULT local-pigo；唯一寫入者 update_auto_focal）
+    if 'focal_model' not in existing_cols:
+        cursor.execute("ALTER TABLE videos ADD COLUMN focal_model TEXT NOT NULL DEFAULT 'local-pigo'")
 
     # Migration: 加入 user_rating 欄位（videos，spec-123 精選標記；0=未精選，>0=已精選。
     # 只由 set_user_rating()/set_user_rating_bulk() 與 repath() 分支 3 的 max() 合併寫入，

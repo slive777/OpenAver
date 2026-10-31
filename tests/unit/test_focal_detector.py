@@ -13,6 +13,8 @@ import pytest
 from PIL import Image
 
 from core.focal import crop_image_position, detect_focal
+from types import SimpleNamespace
+
 from core.focal.detector import (
     _cluster_and_select,
     _cluster_and_select_2d,
@@ -20,6 +22,7 @@ from core.focal.detector import (
     detect_faces,
     format_focal,
     parse_focal,
+    select_focal_from_boxes,
 )
 
 _FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "focal" / "sample.jpg"
@@ -104,6 +107,58 @@ class TestClusterAndSelect:
         pos, found = _cluster_and_select(width, height, faces, axis=0)
         assert found is True
         assert pos == pytest.approx(0.9)
+
+
+# ============ select_focal_from_boxes (187a-T2) ============
+
+
+def _boxes_to_pigo_faces(boxes, work_w, work_h):
+    """box (x,y,w,h,score) → _cluster_and_select_2d 的 (row, col, scale, q)。"""
+    faces = []
+    for b in boxes:
+        faces.append((
+            (b.y + b.h / 2) * work_h,
+            (b.x + b.w / 2) * work_w,
+            b.w * work_w,
+            b.score,
+        ))
+    return faces
+
+
+class TestSelectFocalFromBoxes:
+    """187a-T2：端點 box 選臉須與 pigo 風格 _cluster_and_select_2d 等價。"""
+
+    def test_select_focal_from_boxes_matches_pigo_cluster(self):
+        # 大臉低分 vs 小臉高分、兩群分兩側：scale 參與加權時大臉勝；scale=1.0 mutation 則小臉勝。
+        boxes_x = [
+            SimpleNamespace(x=0.05, y=0.40, w=0.40, h=0.30, score=0.3),
+            SimpleNamespace(x=0.80, y=0.40, w=0.05, h=0.10, score=1.0),
+        ]
+        work_w, work_h, ratio_x = 100, 100, 0.71
+        assert _dominant_axis_by_ratio(work_w, work_h, ratio_x) == 0
+        expected_x = _cluster_and_select_2d(
+            work_w, work_h, _boxes_to_pigo_faces(boxes_x, work_w, work_h), axis=0,
+        )
+        assert select_focal_from_boxes(boxes_x, work_w, work_h, ratio_x) == expected_x
+
+        boxes_y = [
+            SimpleNamespace(x=0.40, y=0.05, w=0.40, h=0.40, score=0.3),
+            SimpleNamespace(x=0.40, y=0.80, w=0.05, h=0.05, score=1.0),
+        ]
+        work_w_y, work_h_y, ratio_y = 100, 200, 0.71
+        assert _dominant_axis_by_ratio(work_w_y, work_h_y, ratio_y) == 1
+        expected_y = _cluster_and_select_2d(
+            work_w_y, work_h_y, _boxes_to_pigo_faces(boxes_y, work_w_y, work_h_y), axis=1,
+        )
+        assert select_focal_from_boxes(boxes_y, work_w_y, work_h_y, ratio_y) == expected_y
+
+        # 單臉與空 boxes
+        single = [SimpleNamespace(x=0.2, y=0.3, w=0.1, h=0.1, score=0.9)]
+        expected_single = _cluster_and_select_2d(
+            work_w, work_h, _boxes_to_pigo_faces(single, work_w, work_h), axis=0,
+        )
+        assert select_focal_from_boxes(single, work_w, work_h, ratio_x) == expected_single
+        assert select_focal_from_boxes([], work_w, work_h, ratio_x) is None
 
 
 # ============ crop_image_position ============
