@@ -52,6 +52,12 @@ export function stateConfig() {
             aiSimilarApiKey: '',
             aiSimilarModel: '',
 
+            // AI services — faces（187a-T5）
+            aiFacesEnabled: false,
+            aiFacesUrl: '',
+            aiFacesApiKey: '',
+            aiFacesModel: '',
+
             // Scraper
             createFolder: true,
             // 資料夾層級：{id,value}[] 動態清單（外→內，上到下）。load 時 slice(0,3) 正規化
@@ -740,6 +746,12 @@ export function stateConfig() {
                     this.form.aiSimilarApiKey = config.ai_services?.image_similar?.api_key || '';
                     this.form.aiSimilarModel = config.ai_services?.image_similar?.model || '';
 
+                    // AI services — faces（187a-T5）
+                    this.form.aiFacesEnabled = config.ai_services?.faces?.enabled || false;
+                    this.form.aiFacesUrl = config.ai_services?.faces?.url || '';
+                    this.form.aiFacesApiKey = config.ai_services?.faces?.api_key || '';
+                    this.form.aiFacesModel = config.ai_services?.faces?.model || '';
+
                     // 自動測試 Gemini（如果有 API Key 且是 gemini provider）
                     if (config.translate.gemini?.api_key && config.translate.provider === 'gemini') {
                         setTimeout(() => this.testGeminiConnection(), 100);
@@ -1126,7 +1138,7 @@ export function stateConfig() {
                     }
                 };
 
-                // AI services — image similar（186-T6；spread 保留未知欄位）
+                // AI services — image similar＋faces（186-T6／187a-T5；spread 保留未知欄位）
                 config.ai_services = {
                     ...config.ai_services,
                     image_similar: {
@@ -1135,6 +1147,13 @@ export function stateConfig() {
                         url: this.form.aiSimilarUrl,
                         api_key: this.form.aiSimilarApiKey,
                         model: this.form.aiSimilarModel,
+                    },
+                    faces: {
+                        ...config.ai_services?.faces,
+                        enabled: this.form.aiFacesEnabled,
+                        url: this.form.aiFacesUrl,
+                        api_key: this.form.aiFacesApiKey,
+                        model: this.form.aiFacesModel,
                     },
                 };
 

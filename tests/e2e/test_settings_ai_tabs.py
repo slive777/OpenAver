@@ -34,6 +34,32 @@ def test_ai_tab_similar_persists_after_reload(page: Page, base_url: str) -> None
     assert page.locator("#aiPanelSimilar").is_visible()
 
 
+def test_ai_tab_faces_persists_after_reload(page: Page, base_url: str) -> None:
+    """第三分頁 settle 後可見＋localStorage 記憶（TASK-187a-T5）。"""
+    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+    page.wait_for_selector("#aiServicesCard")
+
+    page.locator("#aiTabFaces").click()
+    page.wait_for_function(
+        "() => document.getElementById('aiPanelFaces') "
+        "&& getComputedStyle(document.getElementById('aiPanelFaces')).display !== 'none'"
+    )
+
+    assert page.locator("#aiPanelTranslate").is_hidden()
+    assert page.locator("#aiPanelFaces").is_visible()
+    assert page.evaluate("() => localStorage.getItem('settings_ai_tab')") == "faces"
+
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_selector("#aiServicesCard")
+    page.wait_for_function(
+        "() => document.getElementById('aiPanelFaces') "
+        "&& getComputedStyle(document.getElementById('aiPanelFaces')).display !== 'none'"
+    )
+
+    assert page.locator("#aiPanelTranslate").is_hidden()
+    assert page.locator("#aiPanelFaces").is_visible()
+
+
 def test_connection_area_shows_only_selected_provider(page: Page, base_url: str) -> None:
     """連線區只顯示目前翻譯服務那一家（TASK-186-T9）。不儲存。"""
     with page.expect_response(
