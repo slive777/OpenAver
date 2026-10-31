@@ -262,6 +262,7 @@ def select_focal_from_boxes(boxes, work_w, work_h, ratio):
 
     - ``col = (x + w/2) * work_w``
     - ``row = (y + h/2) * work_h``
+    - 臉心夾回 ``[0, work_w]×[0, work_h]``（框超出圖緣時）
     - ``scale = w * work_w``
     - ``q = score``
 
@@ -274,6 +275,8 @@ def select_focal_from_boxes(boxes, work_w, work_h, ratio):
         x, y, w, h, score = b.x, b.y, b.w, b.h, b.score
         col = (x + w / 2) * work_w
         row = (y + h / 2) * work_h
+        col = min(max(col, 0.0), float(work_w))
+        row = min(max(row, 0.0), float(work_h))
         scale = w * work_w
         q = score
         faces.append((row, col, scale, q))

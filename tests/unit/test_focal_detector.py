@@ -160,6 +160,17 @@ class TestSelectFocalFromBoxes:
         assert select_focal_from_boxes(single, work_w, work_h, ratio_x) == expected_single
         assert select_focal_from_boxes([], work_w, work_h, ratio_x) is None
 
+    def test_select_focal_from_boxes_clamps_out_of_bounds_center(self):
+        """端點框超出圖緣時臉心須夾回，否則 format_focal 寫出 >1 座標、parse 判無效。"""
+        boxes = [SimpleNamespace(x=0.9, y=0.5, w=0.4, h=0.2, score=0.9)]
+        work_w, work_h, ratio = 100, 100, 0.71
+        result = select_focal_from_boxes(boxes, work_w, work_h, ratio)
+        assert result is not None
+        x_ratio, y_ratio = result
+        assert 0.0 <= x_ratio <= 1.0
+        assert 0.0 <= y_ratio <= 1.0
+        assert parse_focal(format_focal(result)) is not None
+
 
 # ============ crop_image_position ============
 
