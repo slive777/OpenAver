@@ -123,6 +123,7 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False) -> dict:
         "needs_translate": _needs_translate(v.title, v.original_title, v.nfo_mtime),  # 無條件輸出（FE-ALPINE-06）
         "auto_focal": v.auto_focal,                  # canonical "x,y" 4dp 字串或 ''（98b：前端 focalObjectPosition 消費）
         "crop_mode": v.crop_mode,                    # 'auto' | 'default'（98b：default 退 baseline 右裁）
+        "has_plot": v.has_plot is True,              # 187b：後端不輸出三態（NULL→false；FE-ALPINE-06）
     }
 
 

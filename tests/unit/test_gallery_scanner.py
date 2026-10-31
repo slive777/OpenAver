@@ -553,3 +553,82 @@ class TestGalleryScannerTASK139T1b:
     # --- F9 反向鎖 ---
 
 
+
+
+def test_scan_chain_has_plot(tmp_path):
+    """parse_nfo→scan_file→from_video_info→upsert_batch→讀回→_serialize_video；
+    外加一列整理路徑（真 scan_file，不 patch VideoScanner）。"""
+    import sqlite3
+    from unittest.mock import patch
+
+    import core.db_inflow as _db_inflow_mod
+    from core.database import Video, VideoRepository, init_db
+    from core.path_utils import normalize_path, to_file_uri
+    from web.routers.showcase import _serialize_video
+
+    cases = [
+        ("with_plot", "<movie><title>T</title><num>HP-001</num><plot>簡介文字</plot></movie>", True),
+        ("no_plot", "<movie><title>T</title><num>HP-002</num></movie>", False),
+        ("blank_plot", "<movie><title>T</title><num>HP-003</num><plot>  \n  </plot></movie>", False),
+        ("no_nfo", None, False),
+        ("bad_xml", "<movie><title>T</title><num>HP-005</num><plot>x</movie>", False),
+    ]
+
+    db_path = tmp_path / "chain_has_plot.db"
+    init_db(db_path)
+    repo = VideoRepository(db_path=db_path)
+    scanner = VideoScanner()
+
+    videos = []
+    expected = {}
+    for name, nfo_body, want in cases:
+        video = tmp_path / f"{name}.mp4"
+        video.write_bytes(b"fake")
+        if nfo_body is not None:
+            (tmp_path / f"{name}.nfo").write_text(nfo_body, encoding="utf-8")
+        info = scanner.scan_file(str(video))
+        assert info.has_plot is want, f"{name}: scan_file has_plot={info.has_plot!r}"
+        v = Video.from_video_info(info)
+        assert v.has_plot is want, f"{name}: from_video_info has_plot={v.has_plot!r}"
+        videos.append(v)
+        expected[v.path] = want
+
+    with patch("core.similar.ranker_cache.SimilarRankerCache"):
+        repo.upsert_batch(videos)
+
+    for path, want in expected.items():
+        got = repo.get_by_path(path)
+        assert got is not None
+        assert got.has_plot is want, f"DB read {path}: has_plot={got.has_plot!r}"
+        conn = sqlite3.connect(str(db_path))
+        raw = conn.execute("SELECT has_plot FROM videos WHERE path=?", (path,)).fetchone()[0]
+        conn.close()
+        assert raw == (1 if want else 0), f"raw SQLite has_plot={raw!r} for {path}"
+        ser = _serialize_video(got, {})
+        assert "has_plot" in ser
+        assert ser["has_plot"] is want
+
+    # 整理路徑：真 scan_file（不 patch VideoScanner）
+    org_video = tmp_path / "org.mp4"
+    org_video.write_bytes(b"fake")
+    (tmp_path / "org.nfo").write_text(
+        "<movie><title>Org</title><num>ORG-001</num><plot>整理簡介</plot></movie>",
+        encoding="utf-8",
+    )
+    new_uri = to_file_uri(normalize_path(str(org_video)), None)
+
+    with (
+        patch.object(_db_inflow_mod, "load_config", return_value={
+            "gallery": {"directories": [str(tmp_path)], "path_mappings": None}
+        }),
+        patch.object(_db_inflow_mod, "find_matched_directory", return_value=str(tmp_path)),
+        patch.object(_db_inflow_mod, "VideoRepository", return_value=repo),
+        patch("core.similar.ranker_cache.SimilarRankerCache"),
+    ):
+        result = _db_inflow_mod.try_inflow_upsert(str(org_video), old_file_path=None)
+
+    assert result == "synced", f"應回 'synced'，實際: {result!r}"
+    org_row = repo.get_by_path(new_uri)
+    assert org_row is not None
+    assert org_row.has_plot is True
+    assert _serialize_video(org_row, {})["has_plot"] is True

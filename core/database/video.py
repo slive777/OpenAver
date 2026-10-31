@@ -48,6 +48,7 @@ class Video:
     focal_attempted_at: Optional[str] = None  # NULL=從未偵測過；非 NULL=偵測跑過（Codex PR#105 P2）
     user_rating: int = 0  # 精選標記（spec-123）；判準恆為 > 0，只由 set_user_rating()/
     # set_user_rating_bulk() 與 repath() 分支 3 的 max() 合併寫入（CD-123-1/3/4）
+    has_plot: Optional[bool] = None  # 187b：True=非空 <plot>、False=已確認沒有、None=未知
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -88,7 +89,8 @@ class Video:
             cover_path=info.img,
             release_date=info.date,
             mtime=mtime_unix,
-            nfo_mtime=0.0  # VideoInfo 沒有直接的 nfo_mtime
+            nfo_mtime=0.0,  # VideoInfo 沒有直接的 nfo_mtime
+            has_plot=info.has_plot,
         )
 
     def to_dict(self) -> dict:
@@ -156,6 +158,9 @@ class Video:
         # focal_model 等不進 dataclass 的 DB 欄位：過濾後再建，避免 TypeError 癱瘓讀取
         allowed = {f.name for f in fields(cls)}
         data = {k: v for k, v in data.items() if k in allowed}
+        # SQLite INTEGER 0/1 → bool；NULL 保持 None（CD-187b-1）
+        if data.get('has_plot') is not None:
+            data['has_plot'] = bool(data['has_plot'])
         return cls(**data)
 
 

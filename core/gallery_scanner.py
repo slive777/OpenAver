@@ -33,6 +33,7 @@ from core.nfo_stat import NFO_MTIME_REFRESH, nfo_mtime_or_none
 from core.nfo_title_format import resolve_title_body
 from core.nfo_utils import sanitize_nfo_bytes
 from core.path_utils import normalize_path, to_file_uri, uri_to_fs_path, uri_to_local_fs_path
+from core.plot_nfo import plot_present
 from core.scrapers.utils import FC2_TOKEN_PATTERN, normalize_number_impl
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS, ZERO_SIZE_EXTENSIONS
 
@@ -70,6 +71,7 @@ class VideoInfo:
     sample_images: List[str] = field(default_factory=list)
     user_tags: List[str] = field(default_factory=list)
     nfo_thumb: Optional[str] = None  # 暫存用途，不序列化進 DB/cache
+    has_plot: Optional[bool] = None  # 暫存：掃描寫 True/False；不進 to_dict（同 nfo_thumb）
 
     def to_dict(self) -> dict:
         return {
@@ -388,6 +390,7 @@ class VideoScanner:
 
             # 廠牌/標籤 (label)
             info.label = nfo_text(root, 'label')
+            info.has_plot = plot_present(nfo_text(root, 'plot'))
 
             # <thumb> 元素（相對路徑/絕對路徑/URL，供 find_cover_image L3 使用）
             info.nfo_thumb = nfo_text(root, 'thumb') or None
@@ -579,6 +582,7 @@ class VideoScanner:
         # 嘗試讀取 NFO
         nfo_path = video_path.with_suffix('.nfo')
         t_nfo_check = time.time()
+        info.has_plot = False  # 無 NFO／parse 失敗＝已確認沒有（CD-187b-2）
         if nfo_path.exists():
             logger.debug(f"[Scan]   nfo_exists: {t_nfo_check - t_start:.2f}s")
             nfo_info = self.parse_nfo(str(nfo_path))
@@ -598,6 +602,7 @@ class VideoScanner:
                 info.label = nfo_info.label or info.label
                 info.user_tags = nfo_info.user_tags or []
                 info.nfo_thumb = nfo_info.nfo_thumb
+                info.has_plot = nfo_info.has_plot
 
         # 如果 NFO 沒有資料，從檔名解析
         if not info.title or not info.num:
