@@ -67,6 +67,7 @@ def test_backfill_pass_states(temp_db, tmp_path, monkeypatch):
     uri_no = mp4(lib, "NO", _WITHOUT)
     uri_bad = mp4(lib, "BAD", as_dir=True)
     assert _real_read(lib / "BAD.nfo") is None
+    uri_miss = mp4(lib, "MISS")  # 一般來源、NFO 不存在（離線）→ 維持 NULL
     uri_zero = mp4(lib, "ZERO", _WITH)
     # 唯讀：來源旁無 plot、輸出夾有（相反）→ 以輸出夾為準
     uri_ro = mp4(src, "RO", _WITHOUT)
@@ -78,10 +79,11 @@ def test_backfill_pass_states(temp_db, tmp_path, monkeypatch):
 
     repo = VideoRepository(temp_db)
     _seed(repo, uri_yes); _seed(repo, uri_no); _seed(repo, uri_bad)
+    _seed(repo, uri_miss)
     _seed(repo, uri_zero, nfo_mtime=0.0)
     _seed(repo, uri_ro, output_dir=to_file_uri(str(out)))
     _seed(repo, uri_amb, output_dir=to_file_uri(str(amb)))
-    for u in (uri_yes, uri_no, uri_bad, uri_zero, uri_ro, uri_amb):
+    for u in (uri_yes, uri_no, uri_bad, uri_miss, uri_zero, uri_ro, uri_amb):
         assert _row(repo, u)["has_plot"] is None
 
     config = {
@@ -97,6 +99,7 @@ def test_backfill_pass_states(temp_db, tmp_path, monkeypatch):
     assert _row(repo, uri_no)["has_plot"] == 0
     assert _row(repo, uri_ro)["has_plot"] == 1
     assert _row(repo, uri_bad)["has_plot"] is None
+    assert _row(repo, uri_miss)["has_plot"] is None
     assert _row(repo, uri_amb)["has_plot"] is None
     assert _row(repo, uri_zero)["has_plot"] is None
     after = _row(repo, uri_yes)
@@ -105,8 +108,8 @@ def test_backfill_pass_states(temp_db, tmp_path, monkeypatch):
     assert after["updated_at"] == OLD_STAMP and after["nfo_mtime"] == 100.0
     assert not any("ZERO.nfo" in r for r in reads)
     # 冪等：移走仍 NULL 的候選後，已確認列不再讀
-    _raw(repo, "DELETE FROM videos WHERE path IN (?, ?, ?)",
-         (uri_bad, uri_amb, uri_zero))
+    _raw(repo, "DELETE FROM videos WHERE path IN (?, ?, ?, ?)",
+         (uri_bad, uri_miss, uri_amb, uri_zero))
     reads.clear()
     assert run_plot_flag_backfill_pass(repo, config, {}) == 0
     assert reads == []
