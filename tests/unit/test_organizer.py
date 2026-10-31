@@ -2688,3 +2688,43 @@ class TestNfoTitleFormatWiring:
             "NFO 中的 <title> 應套用自訂格式 {num}-{title}"
         )
 
+
+
+# ============ crop_to_poster: 外部端點焦點是轉正座標 (187a Codex review) ============
+
+def _exif6_cover(path):
+    """顯示 500x400（臉塊 x350-450,y100-300 紅）；存成 400x500 + Orientation=6。"""
+    shown = Image.new("RGB", (500, 400), (255, 255, 255))
+    shown.paste((255, 0, 0), (350, 100, 450, 300))
+    stored = shown.rotate(90, expand=True)  # CCW，EXIF 6 會再 CW 轉回
+    exif = Image.Exif()
+    exif[0x0112] = 6
+    stored.save(path, "JPEG", quality=100, subsampling=0, exif=exif)
+
+
+def _red_count(im):
+    return sum(1 for r, g, b in im.convert("RGB").getdata() if r > 200 and g < 80 and b < 80)
+
+
+def test_crop_to_poster_external_focal_uses_transposed_frame(tmp_path):
+    src, dst = tmp_path / "c.jpg", tmp_path / "p.jpg"
+    _exif6_cover(src)
+    ext = RunnerOutcome(kind="FOUND", focal=(0.8, 0.5), model="m1")
+    with patch("core.organizer.run_detection", return_value=ext):
+        assert crop_to_poster(str(src), str(dst), number="FC2-1234567") is True
+    with Image.open(dst) as out:
+        assert out.size == (237, 400)
+        assert _red_count(out) >= 0.9 * 20000
+
+
+def test_crop_to_poster_local_focal_keeps_untransposed_frame(tmp_path):
+    src, dst = tmp_path / "c.jpg", tmp_path / "p.jpg"
+    _exif6_cover(src)
+    local = RunnerOutcome(kind="FOUND", focal=(0.8, 0.5))
+    with patch("core.organizer.run_detection", return_value=local):
+        assert crop_to_poster(str(src), str(dst), number="FC2-1234567") is True
+    with Image.open(dst) as out, Image.open(src) as raw:
+        assert out.size == (333, 500)
+        from PIL import ImageChops
+        expect = raw.convert("RGB").crop((67, 0, 400, 500))
+        assert max(hi for _, hi in ImageChops.difference(out.convert("RGB"), expect).getextrema()) < 60

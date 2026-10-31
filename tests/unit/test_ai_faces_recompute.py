@@ -38,6 +38,7 @@ class FakeEndpoint:
         self.inflight = 0
         self.peak = 0
         self.on_cover = None  # callable(n)：第 n 次封面請求回應前呼叫
+        self.request_models: list = []  # 請求 JSON 裡的 model（adapter 轉接）
         self._lock = threading.Lock()
         self._sample_uri = samples.get_faces_sample_input()
 
@@ -53,6 +54,7 @@ class FakeEndpoint:
         uri = payload["input"]
         is_sample = uri == self._sample_uri
         with self._lock:
+            self.request_models.append(payload.get("model"))
             self.inflight += 1
             self.peak = max(self.peak, self.inflight)
             if is_sample:
@@ -104,7 +106,7 @@ class Env:
                     "enabled": True,
                     "url": "http://faces.test",
                     "api_key": "",
-                    "model": "",
+                    "model": "configured-B",
                 }
             },
             "gallery": {"path_mappings": {}},
@@ -290,9 +292,15 @@ def test_manual_focal_never_touched_by_recompute_or_rebuild(tmp_path, monkeypatc
     # 刪除並重新對焦：假端點先過一致性（sample → center box）
     env.fake.bias = "left"
     env.fake.model = "model-A"
+    env.fake.request_models.clear()
     res = faces_recompute.start_rebuild()
     assert res.get("ok") is True
     _join_workers()
+    # 設定有 model 時，經兩處 _faces_cfg_object adapter 送出的請求 JSON 必須帶 model
+    # （sample＝faces_recompute；cover＝faces_detect）
+    assert env.fake.request_models and all(
+        m == "configured-B" for m in env.fake.request_models
+    )
     after_rebuild = {p: env.row(p) for p in manuals}
     assert after_rebuild == before
 

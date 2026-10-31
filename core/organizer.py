@@ -12,7 +12,7 @@ import time
 import requests
 import html
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageOps
 from typing import Optional, Dict, Any, List, Tuple
 from urllib.parse import urlparse
 
@@ -541,6 +541,7 @@ def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = 
             r_window = _poster_window_ratio(w, h)
 
             focal = None
+            src_img = img
             if requires_face_detection(normalize_number_impl(number), maker):
                 outcome = run_detection(
                     src_path, r_window, job_key=src_path, timeout_s=_DETECT_TIMEOUT_S,
@@ -549,8 +550,13 @@ def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = 
                 )
                 if outcome.kind == "FOUND":
                     focal = outcome.focal
+                    if outcome.model:
+                        # 端點臉心是轉正後座標（送圖前 exif_transpose）；本機焦點不轉（model 為 None）
+                        src_img = ImageOps.exif_transpose(img)
+                        w, h = src_img.size
+                        ratio = h / w
 
-            rgb = img.convert("RGB")
+            rgb = src_img.convert("RGB")
             if ratio >= 1.0:
                 crop_w = int(h / 1.5)
                 default_x0 = (w - crop_w) // 2

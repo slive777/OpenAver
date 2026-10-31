@@ -47,6 +47,7 @@ def _faces_cfg_object(cfg: dict) -> SimpleNamespace:
     return SimpleNamespace(
         url=(faces_cfg.get("url") or ""),
         api_key=(faces_cfg.get("api_key") or ""),
+        model=(faces_cfg.get("model") or ""),
     )
 
 
