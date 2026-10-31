@@ -448,6 +448,8 @@ OpenAver does not ship a server; the consistency test above is the acceptance te
 
 - **Runtime.** onnxruntime on CPU is the floor and is enough. CoreML (Apple silicon), CUDA or MLX are optional accelerators.
 - **Model.** Preferred: the SCRFD detector from insightface `buffalo_l` (`det_10g.onnx`), loaded **directly with onnxruntime** (you do not need the full insightface package). SCRFD is the most stable choice for small faces, side views and multi-person covers. RetinaFace-R50 is about as accurate and about twice as slow; YOLOv8-face is faster but weaker on side views. Report a stable `model` such as `insightface-buffalo_l`.
+- **Where to get it.** One public copy of `det_10g.onnx` is `https://huggingface.co/immich-app/buffalo_l/resolve/main/detection/model.onnx` (about 17 MB; save it as `det_10g.onnx`). The input size is dynamic.
+- **What your server has to do with SCRFD.** Letterbox the decoded RGB image to 640×640 (keep aspect ratio, pad bottom/right), normalize each channel as `(pixel - 127.5) / 128`, run the model, decode the three strides (8, 16, 32) with 2 anchors per cell (box = anchor center ± distance × stride), keep scores ≥ 0.5, apply NMS at IoU 0.4, then undo the letterbox scale and divide by the original width/height to get the normalized `box`.
 - **License.** The insightface pretrained models are for **non-commercial research use only**; tell the user before installing them.
 
 Four things that bit a real Mac Mini setup:
@@ -459,7 +461,7 @@ Four things that bit a real Mac Mini setup:
 
 ### Keep it running and reachable
 
-Same rules as image similarity (see **Keep it running and reachable** under *Image similarity* above): bind `0.0.0.0`, open the firewall, use the LAN IP when OpenAver runs in Docker or on a NAS, and register the service with systemd, launchd, Task Scheduler or Docker `restart: unless-stopped`.
+Same rules as image similarity (see **Keep it running and reachable** under *Image similarity* above): bind `0.0.0.0`, open the firewall, use the LAN IP when OpenAver runs in Docker or on a NAS, and register the service with systemd, launchd, Task Scheduler or Docker `restart: unless-stopped`. Those examples start `clip_server.py`; replace the script name, service name and port with your face server's. If OpenAver runs on the same machine, binding `127.0.0.1` is enough.
 
 ### Cloud bridge
 

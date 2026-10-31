@@ -117,7 +117,8 @@ test('statusLine_table', () => {
 test('recomputeAction_deleteRebuildVisible_table', () => {
     assert.equal(recomputeAction({ running: true, pending: 0 }), 'stop');
     assert.equal(recomputeAction({ running: true, pending: 5 }), 'stop');
-    assert.equal(recomputeAction({ running: false, pending: 3 }), 'resume');
+    assert.equal(recomputeAction({ running: false, pending: 3, target_model: 'm' }), 'resume');
+    assert.equal(recomputeAction({ running: false, pending: 3, target_model: null }), 'none');
     assert.equal(recomputeAction({ running: false, pending: 0 }), 'none');
     assert.equal(recomputeAction(null), 'none');
 

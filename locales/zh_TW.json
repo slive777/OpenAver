@@ -667,7 +667,7 @@
         "btn_continue": "繼續",
         "btn_delete_rebuild": "刪除並重新對焦",
         "save_first": "先儲存設定",
-        "rebuild_confirm": "會刪除 {n} 部的自動焦點並從頭重算（約需數十分鐘）；重算完成前舊焦點照用。",
+        "rebuild_confirm": "會刪除 {n} 部的自動焦點並從頭重算；重算完成前，這些片暫時改用置中裁切。手動拖過焦點的片不受影響。",
         "assistant_prompt": "請替我架一個 OpenAver 人臉對焦端點。規格在 https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md 的「人臉對焦」一節，照那節的一致性測試自己驗過再回報。架好後告訴我端點網址，我會填進 OpenAver 設定頁「AI 功能 › 人臉」。這台 OpenAver 在 {lan_url}，端點要讓這個網址連得到。請把服務設成開機自啟。",
         "assistant_copied": "已複製，貼給你的 AI 助理",
         "assistant_copy_failed": "複製失敗，請手動選取文字",

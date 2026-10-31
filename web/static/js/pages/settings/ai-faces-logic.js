@@ -23,11 +23,11 @@ export function panelMode(form) {
     return form.aiFacesEnabled ? 'fields' : 'empty';
 }
 
-/** 重算鈕動作：stop／resume／none。 */
+/** 重算鈕動作：stop／resume／none。target_model 空時不顯示繼續（後端會 no_target）。 */
 export function recomputeAction(status) {
     if (!status) return 'none';
     if (status.running) return 'stop';
-    if ((status.pending || 0) > 0) return 'resume';
+    if ((status.pending || 0) > 0 && status.target_model) return 'resume';
     return 'none';
 }
 
