@@ -15,6 +15,7 @@ from typing import Callable, Optional
 
 from core.ai_services.faces_config import active_in
 from core.config import load_config, mutate_config
+from core.focal import subprocess_runner
 from core.focal.subprocess_runner import RunnerOutcome
 from core.logger import get_logger
 from core.version import VERSION
@@ -214,3 +215,6 @@ def set_disabled_by_user(disabled: bool) -> None:
         fd["set_by_user"] = True
 
     mutate_config(mutator)
+
+
+subprocess_runner.set_local_disabled_probe(local_is_disabled)

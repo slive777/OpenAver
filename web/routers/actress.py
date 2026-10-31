@@ -1644,6 +1644,7 @@ async def detect_actress_focal(name: str):
             run_detection, str(photo_fs), _FOCAL_DETECT_RATIO,
             job_key=str(uuid.uuid4()), timeout_s=_MANUAL_DETECT_TIMEOUT_S,
             pre_spawn_check=device_state.is_disabled, on_outcome=_on_outcome,
+            external_profile="manual",
         )
         focal = outcome.focal if outcome.kind == "FOUND" else None
         auto_focal = format_focal(focal)  # None → ''，純預覽不寫 DB

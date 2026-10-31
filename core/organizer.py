@@ -545,6 +545,7 @@ def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = 
                 outcome = run_detection(
                     src_path, r_window, job_key=src_path, timeout_s=_DETECT_TIMEOUT_S,
                     pre_spawn_check=device_state.is_disabled, on_outcome=device_state.record_outcome,
+                    external_profile="sync",
                 )
                 if outcome.kind == "FOUND":
                     focal = outcome.focal
