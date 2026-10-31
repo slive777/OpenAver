@@ -30,8 +30,13 @@ class ExternalResult(NamedTuple):
 
 
 def observe_model(model: str) -> None:
-    """T4 recompute hook; no-op until faces_recompute lands."""
-    return
+    """Report the endpoint model to the recompute job (lazy import: no module cycle)."""
+    try:
+        from core.ai_services import faces_recompute
+
+        faces_recompute.observe_model(model)
+    except Exception:
+        logger.exception("[faces_detect] observe_model failed")
 
 
 def _faces_cfg_object(cfg: dict) -> SimpleNamespace:

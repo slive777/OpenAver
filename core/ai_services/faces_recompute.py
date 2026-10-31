@@ -340,3 +340,49 @@ def _process_one(repo: VideoRepository, row: tuple, mappings: dict) -> Optional[
     model = result.model or "local-pigo"
     repo.update_auto_focal(path, focal_str, cover_path, model=model)
     return None
+
+
+# ── 自動觸發（187a-T4b，CD-12）──────────────────────────────────────────────
+
+_TARGET_CACHE_LOCK = threading.Lock()
+_target_cache: Optional[str] = None  # 不可變字串；僅作「同模型零成本」的快取
+
+
+def _remember_target(model: str) -> None:
+    global _target_cache
+    with _TARGET_CACHE_LOCK:
+        _target_cache = model
+
+
+def observe_model(model: str) -> None:
+    """外部偵測成功時回報模型：與 target 相同＝零成本；不同才 ``ensure``。
+
+    只呼叫 ``ensure``（對 ``_JOB_LOCK`` 為 non-blocking），重算 thread 內呼叫不會死鎖。
+    ``ensure`` 回 False（已在跑／待處理＝0）不重試。
+    """
+    with _TARGET_CACHE_LOCK:
+        if model == _target_cache:
+            return
+    if faces_state.meta_get(META_TARGET) == model:
+        _remember_target(model)
+        return
+    ensure(model)
+    _remember_target(model)
+
+
+def on_settings_saved() -> bool:
+    """儲存人臉設定後：伺服器端自己再測一次；通過且有 ``focal_model != 回報 model``
+    的候選才 ``ensure``。沒過＝什麼都不做、不動 target。回傳是否起了工作。"""
+    config = load_config()
+    if not active_in(config):
+        return False
+    test = samples.run_faces_test(_faces_cfg_object(config))
+    if not test.ok or not test.model:
+        faces_state.observe_failure(test.kind, test.check)
+        return False
+    faces_state.observe_success(test.model)
+    if not _pending_rows(VideoRepository(), test.model):
+        return False
+    started = ensure(test.model)
+    _remember_target(test.model)
+    return started

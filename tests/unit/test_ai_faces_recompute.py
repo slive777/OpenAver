@@ -65,6 +65,10 @@ class FakeEndpoint:
                 self.on_cover(n)
             if self.mode == "down":
                 raise httpx.ConnectError("down", request=request)
+            if self.mode == "unauth":
+                return httpx.Response(401, json={"error": "bad key"})
+            if self.mode == "noface":  # 回了 model 但一致性沒過（no_face）
+                return httpx.Response(200, json={"faces": [], "model": self.model})
             if self.mode == "http_5xx":
                 return httpx.Response(503, json={"error": "cold"})
             if self.mode == "contract":
@@ -595,3 +599,68 @@ def test_rebuild_test_failed_keeps_all_auto_focal(tmp_path, monkeypatch):
     assert env2.count("auto_focal != ''") == before
     release.set()
     _join_workers()
+
+
+# ── (e) 儲存鉤子觸發判定（CD-12）─────────────────────────────────────────────
+
+
+def test_save_hook_triggers_only_when_db_state_requires(tmp_path, monkeypatch):
+    """faces 子樹沒變＝零請求；測試沒過不開工；通過且有 focal_model!=回報 model 的候選才 ensure。"""
+    from core.ai_services import faces_recompute
+    from web.routers.config import _after_faces_saved
+
+    env = Env(tmp_path, monkeypatch, "hook")
+    calls: list[str] = []
+    monkeypatch.setattr(
+        faces_recompute, "ensure", lambda model, kind="model_change": calls.append(model) or True
+    )
+
+    def save(old: dict, new: dict) -> None:
+        env.cfg["ai_services"]["faces"] = new  # 模擬已落盤
+        t = _after_faces_saved(old, new)
+        if t is not None:
+            t.join(10)
+            assert not t.is_alive()
+
+    def faces(key: str, url: str = "http://faces.test") -> dict:
+        return {"enabled": True, "url": url, "api_key": key, "model": ""}
+
+    off = {"enabled": False, "url": "", "api_key": "", "model": ""}
+    same = faces("k0")
+    # 沒動 faces 子樹 → 零請求、零開工
+    save(same, dict(same))
+    assert env.fake.requests == 0 and calls == []
+
+    # ① 首次設定、金鑰錯 → 測了但不開工；再只改金鑰（對）→ 恰一次
+    env.add_video(focal_model="local-pigo")
+    env.fake.mode = "unauth"
+    save(off, faces("bad"))
+    assert env.fake.samples == 1 and calls == []
+    env.fake.mode = "normal"
+    save(faces("bad"), faces("good"))
+    assert calls == ["model-A"]
+
+    # ② A 已全部完成 → 改 B：金鑰錯零開工，改對恰一次
+    calls.clear()
+    with closing(db_connection.get_connection(env.db)) as conn:
+        conn.execute("UPDATE videos SET focal_model='model-A'")
+        conn.commit()
+    env.fake.model = "model-B"
+    env.fake.mode = "unauth"
+    save(faces("good"), faces("bad2"))
+    assert calls == []
+    env.fake.mode = "noface"  # 端點回了 model 但臉不對：不得開工
+    save(faces("bad2"), faces("bad3"))
+    assert calls == [] and env.fake.covers == 0
+    env.fake.mode = "normal"
+    save(faces("bad3"), faces("good2"))
+    assert calls == ["model-B"]
+
+    # ③ 只換網址、回報同一 model、沒有候選 → 測試照跑、零開工
+    calls.clear()
+    with closing(db_connection.get_connection(env.db)) as conn:
+        conn.execute("UPDATE videos SET focal_model='model-B'")
+        conn.commit()
+    before = env.fake.samples
+    save(faces("good2"), faces("good2", url="http://faces.test/"))
+    assert env.fake.samples == before + 1 and calls == []

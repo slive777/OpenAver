@@ -7,6 +7,10 @@
 - POST /api/ai/similar/index/stop  (186-T4b)
 - GET  /api/ai/sample/faces        (187-T1)
 - POST /api/ai/faces/test          (187-T1)
+- GET  /api/ai/faces/status        (187a-T4b)
+- POST /api/ai/faces/recompute     (187a-T4b, resume)
+- POST /api/ai/faces/recompute/stop
+- POST /api/ai/faces/rebuild
 """
 
 from __future__ import annotations
@@ -19,7 +23,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from core.ai_services import similar_index, similar_state
+from core.ai_services import faces_recompute, faces_state, similar_index, similar_state
 from core.ai_services.samples import (
     DIFF_MAX,
     DIM_MAX,
@@ -33,6 +37,7 @@ from core.ai_services.samples import (
     run_consistency_test,
     run_faces_test,
 )
+from core.ai_services.faces_config import active_in
 from core.config import load_config
 from core.logger import get_logger
 from core.secret_fields import read_secret, resolve_secret
@@ -120,6 +125,47 @@ def _observe_test_result(result) -> None:
         similar_state.observe_failure(result.kind, result.check)
 
 
+def _is_stored_faces_target(cfg: SimpleNamespace, config: dict) -> bool:
+    """受測 url＋model 是否等於已存人臉設定（api_key 不比；body 缺席即用已存值）。"""
+    stored = (config.get("ai_services") or {}).get("faces") or {}
+    return (
+        _norm_url(cfg.url) == _norm_url(stored.get("url", "") or "")
+        and (cfg.model or "").strip() == (stored.get("model", "") or "").strip()
+    )
+
+
+def _observe_faces_test_result(result) -> None:
+    """記憶體觀察值（不寫 DB／設定、不觸發重算）。成功清 degraded／通知旗標。"""
+    if result.ok and result.model:
+        faces_state.observe_success(result.model)
+    elif not result.ok:
+        faces_state.observe_failure(result.kind, result.check)
+
+
+def _faces_status() -> dict:
+    """純讀：DB＋記憶體＋app_meta，不打端點。"""
+    config = load_config()
+    out = faces_recompute.status()
+    snap = faces_state.snapshot()
+    active = active_in(config)
+    last = snap["last_success_at"]
+    if last is None:
+        raw = faces_state.meta_get(faces_state.META_LAST_SUCCESS)
+        try:
+            last = float(raw) if raw else None
+        except ValueError:
+            last = None
+    degraded = bool(snap["degraded"])
+    out["using"] = "external" if (active and not degraded) else "local"
+    out["observed"] = snap["observed_model"] is not None or last is not None
+    out["last_success_at"] = last
+    if active and degraded:
+        out["degraded"] = True
+        out["degraded_kind"] = snap["kind"]
+        out["degraded_check"] = snap["check"]
+    return out
+
+
 @router.get("/sample/embeddings")
 async def sample_embeddings():
     """Return preprocessed sample A/B data URIs plus expect thresholds and steps."""
@@ -204,12 +250,15 @@ async def sample_faces():
 async def faces_test(body: FacesTestRequest | None = None):
     """Run faces consistency test against stored or overridden endpoint settings.
 
-    Does not write DB or config (CD-187a-19). T1 does not update faces_state.
+    Does not write DB or config (CD-187a-19). Only when url+model equal the stored settings
+    does the result update the in-memory observation; never triggers a recompute (NC-4).
     """
     req = body or FacesTestRequest()
     config = await asyncio.to_thread(load_config)
     cfg = _resolve_faces_cfg(req, config)
     result = await asyncio.to_thread(run_faces_test, cfg)
+    if _is_stored_faces_target(cfg, config):
+        await asyncio.to_thread(_observe_faces_test_result, result)
     out: dict = {"ok": result.ok, "elapsed_ms": result.elapsed_ms}
     if result.kind is not None:
         out["kind"] = result.kind
@@ -218,3 +267,27 @@ async def faces_test(body: FacesTestRequest | None = None):
     if result.model is not None:
         out["model"] = result.model
     return out
+
+
+@router.get("/faces/status")
+async def faces_status():
+    """重新對焦進度＋端點使用狀態（純讀，不打端點）。"""
+    return await asyncio.to_thread(_faces_status)
+
+
+@router.post("/faces/recompute")
+async def faces_recompute_resume():
+    """繼續未完成的重新對焦（不重算已算的）。"""
+    return await asyncio.to_thread(faces_recompute.resume)
+
+
+@router.post("/faces/recompute/stop")
+async def faces_recompute_stop():
+    """停止重新對焦（閒置時為 no-op）。"""
+    return await asyncio.to_thread(faces_recompute.request_stop)
+
+
+@router.post("/faces/rebuild")
+async def faces_rebuild():
+    """刪除並重新對焦：先跑一致性測試，沒過什麼都不刪；業務失敗在 body、HTTP 200。"""
+    return await asyncio.to_thread(faces_recompute.start_rebuild)
