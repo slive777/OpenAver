@@ -11,13 +11,20 @@ from dataclasses import dataclass
 from PIL import Image, ImageDraw
 
 from core.ai_services.embeddings import EmbedResult, EndpointError, embed
-from core.ai_services.image_prep import cover_to_data_uri
+from core.ai_services.faces import FacesResult, detect
+from core.ai_services.image_prep import cover_to_data_uri, cover_to_faces_data_uri
 from core.data_root import get_project_root
 
 SAME_MIN = 0.99
 DIFF_MAX = 0.9
 DIM_MIN = 128
 DIM_MAX = 4096
+
+FACES_EXPECT_CENTER = (0.5, 0.3)
+FACES_TOLERANCE = 0.1
+FACES_MIN_FACES = 1
+_SAMPLE_FACES_REL = "web/static/img/ai-samples/face-sample.jpg"
+_cache_faces: str | None = None
 
 # Sample A: tracked demo cover (right-half via cover_to_data_uri).
 _SAMPLE_A_REL = "web/static/img/demo/sone-103.jpg"
@@ -155,4 +162,69 @@ def run_consistency_test(cfg) -> ConsistencyResult:
         cos_same=cos_same,
         cos_diff=cos_diff,
         elapsed_ms=elapsed,
+    )
+
+
+def sample_faces_data_uri() -> str:
+    """Lazy module-level cache of faces sample (JPEG data URI via faces prep)."""
+    global _cache_faces
+    if _cache_faces is None:
+        path = get_project_root() / _SAMPLE_FACES_REL
+        out = cover_to_faces_data_uri(str(path))
+        if out is None:
+            raise FileNotFoundError(f"faces sample unreadable: {path}")
+        _cache_faces = out[0]
+    return _cache_faces
+
+
+def get_faces_sample_input() -> str:
+    """Return cached faces sample data URI; builds on first call."""
+    return sample_faces_data_uri()
+
+
+def check_faces_consistency(result: FacesResult) -> tuple[bool, str | None]:
+    """Pure assertions over a faces detect result. Order fixed by CD-187a-19."""
+    if len(result.boxes) < FACES_MIN_FACES:
+        return False, "no_face"
+    best = max(result.boxes, key=lambda b: b.score)
+    cx = best.x + best.w / 2.0
+    cy = best.y + best.h / 2.0
+    if abs(cx - FACES_EXPECT_CENTER[0]) > FACES_TOLERANCE or abs(cy - FACES_EXPECT_CENTER[1]) > FACES_TOLERANCE:
+        return False, "center_off"
+    if not isinstance(result.model, str) or result.model == "":
+        return False, "no_model"
+    return True, None
+
+
+@dataclass
+class FacesTestResult:
+    ok: bool
+    kind: str | None = None
+    check: str | None = None
+    model: str | None = None
+    elapsed_ms: int = 0
+    boxes: list | None = None
+
+
+def run_faces_test(cfg) -> FacesTestResult:
+    """Sample → detect(profile=warmup) → consistency; stop on EndpointError."""
+    t0 = time.perf_counter()
+    try:
+        uri = get_faces_sample_input()
+        result = detect(cfg, uri, profile="warmup")
+    except EndpointError as e:
+        elapsed = int((time.perf_counter() - t0) * 1000)
+        return FacesTestResult(
+            ok=False, kind=e.kind, check=e.check, elapsed_ms=elapsed
+        )
+
+    elapsed = int((time.perf_counter() - t0) * 1000)
+    ok, failed = check_faces_consistency(result)
+    return FacesTestResult(
+        ok=ok,
+        kind=None if ok else "contract",
+        check=failed,
+        model=result.model,
+        elapsed_ms=elapsed,
+        boxes=list(result.boxes),
     )

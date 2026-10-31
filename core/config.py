@@ -254,9 +254,18 @@ class ImageSimilarConfig(BaseModel):
     model: str = ""
 
 
+class FacesConfig(BaseModel):
+    """人臉偵測自架端點設定（CD-187a-8）。"""
+    enabled: bool = False
+    url: str = ""
+    api_key: str = ""
+    model: str = ""
+
+
 class AIServicesConfig(BaseModel):
-    """AI 功能卡共用巢（186）；伺服器擁有狀態不進此處。"""
+    """AI 功能卡共用巢（186／187）；伺服器擁有狀態不進此處。"""
     image_similar: ImageSimilarConfig = ImageSimilarConfig()
+    faces: FacesConfig = FacesConfig()
 
 
 class AppConfig(BaseModel):
@@ -336,16 +345,19 @@ def _ensure_openai_official_nest(t: dict) -> bool:
 
 
 def _ensure_ai_services(raw_config: dict) -> bool:
-    """Top-level ai_services／image_similar 缺才補（186-T3／BE-CONFIG-02）。"""
+    """Top-level ai_services／image_similar／faces 缺才補（186-T3／187-T1／BE-CONFIG-02）。"""
     if 'ai_services' not in raw_config:
         raw_config['ai_services'] = AIServicesConfig().model_dump()
         return True
-    if 'image_similar' not in raw_config.get('ai_services', {}):
-        raw_config.setdefault('ai_services', {})['image_similar'] = (
-            ImageSimilarConfig().model_dump()
-        )
-        return True
-    return False
+    changed = False
+    ai = raw_config.setdefault('ai_services', {})
+    if 'image_similar' not in ai:
+        ai['image_similar'] = ImageSimilarConfig().model_dump()
+        changed = True
+    if 'faces' not in ai:
+        ai['faces'] = FacesConfig().model_dump()
+        changed = True
+    return changed
 
 
 def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；每加一個設定欄位的向後相容 migration 就得在此多開一支分支，這是它存在的理由而非缺陷；收斂設計已列 backlog（見 OpenAver架構評估-回應.md §七）

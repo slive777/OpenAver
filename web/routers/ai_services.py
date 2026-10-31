@@ -1,10 +1,12 @@
-"""AI services endpoints for embeddings samples and consistency test (186-T3).
+"""AI services endpoints for embeddings samples and consistency test (186-T3 / 187-T1).
 
 - GET  /api/ai/sample/embeddings
 - POST /api/ai/similar/test
 - GET  /api/ai/similar/status      (186-T4b)
 - POST /api/ai/similar/index       (186-T4b)
 - POST /api/ai/similar/index/stop  (186-T4b)
+- GET  /api/ai/sample/faces        (187-T1)
+- POST /api/ai/faces/test          (187-T1)
 """
 
 from __future__ import annotations
@@ -22,9 +24,14 @@ from core.ai_services.samples import (
     DIFF_MAX,
     DIM_MAX,
     DIM_MIN,
+    FACES_EXPECT_CENTER,
+    FACES_MIN_FACES,
+    FACES_TOLERANCE,
     SAME_MIN,
+    get_faces_sample_input,
     get_sample_inputs,
     run_consistency_test,
+    run_faces_test,
 )
 from core.config import load_config
 from core.logger import get_logger
@@ -42,8 +49,22 @@ _SAMPLE_STEPS = [
     "All three responses share the same model string and dim in [dim_min, dim_max].",
 ]
 
+_FACES_SAMPLE_STEPS = [
+    "POST {base}/v1/faces with inputs[0] (allow cold-start; first call may be slow).",
+    "Response faces is an array; highest-score box center within expect.tolerance of expect.center per axis.",
+    "Response model is a non-empty string.",
+]
+
 
 class SimilarTestRequest(BaseModel):
+    """Optional overrides. Absent (None) → stored config; present → use given value."""
+
+    url: Optional[str] = None
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+
+
+class FacesTestRequest(BaseModel):
     """Optional overrides. Absent (None) → stored config; present → use given value."""
 
     url: Optional[str] = None
@@ -62,6 +83,17 @@ def _resolve_similar_cfg(body: SimilarTestRequest, config: dict) -> SimpleNamesp
         api_key = resolve_secret(body.api_key, stored_key)
     return SimpleNamespace(url=url or "", api_key=api_key or "", model=model or "")
 
+
+def _resolve_faces_cfg(body: FacesTestRequest, config: dict) -> SimpleNamespace:
+    stored = (config.get("ai_services") or {}).get("faces") or {}
+    url = stored.get("url", "") if body.url is None else body.url
+    model = stored.get("model", "") if body.model is None else body.model
+    stored_key = read_secret(config, "ai_services.faces.api_key")
+    if body.api_key is None:
+        api_key = stored_key
+    else:
+        api_key = resolve_secret(body.api_key, stored_key)
+    return SimpleNamespace(url=url or "", api_key=api_key or "", model=model or "")
 
 def _norm_url(url: str) -> str:
     """比對用正規化：去空白、scheme／host 小寫、去尾端 ``/``（path 大小寫保留）。"""
@@ -151,3 +183,38 @@ async def similar_index_rebuild():
 async def similar_index_stop():
     """停止索引工作（閒置時為 no-op）。"""
     return await asyncio.to_thread(similar_index.request_stop)
+
+
+@router.get("/sample/faces")
+async def sample_faces():
+    """Return preprocessed faces sample data URI plus expect thresholds and steps."""
+    uri = await asyncio.to_thread(get_faces_sample_input)
+    return {
+        "inputs": [uri],
+        "expect": {
+            "center": list(FACES_EXPECT_CENTER),
+            "tolerance": FACES_TOLERANCE,
+            "min_faces": FACES_MIN_FACES,
+        },
+        "steps": list(_FACES_SAMPLE_STEPS),
+    }
+
+
+@router.post("/faces/test")
+async def faces_test(body: FacesTestRequest | None = None):
+    """Run faces consistency test against stored or overridden endpoint settings.
+
+    Does not write DB or config (CD-187a-19). T1 does not update faces_state.
+    """
+    req = body or FacesTestRequest()
+    config = await asyncio.to_thread(load_config)
+    cfg = _resolve_faces_cfg(req, config)
+    result = await asyncio.to_thread(run_faces_test, cfg)
+    out: dict = {"ok": result.ok, "elapsed_ms": result.elapsed_ms}
+    if result.kind is not None:
+        out["kind"] = result.kind
+    if result.check is not None:
+        out["check"] = result.check
+    if result.model is not None:
+        out["model"] = result.model
+    return out
