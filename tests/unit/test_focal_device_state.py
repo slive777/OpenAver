@@ -274,3 +274,23 @@ class TestRecordManualOutcome:
         assert device_state.is_disabled() is True
 
 
+# ---------------------------------------------------------------------------
+# classify_manual_reason — table (187a-T3a adds endpoint_down)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "kind,external_failure,just_disabled,expected",
+    [
+        ("FOUND", "external_unreachable", False, "endpoint_down"),
+    ],
+)
+def test_classify_manual_reason_table(kind, external_failure, just_disabled, expected):
+    """FOUND/NO_FACE + external_failure → endpoint_down (CD-187a-16)."""
+    from types import SimpleNamespace
+
+    from core.focal import device_state
+
+    outcome = SimpleNamespace(kind=kind, external_failure=external_failure)
+    assert device_state.classify_manual_reason(outcome, just_disabled) == expected
+

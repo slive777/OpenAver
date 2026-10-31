@@ -1166,6 +1166,7 @@
     "wishlist_reconcile_failed": "書籤對帳失敗，請查閱日誌",
     "focal_auto_disabled": "找臉連續兩次逾時，已經先幫你關掉自動對焦。想對焦的話，在燈箱裡自己拖曳就可以。",
     "ai_similar_unreachable": "圖片相似端點連不上，新片暫以規則排序",
+    "ai_faces_unreachable": "人臉端點連不上，這輪改用內建方式找臉",
     "data_root_finalized": "資料位置已定版，備份時請把這個資料夾一起保留",
     "data_root_recovered": "既有片庫已保留，設定已重建為預設值：來源設定、跨機器路徑映射、外部服務設定與介面偏好都需要重新設定"
   },

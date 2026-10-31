@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
+from core.ai_services.faces_config import active_in
 from core.config import load_config, mutate_config
 from core.focal.subprocess_runner import RunnerOutcome
 from core.logger import get_logger
@@ -57,13 +58,20 @@ def local_disabled_in(cfg: dict) -> bool:
 
 
 def is_disabled_in(cfg: dict) -> bool:
-    """Same rule as is_disabled(); delegates to local_disabled_in (187a-T2)."""
+    """External faces active → never disabled; else the local-device rule."""
+    if active_in(cfg):
+        return False
     return local_disabled_in(cfg)
 
 
 def is_disabled() -> bool:
     """True when focal is disabled under the is_disabled_in() read rule."""
     return is_disabled_in(load_config())
+
+
+def local_is_disabled() -> bool:
+    """Local-only disabled probe (ignores external faces); for T3b registration."""
+    return local_disabled_in(load_config())
 
 
 def _apply_outcome_core(
@@ -169,11 +177,13 @@ def record_manual_outcome(outcome: RunnerOutcome) -> bool:
 def classify_manual_reason(outcome: RunnerOutcome, just_disabled: bool) -> str:
     """Map a manual-detect outcome (+ lock-time decision) to the ``reason`` field.
 
-    Five values per CD-152d-4b. ``just_disabled`` must come from the
-    ``on_outcome`` callback (via ``decision.get("just_disabled", False)``),
-    never from a pre-spawn snapshot.
+    Values per CD-152d-4b plus ``endpoint_down`` (CD-187a-16). ``just_disabled``
+    must come from the ``on_outcome`` callback (via
+    ``decision.get("just_disabled", False)``), never from a pre-spawn snapshot.
     """
     if outcome.kind in ("FOUND", "NO_FACE"):
+        if getattr(outcome, "external_failure", None):
+            return "endpoint_down"
         return ""
     if outcome.kind == "ABANDONED":
         if outcome.reason == "skipped_disabled":
