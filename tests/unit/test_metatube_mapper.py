@@ -186,6 +186,58 @@ def test_clean_fc2_script_tag():
     assert result == "正常文字"
 
 
+# ============ TASK-187b-T1: 簡介截斷（truncate_summary） ============
+
+@pytest.mark.parametrize(
+    "text,expected_suffix,expected_len,check_exact",
+    [
+        # 超長且窗口內有「。」（三千字輸入）
+        ("あ" * 100 + "。" + "い" * 2900, "。…", None, None),
+        # 窗口內最後一個句末標點為「！」，且更早還有「。」
+        ("あ" * 100 + "。" + "い" * 100 + "！" + "う" * 400, "！…", None, None),
+        # 窗口內最後標點為「？」
+        ("あ" * 100 + "？" + "い" * 500, "？…", None, None),
+        # 無句末標點 600 字硬截
+        ("あ" * 600, "…", 500, "あ" * 499 + "…"),
+        # 句末標點「！」恰在第 500 字（索引 499），落在窗口外，截在更早的「。」
+        ("あ" * 200 + "。" + "い" * 298 + "！" + "う" * 100, "。…", None, None),
+    ],
+)
+def test_truncate_summary_over_limit(text, expected_suffix, expected_len, check_exact):
+    """超長輸入截在句末標點或硬截，長度不超過 limit"""
+    from core.metatube.mapper import clean_metatube_summary, truncate_summary
+
+    res = truncate_summary(text)
+    assert len(res) <= 500
+    assert res.endswith(expected_suffix)
+    if expected_len is not None:
+        assert len(res) == expected_len
+    if check_exact is not None:
+        assert res == check_exact
+
+    # 端到端：經 clean_metatube_summary（非 FC2 provider）同結果
+    assert clean_metatube_summary("FANZA", text) == res
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "あ" * 500,
+        "あ" * 499 + "。",
+        "短いあらすじです。",
+        "",
+    ],
+)
+def test_truncate_summary_within_limit_untouched(text):
+    """上限內的完整簡介不被改寫、不加「…」"""
+    from core.metatube.mapper import clean_metatube_summary, truncate_summary
+
+    res = truncate_summary(text)
+    assert res == text
+    assert not res.endswith("…")
+    assert clean_metatube_summary("FANZA", text) == res
+
+
 # ============================================================
 # Codex PR review P1（2026-08-07）：base_url 的機密不得進 preview URL
 # ============================================================

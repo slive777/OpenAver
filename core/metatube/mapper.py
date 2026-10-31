@@ -15,6 +15,9 @@ _FC2_NOISE_RE = re.compile(
     r"(<script|function\(|\{\{|[A-Za-z0-9+/]{40,}={0,2})"
 )
 
+# 簡介截斷句末標點集合（不含 ASCII .!?，避免小數點/縮寫誤截）
+_SENTENCE_ENDS = "。！？"
+
 
 def _build_proxy_image_url(base_url: str, provider: str, number: str, image_url: str) -> str:
     """metatube 圖片代理端點 URL（泛化建構器，形狀同 CD-113c-4／12／13）。
@@ -151,15 +154,39 @@ def map_movie_info(info: dict, base_url: str = "") -> Video:
     )
 
 
+def truncate_summary(text: str, limit: int = 500) -> str:
+    """截斷簡介至 limit 字元內，優先截在句末標點（。！？）＋「…」
+
+    - len(text) <= limit: 原樣返回（不加「…」）
+    - 否則在 text[:limit-1] 內找最後一個句末標點（。！？）：
+      - 找到於索引 i: text[:i+1] + "…"
+      - 未找到: text[:limit-1] + "…"（硬截）
+    - 不變式：任何輸入，len(輸出) <= limit
+    """
+    if len(text) <= limit:
+        return text
+
+    window = text[: limit - 1]
+    last_idx = -1
+    for char in _SENTENCE_ENDS:
+        idx = window.rfind(char)
+        if idx > last_idx:
+            last_idx = idx
+
+    if last_idx != -1:
+        return window[: last_idx + 1] + "…"
+    return window + "…"
+
+
 def clean_metatube_summary(provider: str, raw: str) -> str:
     """清理 metatube summary 文字
 
     FC2 系（FC2 / fc2hub / FC2PPVDB）：
       - 截斷至首個雜訊 marker 前（<script、function(、{{、base64 ≥40 chars）
-      - strip + 限長 500
+      - strip + 截斷至句末（truncate_summary，限長 500）
 
     其他 provider：
-      - strip + 限長 500
+      - strip + 截斷至句末（truncate_summary，限長 500）
 
     空字串輸入 → ''
     """
@@ -172,5 +199,5 @@ def clean_metatube_summary(provider: str, raw: str) -> str:
     else:
         text = raw
 
-    # strip 前後空白 + 限長 500（Python str slice 是 codepoint-safe，CJK 正確）
-    return text.strip()[:500]
+    # strip 前後空白 + 截斷至句末（優先標點＋…，限長 500）
+    return truncate_summary(text.strip())
