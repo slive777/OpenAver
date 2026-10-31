@@ -181,12 +181,16 @@ def classify_manual_reason(outcome: RunnerOutcome, just_disabled: bool) -> str:
     Values per CD-152d-4b plus ``endpoint_down`` (CD-187a-16). ``just_disabled``
     must come from the ``on_outcome`` callback (via
     ``decision.get("just_disabled", False)``), never from a pre-spawn snapshot.
+    ``ABANDONED(skipped_disabled)`` with ``external_failure`` is also
+    ``endpoint_down`` (endpoint failed first; local was already disabled).
     """
     if outcome.kind in ("FOUND", "NO_FACE"):
         if getattr(outcome, "external_failure", None):
             return "endpoint_down"
         return ""
     if outcome.kind == "ABANDONED":
+        if outcome.reason == "skipped_disabled" and getattr(outcome, "external_failure", None):
+            return "endpoint_down"
         if outcome.reason == "skipped_disabled":
             return "device_disabled"
         if outcome.reason == "detect_timeout":

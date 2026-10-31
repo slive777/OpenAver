@@ -280,17 +280,23 @@ class TestRecordManualOutcome:
 
 
 @pytest.mark.parametrize(
-    "kind,external_failure,just_disabled,expected",
+    "kind,reason,external_failure,just_disabled,expected",
     [
-        ("FOUND", "external_unreachable", False, "endpoint_down"),
+        ("FOUND", None, "external_unreachable", False, "endpoint_down"),
+        ("ABANDONED", "skipped_disabled", "external_unreachable", False, "endpoint_down"),
+        ("ABANDONED", "skipped_disabled", None, False, "device_disabled"),
     ],
 )
-def test_classify_manual_reason_table(kind, external_failure, just_disabled, expected):
-    """FOUND/NO_FACE + external_failure → endpoint_down (CD-187a-16)."""
+def test_classify_manual_reason_table(
+    kind, reason, external_failure, just_disabled, expected
+):
+    """FOUND/NO_FACE or ABANDONED(skipped_disabled)+external_failure → endpoint_down."""
     from types import SimpleNamespace
 
     from core.focal import device_state
 
-    outcome = SimpleNamespace(kind=kind, external_failure=external_failure)
+    outcome = SimpleNamespace(
+        kind=kind, reason=reason, external_failure=external_failure
+    )
     assert device_state.classify_manual_reason(outcome, just_disabled) == expected
 
