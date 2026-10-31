@@ -369,6 +369,7 @@ export function stateLightbox() {
 
             this.addingLbTag = false;    // 關閉 lightbox 時重置 user tag 輸入框
             this._resetMask();           // 98b-T4：關燈箱丟棄未提交遮罩態（不 commit）
+            this._lbPlotReset?.();       // 187b-T5a：關燈箱清簡介面（defense-in-depth）
             this._fetchSamplesFailed = {};
 
             // ★ C11: fly-back — 必須在 generation++ / lightboxOpen = false 之前捕獲
@@ -1098,6 +1099,7 @@ export function stateLightbox() {
                 } else {
                     // 影片 lightbox
                     if (key === 'ESCAPE') {
+                        if (this.lbPlotOpen) { e.preventDefault(); this.lbPlotClose(); return; }
                         e.preventDefault();
                         this.closeLightbox();
                     } else if (key === 'ARROWLEFT') {
