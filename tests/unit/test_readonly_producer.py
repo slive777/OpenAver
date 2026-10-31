@@ -1317,6 +1317,25 @@ class TestUpsertDb:
         v = repo.get_by_path(self.SOURCE_URI)
         assert v.original_title == '日本語タイトル'
 
+    def test_readonly_upsert_has_plot_follows_summary(self, temp_db):
+        """187b-T3：full 分支 has_plot 跟 meta['_summary']；空字串 → False。"""
+        from core.readonly_producer import _upsert_db
+
+        repo = self._repo(temp_db)
+        assets = {'cover_fs': '', 'sample_fs': [], 'nfo_mtime': _T3_NFO_MTIME}
+
+        _upsert_db(
+            repo, self.SOURCE_URI, _T3_FILE_INFO,
+            dict(_T3_META, _summary='有簡介'), assets, None, self.OUTPUT_DIR_URI,
+        )
+        assert repo.get_by_path(self.SOURCE_URI).has_plot is True
+
+        _upsert_db(
+            repo, self.SOURCE_URI, _T3_FILE_INFO,
+            dict(_T3_META, _summary=''), assets, None, self.OUTPUT_DIR_URI,
+        )
+        assert repo.get_by_path(self.SOURCE_URI).has_plot is False
+
 
 class TestUpsertDbFullModeExistingPreservation:
     """P1/P2 grok-review (pre-merge 2026-07-21): full mode's `existing` param
