@@ -1238,7 +1238,7 @@
                     </div>
 
                     <!-- 翻譯分頁 -->
-                    <div id="aiPanelTranslate" role="tabpanel" x-show="aiTab === 'translate'">
+                    <div id="aiPanelTranslate" role="tabpanel" x-show="aiTab === 'translate'" x-cloak>
                         <div class="settings-form-group">
                             <label class="settings-label">
                                 <input type="checkbox" class="toggle toggle-primary" id="translateEnabled"
@@ -1424,7 +1424,7 @@
                     </div>
 
                     <!-- 圖片相似分頁（T6 接線） -->
-                    <div id="aiPanelSimilar" role="tabpanel" x-show="aiTab === 'similar'"
+                    <div id="aiPanelSimilar" role="tabpanel" x-show="aiTab === 'similar'" x-cloak
                          x-data="aiSimilarPanel">
                         <div class="settings-form-group">
                             <label class="settings-label">
@@ -1524,7 +1524,7 @@
                     </div>
 
                     <!-- 連線區（只在翻譯分頁；翻譯關閉時變淡並鎖住，與 main 的 #translateOptions 一致） -->
-                    <div id="aiConnections" class="ai-connections" :class="{ 'opacity-50': !form.translateEnabled }" x-show="aiTab === 'translate'">
+                    <div id="aiConnections" class="ai-connections" :class="{ 'opacity-50': !form.translateEnabled }" x-show="aiTab === 'translate'" x-cloak>
                         <p class="settings-tier-label">{{ t('settings.ai.connections_title') }}</p>
 
                         <div data-ai-conn="ollama" x-show="form.translateProvider === 'ollama'">
