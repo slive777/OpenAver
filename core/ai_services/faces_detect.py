@@ -6,6 +6,9 @@ Never raises: unexpected errors log and return ``None`` (local path takes over).
 
 from __future__ import annotations
 
+import os
+import threading
+from collections import OrderedDict
 from types import SimpleNamespace
 from typing import NamedTuple, Optional
 
@@ -137,11 +140,55 @@ def detect(
         return None
 
 
+_DETECT_CACHE_MAX = 32
+_DETECT_CACHE: "OrderedDict[tuple, Optional[tuple[float, float]]]" = OrderedDict()
+_DETECT_CACHE_LOCK = threading.Lock()
+
+
+def _reset_detect_cache() -> None:
+    """Test helper: clear the focal-only LRU."""
+    with _DETECT_CACHE_LOCK:
+        _DETECT_CACHE.clear()
+
+
+def _detect_cache_key(fs_path: str, ratio: float, cfg: dict) -> Optional[tuple]:
+    try:
+        mtime = os.stat(fs_path).st_mtime
+    except OSError:
+        return None
+    faces_cfg = (cfg.get("ai_services") or {}).get("faces") or {}
+    url = (faces_cfg.get("url") or "").strip()
+    return (fs_path, mtime, url, faces_cfg.get("model") or "", ratio)
+
+
 def detect_focal_only(
     fs_path: str, ratio: float, profile: str = "sync"
 ) -> tuple[float, float] | None:
-    """Convenience for callers that only need a focal point (T6)."""
-    result = detect(fs_path, ratio, profile=profile)
-    if result is None or result.kind != "FOUND" or result.focal is None:
+    """Focal point only (avatar crop, CD-187a-17). Small LRU; never raises.
+
+    Caches FOUND (focal) and NO_FACE (``None``); FAILED / not-applicable are not cached.
+    """
+    try:
+        cfg = load_config()
+        if not active_in(cfg):
+            return None
+        key = _detect_cache_key(fs_path, ratio, cfg)
+        if key is not None:
+            with _DETECT_CACHE_LOCK:
+                if key in _DETECT_CACHE:
+                    _DETECT_CACHE.move_to_end(key)
+                    return _DETECT_CACHE[key]
+        result = detect(fs_path, ratio, profile=profile)
+        if result is None or result.kind == "FAILED":
+            return None
+        focal = result.focal if result.kind == "FOUND" else None
+        if key is not None:
+            with _DETECT_CACHE_LOCK:
+                _DETECT_CACHE[key] = focal
+                _DETECT_CACHE.move_to_end(key)
+                while len(_DETECT_CACHE) > _DETECT_CACHE_MAX:
+                    _DETECT_CACHE.popitem(last=False)
+        return focal
+    except Exception:
+        logger.exception("[faces_detect] detect_focal_only failed; fixed crop")
         return None
-    return result.focal
