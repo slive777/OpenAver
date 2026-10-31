@@ -47,8 +47,8 @@ export function aiFacesPanel() {
                     this._aiFacesClearSaveRefresh();
                 }
             });
-            // 存檔成功（isDirty true→false）後後端可能自動開工；立刻取一次，
-            // 若尚未 running 再於 ≤1.5s 補取一次（儲存鉤子是背景 thread）。
+            // 存檔成功（isDirty true→false）後後端可能先暖機測試再開工；
+            // 立刻取一次，若尚未 running 則每 1.5s 補查，最多 8 次（約 12s）。
             this.$watch('isDirty', (dirty, prev) => {
                 if (this.aiFacesDestroyed) return;
                 if (dirty || prev !== true) return;
@@ -86,10 +86,19 @@ export function aiFacesPanel() {
             await this.refreshStatus();
             if (this.aiFacesDestroyed || this.aiTab !== 'faces') return;
             if (this.aiFacesStatus?.running) return;
-            this.aiFacesSaveRefreshTimer = setTimeout(() => {
+            this._aiFacesScheduleSaveRefresh(1);
+        },
+
+        /** 存檔後補查：每 1.5s 一次，最多 8 次；見 running 交既有輪詢並停。 */
+        _aiFacesScheduleSaveRefresh(attempt) {
+            if (attempt > 8) return;
+            this.aiFacesSaveRefreshTimer = setTimeout(async () => {
                 this.aiFacesSaveRefreshTimer = null;
                 if (this.aiFacesDestroyed || this.aiTab !== 'faces') return;
-                this.refreshStatus();
+                await this.refreshStatus();
+                if (this.aiFacesDestroyed || this.aiTab !== 'faces') return;
+                if (this.aiFacesStatus?.running) return;
+                this._aiFacesScheduleSaveRefresh(attempt + 1);
             }, 1500);
         },
 

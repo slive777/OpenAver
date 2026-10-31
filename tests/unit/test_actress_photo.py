@@ -409,3 +409,30 @@ def test_cover_crop_unchanged_without_face(tmp_path, monkeypatch, mode):
     out = _m.crop_video_cover(path, "v1")
     assert out == buf.getvalue()
     assert len(calls) == (0 if mode == "disabled" else 1)  # 非 vacuous：確實走過（或沒走過）端點
+
+
+def test_cover_crop_focal_uses_upright_pixels_for_exif_rotated_cover(tmp_path):
+    """開了端點、封面帶旋轉 EXIF → 頭像要裁在使用者看到的那張臉上，不能偏到別處。"""
+    from PIL import Image
+    import io
+    import core.actress_photo as _m
+    # 原始像素 800x538，紅色臉放在左下；Orientation=6 轉正後為 538x800，臉在左上
+    raw = Image.new("RGB", (800, 538), (40, 40, 40))
+    for x in range(40, 160):
+        for y in range(380, 500):
+            raw.putpixel((x, y), (255, 0, 0))
+    exif = raw.getexif()
+    exif[0x0112] = 6
+    p = tmp_path / "rot.jpg"
+    raw.save(p, quality=95, exif=exif.tobytes())
+    upright = Image.open(p)
+    from PIL import ImageOps
+    upright = ImageOps.exif_transpose(upright)
+    uw, uh = upright.size
+    reds = [(x, y) for x in range(uw) for y in range(uh) if upright.getpixel((x, y))[0] > 200 and upright.getpixel((x, y))[1] < 80]
+    fx = sum(x for x, _ in reds) / len(reds) / uw
+    fy = sum(y for _, y in reds) / len(reds) / uh
+    out = _m.crop_video_cover(str(p), "v1", focal=(fx, fy))
+    crop = Image.open(io.BytesIO(out)).convert("RGB")
+    red_in_crop = sum(1 for px in crop.getdata() if px[0] > 200 and px[1] < 80)
+    assert red_in_crop >= int(len(reds) * 0.9)

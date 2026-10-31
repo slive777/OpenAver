@@ -334,13 +334,16 @@ def crop_video_cover(cover_path: str, crop_spec: str = "v1", *, focal=_AUTO) -> 
         cache_key = None
 
     try:
-        from PIL import Image
+        from PIL import Image, ImageOps
     except ImportError:
         logger.warning("[actress_photo] PIL/Pillow 未安裝，無法 crop 影片封面")
         return None
 
     try:
         img = Image.open(cover_path)
+        if focal is not None:
+            # 端點臉心是轉正後座標（image_prep 送圖前 exif_transpose）；只在有焦點時對齊座標系
+            img = ImageOps.exif_transpose(img)
         img_w, img_h = img.size
 
         if crop_spec == "v1":

@@ -346,6 +346,7 @@ OpenAver asks an endpoint you host to find the faces in a cover, so that wall th
 - `box` is `[x, y, w, h]`, **normalized 0 to 1**, top-left corner plus width and height, relative to the image you received.
 - No face found: reply `200` with `"faces": []`. It is not a 404, and it is not a 5xx: OpenAver stores "no face" as a real answer.
 - `with_embedding` is a JSON boolean. OpenAver always sends `false`; reply with `"embedding": null`.
+- `model` is optional. OpenAver sends it only when the user fills in the model name on the settings page; an endpoint that serves one model can ignore it.
 - Images are data URIs (`jpeg`/`png`/`webp`). Optional auth is `Authorization: Bearer <key>`, same as image similarity.
 
 ### curl

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 from types import SimpleNamespace
 
 import httpx
@@ -46,6 +47,7 @@ def _install(monkeypatch, handler):
 #   empty_faces — legal no-face success
 #   retry_bg_5xx / retry_manual_5xx / retry_4xx / retry_bg_timeout / retry_sync_timeout
 #     — profile retry counts
+#   payload_no_model / payload_with_model — request JSON model key presence
 _CONTRACT_CASES = [
     # (label, profile, kind_or_ok, check, expect_calls)
     ("connect", "background", "unreachable", None, 1),
@@ -64,6 +66,8 @@ _CONTRACT_CASES = [
     ("retry_4xx", "background", "contract", "http_4xx", 1),
     ("retry_bg_timeout", "background", "unreachable", "timeout", 2),
     ("retry_sync_timeout", "sync", "unreachable", "timeout", 1),
+    ("payload_no_model", "background", "ok", None, 1),
+    ("payload_with_model", "background", "ok", None, 1),
 ]
 
 
@@ -76,9 +80,13 @@ def test_faces_client_contract(
     monkeypatch, label, profile, kind_or_ok, check, expect_calls
 ):
     calls = {"n": 0}
+    seen_body: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls["n"] += 1
+        if request.content:
+            seen_body.clear()
+            seen_body.update(json.loads(request.content))
         if label in ("connect",):
             raise httpx.ConnectError("boom", request=request)
         if label == "remote_proto":
@@ -111,23 +119,31 @@ def test_faces_client_contract(
                     "model": "m",
                 },
             )
-        if label == "empty_faces":
+        if label in ("empty_faces", "payload_no_model", "payload_with_model"):
             return httpx.Response(200, json={"faces": [], "model": "m"})
         if label in ("retry_bg_5xx", "retry_manual_5xx"):
             return httpx.Response(503, json={"error": "cold"})
         raise AssertionError(f"unknown label {label}")
 
     _install(monkeypatch, handler)
+    cfg_kw = {}
+    if label == "payload_with_model":
+        cfg_kw["model"] = "insightface-buffalo_l"
     if kind_or_ok == "ok":
-        result = detect(_cfg(), "data:image/jpeg;base64,xx", profile=profile)
+        result = detect(_cfg(**cfg_kw), "data:image/jpeg;base64,xx", profile=profile)
         assert result.boxes == []
         assert result.model == "m"
     else:
         with pytest.raises(EndpointError) as ei:
-            detect(_cfg(), "data:image/jpeg;base64,xx", profile=profile)
+            detect(_cfg(**cfg_kw), "data:image/jpeg;base64,xx", profile=profile)
         assert ei.value.kind == kind_or_ok
         assert ei.value.check == check
     assert calls["n"] == expect_calls, label
+    if label == "payload_no_model":
+        assert "model" not in seen_body
+        assert seen_body.get("with_embedding") is False
+    if label == "payload_with_model":
+        assert seen_body.get("model") == "insightface-buffalo_l"
 
 
 # ---------------------------------------------------------------------------

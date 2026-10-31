@@ -75,7 +75,10 @@ def _build_request(cfg, data_uri: str) -> tuple[str, dict[str, str], dict]:
         raise EndpointError("unreachable", None, None)
 
     url = f"{base.rstrip('/')}/v1/faces"
-    payload = {"input": data_uri, "with_embedding": False}
+    payload: dict = {"input": data_uri, "with_embedding": False}
+    model = (getattr(cfg, "model", None) or "").strip()
+    if model:
+        payload["model"] = model
     headers: dict[str, str] = {}
     key = (getattr(cfg, "api_key", None) or "").strip()
     if key:
