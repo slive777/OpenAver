@@ -1374,14 +1374,14 @@
                                 <div class="lb-plot-face-head">
                                     <span class="lb-plot-face-title">{{ t('showcase.lightbox.plot_face_title') }}</span>
                                     <button type="button" class="lb-translate-btn"
-                                        x-show="lbPlotButtons.includes('translate') || lbPlotButtons.includes('retranslate')"
+                                        x-show="!_lbPlotView.error && !_lbPlotView.loading && (lbPlotButtons.includes('translate') || lbPlotButtons.includes('retranslate'))"
                                         @click.stop="lbPlotTranslate()"
                                         :disabled="!!_lbPlotInFlight[currentLightboxVideo?.path]"
                                         :aria-busy="!!_lbPlotInFlight[currentLightboxVideo?.path]"
                                         :data-tooltip="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"
                                         :aria-label="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"><i class="bi" :class="lbPlotButtons.includes('retranslate') ? 'bi-arrow-repeat' : 'bi-translate'" x-show="!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="!!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i></button>
                                     <button type="button" class="lb-translate-btn"
-                                        x-show="lbPlotButtons.includes('toggle')"
+                                        x-show="!_lbPlotView.error && !_lbPlotView.loading && lbPlotButtons.includes('toggle')"
                                         @click.stop="lbPlotToggleOriginal()"
                                         :data-tooltip="_lbPlotView.showing === 'plot' ? t('showcase.lightbox.plot_show_original_tooltip') : t('showcase.lightbox.plot_show_translated_tooltip')"
                                         :aria-label="_lbPlotView.showing === 'plot' ? t('showcase.lightbox.plot_show_original_tooltip') : t('showcase.lightbox.plot_show_translated_tooltip')"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></button>
