@@ -137,6 +137,7 @@ class Env:
         focal_model: str = "old-model",
         with_cover: bool = True,
         stamp: str = _STAMP,
+        focal_attempted_at: str | None = _STAMP,
     ) -> str:
         self.n += 1
         cover = ""
@@ -156,7 +157,15 @@ class Env:
             conn.execute(
                 "UPDATE videos SET auto_focal=?, crop_mode=?, focal_model=?, "
                 "focal_attempted_at=?, created_at=?, updated_at=? WHERE path=?",
-                (auto_focal, crop_mode, focal_model, stamp, stamp, stamp, path),
+                (
+                    auto_focal,
+                    crop_mode,
+                    focal_model,
+                    focal_attempted_at,
+                    stamp,
+                    stamp,
+                    path,
+                ),
             )
             conn.commit()
         return path
@@ -672,3 +681,85 @@ def test_save_hook_triggers_only_when_db_state_requires(tmp_path, monkeypatch):
     before = env.fake.samples
     save(faces("good2"), faces("good2", url="http://faces.test/"))
     assert env.fake.samples == before + 1 and calls == []
+
+
+# ── has_result / _is_done（PR #260 Codex P2）────────────────────────────────
+
+
+def test_noface_results_count_as_done_and_rebuildable(tmp_path, monkeypatch):
+    """全庫無臉結果（auto_focal 空＋已蓋章＋focal_model=target）→ pending=0、rebuild_count=gated。"""
+    from core.ai_services import faces_recompute, faces_state
+
+    env = Env(tmp_path, monkeypatch, "hr_a")
+    target = "model-A"
+    n = 4
+    for i in range(n):
+        env.add_video(
+            number=f"FC2-{8100001 + i}",
+            auto_focal="",
+            focal_model=target,
+            focal_attempted_at=_STAMP,
+        )
+    faces_state.meta_set("ai.faces.target_model", target)
+    st = faces_recompute.status()
+    assert st["pending"] == 0
+    assert st["processed"] == n
+    assert st["total"] == n
+    assert n > 0 and st["rebuild_count"] == n
+
+
+def test_rebuild_count_includes_noface_and_skips_never_tried(tmp_path, monkeypatch):
+    """混合庫：有臉＋無臉＋從未偵測 → rebuild_count==2。"""
+    from core.ai_services import faces_recompute
+
+    env = Env(tmp_path, monkeypatch, "hr_b")
+    env.add_video(
+        number="FC2-8200001",
+        auto_focal="0.2000,0.3000",
+        focal_model="model-A",
+        focal_attempted_at=_STAMP,
+    )
+    env.add_video(
+        number="FC2-8200002",
+        auto_focal="",
+        focal_model="model-A",
+        focal_attempted_at=_STAMP,
+    )
+    env.add_video(
+        number="FC2-8200003",
+        auto_focal="",
+        focal_model="local-pigo",
+        focal_attempted_at=None,
+    )
+    st = faces_recompute.status()
+    assert st["rebuild_count"] == 2
+
+
+def test_reset_focal_leaves_stale_model_as_pending(tmp_path, monkeypatch):
+    """focal_model=target 但 reset 後無結果 → 算 pending，resume 開工。"""
+    from core.ai_services import faces_recompute, faces_state
+
+    env = Env(tmp_path, monkeypatch, "hr_c")
+    target = "model-A"
+    path = env.add_video(
+        number="FC2-8300001",
+        auto_focal="0.2000,0.3000",
+        focal_model=target,
+        focal_attempted_at=_STAMP,
+    )
+    assert env.vrepo.reset_focal_to_auto(path) is True
+    with closing(db_connection.get_connection(env.db)) as conn:
+        af, fa, fm = conn.execute(
+            "SELECT auto_focal, focal_attempted_at, focal_model FROM videos WHERE path=?",
+            (path,),
+        ).fetchone()
+    assert af == "" and fa is None and fm == target
+    faces_state.meta_set("ai.faces.target_model", target)
+    st = faces_recompute.status()
+    assert st["pending"] == 1 and st["processed"] == 0
+    env.fake.model = target
+    env.fake.bias = "left"
+    res = faces_recompute.resume()
+    assert res["started"] is True
+    _join_workers()
+    assert faces_recompute.status()["pending"] == 0

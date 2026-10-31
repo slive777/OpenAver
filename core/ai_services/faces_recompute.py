@@ -83,13 +83,18 @@ def _gated_rows(repo: VideoRepository) -> list:
     ]
 
 
+def _is_done(row: tuple, target: str) -> bool:
+    """這部片對 target 已有結果：focal_model 相符且 has_result。"""
+    return row[4] == target and row[5]
+
+
 def _counts(repo: VideoRepository, target: Optional[str]) -> dict:
     gated = _gated_rows(repo)
     total = len(gated)
     if not target:
         processed = 0
     else:
-        processed = sum(1 for r in gated if r[4] == target)
+        processed = sum(1 for r in gated if _is_done(r, target))
     return {
         "total": total,
         "processed": processed,
@@ -99,30 +104,12 @@ def _counts(repo: VideoRepository, target: Optional[str]) -> dict:
 
 
 def _rebuild_count(repo: VideoRepository) -> int:
-    """gate 命中、auto、auto_focal != '' 的片數（前端確認對話用）。"""
-    gated = _gated_rows(repo)
-    if not gated:
-        return 0
-    paths = [r[0] for r in gated]
-    nonempty: set[str] = set()
-    conn = repo._get_connection()
-    try:
-        chunk = 900
-        for i in range(0, len(paths), chunk):
-            part = paths[i : i + chunk]
-            ph = ", ".join("?" * len(part))
-            for (p,) in conn.execute(
-                f"SELECT path FROM videos WHERE path IN ({ph}) AND auto_focal != ''",
-                part,
-            ):
-                nonempty.add(p)
-    finally:
-        conn.close()
-    return len(nonempty)
+    """gate 命中、auto、且已有結果（has_result）的片數（前端確認對話用）。"""
+    return sum(1 for r in _gated_rows(repo) if r[5])
 
 
 def _pending_rows(repo: VideoRepository, target: str) -> list:
-    return [r for r in _gated_rows(repo) if r[4] != target]
+    return [r for r in _gated_rows(repo) if not _is_done(r, target)]
 
 
 def _failure_to_stop_reason(failure: Optional[str]) -> str:
@@ -313,7 +300,7 @@ def _work_loop() -> str:
 def _process_one(repo: VideoRepository, row: tuple, mappings: dict) -> Optional[str]:
     """處理一張。回 stop_reason 字串＝工作須停；None＝繼續。"""
     global _unreadable, _stopped_reason, _stopped_kind, _stopped_check
-    path, _number, _maker, cover_path, _focal_model = row
+    path, _number, _maker, cover_path, _focal_model, _has_result = row
     fs = uri_to_local_fs_path(cover_path, mappings)
     if not fs or not os.path.exists(fs):
         _unreadable += 1

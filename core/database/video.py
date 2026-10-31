@@ -827,22 +827,31 @@ class VideoRepository:
         finally:
             conn.close()
 
-    def list_focal_recompute_rows(self) -> List[Tuple[str, Optional[str], str, str, str]]:
+    def list_focal_recompute_rows(
+        self,
+    ) -> List[Tuple[str, Optional[str], str, str, str, bool]]:
         """全庫重算候選列（187a-T4a）：非 manual 且有封面。
 
-        回 ``(path, number, maker, cover_path, focal_model)``；gate
-        （``requires_face_detection``）由呼叫端以 DB 內 canonical number/maker
-        過濾（BE-SCRAPER-03）。``ORDER BY path`` 讓工作／測試順序確定。
+        回 ``(path, number, maker, cover_path, focal_model, has_result)``；
+        ``has_result``＝``auto_focal != '' OR focal_attempted_at IS NOT NULL``
+        （SQL 算）。gate（``requires_face_detection``）由呼叫端以 DB 內
+        canonical number/maker 過濾（BE-SCRAPER-03）。``ORDER BY path`` 讓
+        工作／測試順序確定。
         """
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "SELECT path, number, maker, cover_path, focal_model FROM videos "
+                "SELECT path, number, maker, cover_path, focal_model, "
+                "(auto_focal != '' OR focal_attempted_at IS NOT NULL) AS has_result "
+                "FROM videos "
                 "WHERE crop_mode != 'manual' AND cover_path != '' "
                 "ORDER BY path"
             )
-            return [(p, n, m or "", c or "", fm or "local-pigo") for p, n, m, c, fm in cursor.fetchall()]
+            return [
+                (p, n, m or "", c or "", fm or "local-pigo", bool(hr))
+                for p, n, m, c, fm, hr in cursor.fetchall()
+            ]
         finally:
             conn.close()
 
