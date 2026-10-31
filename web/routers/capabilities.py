@@ -1599,6 +1599,92 @@ _TOOLS: list[dict] = [
         "_example_template": "curl -X POST '{base}/api/ai/similar/index/rebuild'",
     },
     {
+        "name": "ai_faces_sample",
+        "description": "取人臉端點的一致性測試樣本（一張合成人像，不是使用者的封面）與判定門檻。AI 助理替使用者架人臉端點時，拿這張圖照 expect 的臉心與容差自己驗過再回報。助理不在 OpenAver 同一台機器時，樣本也可從 docs/external-ai.md 的 GitHub 網址取得。不修改資料庫。",
+        "side_effect": False,
+        "method": "GET",
+        "path": "/api/ai/sample/faces",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "inputs": "[string] — 樣本圖的 data URI（JPEG，已轉正、長邊不超過 650）",
+            "expect": "{center, tolerance, min_faces} — center 是已知臉心 [x, y]（0 到 1），tolerance 是每軸允許的誤差，min_faces 是至少要找到幾張臉",
+            "steps": "[string] — 測試步驟（給 agent 照做）",
+        },
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/ai/sample/faces'",
+    },
+    {
+        "name": "ai_faces_test",
+        "description": (
+            "對人臉端點跑一致性測試（與設定頁「測試」按鈕同一份）：連得上嗎、回應符不符契約、樣本圖最高分那張臉的中心是否落在已知臉心附近。"
+            "空 body＝測使用者已儲存的設定；帶 url／api_key／model 則測那組值（api_key 省略＝用已儲存的金鑰）。"
+            "通常送 1 次請求（第一次可能含模型冷啟動，最久等約 90 秒）；不寫資料庫、不寫設定、不會開始重新對焦。"
+            "測試通過且使用者在設定頁按儲存後，OpenAver 會自動重新對焦全庫，助理不必也不該自己處理。"
+            "失敗時 ok=false 並帶 kind（unreachable 連不上／contract 回應不符契約）與 check（哪一條沒過）。"
+        ),
+        "side_effect": False,
+        "method": "POST",
+        "path": "/api/ai/faces/test",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "端點網址（不含 /v1/faces）；省略＝用已儲存的"},
+                "api_key": {"type": "string", "description": "金鑰；省略＝用已儲存的"},
+                "model": {"type": "string", "description": "送給端點的 model 欄位；省略＝用已儲存的"},
+            },
+            "required": [],
+        },
+        "output_schema": {
+            "ok": "boolean",
+            "kind": "string — 失敗時才有：unreachable／contract",
+            "check": "string — 失敗時才有：哪一條沒過（例如 auth、shape、box、no_model、no_face、center_off）",
+            "model": "string — 通過時端點回報的 model",
+            "elapsed_ms": "integer",
+        },
+        "retry_safe": True,
+        "_example_template": (
+            "curl -X POST -H 'Content-Type: application/json' -d '{{}}' {base}/api/ai/faces/test"
+        ),
+    },
+    {
+        "name": "ai_faces_status",
+        "description": (
+            "查人臉對焦的狀態：目前用的是自架端點還是內建的本機方式、端點是否曾成功回應、上次成功時間，"
+            "以及全庫自動重新對焦的進度（已處理／總數、待處理、是否正在跑、為何停止）。"
+            "端點掛掉時 using 會是 local 並帶 kind／check。"
+            "使用者儲存設定且測試通過後，OpenAver 會自動重新對焦全庫；進度用這條查，助理不必也不該自己觸發。不修改任何資料。"
+        ),
+        "side_effect": False,
+        "method": "GET",
+        "path": "/api/ai/faces/status",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "using": "string — external（正在用自架端點）／local（用內建本機方式：功能沒開，或端點連不上）",
+            "observed": "boolean — 是否曾收到端點的成功回應",
+            "last_success_at": "number|null — 上次成功的時間（Unix 秒）",
+            "running": "boolean — 全庫重新對焦是否正在跑",
+            "job_kind": "string|null — 正在跑的工作種類；沒在跑為 null",
+            "processed": "integer — 已處理張數",
+            "total": "integer — 需要處理的總張數",
+            "pending": "integer — 待處理張數（running 為 false 且大於 0＝停止或被中斷，使用者可在設定頁繼續）",
+            "unreadable": "integer — 封面讀不到、已跳過的片數",
+            "stopped_reason": "string|null — 工作為何停止（例如端點連不上）",
+            "kind": "string|null — 最近一次錯誤的類別",
+            "check": "string|null — 最近一次錯誤是哪一條檢查沒過",
+            "target_model": "string|null — 全庫重新對焦的目標模型",
+        },
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/ai/faces/status'",
+    },
+    {
         "name": "tag_alias_crud_read",
         "description": (
             "列出所有 tag 別名組或查詢單一 group。"
