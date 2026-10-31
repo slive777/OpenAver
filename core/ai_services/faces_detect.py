@@ -91,9 +91,11 @@ def _to_external_result(
     return out
 
 
-def _record_endpoint_error(err: EndpointError, profile: str) -> ExternalResult:
+def _record_endpoint_error(
+    err: EndpointError, profile: str, *, notify: bool
+) -> ExternalResult:
     faces_state.observe_failure(err.kind, err.check)
-    if profile == "background" and faces_state.note_failure():
+    if notify and profile == "background" and faces_state.note_failure():
         faces_state.emit_unreachable()
     return ExternalResult(
         kind="FAILED",
@@ -104,11 +106,16 @@ def _record_endpoint_error(err: EndpointError, profile: str) -> ExternalResult:
 
 
 def detect(
-    fs_path: str, ratio: float, profile: str = "background"
+    fs_path: str,
+    ratio: float,
+    profile: str = "background",
+    *,
+    notify: bool = True,
 ) -> ExternalResult | None:
     """Ask the faces endpoint for a cover. Never raises.
 
     Returns ``None`` when external is off or the cover cannot be read.
+    ``notify=False`` skips sidebar emit on failure (recompute path, CD-187a-15).
     """
     try:
         prepared = _prepare(fs_path)
@@ -118,7 +125,7 @@ def detect(
         work_w, work_h = size
         faces_result, err = _ask_endpoint(cfg, uri, profile)
         if err is not None:
-            return _record_endpoint_error(err, profile)
+            return _record_endpoint_error(err, profile, notify=notify)
         return _to_external_result(faces_result, work_w, work_h, ratio, profile)
     except Exception:
         logger.exception("[faces_detect] unexpected error; falling back to local")

@@ -827,6 +827,53 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def list_focal_recompute_rows(self) -> List[Tuple[str, Optional[str], str, str, str]]:
+        """全庫重算候選列（187a-T4a）：非 manual 且有封面。
+
+        回 ``(path, number, maker, cover_path, focal_model)``；gate
+        （``requires_face_detection``）由呼叫端以 DB 內 canonical number/maker
+        過濾（BE-SCRAPER-03）。``ORDER BY path`` 讓工作／測試順序確定。
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT path, number, maker, cover_path, focal_model FROM videos "
+                "WHERE crop_mode != 'manual' AND cover_path != '' "
+                "ORDER BY path"
+            )
+            return [(p, n, m or "", c or "", fm or "local-pigo") for p, n, m, c, fm in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def clear_auto_focal_for_paths(self, paths: List[str]) -> int:
+        """「刪除並重新對焦」清除：auto_focal／focal_attempted_at／focal_model。
+
+        單條 UPDATE、分批；SQL 層帶 ``crop_mode != 'manual'``（I-G）。回更新列數。
+        """
+        if not paths:
+            return 0
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            total = 0
+            chunk_size = 900
+            for i in range(0, len(paths), chunk_size):
+                chunk = paths[i : i + chunk_size]
+                placeholders = ", ".join(["?"] * len(chunk))
+                where = f"WHERE path IN ({placeholders}) AND crop_mode != 'manual'"
+                cursor.execute(
+                    "UPDATE videos SET auto_focal = '', focal_attempted_at = NULL, "
+                    "focal_model = 'local-pigo', updated_at = CURRENT_TIMESTAMP "
+                    + where,
+                    chunk,
+                )
+                total += cursor.rowcount
+            conn.commit()
+            return total
+        finally:
+            conn.close()
+
     def get_all(self) -> List[Video]:
         """取得所有影片"""
         conn = self._get_connection()
