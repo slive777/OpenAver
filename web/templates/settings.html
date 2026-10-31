@@ -1523,20 +1523,20 @@
                         </div>
                     </div>
 
-                    <!-- 連線區（分頁外；切分頁不影響） -->
-                    <div id="aiConnections" class="ai-connections">
+                    <!-- 連線區（只在翻譯分頁；翻譯關閉時變淡並鎖住，與 main 的 #translateOptions 一致） -->
+                    <div id="aiConnections" class="ai-connections" :class="{ 'opacity-50': !form.translateEnabled }" x-show="aiTab === 'translate'">
                         <p class="settings-tier-label">{{ t('settings.ai.connections_title') }}</p>
 
-                        <div data-ai-conn="ollama">
+                        <div data-ai-conn="ollama" x-show="form.translateProvider === 'ollama'">
                             <div class="settings-form-row">
                                 <label class="row-label">Ollama URL</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
                                         <input type="text" class="input input-bordered input-sm flex-1" id="ollamaUrl"
-                                            x-model="form.ollamaUrl">
+                                            x-model="form.ollamaUrl" :disabled="!form.translateEnabled">
                                         <button class="btn btn-sm btn-outline" type="button" id="testOllamaBtn"
                                             @click="testOllamaConnection()"
-                                            :disabled="testOllamaLoading">
+                                            :disabled="!form.translateEnabled || testOllamaLoading">
                                             <span x-show="testOllamaLoading" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!testOllamaLoading">
                                                 <i class="bi bi-plug"></i>
@@ -1549,16 +1549,16 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="gemini">
+                        <div data-ai-conn="gemini" x-show="form.translateProvider === 'gemini'">
                             <div class="settings-form-row">
                                 <label class="row-label">Gemini API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
                                         <input type="password" class="input input-bordered input-sm flex-1" id="geminiApiKey"
-                                            x-model="form.geminiApiKey" placeholder="AIza...">
+                                            x-model="form.geminiApiKey" placeholder="AIza..." :disabled="!form.translateEnabled">
                                         <button class="btn btn-sm btn-outline" type="button" id="testGeminiBtn"
                                             @click="testGeminiConnection()"
-                                            :disabled="testGeminiLoading">
+                                            :disabled="!form.translateEnabled || testGeminiLoading">
                                             <span x-show="testGeminiLoading" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!testGeminiLoading">
                                                 <i class="bi bi-plug"></i>
@@ -1587,17 +1587,18 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="claude">
+                        <div data-ai-conn="claude" x-show="form.translateProvider === 'claude'" x-cloak>
                             <div class="settings-form-row">
                                 <label class="row-label">Claude API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
                                         <input type="password" class="input input-bordered input-sm flex-1" id="claudeApiKey"
                                             x-model="form.claudeApiKey"
-                                            :placeholder="window.t('settings.translate.claude_api_key_placeholder')">
+                                            :placeholder="window.t('settings.translate.claude_api_key_placeholder')"
+                                            :disabled="!form.translateEnabled">
                                         <button class="btn btn-sm btn-outline" type="button" id="testClaudeBtn"
                                             @click="fetchClaudeModels()"
-                                            :disabled="fetchingClaudeModels">
+                                            :disabled="!form.translateEnabled || fetchingClaudeModels">
                                             <span x-show="fetchingClaudeModels" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!fetchingClaudeModels">
                                                 <i class="bi bi-plug"></i>
@@ -1621,17 +1622,17 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="openai_official">
+                        <div data-ai-conn="openai_official" x-show="form.translateProvider === 'openai_official'">
                             <div class="settings-form-row">
                                 <label class="row-label">OpenAI API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
                                         <input type="password" class="input input-bordered input-sm flex-1" id="openaiOfficialApiKey"
                                             x-model="form.openaiOfficialApiKey"
-                                            placeholder="sk-...">
+                                            placeholder="sk-..." :disabled="!form.translateEnabled">
                                         <button class="btn btn-sm btn-outline" type="button" id="testOpenaiOfficialBtn"
                                             @click="fetchOpenAIOfficialModels()"
-                                            :disabled="fetchingOpenaiOfficialModels">
+                                            :disabled="!form.translateEnabled || fetchingOpenaiOfficialModels">
                                             <span x-show="fetchingOpenaiOfficialModels" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!fetchingOpenaiOfficialModels">
                                                 <i class="bi bi-plug"></i>
@@ -1654,17 +1655,18 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="openai">
+                        <div data-ai-conn="openai" x-show="form.translateProvider === 'openai'" x-cloak>
                             <div class="settings-form-row">
                                 <label class="row-label" x-text="'Base URL'"></label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
                                         <input type="text" class="input input-bordered input-sm flex-1"
                                             x-model="form.openaiBaseUrl"
-                                            placeholder="https://api.openai.com/v1">
+                                            placeholder="https://api.openai.com/v1"
+                                            :disabled="!form.translateEnabled">
                                         <button class="btn btn-sm btn-outline" type="button"
                                             @click="fetchOpenAIModels()"
-                                            :disabled="fetchingOpenaiModels">
+                                            :disabled="!form.translateEnabled || fetchingOpenaiModels">
                                             <span x-show="fetchingOpenaiModels" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!fetchingOpenaiModels">
                                                 <i class="bi bi-plug"></i>
@@ -1680,7 +1682,8 @@
                                 <div class="flex-1 flex flex-col gap-1">
                                     <input type="password" class="input input-bordered input-sm"
                                         x-model="form.openaiApiKey"
-                                        :placeholder="window.t('settings.translate.openai_api_key_placeholder')">
+                                        :placeholder="window.t('settings.translate.openai_api_key_placeholder')"
+                                        :disabled="!form.translateEnabled">
                                     <small class="settings-hint" x-text="window.t('settings.translate.openai_api_key_hint')"></small>
                                 </div>
                             </div>

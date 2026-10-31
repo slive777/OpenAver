@@ -113,6 +113,47 @@ class TestR1SettingsPageRoundTrip:
         assert after == before
         assert after == (GEMINI_PLAIN, OPENAI_PLAIN, METATUBE_PLAIN)
 
+    def test_upgrade_from_0186_config_preserves_translate_keys(self, client):
+        """0.18.6 形狀（無 openai_official、無 ai_services）升級後 GET→PUT 金鑰保留。"""
+        import json
+
+        from core import config as core_config
+
+        gemini_key = "TESTKEY-gemini-1"
+        claude_key = "TESTKEY-claude-1"
+        openai_key = "TESTKEY-openai-1"
+        provider = "openai"
+
+        cfg = core_config.AppConfig().model_dump()
+        cfg.pop("ai_services", None)
+        translate = cfg.setdefault("translate", {})
+        translate.pop("openai_official", None)
+        translate["provider"] = provider
+        translate.setdefault("gemini", {})["api_key"] = gemini_key
+        translate.setdefault("claude", {})["api_key"] = claude_key
+        translate.setdefault("openai", {})["api_key"] = openai_key
+
+        with open(core_config.CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+        get_resp = client.get("/api/config")
+        assert get_resp.status_code == 200
+        data = get_resp.json()["data"]
+        assert data["translate"]["gemini"]["api_key"] == mask_secret(gemini_key)
+        assert data["translate"]["claude"]["api_key"] == mask_secret(claude_key)
+        assert data["translate"]["openai"]["api_key"] == mask_secret(openai_key)
+
+        put_resp = client.put("/api/config", json=data)
+        assert put_resp.status_code == 200
+        assert put_resp.json()["success"] is True
+
+        disk = load_config()
+        assert disk["translate"]["gemini"]["api_key"] == gemini_key
+        assert disk["translate"]["claude"]["api_key"] == claude_key
+        assert disk["translate"]["openai"]["api_key"] == openai_key
+        assert disk["translate"]["openai_official"]["api_key"] == ""
+        assert disk["translate"]["provider"] == provider
+
 
 # ===========================================================================
 # R3 — /connect with mask token → all four token sinks get REAL
