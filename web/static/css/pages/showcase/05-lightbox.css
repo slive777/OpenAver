@@ -567,7 +567,8 @@
 
 /* 98b-T4：焦點裁切遮罩 toggle — styled-like .lb-action-btn（上方）但更小，掛 metadata .lb-header。
  * 低調玻璃圓鈕，退位不搶封面戲（feedback_ui_restraint_taste）。token only（§6）。 */
-.lightbox-metadata .lb-mask-btn {
+.lightbox-metadata .lb-mask-btn,
+.lightbox-metadata .lb-plot-btn {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
@@ -591,20 +592,122 @@
                 box-shadow var(--duration-fast) var(--ease-out);
 }
 
-.lightbox-metadata .lb-mask-btn:hover {
+.lightbox-metadata .lb-mask-btn:hover,
+.lightbox-metadata .lb-plot-btn:hover {
     color: var(--text-primary);
     border-color: var(--stroke-default);
     box-shadow: var(--fluent-shadow-16);
 }
 
-.lightbox-metadata .lb-mask-btn:active {
+.lightbox-metadata .lb-mask-btn:active,
+.lightbox-metadata .lb-plot-btn:active {
     transform: scale(0.95);
 }
 
-.lightbox-metadata .lb-mask-btn:focus-visible {
+.lightbox-metadata .lb-mask-btn:focus-visible,
+.lightbox-metadata .lb-plot-btn:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     box-shadow: 0 0 0 4px var(--glow-subtle);   /* §6 #5 focus 4px glow */
+}
+
+/* 187b-T5b：簡介鈕按下態（材質沿用上方 selector list，只換邊框與字色，不加色塊）。 */
+.lightbox-metadata .lb-plot-btn[aria-pressed="true"] {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+/* 187b-T5b：資訊欄翻面。Row2–Row6（.lb-info-face）與簡介面（.lb-plot-face）疊在同一塊區域，
+ * 翻開時資訊面只淡出（opacity+visibility，保留版面），簡介面 absolute 鋪滿同一矩形，
+ * 簡介再長也在面內捲、不撐高燈箱。class 切換，不用 x-show／x-transition（FE-ALPINE-17）。 */
+.lightbox-metadata .lb-faces {
+    position: relative;
+}
+
+.lightbox-metadata .lb-info-face {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.lightbox-metadata .lb-info-face.is-flipped {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--duration-fast) var(--ease-out),
+                visibility 0s linear var(--duration-fast);
+}
+
+.lightbox-metadata .lb-plot-face {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: transparent;      /* 底就是資訊欄的底（spec）；翻開時 info-face 已 hidden，不會 card-in-card */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--duration-fast) var(--ease-out),
+                visibility 0s linear var(--duration-fast);
+}
+
+.lightbox-metadata .lb-plot-face.is-open {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.lightbox-metadata .lb-plot-face-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--stroke-subtle);   /* 髮絲線，同 .lb-details */
+}
+
+.lightbox-metadata .lb-plot-face-title {
+    flex: 1 1 auto;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.lightbox-metadata .lb-plot-body {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 0.4rem;
+}
+
+.lightbox-metadata .lb-plot-text,
+.lightbox-metadata .lb-plot-unavailable {
+    margin: 0;
+    font-size: 0.75rem;           /* 同 .lb-details */
+    color: var(--text-muted);
+    white-space: pre-wrap;
+}
+
+.lightbox-metadata .lb-plot-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.lightbox-metadata .lb-plot-skeleton-line {
+    display: block;
+    height: 0.75rem;
+    border-radius: var(--fluent-radius-md);
+    background: var(--surface-1);
+}
+
+.lightbox-metadata .lb-plot-skeleton-line:last-child {
+    width: 60%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lightbox-metadata .lb-info-face,
+    .lightbox-metadata .lb-info-face.is-flipped,
+    .lightbox-metadata .lb-plot-face,
+    .lightbox-metadata .lb-plot-face.is-open {
+        transition: none;
+    }
 }
 
 /* 98b-T4：遮罩 overlay（疊在 .lightbox-cover 已 layout 的封面 rect 上，不裁圖）。 */

@@ -9466,6 +9466,24 @@ const RULES = [
     stripLineComments: true,
     note: '[177-T2-no-innerHTML] 分析頁 JS 不得用 innerHTML／insertAdjacentHTML：標籤、導演名稱來自外部刮削的 NFO，當 HTML 插入會執行其中的 script／載入外部圖',
   },
+
+  // 187b-T5b：燈箱簡介鈕／簡介面接線（模板接線存在；邏輯由 T5a node:test 守）
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-click',
+    pattern: /(?<![\w:-])@click\.stop="lbPlotToggle\(\)"/,
+    scope: { anchor: /class="lb-plot-btn"/, window: 700 },
+    note: '[187b-T5b-click] 使用者點標題行的簡介 icon → 按了沒有反應、簡介面永遠打不開（.lb-plot-btn 要綁 @click.stop="lbPlotToggle()"）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-inert',
+    pattern: /(?<![\w:-]):inert="!lbPlotOpen"/,
+    note: '[187b-T5b-inert] 使用者沒開簡介卻用 Tab 鍵走進看不見的簡介面按鈕（.lb-plot-face 要綁 :inert="!lbPlotOpen"）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-translate',
+    pattern: /(?<![\w:-])@click\.stop="lbPlotTranslate\(\)"/,
+    note: '[187b-T5b-translate] 使用者在簡介面按翻譯 icon → 沒有反應也沒有任何提示（狀態鈕要綁 @click.stop="lbPlotTranslate()"）',
+  },
 ];
 
 // ---- helpers ----
