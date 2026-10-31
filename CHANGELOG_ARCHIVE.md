@@ -1,4 +1,4 @@
-# Changelog Archive (v0.1.0 ~ v0.18.0)
+# Changelog Archive (v0.1.0 ~ v0.18.1)
 
 All notable changes to this project will be documented in this file.
 
@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 0.18.x
 
+- [0.18.1] 2026-10-28 — 用詞整理：列表生成→片庫管理、產生網頁→更新片庫、我的最愛→待整理，說明與教學跟著改名
 - [0.18.0] 2026-10-24 — 零畫面改動：影像處理元件安全更新 ＋ 開發用的模板綁定檢查工具
 
 ### 0.17.x
@@ -246,6 +247,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [0.1.3] 2026-01-17 — path_utils 集中化路徑處理，NFO updater / image proxy 全部改用
 - [0.1.1] 2026-01-17 — 圖片 proxy Windows 路徑修正 + Settings 手動更新檢查按鈕
 - [0.1.0] 2026-01-15 — 初始版本（Spotlight Search + Gallery Generator + Ollama 翻譯 + PyWebView）
+
+## [0.18.1] - 2026-10-28
+
+> 這版只整理用詞，讓側欄、按鈕、說明與畫面上看到的名字一致，功能和流程都沒變。設定和網址不變，舊設定直接沿用。
+
+### Changed
+
+#### 🏷️ 片庫管理頁改名
+- 側欄「列表生成」改叫「片庫管理」。
+- 頁面上的主按鈕「產生網頁」改叫「更新片庫」；按鈕上方那行路徑標成「離線網頁」，看得出那是順帶產生的離線檔案，不是片庫本身。
+
+#### 📥 「我的最愛」改叫「待整理」
+- 搜尋頁的「我的最愛」改叫「待整理」，圖示換成收件匣；設定頁的「我的最愛資料夾」也改叫「待整理資料夾」。
+
+#### 📖 說明與新手教學跟著畫面
+- 說明頁和新手教學提到的頁名，全部改成畫面上實際看到的名字，照著說明找得到對應的地方。
+- 繁中、簡中、英文、日文四種語言同步更新。
 
 ## [0.18.0] - 2026-10-24
 

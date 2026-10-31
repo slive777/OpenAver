@@ -21,6 +21,7 @@ from pydantic import BaseModel, StrictBool, StrictStr
 from typing import Literal
 from pathlib import Path
 import asyncio
+import copy
 import httpx
 import threading
 
@@ -155,6 +156,8 @@ def update_config(config: AppConfig) -> dict:
                 status_code=400,
                 detail={"error": "cap_exceeded", "max": MAX_ENABLED_SOURCES},
             )
+        faces_before: dict = {}
+        faces_after: dict = {}
         try:
             payload = config.model_dump()
             # server_mode is toggle-lifecycle state owned exclusively by
@@ -190,9 +193,12 @@ def update_config(config: AppConfig) -> dict:
                         node[leaf] = resolve_secret(
                             read_secret(payload, dotted), read_secret(cfg, dotted)
                         )
+                faces_before.update(copy.deepcopy((cfg.get("ai_services") or {}).get("faces") or {}))
+                faces_after.update(copy.deepcopy((payload.get("ai_services") or {}).get("faces") or {}))
                 cfg.update(payload)
 
             mutate_config(_write_preserving_server_owned)
+            _after_faces_saved(faces_before, faces_after)  # 鉤子失敗只記 log，不影響儲存結果
             _reset_translate_service()  # 重置翻譯服務，讓新配置生效
             from core.ai_services.embedding_cache import EmbeddingMatrixCache
             EmbeddingMatrixCache.invalidate()
@@ -202,6 +208,31 @@ def update_config(config: AppConfig) -> dict:
             return {"success": False, "error": "儲存設定失敗"}
     finally:
         end_config_save(save_token)
+
+
+def _after_faces_saved(old: dict, new: dict) -> "threading.Thread | None":
+    """faces 子樹（含 api_key 明文）有變且 active_in 才起短 thread；否則回 None。"""
+    try:
+        if old == new:
+            return None
+        from core.ai_services import faces_recompute
+        from core.ai_services.faces_config import active_in
+
+        if not active_in({"ai_services": {"faces": new}}):
+            return None
+
+        def _run() -> None:
+            try:
+                faces_recompute.on_settings_saved()
+            except Exception:
+                logger.exception("人臉設定儲存後的重新對焦判定失敗")
+
+        t = threading.Thread(target=_run, name="faces-settings-saved", daemon=True)
+        t.start()
+        return t
+    except Exception:
+        logger.exception("人臉設定儲存鉤子啟動失敗")
+        return None
 
 
 @router.delete("/config")

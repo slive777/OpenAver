@@ -306,3 +306,133 @@ def test_get_local_photo_path_prefers_newest_when_stale_sibling_survives(gfriend
     assert found.read_bytes() == b"FRESH"
 
 
+
+
+# ===================================================================
+# 187a-T6：女優頭像改以端點臉心裁切
+# ===================================================================
+import io as _t6_io
+
+import pytest as _t6_pytest
+from PIL import Image as _T6Image
+
+from core.ai_services import faces as _t6_faces
+from core.ai_services import faces_detect as _t6_fd
+from core.ai_services.embeddings import EndpointError as _T6EndpointError
+from core.focal.detector import select_focal_from_boxes as _t6_select
+
+_T6_W, _T6_H = 600, 400
+
+
+@_t6_pytest.fixture(autouse=True)
+def _t6_reset_caches():
+    import core.actress_photo as _m
+    _m._CROP_CACHE.clear()
+    _t6_fd._reset_detect_cache()
+    yield
+    _m._CROP_CACHE.clear()
+    _t6_fd._reset_detect_cache()
+
+
+def _t6_cover(tmp_path):
+    """600x400 水平漸層：像素值 = 100 + 155*x/(W-1)，全部 >= 100（黑邊=0 一眼可辨）。"""
+    img = _T6Image.new("RGB", (_T6_W, _T6_H))
+    px = img.load()
+    for x in range(_T6_W):
+        v = 100 + int(155 * x / (_T6_W - 1))
+        for y in range(_T6_H):
+            px[x, y] = (v, v, v)
+    p = tmp_path / "cover.jpg"
+    img.save(p, format="JPEG", quality=95)
+    return str(p)
+
+
+def _t6_endpoint(monkeypatch, *, enabled=True, boxes=None, error=None):
+    calls = []
+    cfg = {"ai_services": {"faces": {
+        "enabled": enabled, "url": "http://faces.test", "api_key": "", "model": "m"}}}
+    monkeypatch.setattr(_t6_fd, "load_config", lambda: cfg)
+    monkeypatch.setattr(_t6_fd.faces_state, "observe_success", lambda *a, **k: None)
+    monkeypatch.setattr(_t6_fd, "observe_model", lambda *a, **k: None)
+
+    def fake_detect(c, data_uri, *, profile="background"):
+        calls.append(profile)
+        if error is not None:
+            raise error
+        return _t6_faces.FacesResult(boxes=list(boxes or []), model="m")
+
+    monkeypatch.setattr(_t6_fd.faces, "detect", fake_detect)
+    return calls
+
+
+# 兩種獨立失敗：臉在中間（中心要對）、臉在左緣（clamp，不出黑邊）
+# 若下方 precondition 斷言失敗：只調整 Box 數值，不要改斷言。
+_T6_FACES = {
+    "mid": [_t6_faces.Box(0.30, 0.20, 0.10, 0.15, 0.9), _t6_faces.Box(0.38, 0.22, 0.10, 0.15, 0.8)],
+    "edge": [_t6_faces.Box(0.00, 0.20, 0.10, 0.15, 0.9)],
+}
+
+
+@_t6_pytest.mark.parametrize("case", ["mid", "edge"])
+def test_cover_crop_follows_main_face(tmp_path, monkeypatch, case):
+    """收藏合輯封面的女優 → 頭像要裁在主要那張臉上，臉在邊緣也不能出黑邊。"""
+    import core.actress_photo as _m
+    path = _t6_cover(tmp_path)
+    _t6_endpoint(monkeypatch, boxes=_T6_FACES[case])
+    fx, fy = _t6_select(_T6_FACES[case], _T6_W, _T6_H, 0.75)
+    if case == "mid":
+        assert 0.25 < fx < 0.75 and abs(fx - 0.75) > 0.2  # precondition：非 clamp、且不同於固定裁法中心
+    else:
+        assert fx < 0.15  # precondition：臉貼左緣，未 clamp 會 x0 < 0
+    out = _m.crop_video_cover(path, "v1")
+    assert out is not None
+    im = _T6Image.open(_t6_io.BytesIO(out)).convert("L")
+    assert im.size == (240, 320)
+    assert im.getextrema()[0] > 60  # 沒有 clamp 會有 0 值黑邊
+    if case == "mid":
+        mean = sum(im.getdata()) / (im.size[0] * im.size[1])
+        assert abs(mean - (100 + 155 * fx)) < 8  # 裁窗中心＝主群質心
+
+
+@_t6_pytest.mark.parametrize("mode", ["disabled", "no_face", "endpoint_down"])
+def test_cover_crop_unchanged_without_face(tmp_path, monkeypatch, mode):
+    """沒開端點／封面沒臉／端點掛掉 → 頭像與昨天（固定右半上 80% 置中）逐位元相同。"""
+    import core.actress_photo as _m
+    path = _t6_cover(tmp_path)
+    kwargs = {"disabled": {"enabled": False},
+              "no_face": {"boxes": []},
+              "endpoint_down": {"error": _T6EndpointError("unreachable", "timeout")}}[mode]
+    calls = _t6_endpoint(monkeypatch, **kwargs)
+    # 獨立算出的固定裁法 golden：右半上 80% 取 3:4 置中 → (330, 0, 570, 320)
+    buf = _t6_io.BytesIO()
+    _T6Image.open(path).crop((330, 0, 570, 320)).convert("RGB").save(buf, format="JPEG", quality=85)
+    out = _m.crop_video_cover(path, "v1")
+    assert out == buf.getvalue()
+    assert len(calls) == (0 if mode == "disabled" else 1)  # 非 vacuous：確實走過（或沒走過）端點
+
+
+def test_cover_crop_focal_uses_upright_pixels_for_exif_rotated_cover(tmp_path):
+    """開了端點、封面帶旋轉 EXIF → 頭像要裁在使用者看到的那張臉上，不能偏到別處。"""
+    from PIL import Image
+    import io
+    import core.actress_photo as _m
+    # 原始像素 800x538，紅色臉放在左下；Orientation=6 轉正後為 538x800，臉在左上
+    raw = Image.new("RGB", (800, 538), (40, 40, 40))
+    for x in range(40, 160):
+        for y in range(380, 500):
+            raw.putpixel((x, y), (255, 0, 0))
+    exif = raw.getexif()
+    exif[0x0112] = 6
+    p = tmp_path / "rot.jpg"
+    raw.save(p, quality=95, exif=exif.tobytes())
+    upright = Image.open(p)
+    from PIL import ImageOps
+    upright = ImageOps.exif_transpose(upright)
+    uw, uh = upright.size
+    reds = [(x, y) for x in range(uw) for y in range(uh) if upright.getpixel((x, y))[0] > 200 and upright.getpixel((x, y))[1] < 80]
+    fx = sum(x for x, _ in reds) / len(reds) / uw
+    fy = sum(y for _, y in reds) / len(reds) / uh
+    out = _m.crop_video_cover(str(p), "v1", focal=(fx, fy))
+    crop = Image.open(io.BytesIO(out)).convert("RGB")
+    red_in_crop = sum(1 for px in crop.getdata() if px[0] > 200 and px[1] < 80)
+    assert red_in_crop >= int(len(reds) * 0.9)

@@ -260,6 +260,7 @@ class TestDetectFocalEndpoint:
 
         def fake_run(
             fs_path, ratio, *, job_key, timeout_s, pre_spawn_check=None, on_outcome=None,
+            external_profile=None,
         ):
             outcome = RunnerOutcome(kind="ABANDONED", reason="detect_timeout")
             if on_outcome is not None:
@@ -299,6 +300,7 @@ class TestDetectFocalEndpoint:
 
         def fake_run(
             fs_path, ratio, *, job_key, timeout_s, pre_spawn_check=None, on_outcome=None,
+            external_profile=None,
         ):
             # 模擬：入口讀到 set_by_user=false，偵測中途使用者在設定頁打開
             device_state.set_disabled_by_user(False)

@@ -183,7 +183,7 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 - **規則檔只是設定**：只寫片名、封面、女優在哪，不執行程式。想手寫見 [`docs/custom-sources.md`](docs/custom-sources.md)。
 - **怎麼用**：入庫後在大圖 ⚙ 重刮時選它。新片入庫和自動搜尋不問它。網站改版就再驗收一次。
 
-想讓魔杖的相似探索也比對封面長得像不像：請 AI 助理照 [`docs/external-ai.md`](docs/external-ai.md) 架一個圖片相似端點；沒架就維持原本的規則式相似。
+想讓魔杖的相似探索也比對封面長得像不像：請 AI 助理照 [`docs/external-ai.md`](docs/external-ai.md) 架圖片相似與人臉對焦的端點；沒架就維持內建做法。
 
 ### 🤖 AI agent 幫你打理片庫
 

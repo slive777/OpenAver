@@ -24,6 +24,7 @@ from core.image_codec import decode_image_payload, looks_like_image
 from core.image_host_policy import codec_for_host
 from core.path_utils import normalize_path, is_fs_path_under_dir
 from core.scrapers.utils import has_chinese, check_subtitle, strip_subtitle_markers, normalize_number_impl
+from core.ai_services.image_prep import read_exif_orientation, upright_focal_to_raw
 from core.focal import device_state, requires_face_detection
 from core.focal.subprocess_runner import run_detection
 from core.logger import get_logger
@@ -545,9 +546,13 @@ def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = 
                 outcome = run_detection(
                     src_path, r_window, job_key=src_path, timeout_s=_DETECT_TIMEOUT_S,
                     pre_spawn_check=device_state.is_disabled, on_outcome=device_state.record_outcome,
+                    external_profile="sync",
                 )
                 if outcome.kind == "FOUND":
                     focal = outcome.focal
+                    if outcome.model:
+                        # 端點臉心是轉正後座標；下面裁的是原始像素，換回原始座標系（本機焦點 model 為 None 不換）
+                        focal = upright_focal_to_raw(focal, read_exif_orientation(src_path))
 
             rgb = img.convert("RGB")
             if ratio >= 1.0:

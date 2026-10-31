@@ -1,12 +1,27 @@
 """測試 VideoRepository 類別"""
-import pytest
+import sqlite3
+from dataclasses import fields
 from unittest.mock import patch
+
+import pytest
 
 from core.database import (
     Video,
-    VideoRepository
+    VideoRepository,
+    init_db,
 )
 from core.path_utils import to_file_uri
+
+
+def _select_focal_pair(db_path, path):
+    conn = sqlite3.connect(str(db_path))
+    try:
+        return conn.execute(
+            "SELECT auto_focal, focal_model FROM videos WHERE path = ?",
+            (path,),
+        ).fetchone()
+    finally:
+        conn.close()
 
 
 # temp_db fixture 定義於 tests/unit/conftest.py
@@ -618,5 +633,111 @@ class TestUserRatingPreserveOnConflict:
         result = repo.get_by_path(new_uri)
         assert result is not None
         assert result.user_rating == 1, "new 原本的精選值不該被 old 的 0 蓋掉"
+
+
+class TestFocalModelColumn:
+    """187a-T2：focal_model 欄位寫入／遷移／from_row 白名單。"""
+
+    def test_update_auto_focal_writes_model_and_focal_together(self, temp_db, seed_crop_mode):
+        """同一條 UPDATE 寫 auto_focal + focal_model；manual／cover 守衛下兩欄皆不變。"""
+        repo = VideoRepository(temp_db)
+        path = to_file_uri("/focal_model_write.mp4")
+        cover = to_file_uri("/focal_model_cover.jpg")
+        repo.upsert(Video(path=path, title="片", cover_path=cover))
+        assert seed_crop_mode(repo, path, "auto") is True
+
+        assert repo.update_auto_focal(path, "0.5000,0.4000", cover, model="X") is True
+        assert _select_focal_pair(temp_db, path) == ("0.5000,0.4000", "X")
+        # 走真 repo 讀取路徑（_get_columns + from_row），確認未知欄不炸
+        assert repo.get_by_path(path) is not None
+        assert repo.get_by_id(repo.get_by_path(path).id) is not None
+
+        # cover 不符 → 兩欄皆不變
+        assert repo.update_auto_focal(path, "0.9000,0.9000", "other-cover", model="Y") is False
+        assert _select_focal_pair(temp_db, path) == ("0.5000,0.4000", "X")
+
+        # manual 守衛 → 兩欄皆不變
+        assert repo.update_manual_focal(path, "0.3000,0.6000", cover) is True
+        before = _select_focal_pair(temp_db, path)
+        assert repo.update_auto_focal(path, "0.1000,0.1000", cover, model="Z") is False
+        assert _select_focal_pair(temp_db, path) == before
+
+    def test_old_db_migration_defaults_focal_model_and_survives_rescan(self, tmp_path):
+        """舊 DB（無 focal_model）init_db 後預設 local-pigo；重掃保留；get_by_path 不炸。"""
+        db_path = tmp_path / "old_no_focal_model.db"
+        path = to_file_uri("/old_focal_model.mp4")
+        cover = to_file_uri("/old_focal_cover.jpg")
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            """
+            CREATE TABLE videos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT UNIQUE NOT NULL,
+                number TEXT,
+                title TEXT,
+                original_title TEXT,
+                actresses TEXT,
+                maker TEXT,
+                director TEXT DEFAULT '',
+                series TEXT,
+                label TEXT DEFAULT '',
+                tags TEXT,
+                sample_images TEXT DEFAULT '',
+                user_tags TEXT DEFAULT '[]',
+                output_dir TEXT DEFAULT '',
+                duration INTEGER,
+                size_bytes INTEGER,
+                cover_path TEXT,
+                release_date TEXT,
+                mtime REAL,
+                nfo_mtime REAL,
+                scrape_attempted_at REAL DEFAULT 0,
+                auto_focal TEXT DEFAULT '',
+                crop_mode TEXT NOT NULL DEFAULT 'auto',
+                focal_attempted_at TIMESTAMP DEFAULT NULL,
+                user_rating INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO videos (path, title, cover_path) VALUES (?, ?, ?)",
+            (path, "舊片", cover),
+        )
+        conn.commit()
+        conn.close()
+
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(videos)").fetchall()}
+        assert "focal_model" in cols
+        models = [r[0] for r in conn.execute("SELECT focal_model FROM videos").fetchall()]
+        assert models == ["local-pigo"]
+        conn.close()
+
+        repo = VideoRepository(db_path)
+        got = repo.get_by_path(path)
+        assert got is not None
+        assert got.title == "舊片"
+
+        assert repo.update_auto_focal(path, "0.5000,0.4000", cover, model="X") is True
+        assert _select_focal_pair(db_path, path) == ("0.5000,0.4000", "X")
+
+        # 同封面重掃（ON CONFLICT）後 focal_model 保持
+        repo.upsert(Video(path=path, title="重掃描", cover_path=cover))
+        assert _select_focal_pair(db_path, path) == ("0.5000,0.4000", "X")
+        assert repo.get_by_path(path).title == "重掃描"
+
+    def test_videos_columns_whitelist_allows_only_video_fields_plus_focal_model(self, temp_db):
+        """結構守衛：videos 欄位集合 ⊆ Video fields ∪ {focal_model}。"""
+        conn = sqlite3.connect(str(temp_db))
+        try:
+            db_cols = {row[1] for row in conn.execute("PRAGMA table_info(videos)").fetchall()}
+        finally:
+            conn.close()
+        allowed = {f.name for f in fields(Video)} | {"focal_model"}
+        assert db_cols <= allowed, f"未登記欄位：{sorted(db_cols - allowed)}"
 
 

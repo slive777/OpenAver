@@ -254,6 +254,36 @@ def _cluster_and_select_2d(width, height, faces, axis):
     return x_ratio, y_ratio
 
 
+def select_focal_from_boxes(boxes, work_w, work_h, ratio):
+    """Convert normalized endpoint boxes to the same 2D focal as pigo clustering.
+
+    Each box exposes ``x, y, w, h, score`` (normalized). Conversion to the
+    ``(row, col, scale, q)`` input of ``_cluster_and_select_2d``:
+
+    - ``col = (x + w/2) * work_w``
+    - ``row = (y + h/2) * work_h``
+    - 臉心夾回 ``[0, work_w]×[0, work_h]``（框超出圖緣時）
+    - ``scale = w * work_w``
+    - ``q = score``
+
+    Empty ``boxes`` returns ``None``. Does not alter ``_cluster_and_select_2d``.
+    """
+    if not boxes:
+        return None
+    faces = []
+    for b in boxes:
+        x, y, w, h, score = b.x, b.y, b.w, b.h, b.score
+        col = (x + w / 2) * work_w
+        row = (y + h / 2) * work_h
+        col = min(max(col, 0.0), float(work_w))
+        row = min(max(row, 0.0), float(work_h))
+        scale = w * work_w
+        q = score
+        faces.append((row, col, scale, q))
+    axis = _dominant_axis_by_ratio(work_w, work_h, ratio)
+    return _cluster_and_select_2d(work_w, work_h, faces, axis)
+
+
 def find_primary_face_axis_ratio(img, ratio, advanced, work_width=MAX_IMAGE_WIDTH):
     """detector.go FindPrimaryFaceAxisRatio.
 

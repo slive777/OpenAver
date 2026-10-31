@@ -162,7 +162,11 @@ class FocalWorker:
                 return
             end_fp = self._fingerprint(job.fs_path)
             if end_fp == start_fp:
-                job.commit(format_focal(outcome.focal), start_fp)
+                model = getattr(outcome, "model", None)
+                if model:
+                    job.commit(format_focal(outcome.focal), start_fp, model)
+                else:
+                    job.commit(format_focal(outcome.focal), start_fp)
             # else: image changed mid-detection -> discard. If the change came
             # from a real re-submit (swap), that submit() already re-queued the
             # key (latest-wins). A bare mtime bump with no resubmit is NOT

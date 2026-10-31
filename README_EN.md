@@ -183,7 +183,7 @@ For titles the built-in sources don't cover — Chinese-language videos, anime, 
 - **The rule file is only settings**: it just says where the title, cover, and actress are, and runs no code. To write one by hand, see [`docs/custom-sources.md`](docs/custom-sources.md).
 - **How to use it**: after a title is in your library, pick it when you re-scrape with ⚙ in the lightbox. New-title import and automatic search don't use it. If the site changes its layout, run the check again.
 
-Want the wand's similar-title orbit to also compare how covers look? Ask an AI assistant to set up an image-similarity endpoint from [`docs/external-ai.md`](docs/external-ai.md); without one, similarity stays rule-based.
+Want the wand's similar-title orbit to also compare how covers look? Ask an AI assistant to set up image-similarity and face-focus endpoints from [`docs/external-ai.md`](docs/external-ai.md); without them, OpenAver keeps its built-in methods.
 
 ### 🤖 Let an AI agent manage your library
 

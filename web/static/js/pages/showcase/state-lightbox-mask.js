@@ -266,6 +266,9 @@ export function stateLightboxMask() {
                     } else if (data.reason === 'still_detecting') {
                         // 159 pre-merge：5 秒外殼到了但背景那輪還在跑——結局未定，文案不能先說「已關掉」或「可以去關」。
                         this.showToast(window.t('showcase.lightbox.mask_focal_still_detecting'), 'info');
+                    } else if (data.reason === 'endpoint_down') {
+                        // 187a-T5／CD-16：外部端點沒回應，這次退回本機找臉。
+                        this.showToast(window.t('showcase.lightbox.mask_focal_endpoint_down'), 'info');
                     } else if (data.reason === 'failed') {
                         this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
                     }

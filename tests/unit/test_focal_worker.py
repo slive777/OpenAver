@@ -6,6 +6,8 @@ deterministic）。每個 test 都 `FocalWorker()` 自己 new 一個 instance，
 module-level 單例 `_worker` / `submit_focal`。
 """
 
+import types
+
 from core.focal.detector import format_focal
 from core.focal.subprocess_runner import RunnerOutcome
 from core.focal.worker import FocalWorker
@@ -162,4 +164,39 @@ class TestAbandonedSkipsCommit:
         w._process_one()
 
         assert committed == [(format_focal((0.4, 0.6)), ("fp1",))]
+
+
+class TestCommitModelPassthrough:
+    """187a-T2：outcome 帶 model 才走三參數 commit；本機兩參數簽名不受影響。"""
+
+    def test_commit_passes_model_only_when_outcome_has_model(self):
+        path = "/fake/model.jpg"
+        store, fp_fn = _make_fp_store({path: ("fp1",)})
+        two_arg_calls = []
+        three_arg_calls = []
+
+        def commit_two(focal_str, fp):
+            two_arg_calls.append((focal_str, fp))
+
+        def commit_three(focal_str, fp, model):
+            three_arg_calls.append((focal_str, fp, model))
+
+        def detect_local(fs_path, ratio, work_width):
+            return RunnerOutcome(kind="FOUND", focal=(0.5, 0.4))
+
+        def detect_remote(fs_path, ratio, work_width):
+            return types.SimpleNamespace(
+                kind="FOUND", focal=(0.5, 0.4), reason=None, model="X",
+            )
+
+        w = FocalWorker(detect_fn=detect_local, fingerprint_fn=fp_fn, auto_start=False)
+        w.submit("video", "v-local", path, 1.0, commit_two)
+        w._process_one()
+        assert two_arg_calls == [(format_focal((0.5, 0.4)), ("fp1",))]
+        assert three_arg_calls == []
+
+        w2 = FocalWorker(detect_fn=detect_remote, fingerprint_fn=fp_fn, auto_start=False)
+        w2.submit("video", "v-remote", path, 1.0, commit_three)
+        w2._process_one()
+        assert three_arg_calls == [(format_focal((0.5, 0.4)), ("fp1",), "X")]
 

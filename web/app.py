@@ -40,7 +40,7 @@ logger = get_logger(__name__)
 from core.config import load_config, mutate_config
 from core.data_layout import bootstrap_data_layout, consume_pending_bootstrap_result, consume_reset_access_auth_marker
 from core.focal import device_state
-from core.ai_services import similar_index
+from core.ai_services import faces_state, similar_index
 from core.database import init_db
 from core.database import backfill_readonly_nfo_mtime_once
 from core.metatube.state import metatube_state as _mt_startup_state
@@ -320,6 +320,7 @@ from web.routers.notifications import emit_notification, start_notification_pers
 # 改由 web/app.py 在 module level 註冊通知埠——import 這件事在所有進入點
 # （含不啟動 lifespan 的桌面版與 TestClient）都必然發生，比 lifespan 更早、更穩。
 device_state.set_notification_sink(emit_notification)
+faces_state.set_notification_sink(emit_notification)
 similar_index.set_notification_sink(emit_notification)
 from web.routers import similar as similar_router
 from web.routers import settings_link as settings_link_router
@@ -918,7 +919,7 @@ async def settings_page(request: Request):
     # 用 get_common_context 已載入的那一份 config（:517 → context["config"]），不再讀第二次
     # 磁碟——同一支函式裡的 _server_mode 也是這個形狀。純 dict 運算，
     # 不需要 asyncio.to_thread（BE-ASYNC-01 管的是阻塞 I/O，這行沒有）。
-    context["focal_auto_enabled"] = not device_state.is_disabled_in(context["config"])
+    context["focal_auto_enabled"] = not device_state.local_disabled_in(context["config"])
     return templates.TemplateResponse(request, "settings.html", context)
 
 

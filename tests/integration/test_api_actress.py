@@ -1445,7 +1445,7 @@ class TestDetectActressFocal:
         from core.focal import detect_focal as real_detect_focal
         calls = []
 
-        def spy(fs_path, ratio, *, job_key, timeout_s, pre_spawn_check=None, on_outcome=None):
+        def spy(fs_path, ratio, *, job_key, timeout_s, pre_spawn_check=None, on_outcome=None, external_profile=None):
             calls.append((fs_path, ratio))
             focal = real_detect_focal(fs_path, ratio)  # 真的呼叫下去，回真結果
             return RunnerOutcome(kind="FOUND" if focal is not None else "NO_FACE", focal=focal)
@@ -1553,6 +1553,7 @@ class TestDetectActressFocal:
 
         def fake_run(
             fs_path, ratio, *, job_key, timeout_s, pre_spawn_check=None, on_outcome=None,
+            external_profile=None,
         ):
             outcome = RunnerOutcome(kind="ABANDONED", reason="detect_timeout")
             if on_outcome is not None:

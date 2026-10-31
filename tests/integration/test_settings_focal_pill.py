@@ -72,4 +72,33 @@ class TestSettingsFocalAutoPill:
         # 改由 scripts/static_guard_lint.mjs 的 required-string 守接線。
         assert "checked" not in input_tag, f"版本相同、仍停用，不應 checked，實際標籤：{input_tag}"
 
+    def test_faces_enabled_user_disabled_renders_unchecked(self, client):
+        """187a-T2 pill 接線：外部 faces 開啟時仍只反映本機 local_disabled_in。
+
+        T2 時 is_disabled_in 與 local_disabled_in 行為相同，本測試此時不可證偽
+        app.py 改讀取端；T3 後由主 session 驗。
+        """
+        _seed_focal_device(disabled=True, judged_at_version=VERSION)
+
+        def _mutator(cfg: dict) -> None:
+            cfg["focal_device"]["set_by_user"] = True
+            cfg.setdefault("ai_services", {})["faces"] = {
+                "enabled": True,
+                "url": "http://x",
+                "api_key": "",
+                "model": "",
+            }
+
+        core_config.mutate_config(_mutator)
+
+        resp = client.get("/settings")
+        assert resp.status_code == 200
+        input_tag = _extract_focal_input_tag(resp.text)
+
+        # [lint-guard: pytest-justified] checkbox 狀態是跨層契約：後端 focal_device 狀態
+        # ⇒ 渲染出 checked／未 checked。模板檔的靜態字面同時含兩種可能，static_guard_lint
+        # 分不出「哪一種後端狀態會渲染出哪一種」——? 浮層文案已改狀態無關單一文案，
+        # 改由 scripts/static_guard_lint.mjs 的 required-string 守接線。
+        assert "checked" not in input_tag, f"使用者停用時不應 checked，實際標籤：{input_tag}"
+
 

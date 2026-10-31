@@ -57,7 +57,7 @@ from core.platform_info import DSM_PERMISSION_HINT, is_synology
 from core.proxy_policy import proxy_kwargs
 from web.routers.notifications import emit_notification as _emit_notif
 from core.wishlist_reconcile import reconcile_wishlist, format_wishlist_removed_message
-from core.ai_services import similar_index
+from core.ai_services import faces_state, similar_index
 
 logger = get_logger(__name__)
 
@@ -270,6 +270,15 @@ def _schedule_ai_incremental() -> None:
         similar_index.schedule_incremental()
     except Exception:  # 186-T4b: 增量排程失敗不得影響掃描收尾
         logger.exception("圖片相似增量排程失敗（掃描完成收尾）")
+    _new_faces_round()  # 187a-T4b：同一個非 abort 收尾點（generate_avlist 已在豁免上限，不再加行）
+
+
+def _new_faces_round() -> None:
+    """掃描收尾（非 abort）：人臉端點「連不上」側欄通知可再出一次（187a-T4b）。"""
+    try:
+        faces_state.new_round()
+    except Exception:
+        logger.exception("人臉通知輪次重置失敗（掃描完成收尾）")
 
 
 def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Generator[str, None, None]:  # noqa: C901 — avlist SSE 生成主流程；109 已判定為「列 backlog、現在別搬」（60–100 處測試 patch target 焊死該函式，拆分成本由測試面而非邏輯面決定）

@@ -284,7 +284,19 @@ def _cache_put(key: tuple, value: bytes) -> None:
             _CROP_CACHE.popitem(last=False)
 
 
-def crop_video_cover(cover_path: str, crop_spec: str = "v1") -> Optional[bytes]:
+_AUTO = object()  # crop_video_cover focal 哨兵：由內部問人臉端點
+
+
+def _auto_focal(cover_path: str) -> Optional[tuple]:
+    """端點臉心；外部未啟用／沒臉／掛掉／任何例外 → None（固定裁法）。"""
+    try:
+        from core.ai_services import faces_detect
+        return faces_detect.detect_focal_only(cover_path, 0.75, "sync")
+    except Exception:
+        return None
+
+
+def crop_video_cover(cover_path: str, crop_spec: str = "v1", *, focal=_AUTO) -> Optional[bytes]:
     """
     從影片封面圖裁切出女優人像，回傳 JPEG bytes。
 
@@ -297,6 +309,7 @@ def crop_video_cover(cover_path: str, crop_spec: str = "v1") -> Optional[bytes]:
     Args:
         cover_path: 本機 FS 路徑（非 URI）
         crop_spec: 裁切規格版本，目前只支援 "v1"
+        focal: (x, y) 正規化臉心；None＝固定裁法；預設由端點偵測（外部未啟用時為 None）
 
     Returns:
         JPEG bytes，失敗回 None（不 raise）
@@ -308,8 +321,12 @@ def crop_video_cover(cover_path: str, crop_spec: str = "v1") -> Optional[bytes]:
         # 檔案不存在或無法 stat → mtime=None → 跳過 cache，直接走主流程（會 fail 然後回 None）
         mtime = None
 
+    if focal is _AUTO:
+        focal = _auto_focal(cover_path) if mtime is not None else None
+    focal_key = None if focal is None else (round(focal[0], 4), round(focal[1], 4))
+
     if mtime is not None:
-        cache_key: Optional[tuple] = (cover_path, mtime, crop_spec)
+        cache_key: Optional[tuple] = (cover_path, mtime, crop_spec, focal_key)
         cached = _cache_get(cache_key)
         if cached is not None:
             return cached
@@ -317,13 +334,16 @@ def crop_video_cover(cover_path: str, crop_spec: str = "v1") -> Optional[bytes]:
         cache_key = None
 
     try:
-        from PIL import Image
+        from PIL import Image, ImageOps
     except ImportError:
         logger.warning("[actress_photo] PIL/Pillow 未安裝，無法 crop 影片封面")
         return None
 
     try:
         img = Image.open(cover_path)
+        if focal is not None:
+            # 端點臉心是轉正後座標（image_prep 送圖前 exif_transpose）；只在有焦點時對齊座標系
+            img = ImageOps.exif_transpose(img)
         img_w, img_h = img.size
 
         if crop_spec == "v1":
@@ -344,9 +364,14 @@ def crop_video_cover(cover_path: str, crop_spec: str = "v1") -> Optional[bytes]:
             target_w = min(region_w, int(region_h * 3 / 4))
             target_h = int(target_w * 4 / 3)
 
-            # 置中計算 offset
-            cx = region_x0 + (region_w - target_w) // 2
-            cy = region_y0 + (region_h - target_h) // 2
+            if focal is None:
+                # 置中計算 offset
+                cx = region_x0 + (region_w - target_w) // 2
+                cy = region_y0 + (region_h - target_h) // 2
+            else:
+                x0 = min(max(int(focal[0] * img_w - target_w / 2), 0), img_w - target_w)
+                y0 = min(max(int(focal[1] * img_h - target_h / 2), 0), img_h - target_h)
+                cx, cy = x0, y0
 
             crop_box = (cx, cy, cx + target_w, cy + target_h)
             cropped = img.crop(crop_box)

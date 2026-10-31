@@ -1221,6 +1221,11 @@
                                 :aria-selected="aiTab === 'similar'"
                                 :class="{ 'tab-active': aiTab === 'similar' }"
                                 x-text="window.t('settings.ai.tab_similar')"></button>
+                            <button type="button" role="tab" class="tab" id="aiTabFaces"
+                                @click="selectAiTab('faces')"
+                                :aria-selected="aiTab === 'faces'"
+                                :class="{ 'tab-active': aiTab === 'faces' }"
+                                x-text="window.t('settings.ai.tab_faces')"></button>
                         </div>
                         <div class="popover-anchor" x-data="helpPopover">
                             <button type="button" class="help-popover-btn"
@@ -1527,6 +1532,110 @@
                             <a class="btn btn-sm btn-ghost"
                                href="https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md"
                                target="_blank" rel="noopener noreferrer">{{ t('settings.ai.similar.btn_docs') }}</a>
+                        </div>
+                    </div>
+
+                    <!-- 人臉分頁（187a-T5 接線） -->
+                    <div id="aiPanelFaces" role="tabpanel" x-show="aiTab === 'faces'" x-cloak
+                         x-data="aiFacesPanel">
+                        <div class="settings-form-group">
+                            <label class="settings-label">
+                                <input type="checkbox" class="toggle toggle-primary"
+                                       id="aiFacesEnabled"
+                                       x-model="form.aiFacesEnabled">
+                                <span class="label-text">{{ t('settings.ai.faces.enabled_label') }}</span>
+                            </label>
+                        </div>
+                        <p class="settings-hint ai-similar-empty-desc">{{ t('settings.ai.faces.empty_desc') }}</p>
+
+                        <div class="ai-similar-fields" x-show="panelMode() === 'fields'">
+                            <div class="settings-form-row">
+                                <label class="row-label" for="aiFacesUrl">{{ t('settings.ai.faces.url_label') }}</label>
+                                <div class="flex-1 flex flex-col gap-1">
+                                    <div class="variable-input-group">
+                                        <input type="text" class="input input-bordered input-sm flex-1"
+                                               id="aiFacesUrl"
+                                               x-model="form.aiFacesUrl"
+                                               :placeholder="window.t('settings.ai.faces.url_placeholder')">
+                                        <button class="btn btn-sm btn-outline" type="button"
+                                                id="aiFacesTestBtn"
+                                                @click="runTest()"
+                                                :disabled="testDisabled()">
+                                            <span x-show="aiFacesTestBusy" class="loading loading-spinner loading-sm"></span>
+                                            <span x-show="!aiFacesTestBusy" x-text="window.t('settings.action.test')"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-form-row">
+                                <label class="row-label" for="aiFacesApiKey">{{ t('settings.ai.faces.api_key_label') }}</label>
+                                <div class="flex-1">
+                                    <input type="password" class="input input-bordered input-sm w-full"
+                                           id="aiFacesApiKey"
+                                           x-model="form.aiFacesApiKey"
+                                           :placeholder="window.t('settings.ai.faces.api_key_placeholder')">
+                                </div>
+                            </div>
+                            <div class="settings-form-row">
+                                <label class="row-label" for="aiFacesModel">{{ t('settings.ai.faces.model_label') }}</label>
+                                <div class="flex-1">
+                                    <input type="text" class="input input-bordered input-sm w-full"
+                                           id="aiFacesModel"
+                                           x-model="form.aiFacesModel"
+                                           :placeholder="window.t('settings.ai.faces.model_placeholder')">
+                                </div>
+                            </div>
+
+                            <p class="settings-hint ai-similar-status"
+                               id="aiFacesStatusLine"
+                               x-show="aiFacesStatus !== null"
+                               x-text="statusLineText()"></p>
+                            <p class="settings-hint ai-similar-status"
+                               id="aiFacesRecomputeLine"
+                               x-show="recomputeLineText()"
+                               x-text="recomputeLineText()"></p>
+
+                            <div class="ai-similar-index-row">
+                                <button type="button" class="btn btn-sm btn-outline"
+                                        id="aiFacesStopBtn"
+                                        x-show="recomputeAction() === 'stop'"
+                                        @click="stopRecompute()">
+                                    <span x-text="window.t('settings.ai.faces.btn_stop')"></span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-primary"
+                                        id="aiFacesResumeBtn"
+                                        x-show="recomputeAction() === 'resume'"
+                                        @click="resumeRecompute()"
+                                        :disabled="actionDisabled()">
+                                    <span x-show="aiFacesBusy" class="loading loading-spinner loading-sm"></span>
+                                    <span x-show="!aiFacesBusy"
+                                          x-text="window.t('settings.ai.faces.btn_continue')"></span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-ghost"
+                                        id="aiFacesRebuildBtn"
+                                        x-show="deleteRebuildVisible()"
+                                        @click="rebuildFaces()"
+                                        :disabled="actionDisabled()">
+                                    <span x-text="window.t('settings.ai.faces.btn_delete_rebuild')"></span>
+                                </button>
+                                <span class="settings-hint ai-similar-save-first"
+                                      x-show="isDirty && (recomputeAction() === 'resume' || deleteRebuildVisible())"
+                                      x-text="window.t('settings.ai.faces.save_first')"></span>
+                            </div>
+
+                            <pre class="ai-similar-test-result"
+                                 id="aiFacesTestResult"
+                                 x-show="aiFacesTestResultHtml"
+                                 x-text="aiFacesTestResultHtml"></pre>
+                        </div>
+
+                        <div class="ai-similar-empty-actions">
+                            <button type="button" class="btn btn-sm btn-outline"
+                                    id="aiFacesAssistantBtn"
+                                    @click="copyAssistantPrompt()">{{ t('settings.ai.faces.btn_assistant') }}</button>
+                            <a class="btn btn-sm btn-ghost"
+                               href="https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md"
+                               target="_blank" rel="noopener noreferrer">{{ t('settings.ai.faces.btn_docs') }}</a>
                         </div>
                     </div>
 

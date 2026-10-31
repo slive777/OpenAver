@@ -1,14 +1,20 @@
 # External AI services for OpenAver
 
-> **繁中摘要**　OpenAver 的「AI 功能」可以接你自己架的 AI 端點。目前有兩項：**圖片相似**（讓「探索星空」多一個看封面的訊號，端點要自己架）與**人臉**（契約先定，之後的版本才會用）。這份文件寫給 AI 助理讀：照「圖片相似」一節架好端點、跑完一致性測試、設成開機自啟，再把網址交給使用者填進設定頁「AI 功能 › 圖片相似」。翻譯不需要這份文件，直接在設定頁填金鑰即可。
+> **繁中摘要**　OpenAver 的「AI 功能」可以接你自己架的 AI 端點。目前有兩項：**圖片相似**（讓「探索星空」多一個看封面的訊號，端點要自己架）與**人臉**（讓封面縮圖、女優頭像改以你自己架的端點找到的臉為中心）。這份文件寫給 AI 助理讀：照對應那一節架好端點、跑完一致性測試、設成開機自啟，再把網址交給使用者填進設定頁「AI 功能」裡對應的分頁（圖片相似／人臉）。翻譯不需要這份文件，直接在設定頁填金鑰即可。
 >
-> **EN**　OpenAver can use AI endpoints that you host yourself. Two capabilities are described here: **Image similarity** (an extra "looks alike" signal for the Explore wall; you host the endpoint) and **Faces** (contract fixed now, used by a later release). This file is written for AI assistants.
+> **EN**　OpenAver can use AI endpoints that you host yourself. Two capabilities are described here: **Image similarity** (an extra "looks alike" signal for the Explore wall; you host the endpoint) and **Faces** (face-centered crops for wall thumbnails and actress photos). This file is written for AI assistants.
 
 ## Hand this to your AI assistant（交給 AI 助理）
 
 The settings page has a button that copies the text below, with the real address filled in. If you are an assistant and the user pasted it to you, everything you need is in this file.
 
 > 請替我架一個 OpenAver 圖片相似端點。規格在 https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md 的「圖片相似」一節，照那節的一致性測試自己驗過再回報。架好後告訴我端點網址，我會填進 OpenAver 設定頁「AI 功能 › 圖片相似」。這台 OpenAver 在 `<本機 LAN 網址>`，端點要讓這個網址連得到。請把服務設成開機自啟。
+
+For the face endpoint, hand over this instead:
+
+> 請替我架一個 OpenAver 人臉對焦端點。規格在 https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md 的「Faces（人臉）」一節，照那節的一致性腳本自己驗過再回報。架好後告訴我端點網址，我會填進 OpenAver 設定頁「AI 功能 › 人臉」。這台 OpenAver 在 `<本機 LAN 網址>`，端點要讓這個網址連得到。請把服務設成開機自啟，並先告訴我 insightface 權重有授權限制。
+
+Each capability section ends with its own consistency test; use the one for the capability you were asked to set up.
 
 Rules for the assistant:
 
@@ -318,7 +324,12 @@ A hosted embeddings service can stand in for the self-hosted server, but most of
 
 ## Faces（人臉）
 
-The contract is fixed now so that a later OpenAver release (187) can be built against it. Nothing in OpenAver calls it yet, and no reference script is verified yet. Do not set it up for a user today.
+OpenAver asks an endpoint you host to find the faces in a cover, so that wall thumbnails, the lightbox "re-detect" button and actress photos cropped from a cover can be centered on the face. If the endpoint is off or unreachable, OpenAver quietly falls back to its built-in method.
+
+- **What is sent.** The **whole** cover (no left/right crop), rotated upright, longest side at most **650 px**, as a JPEG (quality 90) data URI. Only covers of uncensored titles whose focus point is automatic are sent; censored titles and covers the user focused by hand never are.
+- **What you return.** Every face you find, as normalized boxes. OpenAver picks the main face itself.
+- **Model name.** `model` is a required non-empty string that names the model and stays the same for every reply. OpenAver remembers which model produced each stored focus point. If the name changes, OpenAver re-focuses the whole library by itself the next time it sees the new name (after the settings-page test passes and the user presses Save, or during a scan). If you swap the underlying model but the name cannot change, ask the user to use the "刪除並重新對焦" button on the settings page.
+- **Errors and timeouts.** Use normal HTTP codes. `4xx` is never retried; `5xx` and most timeouts are retried once. Timeouts run from 4 s (a manual click) to 30 s (background work); the first request of a test waits up to 90 s, so a cold model load is fine.
 
 ### Contract
 
@@ -333,33 +344,129 @@ The contract is fixed now so that a later OpenAver release (187) can be built ag
 ```
 
 - `box` is `[x, y, w, h]`, **normalized 0 to 1**, top-left corner plus width and height, relative to the image you received.
-- No face found: reply `200` with `"faces": []`. It is not a 404.
-- `with_embedding: true` returns the face vector in `embedding`; the first OpenAver version never sends `true`.
-- Images are data URIs (`jpeg`/`png`/`webp`) shrunk so the longest side is at most the size OpenAver chooses at call time. Auth, errors and timeouts follow the same rules as image similarity.
+- No face found: reply `200` with `"faces": []`. It is not a 404, and it is not a 5xx: OpenAver stores "no face" as a real answer.
+- `with_embedding` is a JSON boolean. OpenAver always sends `false`; reply with `"embedding": null`.
+- `model` is optional. OpenAver sends it only when the user fills in the model name on the settings page; an endpoint that serves one model can ignore it.
+- Images are data URIs (`jpeg`/`png`/`webp`). Optional auth is `Authorization: Bearer <key>`, same as image similarity.
 
 ### curl
 
+A 16x16 PNG has no face, so a healthy endpoint answers `200` with an empty `faces` list:
+
 ```bash
-# contract only (not implemented in OpenAver yet; the sample image arrives with 187)
-curl -s "$EP/v1/faces" -H "Content-Type: application/json" \
-  -d '{"input":"data:image/jpeg;base64,<BASE64>","with_embedding":false}'
+curl -s "$EP/v1/faces" \
+  -H "Content-Type: application/json" \
+  ${EP_KEY:+-H "Authorization: Bearer $EP_KEY"} \
+  -d '{"input":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAGUlEQVR4nGOM6jnBQApgIkn1qIZRDUNKAwBVcQHO3mdG9AAAAABJRU5ErkJggg==","with_embedding":false}' \
+  | python3 -c "import json,sys; r=json.load(sys.stdin); print('model =', r['model'], '| faces =', len(r['faces']))"
 ```
 
 ### Consistency test
 
-For a sample image with exactly one known face, the highest-scoring `box` must have its center within **0.1** (normalized) of the known face center. The sample image and a script like the image-similarity one will be published with 187. Repeat after a restart or reboot.
+Four assertions, the same ones the settings page "Test" button runs:
+
+1. `faces` is a list.
+2. At least **1** face is found in the sample image.
+3. The highest-scoring box has its center within **0.1** (normalized) of the known face center **(0.5, 0.3)**, on each axis.
+4. `model` is a non-empty string.
+
+The sample is a synthetic portrait (not a real cover) that lives in the OpenAver repository. The script below downloads it from GitHub, prepares it exactly as OpenAver does (upright, longest side at most 650 px, JPEG q90), and exits with code 0 only when all four assertions pass. It needs Python 3.9+ and Pillow. Save it as `check_faces.py`:
+
+```python
+#!/usr/bin/env python3
+"""Consistency test for an OpenAver faces endpoint.
+
+Usage: python check_faces.py http://HOST:PORT [API_KEY]
+Needs: Python 3.9+ and Pillow. Exit code 0 = pass, 1 = fail.
+"""
+import base64, io, json, sys, urllib.request
+from PIL import Image, ImageOps
+
+BASE = sys.argv[1].rstrip("/")
+KEY = sys.argv[2] if len(sys.argv) > 2 else ""
+RAW = "https://raw.githubusercontent.com/slive777/OpenAver/main/web/static/img/ai-samples/face-sample.jpg"
+EXPECT_CENTER = (0.5, 0.3)  # known face center, normalized
+TOLERANCE = 0.1             # allowed distance on each axis
+MIN_FACES = 1
+
+
+def sample():  # whole image, upright, long edge <= 650, JPEG q90
+    im = Image.open(io.BytesIO(urllib.request.urlopen(RAW, timeout=30).read()))
+    im = ImageOps.exif_transpose(im).convert("RGB")
+    s = 650 / max(im.size)
+    if s < 1:
+        im = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
+    buf = io.BytesIO()
+    im.save(buf, format="JPEG", quality=90)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def detect(uri):
+    req = urllib.request.Request(
+        BASE + "/v1/faces",
+        data=json.dumps({"input": uri, "with_embedding": False}).encode(),
+        headers={"Content-Type": "application/json", **({"Authorization": "Bearer " + KEY} if KEY else {})},
+    )
+    return json.load(urllib.request.urlopen(req, timeout=90))
+
+
+r = detect(sample())
+faces, model = r.get("faces"), r.get("model")
+is_list = isinstance(faces, list)
+best = max(faces, key=lambda f: f["score"]) if is_list and faces else None
+cx = cy = None
+if best is not None:
+    x, y, w, h = best["box"]
+    cx, cy = x + w / 2, y + h / 2
+checks = {
+    "'faces' is a list": is_list,
+    f"at least {MIN_FACES} face found": is_list and len(faces) >= MIN_FACES,
+    f"best box center within {TOLERANCE} of {EXPECT_CENTER} on each axis": best is not None
+    and abs(cx - EXPECT_CENTER[0]) <= TOLERANCE and abs(cy - EXPECT_CENTER[1]) <= TOLERANCE,
+    "'model' is a non-empty string": isinstance(model, str) and model != "",
+}
+for name, ok in checks.items():
+    print(("PASS  " if ok else "FAIL  ") + name)
+print(f"model={model} faces={len(faces) if is_list else '?'} center={None if cx is None else (round(cx, 3), round(cy, 3))}")
+sys.exit(0 if all(checks.values()) else 1)
+```
+
+Run it with the Python that has Pillow:
+
+```bash
+python3 check_faces.py "$EP" ${EP_KEY:+"$EP_KEY"}
+```
+
+If you cannot reach GitHub, or the assistant runs on another machine than OpenAver and the user has switched on **server mode** (top of the settings page; if an access password is set, log in first), `GET {OA}/api/ai/sample/faces` returns the same sample ready to send: `{"inputs":[A],"expect":{"center":[0.5,0.3],"tolerance":0.1,"min_faces":1},"steps":[...]}`.
+
+**Run the test again after a restart or reboot.** An endpoint that passes once and disappears at the next boot silently sends face finding back to the built-in method.
+
+The settings page reports a failed test as "can't reach this address" or "reached it, but the reply breaks the contract" plus one of these check names: `http_4xx`, `auth` (401/403), `http_5xx`, `not_json`, `shape`, `box`, `score`, `no_model`, `no_face`, `center_off`.
 
 ### Self-host reference
 
-Preferred model: insightface `buffalo_l` (SCRFD-10GF detector plus ArcFace r50 embedding), run through onnxruntime on CPU. SCRFD is the most stable choice for small faces, side views and multi-person covers. RetinaFace-R50 is about as accurate and about twice as slow; YOLOv8-face is faster but weaker on side views. **License: the insightface pretrained models are for non-commercial research use only**; tell the user before installing them.
+OpenAver does not ship a server; the consistency test above is the acceptance test, so use whatever stack fits the machine.
+
+- **Runtime.** onnxruntime on CPU is the floor and is enough. CoreML (Apple silicon), CUDA or MLX are optional accelerators.
+- **Model.** Preferred: the SCRFD detector from insightface `buffalo_l` (`det_10g.onnx`), loaded **directly with onnxruntime** (you do not need the full insightface package). SCRFD is the most stable choice for small faces, side views and multi-person covers. RetinaFace-R50 is about as accurate and about twice as slow; YOLOv8-face is faster but weaker on side views. Report a stable `model` such as `insightface-buffalo_l`.
+- **Where to get it.** One public copy of `det_10g.onnx` is `https://huggingface.co/immich-app/buffalo_l/resolve/main/detection/model.onnx` (about 17 MB; save it as `det_10g.onnx`). The input size is dynamic.
+- **What your server has to do with SCRFD.** Letterbox the decoded RGB image to 640×640 (keep aspect ratio, pad bottom/right), normalize each channel as `(pixel - 127.5) / 128`, run the model, decode the three strides (8, 16, 32) with 2 anchors per cell (box = anchor center ± distance × stride), keep scores ≥ 0.5, apply NMS at IoU 0.4, then undo the letterbox scale and divide by the original width/height to get the normalized `box`.
+- **License.** The insightface pretrained models are for **non-commercial research use only**; tell the user before installing them.
+
+Four things that bit a real Mac Mini setup:
+
+1. **EXIF.** Do not rotate the image by its EXIF tag. OpenAver already sends it upright, and the box must be relative to the pixels you decode.
+2. **`with_embedding`.** Read it as a JSON boolean. Do not pass the raw value to code that treats any non-empty value as true.
+3. **Cold start.** The first request after the model was idle or just loaded can take 1.5 to 3 seconds. Keep the model loaded between requests.
+4. **Worker timeouts.** If your server runs the model in worker processes with a time limit, answer a worker that timed out (`worker_timeout`) with `503`, not with `200` and an empty `faces` list. An empty list means "no face found" and OpenAver stores it; a `503` is retried once and then falls back to the built-in method.
 
 ### Keep it running and reachable
 
-Same rules as image similarity: bind `0.0.0.0`, open the firewall, use the LAN IP when OpenAver runs in Docker or on a NAS, and register the service with systemd, launchd, Task Scheduler or Docker `restart: unless-stopped`.
+Same rules as image similarity (see **Keep it running and reachable** under *Image similarity* above): bind `0.0.0.0`, open the firewall, use the LAN IP when OpenAver runs in Docker or on a NAS, and register the service with systemd, launchd, Task Scheduler or Docker `restart: unless-stopped`. Those examples start `clip_server.py`; replace the script name, service name and port with your face server's. If OpenAver runs on the same machine, binding `127.0.0.1` is enough.
 
 ### Cloud bridge
 
-None verified yet.
+None verified yet. If you build one, remember that cover images then leave the user's network; tell the user.
 
 ## OpenAver endpoints for assistants
 
@@ -446,3 +553,58 @@ Use this only when the user says the model behind the endpoint was swapped but t
 ```bash
 curl -s -X POST "$OA/api/ai/similar/index/rebuild"
 ```
+
+#### Faces: get the sample image
+
+```bash
+curl -s "$OA/api/ai/sample/faces" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d['inputs']), 'input;', d['expect'])"
+```
+
+`inputs[0]` is the sample as a data URI ready to send (upright, longest side at most 650 px, JPEG). `expect` is `{"center": [0.5, 0.3], "tolerance": 0.1, "min_faces": 1}`.
+
+#### Faces: run the consistency test against the saved settings
+
+An empty body tests what the user saved on the settings page (AI features › Faces). Pass `url`, `api_key` and `model` to test something else. It changes no settings and no library data, and does not start any re-focusing; a passing test of the saved settings only records a "last success" time for the settings page.
+
+```bash
+curl -s -X POST "$OA/api/ai/faces/test" -H "Content-Type: application/json" -d '{}'
+```
+
+```json
+{
+  "ok": true,
+  "elapsed_ms": 412,
+  "model": "insightface-buffalo_l"
+}
+```
+
+Failure replies carry `"ok": false` plus `kind` (`unreachable` or `contract`) and `check` (one of the names listed under the Faces consistency test). Once a test passes and the user presses Save on the settings page, OpenAver re-focuses the whole library by itself; you do not need to start it, and it is not offered to assistants.
+
+#### Faces: check the status
+
+```bash
+curl -s "$OA/api/ai/faces/status"
+```
+
+```json
+{
+  "using": "external",
+  "observed": true,
+  "last_success_at": 1793402847.8335638,
+  "running": true,
+  "job_kind": "model_change",
+  "processed": 120,
+  "total": 480,
+  "pending": 360,
+  "unreadable": 0,
+  "stopped_reason": null,
+  "kind": null,
+  "check": null,
+  "target_model": "insightface-buffalo_l"
+}
+```
+
+- `using`: `external` when OpenAver is using the endpoint; `local` when it uses the built-in method (the feature is off, or the endpoint is unreachable; then `kind` and `check` say why).
+- `observed`: OpenAver has had at least one successful reply from the endpoint. `last_success_at` is when (Unix seconds).
+- `running`, `processed`, `total`, `pending`: the library-wide re-focus job. `running: false` with `pending > 0` means it stopped or was interrupted; the user can continue it on the settings page. `stopped_reason` says why it stopped (for example the endpoint became unreachable).
+- `unreadable`: covers whose image file could not be read and were skipped.

@@ -274,3 +274,29 @@ class TestRecordManualOutcome:
         assert device_state.is_disabled() is True
 
 
+# ---------------------------------------------------------------------------
+# classify_manual_reason — table (187a-T3a adds endpoint_down)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "kind,reason,external_failure,just_disabled,expected",
+    [
+        ("FOUND", None, "external_unreachable", False, "endpoint_down"),
+        ("ABANDONED", "skipped_disabled", "external_unreachable", False, "endpoint_down"),
+        ("ABANDONED", "skipped_disabled", None, False, "device_disabled"),
+    ],
+)
+def test_classify_manual_reason_table(
+    kind, reason, external_failure, just_disabled, expected
+):
+    """FOUND/NO_FACE or ABANDONED(skipped_disabled)+external_failure → endpoint_down."""
+    from types import SimpleNamespace
+
+    from core.focal import device_state
+
+    outcome = SimpleNamespace(
+        kind=kind, reason=reason, external_failure=external_failure
+    )
+    assert device_state.classify_manual_reason(outcome, just_disabled) == expected
+

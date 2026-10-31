@@ -216,6 +216,12 @@
       "url": "",
       "api_key": "",
       "model": ""
+    },
+    "faces": {
+      "enabled": false,
+      "url": "",
+      "api_key": "",
+      "model": ""
     }
   }
 }

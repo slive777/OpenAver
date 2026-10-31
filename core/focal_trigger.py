@@ -65,7 +65,16 @@ def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path, *, co
         # fp 忽略（video 無 fingerprint 欄）；commit 綁 video_path_uri 當 WHERE key、
         # cover_path_uri 在此刻（submit 當下）被 closure 捕獲當 expected_cover_path、
         # db_path 當目標 DB。
-        commit = lambda focal_str, fp: VideoRepository(db_path).update_auto_focal(video_path_uri, focal_str, cover_path_uri)  # noqa: E731
+        def commit(focal_str, fp, model='local-pigo'):
+            # 兩參數本機路徑不顯式帶 model，沿用 update_auto_focal 預設值，
+            # 避免打壞既有 trigger 對三位置參數呼叫形狀的契約測試。
+            repo = VideoRepository(db_path)
+            if model == 'local-pigo':
+                repo.update_auto_focal(video_path_uri, focal_str, cover_path_uri)
+            else:
+                repo.update_auto_focal(
+                    video_path_uri, focal_str, cover_path_uri, model=model,
+                )
         submit_focal("video", video_path_uri, cover_fs_path, _DETECT_RATIO, commit)
     except Exception:
         logger.exception("maybe_submit_video_focal 排程失敗（不影響呼叫端流程）: %s", video_path_uri)

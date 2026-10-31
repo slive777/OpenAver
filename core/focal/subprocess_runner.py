@@ -13,6 +13,7 @@ import queue
 import subprocess
 import sys
 import threading
+import dataclasses
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -36,6 +37,8 @@ class RunnerOutcome:
     kind: str  # "FOUND" | "NO_FACE" | "ABANDONED"
     focal: tuple[float, float] | None = None
     reason: str | None = None
+    model: str | None = None  # set only for external (faces endpoint) results
+    external_failure: str | None = None  # why external fell back; not a `reason`
 
 
 def _found(x: float, y: float) -> RunnerOutcome:
@@ -251,7 +254,7 @@ def _run_child_phases(
     return _classify_event(event, call_state)
 
 
-def run_detection(
+def _run_local_detection(
     fs_path: str,
     ratio: float,
     *,
@@ -351,3 +354,76 @@ def run_detection(
             except Exception:
                 logger.exception("focal on_outcome callback raised")
         _slot_lock.release()
+
+
+_local_disabled_probe: Callable[[], bool] | None = None
+
+
+def set_local_disabled_probe(fn: Callable[[], bool]) -> None:
+    """device_state registers its local-only disabled read here (same shape as
+    device_state.set_notification_sink); tests replace the module attribute."""
+    global _local_disabled_probe
+    _local_disabled_probe = fn
+
+
+def _local_disabled_via_probe() -> bool:
+    probe = _local_disabled_probe
+    if probe is None:
+        return False
+    try:
+        return bool(probe())
+    except Exception:
+        logger.warning("focal local-disabled probe raised; failing open", exc_info=True)
+        return False
+
+
+def _try_external(
+    fs_path: str, ratio: float, profile: str
+) -> tuple[RunnerOutcome | None, str | None]:
+    """Ask the faces endpoint (CD-187a-1). Returns ``(final, failure)``.
+
+    ``final`` set = FOUND / NO_FACE from the endpoint; ``failure`` set = endpoint
+    tried and failed (fall back to local); both None = external not applicable.
+    Never calls on_outcome / breaker / slot (I-A, I-B).
+    """
+    from core.ai_services import faces_detect
+
+    result = faces_detect.detect(fs_path, ratio, profile=profile)
+    if result is None:
+        return None, None
+    if result.kind == "FOUND" and result.focal is not None:
+        return RunnerOutcome(kind="FOUND", focal=result.focal, model=result.model), None
+    if result.kind == "NO_FACE":
+        return RunnerOutcome(kind="NO_FACE", model=result.model), None
+    return None, result.failure or "external_contract"
+
+
+def run_detection(
+    fs_path: str,
+    ratio: float,
+    *,
+    job_key: str,
+    timeout_s: float,
+    spawn_fn: Callable[..., Any] = _default_spawn,
+    pre_spawn_check: Callable[[], bool] | None = None,
+    on_outcome: Callable[[RunnerOutcome], None] | None = None,
+    external_profile: str = "background",
+) -> RunnerOutcome:
+    """External faces endpoint first (CD-187a-1), else the local child path.
+
+    External success returns before any breaker / slot / on_outcome. External
+    failure falls back to ``_run_local_detection`` unless the local machine is
+    already judged too slow (probe), and tags the result with ``external_failure``.
+    """
+    final, failure = _try_external(fs_path, ratio, external_profile)
+    if final is not None:
+        return final
+    if failure is not None and _local_disabled_via_probe():
+        return dataclasses.replace(_abandoned("skipped_disabled"), external_failure=failure)
+    out = _run_local_detection(
+        fs_path, ratio, job_key=job_key, timeout_s=timeout_s, spawn_fn=spawn_fn,
+        pre_spawn_check=pre_spawn_check, on_outcome=on_outcome,
+    )
+    if failure is not None:
+        out = dataclasses.replace(out, external_failure=failure)
+    return out

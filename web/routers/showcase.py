@@ -409,6 +409,7 @@ def detect_video_focal(req: DetectFocalRequest):
             run_detection,
             cover_fs, 0.71, job_key=str(uuid.uuid4()), timeout_s=_MANUAL_DETECT_TIMEOUT_S,
             pre_spawn_check=device_state.is_disabled, on_outcome=_on_outcome,
+            external_profile="manual",
         )
         try:
             outcome = future.result(timeout=_MANUAL_DETECT_WALL_BUDGET_S)
