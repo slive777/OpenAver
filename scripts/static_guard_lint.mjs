@@ -1228,6 +1228,7 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="runTest\(\)"/, note: '[186-T6] 測試鈕必須呼叫 runTest()' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="startIndex\(\)"/, note: '[186-T6] 索引鈕必須呼叫 startIndex()' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="stopIndex\(\)"/, note: '[186-T6] 停止鈕必須呼叫 stopIndex()' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="rebuildIndex\(\)"/, note: '[186-T10] 刪除並重建鈕必須呼叫 rebuildIndex()' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="copyAssistantPrompt\(\)"/, note: '[186-T6] 助理鈕必須呼叫 copyAssistantPrompt()' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-model="form\.aiSimilarEnabled"/, note: '[186-T6] 開關必須綁 form.aiSimilarEnabled' },
   { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('aiSimilarPanel'", note: '[186-T6] aiSimilarPanel 必須具名註冊於 main.js' },

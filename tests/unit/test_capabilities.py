@@ -89,6 +89,7 @@ EXPECTED_TOOL_NAMES = {
     "ai_similar_test",
     "ai_similar_status",
     "ai_similar_index",
+    "ai_similar_rebuild",
     "tag_alias_crud_read",
     "tag_alias_crud_write",
     "tags_top",
@@ -142,8 +143,9 @@ class TestCapabilitiesEndpoint:
         """建立索引會對使用者的外部端點發出約等於封面數的請求、換模型時覆蓋向量：AI 助理必須先問使用者。"""
         data = client.get("/api/capabilities").json()
         tools = {t["name"]: t for t in data["tools"]}
-        assert tools["ai_similar_index"]["side_effect"] is True
-        assert tools["ai_similar_index"]["confirmation_required"] is True
+        for name in ("ai_similar_index", "ai_similar_rebuild"):
+            assert tools[name]["side_effect"] is True
+            assert tools[name]["confirmation_required"] is True
 
 
     def test_no_server_mode_toggle_exposed(self, client):

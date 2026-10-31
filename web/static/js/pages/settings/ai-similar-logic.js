@@ -1,7 +1,7 @@
 /**
  * ai-similar-logic.js — 圖片相似分頁純函式（TASK-186-T6）
  *
- * panelMode／indexAction／statusLine＋CHECK_KEYS。無 DOM、無 Alpine、無 window.t。
+ * panelMode／indexAction／statusLine／rebuildVisible／rebuildOutcome＋CHECK_KEYS。無 DOM、無 Alpine、無 window.t。
  */
 
 /** check 值 → i18n key（含未知值的通用文案）。 */
@@ -38,6 +38,21 @@ export function indexAction(status, testPassedThisSession) {
     // 已完成但有讀不到的封面：NAS 接回後可重試（後端會清 unreadable 再算）
     if (hasModel && status.unreadable > 0) return 'retry';
     return null;
+}
+
+/** 「刪除並重建」鈕可見：開關開 ∧ 已有向量或讀不到的片 ∧ 沒有工作在跑。 */
+export function rebuildVisible(status, enabled) {
+    if (!enabled || !status || status.running) return false;
+    return (status.indexed || 0) + (status.unreadable || 0) > 0;
+}
+
+/** 重建回應對應：started／busy（already_running）／test_failed／error。 */
+export function rebuildOutcome(httpOk, data) {
+    if (!httpOk || !data) return 'error';
+    if (data.status === 'started') return 'started';
+    if (data.status === 'already_running') return 'busy';
+    if (data.status === 'test_failed') return 'test_failed';
+    return 'error';
 }
 
 /** unix 秒 → 本地 HH:MM；無效回 ''。 */

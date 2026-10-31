@@ -112,3 +112,53 @@ def test_similar_tab_hides_fields_when_switch_off(page: Page, base_url: str) -> 
 
     page.locator("#aiSimilarEnabled").check()
     expect(page.locator("#aiSimilarUrl")).to_be_visible()
+
+
+def test_rebuild_button_confirm_gate(page: Page, base_url: str) -> None:
+    """「刪除並重建索引」：確認框按取消不送請求、接受才送一次；工作在跑時鈕不出現（TASK-186-T10）。不儲存。"""
+    status = {"running": False, "indexed": 7, "unreadable": 0, "total": 7, "pending": 0,
+              "model": "m", "complete": True, "model_changed": False, "unreachable": False}
+    posts: list[str] = []
+
+    def fake_config(route):
+        cfg = route.fetch().json()
+        cfg.setdefault("ai_services", {})["image_similar"] = {
+            "enabled": True, "url": "http://embed.test", "api_key": "", "model": ""}
+        route.fulfill(json=cfg)
+
+    def fake_rebuild(route):
+        posts.append(route.request.url)
+        route.fulfill(json={"ok": True, "status": "started"})
+
+    page.route(re.compile(r"/api/config$"), lambda r: fake_config(r) if r.request.method == "GET" else r.continue_())
+    page.route("**/api/ai/similar/status", lambda r: r.fulfill(json=status))
+    page.route("**/api/ai/similar/index/rebuild", fake_rebuild)
+    _open_settings(page, base_url)
+    page.locator("#aiTabSimilar").click()
+    btn = page.locator("#aiSimilarRebuildBtn")
+    expect(btn).to_be_visible()
+    expect(btn).to_be_enabled()
+
+    messages: list[str] = []
+
+    def on_dialog(accept: bool):
+        def handler(d):
+            messages.append(d.message)
+            d.accept() if accept else d.dismiss()
+        return handler
+
+    page.once("dialog", on_dialog(False))
+    btn.click()
+    expect(btn).to_be_enabled()  # settle：取消後沒有進入處理中
+    assert len(messages) == 1 and "7" in messages[0] and posts == []
+
+    page.once("dialog", on_dialog(True))
+    with page.expect_request("**/api/ai/similar/index/rebuild"):
+        btn.click()
+    expect(btn).to_be_enabled()  # settle：請求已走完（route handler 已記錄）
+    assert len(messages) == 2 and "7" in messages[1] and len(posts) == 1
+
+    status["running"] = True  # 下一輪輪詢／切回分頁刷新 → 工作在跑
+    page.locator("#aiTabTranslate").click()
+    page.locator("#aiTabSimilar").click()
+    expect(btn).to_be_hidden()

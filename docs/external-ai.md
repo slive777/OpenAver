@@ -34,7 +34,7 @@ OpenAver turns each cover into a vector by calling your endpoint, stores the vec
 
 - **Request.** `Content-Type: application/json`. If the user set an API key, OpenAver sends `Authorization: Bearer <key>`; otherwise no auth header. `input` is an array; OpenAver currently sends one image per request, accept more if you can. Images are data URIs (`image/jpeg`, `image/png` or `image/webp`) whose longest side is at most 448 px. Reply `400` for an `input` string that is not an image data URI (text queries are not used yet).
 - **What the image is.** For library covers OpenAver sends the **right half** of the cover (the left half carries the title text). You embed whatever you receive; do not crop again.
-- **Response.** `data[0].embedding` is an array of plain numbers (no booleans, no NaN, not all zero), 128 to 4096 long, **L2-normalized** (OpenAver normalizes again, but send unit vectors anyway). `model` is a **required non-empty string** that names the model and stays the same for every reply. If it changes, OpenAver treats the index as stale and asks the user to rebuild it.
+- **Response.** `data[0].embedding` is an array of plain numbers (no booleans, no NaN, not all zero), 128 to 4096 long, **L2-normalized** (OpenAver normalizes again, but send unit vectors anyway). `model` is a **required non-empty string** that names the model and stays the same for every reply. If it changes, OpenAver treats the index as stale and asks the user to rebuild it. If you swap the underlying model (including a different quantization), make the reported `model` change with it; if the name cannot change, ask the user to press "Delete and rebuild index" on the settings page.
 - **Errors.** Use normal HTTP codes. `4xx` is never retried. `5xx` and timeouts are retried once. Timeouts: connect 5 s, read 30 s (90 s for the first request of a test, so a cold model load is fine).
 - **Same input, same output.** Embedding the same image twice must give (almost) the same vector.
 
@@ -437,4 +437,12 @@ curl -s -X POST "$OA/api/ai/similar/index"
   "ok": true,
   "status": "started"
 }
+```
+
+#### Delete and rebuild the index (ask the user first)
+
+Use this only when the user says the model behind the endpoint was swapped but the reported `model` name stayed the same (otherwise the call above is enough). It runs the consistency test first and **deletes nothing if the test fails**; if it passes, it **deletes every stored vector** and recomputes all of them, so it sends one request per cover (thousands, tens of minutes). Until it finishes, similar-cover results use the rule-based ordering. It refuses while an index job is running. **Get the user's confirmation before calling it.** The reply has the same `status` values as the call above.
+
+```bash
+curl -s -X POST "$OA/api/ai/similar/index/rebuild"
 ```

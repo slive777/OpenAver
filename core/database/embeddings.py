@@ -89,6 +89,18 @@ class EmbeddingRepository:
             conn.commit()
         return True
 
+    def reset_index(self, model: str, dim: int) -> int:
+        """使用者要求「刪除並重建」：刪光全部向量列並定模型、``complete='0'``，同一個
+        transaction（不出現「列已刪、complete 仍 '1'」）。回刪除列數。"""
+        with closing(connection.get_connection(self.db_path)) as conn:
+            n = conn.execute("DELETE FROM video_embeddings").rowcount
+            conn.executemany(
+                "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)",
+                [(META_MODEL, model), (META_DIM, str(int(dim))), (META_COMPLETE, "0")],
+            )
+            conn.commit()
+        return n
+
     def mark_complete(self) -> None:
         with closing(connection.get_connection(self.db_path)) as conn:
             conn.execute(

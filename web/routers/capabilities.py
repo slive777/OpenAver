@@ -1572,6 +1572,33 @@ _TOOLS: list[dict] = [
         "_example_template": "curl -X POST '{base}/api/ai/similar/index'",
     },
     {
+        "name": "ai_similar_rebuild",
+        "description": (
+            "刪除並重建圖片相似索引：先對使用者設定的外部端點跑一致性測試，沒過就什麼都不刪並回 kind／check；"
+            "通過後刪除全部既有向量，並在背景對片庫每張封面各送一次請求（數量約等於封面數，可能上千次，需數十分鐘）；"
+            "重算完成前星空走規則排序。已有索引工作在跑時拒絕（回 already_running）。不動影片、NFO、封面。"
+            "只該在使用者說明底層模型換了、但端點回報的模型名稱沒變時使用（名稱變了用 ai_similar_index 即可）。"
+            "AI 呼叫前必須先向使用者說明上述影響並取得確認。進度用 ai_similar_status 查。"
+        ),
+        "side_effect": True,
+        "method": "POST",
+        "path": "/api/ai/similar/index/rebuild",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "ok": "boolean — 這次呼叫是否啟動了重建工作（已在跑時 ok=false、status=already_running；一致性測試沒過時 ok=false、status=test_failed）",
+            "status": "string — started（已刪除既有向量並啟動重算）／already_running（已在跑，沒有刪除任何東西）／test_failed（一致性測試沒過，沒有刪除任何東西）",
+            "kind": "string — status=test_failed 時才有：unreachable／contract",
+            "check": "string — status=test_failed 時才有：哪一條沒過",
+        },
+        "confirmation_required": True,  # 186-T10: 會刪除全部向量，必須先問使用者
+        "retry_safe": False,
+        "_example_template": "curl -X POST '{base}/api/ai/similar/index/rebuild'",
+    },
+    {
         "name": "tag_alias_crud_read",
         "description": (
             "列出所有 tag 別名組或查詢單一 group。"

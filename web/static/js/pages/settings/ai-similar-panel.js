@@ -10,12 +10,15 @@ import {
     panelMode,
     indexAction,
     statusLine,
+    rebuildVisible,
+    rebuildOutcome,
     CHECK_KEYS,
 } from './ai-similar-logic.js';
 
 const STATUS_URL = '/api/ai/similar/status';
 const TEST_URL = '/api/ai/similar/test';
 const INDEX_URL = '/api/ai/similar/index';
+const REBUILD_URL = '/api/ai/similar/index/rebuild';
 const STOP_URL = '/api/ai/similar/index/stop';
 const POLL_MS = 1000;
 /** 建索引中 status 連續失敗上限（約 30 秒）後才停輪詢。 */
@@ -79,6 +82,10 @@ export function aiSimilarPanel() {
 
         indexAction() {
             return indexAction(this.aiSimStatus, this.aiSimTestPassed);
+        },
+
+        rebuildVisible() {
+            return rebuildVisible(this.aiSimStatus, Boolean(this.form && this.form.aiSimilarEnabled));
         },
 
         /** 索引類按鈕是否停用。 */
@@ -225,6 +232,33 @@ export function aiSimilarPanel() {
                 this.aiSimIndexBusy = false;
             }
             // started／test_failed／HTTP 錯誤皆刷新，讓狀態列吃到後端觀察值
+            await this.refreshStatus();
+        },
+
+        /** 刪除並重建：確認後後端先測試、通過才刪光向量並從 0 重算。 */
+        async rebuildIndex() {
+            if (this.indexDisabled()) return;
+            const n = (this.aiSimStatus?.indexed || 0) + (this.aiSimStatus?.unreadable || 0);
+            // eslint-disable-next-line no-alert -- rebuildIndex destructive confirm, same shape as cycleLocale dirty-check confirm
+            if (!confirm(window.t('settings.ai.similar.rebuild_confirm', { n }))) return;
+            this.aiSimIndexBusy = true;
+            try {
+                const res = await fetch(REBUILD_URL, { method: 'POST' });
+                let data = null;
+                try { data = await res.json(); } catch { data = null; }
+                const outcome = rebuildOutcome(res.ok, data);
+                if (outcome === 'test_failed') {
+                    this.aiSimTestPassed = false;
+                    this.aiSimTestResultHtml = this._formatTestResult(data);
+                } else if (outcome === 'error') {
+                    this.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
+                }
+            } catch {
+                this.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
+            } finally {
+                this.aiSimIndexBusy = false;
+            }
+            // started／busy／test_failed／錯誤皆刷新（與 startIndex 同）
             await this.refreshStatus();
         },
 

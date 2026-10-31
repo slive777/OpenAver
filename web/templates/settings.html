@@ -1502,8 +1502,15 @@
                                     <span x-show="!aiSimIndexBusy && indexAction() === 'retry'"
                                           x-text="window.t('settings.ai.similar.btn_retry_unreadable', { n: aiSimStatus?.unreadable || 0 })"></span>
                                 </button>
+                                <button type="button" class="btn btn-sm btn-ghost"
+                                        id="aiSimilarRebuildBtn"
+                                        x-show="rebuildVisible()"
+                                        @click="rebuildIndex()"
+                                        :disabled="indexDisabled()">
+                                    <span x-text="window.t('settings.ai.similar.btn_delete_rebuild')"></span>
+                                </button>
                                 <span class="settings-hint ai-similar-save-first"
-                                      x-show="isDirty && (indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue' || indexAction() === 'retry')"
+                                      x-show="isDirty && (indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue' || indexAction() === 'retry' || rebuildVisible())"
                                       x-text="window.t('settings.ai.similar.save_first')"></span>
                             </div>
 

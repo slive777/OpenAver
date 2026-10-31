@@ -6,6 +6,8 @@ const {
     panelMode,
     indexAction,
     statusLine,
+    rebuildVisible,
+    rebuildOutcome,
 } = await import('../ai-similar-logic.js');
 
 import { test } from 'node:test';
@@ -160,4 +162,24 @@ test('panelMode_fields_when_enabled_even_if_url_empty', () => {
     assert.equal(panelMode({ aiSimilarEnabled: true, aiSimilarUrl: 'http://x' }), 'fields');
     assert.equal(panelMode({ aiSimilarEnabled: false, aiSimilarUrl: '' }), 'empty');
     assert.equal(panelMode({ aiSimilarEnabled: false, aiSimilarUrl: 'http://x' }), 'empty');
+});
+
+test('rebuildVisible_table', () => {
+    const idle = { running: false, indexed: 5, unreadable: 0 };
+    assert.equal(rebuildVisible(idle, true), true);
+    assert.equal(rebuildVisible({ running: false, indexed: 0, unreadable: 2 }, true), true);
+    assert.equal(rebuildVisible(idle, false), false); // 開關關
+    assert.equal(rebuildVisible({ ...idle, running: true }, true), false); // 工作在跑
+    assert.equal(rebuildVisible({ running: false, indexed: 0, unreadable: 0 }, true), false); // 沒有向量可刪
+    assert.equal(rebuildVisible(null, true), false);
+    assert.equal(rebuildVisible(undefined, true), false);
+});
+
+test('rebuildOutcome_table', () => {
+    assert.equal(rebuildOutcome(true, { ok: true, status: 'started' }), 'started');
+    assert.equal(rebuildOutcome(true, { ok: false, status: 'already_running' }), 'busy');
+    assert.equal(rebuildOutcome(true, { ok: false, status: 'test_failed', kind: 'contract' }), 'test_failed');
+    assert.equal(rebuildOutcome(false, { status: 'started' }), 'error'); // HTTP 非 2xx
+    assert.equal(rebuildOutcome(true, null), 'error');
+    assert.equal(rebuildOutcome(true, { status: 'weird' }), 'error');
 });

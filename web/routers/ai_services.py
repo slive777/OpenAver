@@ -141,6 +141,12 @@ async def similar_index_start():
     return await asyncio.to_thread(similar_index.start_build)
 
 
+@router.post("/similar/index/rebuild")
+async def similar_index_rebuild():
+    """刪除並重建索引：先跑一致性測試（可達 90 秒以上），沒過什麼都不刪；業務失敗在 body、HTTP 200。"""
+    return await asyncio.to_thread(similar_index.start_rebuild)
+
+
 @router.post("/similar/index/stop")
 async def similar_index_stop():
     """停止索引工作（閒置時為 no-op）。"""

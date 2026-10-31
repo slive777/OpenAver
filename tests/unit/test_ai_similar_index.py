@@ -39,6 +39,7 @@ class FakeEndpoint:
 
     def __init__(self):
         self.mode, self.model, self.dim = "normal", "model-X", 128
+        self.salt = ""  # 底層模型換了但名稱沒變：改 salt 就得到不同向量
         self.covers = self.samples = self.inflight = self.peak = 0
         self.on_cover = None  # callable(n)：每個封面請求在回應前於 handler 內呼叫
         self._lock = threading.Lock()
@@ -61,7 +62,7 @@ class FakeEndpoint:
             if self.mode == "down":
                 raise httpx.ConnectError("down", request=request)
             dim = 64 if self.mode == "bad_dim" else self.dim
-            body = {"model": self.model, "data": [{"embedding": _vec(uri, dim)}]}
+            body = {"model": self.model, "data": [{"embedding": _vec(uri + self.salt, dim)}]}
             return httpx.Response(200, json=body)
         finally:
             with self._lock:
@@ -390,3 +391,128 @@ def test_scan_handoff(tmp_path, monkeypatch):
     assert (c.fake.covers, st["pending"], st["running"]) == (0, 1, False) and not _workers()
     _build_and_join()  # 「繼續」後才歸 0
     assert (c.fake.covers, similar_index.status()["pending"]) == (1, 0)
+
+
+def _vec_bytes(env: Env) -> dict:
+    with closing(db_connection.get_connection(env.db)) as conn:
+        return {r[0]: bytes(r[1]) for r in conn.execute("SELECT video_id, vec FROM video_embeddings")}
+
+
+def _snapshot(env: Env) -> tuple:
+    with closing(db_connection.get_connection(env.db)) as conn:
+        rows = conn.execute(
+            "SELECT video_id, model, dim, vec, cover_path FROM video_embeddings ORDER BY video_id"
+        ).fetchall()
+    return [tuple(r) for r in rows], env.repo.get_index_state()
+
+
+def test_rebuild_refused_while_running(tmp_path, monkeypatch):
+    """R1：建立進行中按刪除並重建 → 向量被刪光、兩份工作同時打端點。"""
+    env = Env(tmp_path, monkeypatch, "rb_run")
+    for _ in range(4):
+        env.add_video()
+    entered, release = threading.Event(), threading.Event()
+
+    def hook(n):
+        if n == 2:
+            entered.set()
+            release.wait(10)
+
+    env.fake.on_cover = hook
+    try:
+        assert similar_index.start_build()["status"] == "started"
+        assert entered.wait(10)
+        rows, samples_before = env.rows(), env.fake.samples
+        assert similar_index.start_rebuild()["status"] == "already_running"
+        assert env.rows() == rows == 1
+        assert env.fake.samples == samples_before  # 沒跑第二次一致性測試
+        assert len(_workers()) == 1
+    finally:
+        release.set()
+    _join_workers()
+    assert env.fake.peak <= 1 and env.rows() == 4
+
+
+def test_rebuild_test_failed_keeps_everything(tmp_path, monkeypatch):
+    """R2：端點壞了還按重建 → 好端端的向量白白被刪、之後也建不回來。"""
+    env = Env(tmp_path, monkeypatch, "rb_fail")
+    for _ in range(3):
+        env.add_video()
+    _build_and_join()
+    before = _snapshot(env)
+    assert len(before[0]) == 3 and before[1]["complete"] == "1"
+    env.fake.mode = "bad_dim"
+    res = similar_index.start_rebuild()
+    assert (res["status"], res["kind"], res["check"]) == ("test_failed", "contract", "dim_range")
+    assert _snapshot(env) == before and not _workers()
+
+
+def test_rebuild_deletes_then_recomputes_all(tmp_path, monkeypatch):
+    """R3：按重建卻瞬間完成、向量其實沒換 → 使用者以為換好了，星空仍用舊模型的向量。"""
+    env = Env(tmp_path, monkeypatch, "rb_all")
+    m = 5
+    for _ in range(m):
+        env.add_video()
+    _build_and_join()
+    old = _vec_bytes(env)
+    assert len(old) == m
+    env.fake.salt, env.fake.covers = "-new", 0  # 同 model／同 dim，底層模型換了
+    assert similar_index.start_rebuild()["status"] == "started"
+    _join_workers()
+    new = _vec_bytes(env)
+    assert env.fake.covers == m  # 每一張封面都重送了
+    assert set(new) == set(old) and all(new[k] != old[k] for k in old)
+    assert (env.rows(), env.complete()) == (m, "1")
+
+
+def test_rebuild_gate_closed_until_complete(tmp_path, monkeypatch):
+    """R4：重建到一半（含停止）星空就用半套新向量 → 同一批片的結果隨進度忽好忽壞。"""
+    env = Env(tmp_path, monkeypatch, "rb_gate")
+    for _ in range(4):
+        env.add_video()
+    _build_and_join()
+    assert env.gate() is True
+    env.fake.salt, env.fake.covers = "-new", 0
+    entered, release = threading.Event(), threading.Event()
+
+    def hook(n):
+        if n == 2:
+            entered.set()
+            release.wait(10)
+
+    env.fake.on_cover = hook
+    try:
+        assert similar_index.start_rebuild()["status"] == "started"
+        assert entered.wait(10)
+        assert (env.gate(), env.complete()) == (False, "0") and env.rows() < 4
+        similar_index.request_stop()
+    finally:
+        release.set()
+    _join_workers()
+    assert (env.gate(), env.complete()) == (False, "0")
+    env.fake.on_cover = None
+    _build_and_join()
+    assert (env.gate(), env.complete(), env.rows()) == (True, "1", 4)
+
+
+def test_rebuild_result_single_model_and_fresh_cache(tmp_path, monkeypatch):
+    """R5：重建完成後星空查詢仍拿刪除前的向量矩陣 → 等於沒重建。"""
+    env = Env(tmp_path, monkeypatch, "rb_cache")
+    for _ in range(3):
+        env.add_video()
+    _build_and_join()
+    vid = next(iter(env.covers))
+    old = _vec_bytes(env)[vid]
+    similar_state.fusion_vectors(env.cfg, env.db)  # 暖 cache：載入舊向量
+    env.fake.salt = "-new"
+    assert similar_index.start_rebuild()["status"] == "started"
+    _join_workers()
+    new = _vec_bytes(env)[vid]
+    assert new != old
+    with closing(db_connection.get_connection(env.db)) as conn:
+        assert [tuple(r) for r in conn.execute(
+            "SELECT DISTINCT model, dim FROM video_embeddings WHERE dim > 0")] == [("model-X", 128)]
+    vectors = similar_state.fusion_vectors(env.cfg, env.db)
+    assert vectors is not None
+    got = pack_vector(list(vectors[vid]))
+    assert got == new and got != old

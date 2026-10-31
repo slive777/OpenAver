@@ -131,12 +131,22 @@ def start_build() -> dict:
     回傳 ``{"ok", "status": "started"|"already_running"|"test_failed", "kind"?, "check"?}``。
     會阻塞到一致性測試結束（可達 90 秒以上）→ 呼叫端須 ``asyncio.to_thread``。
     """
+    return _start(rebuild=False)
+
+
+def start_rebuild() -> dict:
+    """「刪除並重建」（CD-186-22）：與 ``start_build`` 同一條取鎖路徑與測試；測試通過後
+    才刪光全部向量並從 0 重算（測試沒過什麼都不動）。回傳形狀同 ``start_build``。"""
+    return _start(rebuild=True)
+
+
+def _start(rebuild: bool) -> dict:
     with _STATE_LOCK:
         if not _try_acquire_job():
             return {"ok": False, "status": "already_running"}
         _begin_job_locked("build")
     try:
-        ctx, failure = _prepare_build()
+        ctx, failure = _prepare_build(rebuild)
     except BaseException:
         _release_unlaunched("error")
         raise
@@ -147,8 +157,9 @@ def start_build() -> dict:
     return {"ok": True, "status": "started"}
 
 
-def _prepare_build() -> tuple:
-    """跑一致性測試；過了才定模型（``begin_index``）。回 ``(ctx, None)`` 或 ``(None, 失敗 dict)``。"""
+def _prepare_build(rebuild: bool = False) -> tuple:
+    """跑一致性測試；過了才定模型（``begin_index``；重建＝``reset_index`` 刪光向量）。
+    回 ``(ctx, None)`` 或 ``(None, 失敗 dict)``。"""
     config = load_config()
     cfg = _endpoint_cfg(_image_cfg(config))
     repo = EmbeddingRepository()
@@ -157,7 +168,12 @@ def _prepare_build() -> tuple:
         similar_state.observe_failure(test.kind, test.check)
         return None, {"ok": False, "status": "test_failed", "kind": test.kind, "check": test.check}
     similar_state.observe_success(test.model, test.dim)
-    repo.begin_index(test.model, test.dim)
+    if rebuild:
+        repo.reset_index(test.model, test.dim)
+        from core.ai_services.embedding_cache import EmbeddingMatrixCache
+        EmbeddingMatrixCache.invalidate()  # 刪除之後不可能再讀到舊矩陣（仍在 _JOB_LOCK 內）
+    else:
+        repo.begin_index(test.model, test.dim)
     repo.clear_unreadable(test.model)  # 使用者發起的工作：讀不到的片重試一次（增量不做）
     return _Ctx("build", repo, cfg, _path_mappings(config), test.model, test.dim), None
 

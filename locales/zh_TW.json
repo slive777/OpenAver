@@ -613,6 +613,8 @@
         "model_placeholder": "端點回報的 model 字串",
         "btn_build": "建立索引",
         "btn_rebuild": "重建索引",
+        "btn_delete_rebuild": "刪除並重建索引",
+        "rebuild_confirm": "會刪除 {n} 部的向量並從頭重算（約需數十分鐘）；重算完成前星空用規則排序。",
         "btn_continue": "繼續",
         "btn_retry_unreadable": "重試讀不到的封面（{n} 張）",
         "btn_stop": "停止",
