@@ -273,6 +273,34 @@ def _schedule_ai_incremental() -> None:
     _new_faces_round()  # 187a-T4b：同一個非 abort 收尾點（generate_avlist 已在豁免上限，不再加行）
 
 
+def _post_scan_cleanup_and_plot_backfill(repo, config, path_mappings, is_aborted):
+    """掃描收尾：sample_images 孤兒清理 + has_plot 回填（187b-T2b）。
+
+    從 generate_avlist 抽出以守規模閘（行為逐字同原 cleanup 塊，另接回填）。
+    abort 時整段跳過。yield SSE log 字串。
+    """
+    if is_aborted():
+        return
+    # §b1 AC#2: sample_images 孤兒清理 pass（Scanner UI 主路徑覆蓋，共用 helper）
+    try:
+        cleaned = _run_sample_images_cleanup_pass(repo, path_mappings)
+        if cleaned > 0:
+            yield _sse_event({"type": "log", "level": "info", "message": f"清除 {cleaned} 筆孤兒劇照記錄"})
+    except Exception as e:
+        logger.warning("sample_images cleanup pass failed: %s: %s", type(e).__name__, e)
+        # 失敗不中斷 scan 流程
+
+    try:
+        from core.plot_flag_backfill import run_plot_flag_backfill_pass
+        filled = run_plot_flag_backfill_pass(
+            repo, config, path_mappings, should_abort=is_aborted,
+        )
+        if filled > 0:
+            yield _sse_event({"type": "log", "level": "info", "message": f"補齊 {filled} 部簡介記號"})
+    except Exception as e:
+        logger.warning("has_plot backfill pass failed: %s: %s", type(e).__name__, e)
+
+
 def _new_faces_round() -> None:
     """掃描收尾（非 abort）：人臉端點「連不上」側欄通知可再出一次（187a-T4b）。"""
     try:
@@ -625,18 +653,10 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
 
         yield _sse_event({"type": "log", "level": "info", "message": f"資料庫總筆數: {repo.count()}"})
 
-        # TASK-90b-T4: abort 時跳過 orphan 清理（全庫 pass，非本次掃描範圍新增
-        # 的成本，abort 時執行拿不到「這次掃描結果更完整」的好處，純屬多做一次
-        # 不必要的全庫查詢，見決策表）
-        if not _is_aborted():
-            # §b1 AC#2: sample_images 孤兒清理 pass（Scanner UI 主路徑覆蓋，共用 helper）
-            try:
-                cleaned = _run_sample_images_cleanup_pass(repo, path_mappings)
-                if cleaned > 0:
-                    yield _sse_event({"type": "log", "level": "info", "message": f"清除 {cleaned} 筆孤兒劇照記錄"})
-            except Exception as e:
-                logger.warning("sample_images cleanup pass failed: %s: %s", type(e).__name__, e)
-                # 失敗不中斷 scan 流程
+        # TASK-90b-T4: abort 時跳過 orphan 清理／has_plot 回填（全庫 pass）
+        yield from _post_scan_cleanup_and_plot_backfill(
+            repo, config, path_mappings, _is_aborted,
+        )
 
         # TASK-90b-T4: abort 時跳過 HTML 產生（成本隨影片數線性成長，是浪費工的
         # 主源；client 已斷線不會有人看這份輸出，見決策表）與對應的「完成」

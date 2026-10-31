@@ -33,10 +33,10 @@ from core.config import load_config, get_gallery_source_paths, get_configured_ga
 from core.scrapers.utils import has_japanese
 from core.nfo_stat import nfo_mtime_or_none
 from core.nfo_title_format import build_display_title
-from core.readonly_paths import resolve_owning_output_root
 from core.title_writeback import (
     NfoNotFoundError, NfoParseError, rewrite_nfo_titles, strip_illegal_xml_chars,
 )
+from core.video_nfo_locate import locate_readonly_nfo, locate_video_nfo
 from core.focal import device_state, format_focal, parse_focal
 from core.focal.subprocess_runner import run_detection
 from core import thumbnail_cache
@@ -515,35 +515,11 @@ def _new_original_title(req, video) -> str:
 
 
 def _locate_readonly_nfo(video, path_mappings: dict, output_uri: str):
-    """唯讀來源：scandir 一次列舉輸出夾的 .nfo（BE-DATA-12：四狀態分開）。回 (path, err)。
-
-    output_dir 必須在目前設定的輸出根（output_uri）底下，否則視為沒有 NFO（不碰舊夾）。
-    """
-    if not video.output_dir:
-        return None, "no_nfo"
-    if not output_uri or not is_path_under_dir(video.output_dir, output_uri):
-        return None, "no_nfo"
-    out_fs = uri_to_local_fs_path(video.output_dir, path_mappings)
-    try:
-        with os.scandir(out_fs) as it:
-            nfo_files = sorted(e.path for e in it if e.name.lower().endswith(".nfo") and e.is_file())
-    except FileNotFoundError:
-        return None, "no_nfo"
-    except OSError:
-        return None, "nfo_unreadable"
-    if len(nfo_files) > 1:
-        return None, "nfo_ambiguous"
-    if not nfo_files:
-        return None, "no_nfo"
-    return nfo_files[0], None
+    return locate_readonly_nfo(video, path_mappings, output_uri)
 
 
 def _locate_title_nfo(video, config: dict, path_mappings: dict):
-    """回 (nfo_path, err)：唯讀來源取輸出夾那份，一般來源取影片旁同名 .nfo。"""
-    owning = resolve_owning_output_root(video.path, config)
-    if owning is not None:
-        return _locate_readonly_nfo(video, path_mappings, owning[2])
-    return str(Path(uri_to_local_fs_path(video.path, path_mappings)).with_suffix(".nfo")), None
+    return locate_video_nfo(video, config, path_mappings)
 
 
 def _write_title_nfo(nfo_path: str, video, body: str, new_original: str, fmt: str) -> Optional[str]:

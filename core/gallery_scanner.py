@@ -772,6 +772,13 @@ class VideoScanner:
         # §b1 AC#2: sample_images 孤兒清理 pass（CLI / 直接呼叫路徑覆蓋）
         _run_sample_images_cleanup_pass(repo, self.path_mappings)
 
+        try:
+            from core.config import load_config
+            from core.plot_flag_backfill import run_plot_flag_backfill_pass
+            run_plot_flag_backfill_pass(repo, load_config(), self.path_mappings)
+        except Exception:
+            logger.warning("[*] has_plot backfill pass failed（不影響掃描結果）", exc_info=True)
+
         return {
             'inserted': inserted,
             'updated': updated,
