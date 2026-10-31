@@ -79,32 +79,30 @@ test('statusLine_table', () => {
     assert.equal(rr1.params.n, 3);
     assert.equal(rr1.params.m, 10);
 
-    // stopped_reason 優先於 pending
+    // stopped_reason 優先於 pending（需有 target_model）
     const rr2 = recomputeLine({
-        ...base, pending: 5, stopped_reason: 'unreachable',
+        ...base, pending: 5, stopped_reason: 'unreachable', target_model: 'm',
     });
     assert.equal(rr2.key, 'settings.ai.faces.recompute_stopped_unreachable');
 
     const rr2b = recomputeLine({
-        ...base, pending: 5, stopped_reason: 'contract',
+        ...base, pending: 5, stopped_reason: 'contract', target_model: 'm',
     });
     assert.equal(rr2b.key, 'settings.ai.faces.recompute_stopped_contract');
 
     // disabled（重算中關掉人臉）→ 不顯示「已停止」句，走未完成＋繼續
     const rr2c = recomputeLine({
-        ...base, pending: 5, stopped_reason: 'disabled',
+        ...base, pending: 5, stopped_reason: 'disabled', target_model: 'm',
     });
     assert.equal(rr2c.key, 'settings.ai.faces.recompute_incomplete');
     assert.equal(rr2c.params.n, 5);
 
-    // 未完成
-    const rr3 = recomputeLine({ ...base, pending: 4, unreadable: 0 });
-    assert.equal(rr3.key, 'settings.ai.faces.recompute_incomplete');
-    assert.equal(rr3.params.n, 4);
-    assert.equal(rr3.extra, null);
+    // 無 target_model（開關剛開未存）→ 即使 pending>0 也不顯示未完成
+    const rr3 = recomputeLine({ ...base, pending: 4, unreadable: 0, target_model: null });
+    assert.equal(rr3, null);
 
     // 未完成＋封面讀不到
-    const rr4 = recomputeLine({ ...base, pending: 4, unreadable: 2 });
+    const rr4 = recomputeLine({ ...base, pending: 4, unreadable: 2, target_model: 'm' });
     assert.equal(rr4.key, 'settings.ai.faces.recompute_incomplete');
     assert.equal(rr4.extra, 'settings.ai.faces.recompute_unreadable_extra');
     assert.equal(rr4.params.k, 2);

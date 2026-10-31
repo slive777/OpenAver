@@ -564,7 +564,7 @@ curl -s "$OA/api/ai/sample/faces" | python3 -c "import json,sys; d=json.load(sys
 
 #### Faces: run the consistency test against the saved settings
 
-An empty body tests what the user saved on the settings page (AI features › Faces). Pass `url`, `api_key` and `model` to test something else. This writes nothing and does not start any re-focusing.
+An empty body tests what the user saved on the settings page (AI features › Faces). Pass `url`, `api_key` and `model` to test something else. It changes no settings and no library data, and does not start any re-focusing; a passing test of the saved settings only records a "last success" time for the settings page.
 
 ```bash
 curl -s -X POST "$OA/api/ai/faces/test" -H "Content-Type: application/json" -d '{}'
