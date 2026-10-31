@@ -152,7 +152,8 @@ export function stateLightboxPlot() {
                 }
                 const body = { file_path: path, plot: translated };
                 if (isRetranslate) {
-                    body.original_plot = view.original || '';
+                    // 按下當下捕獲；await 期間 close→toggle 會把同一個 view.original 清成 ''
+                    body.original_plot = snapshot.original;
                 }
                 let data;
                 try {

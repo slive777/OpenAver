@@ -292,5 +292,47 @@ test('test_translate_lock_capture_undo', async () => {
         const lastToast = toasts[toasts.length - 1];
         assert.equal(lastToast[0], 'showcase.lightbox.plot_already_zh');
         assert.equal(lastToast[1], 'info');
+
+        // 重翻：翻譯 await 期間 close→toggle 讓 _lbPlotLoad 清空 view.original
+        // → 寫回 POST 的 original_plot 仍須是按下當下的原文（不可送 ""）
+        c.lbPlotClose();
+        const pHasOrig = c.lbPlotToggle();
+        f.pending.plotGet[3]({
+            success: true,
+            plot: '中文譯文',
+            original_plot: '原文あらすじ',
+            has_original: true,
+        });
+        await pHasOrig;
+        c.lbPlotToggleOriginal();
+        assert.equal(c._lbPlotView.showing, 'original');
+        assert.equal(c._lbPlotView.original, '原文あらすじ');
+
+        const pRe = c.lbPlotTranslate();
+        assert.equal(f.count('translate'), 3);
+        c.lbPlotClose();
+        const pReopen = c.lbPlotToggle();
+        assert.equal(c._lbPlotView.original, '', 'load 已把 view.original 清成空');
+        assert.equal(c._lbPlotView.loading, true);
+
+        f.pending.translate[2]({ success: true, result: '新中文譯文' });
+        await tick();
+        const rePost = f.calls.filter((x) => x.kind === 'plotPost').at(-1);
+        assert.equal(rePost.body.original_plot, '原文あらすじ', '重翻寫回必須帶按下當下的原文');
+        assert.equal(rePost.body.plot, '新中文譯文');
+        f.pending.plotPost[2]({
+            success: true,
+            plot: '新中文譯文',
+            original_plot: '原文あらすじ',
+            has_original: true,
+        });
+        f.pending.plotGet[4]({
+            success: true,
+            plot: '中文譯文',
+            original_plot: '原文あらすじ',
+            has_original: true,
+        });
+        await pRe;
+        await pReopen;
     });
 });
