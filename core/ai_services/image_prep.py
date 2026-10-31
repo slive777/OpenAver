@@ -71,3 +71,40 @@ def cover_to_faces_data_uri(fs_path: str) -> tuple[str, tuple[int, int]] | None:
     except Exception:
         return None
     return uri, size
+
+
+def read_exif_orientation(fs_path: str) -> int:
+    """EXIF Orientation (1-8) of the file; unreadable / absent / out of range → 1."""
+    try:
+        with Image.open(fs_path) as im:
+            value = int(im.getexif().get(0x0112, 1))
+    except Exception:
+        return 1
+    return value if 1 <= value <= 8 else 1
+
+
+def upright_focal_to_raw(
+    focal: tuple[float, float], orientation: int
+) -> tuple[float, float]:
+    """Normalized point on the EXIF-upright image → normalized point on the raw pixels.
+
+    The faces endpoint sees the transposed image (``cover_to_faces_data_uri``), so its
+    coordinates are upright; ``crop_to_poster`` crops raw pixels. Inverse of PIL's
+    ``ImageOps.exif_transpose`` for Orientation 1-8 (unknown → identity).
+    """
+    u, v = focal
+    if orientation == 2:
+        return (1 - u, v)
+    if orientation == 3:
+        return (1 - u, 1 - v)
+    if orientation == 4:
+        return (u, 1 - v)
+    if orientation == 5:
+        return (v, u)
+    if orientation == 6:
+        return (v, 1 - u)
+    if orientation == 7:
+        return (1 - v, 1 - u)
+    if orientation == 8:
+        return (1 - v, u)
+    return (u, v)

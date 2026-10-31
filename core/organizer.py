@@ -12,7 +12,7 @@ import time
 import requests
 import html
 from pathlib import Path
-from PIL import Image, ImageOps
+from PIL import Image
 from typing import Optional, Dict, Any, List, Tuple
 from urllib.parse import urlparse
 
@@ -24,6 +24,7 @@ from core.image_codec import decode_image_payload, looks_like_image
 from core.image_host_policy import codec_for_host
 from core.path_utils import normalize_path, is_fs_path_under_dir
 from core.scrapers.utils import has_chinese, check_subtitle, strip_subtitle_markers, normalize_number_impl
+from core.ai_services.image_prep import read_exif_orientation, upright_focal_to_raw
 from core.focal import device_state, requires_face_detection
 from core.focal.subprocess_runner import run_detection
 from core.logger import get_logger
@@ -541,7 +542,6 @@ def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = 
             r_window = _poster_window_ratio(w, h)
 
             focal = None
-            src_img = img
             if requires_face_detection(normalize_number_impl(number), maker):
                 outcome = run_detection(
                     src_path, r_window, job_key=src_path, timeout_s=_DETECT_TIMEOUT_S,
@@ -551,12 +551,10 @@ def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = 
                 if outcome.kind == "FOUND":
                     focal = outcome.focal
                     if outcome.model:
-                        # 端點臉心是轉正後座標（送圖前 exif_transpose）；本機焦點不轉（model 為 None）
-                        src_img = ImageOps.exif_transpose(img)
-                        w, h = src_img.size
-                        ratio = h / w
+                        # 端點臉心是轉正後座標；下面裁的是原始像素，換回原始座標系（本機焦點 model 為 None 不換）
+                        focal = upright_focal_to_raw(focal, read_exif_orientation(src_path))
 
-            rgb = src_img.convert("RGB")
+            rgb = img.convert("RGB")
             if ratio >= 1.0:
                 crop_w = int(h / 1.5)
                 default_x0 = (w - crop_w) // 2

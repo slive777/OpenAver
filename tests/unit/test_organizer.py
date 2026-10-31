@@ -2692,10 +2692,10 @@ class TestNfoTitleFormatWiring:
 
 # ============ crop_to_poster: 外部端點焦點是轉正座標 (187a Codex review) ============
 
-def _exif6_cover(path):
-    """顯示 500x400（臉塊 x350-450,y100-300 紅）；存成 400x500 + Orientation=6。"""
-    shown = Image.new("RGB", (500, 400), (255, 255, 255))
-    shown.paste((255, 0, 0), (350, 100, 450, 300))
+def _exif6_cover(path, shown_size=(500, 400), block=(350, 100, 450, 300)):
+    """顯示 shown_size（臉塊紅）；存成轉置原圖 + Orientation=6。"""
+    shown = Image.new("RGB", shown_size, (255, 255, 255))
+    shown.paste((255, 0, 0), block)
     stored = shown.rotate(90, expand=True)  # CCW，EXIF 6 會再 CW 轉回
     exif = Image.Exif()
     exif[0x0112] = 6
@@ -2706,15 +2706,26 @@ def _red_count(im):
     return sum(1 for r, g, b in im.convert("RGB").getdata() if r > 200 and g < 80 and b < 80)
 
 
-def test_crop_to_poster_external_focal_uses_transposed_frame(tmp_path):
+def _black_count(im):
+    return sum(1 for r, g, b in im.convert("RGB").getdata() if r < 30 and g < 30 and b < 30)
+
+
+@pytest.mark.parametrize("shown_size,block,focal,out_size", [
+    ((500, 400), (400, 20, 450, 70), (0.85, 0.1125), (333, 500)),
+    # Codex 觸發條件：原圖 800x400 + Orientation=6（轉正後 400x800 長直圖）→ 不得補黑邊
+    ((400, 800), (20, 600, 120, 700), (0.175, 0.8125), (379, 400)),
+])
+def test_crop_to_poster_external_focal_converted_to_raw_frame(tmp_path, shown_size, block, focal, out_size):
     src, dst = tmp_path / "c.jpg", tmp_path / "p.jpg"
-    _exif6_cover(src)
-    ext = RunnerOutcome(kind="FOUND", focal=(0.8, 0.5), model="m1")
+    _exif6_cover(src, shown_size, block)
+    ext = RunnerOutcome(kind="FOUND", focal=focal, model="m1")
     with patch("core.organizer.run_detection", return_value=ext):
         assert crop_to_poster(str(src), str(dst), number="FC2-1234567") is True
     with Image.open(dst) as out:
-        assert out.size == (237, 400)
-        assert _red_count(out) >= 0.9 * 20000
+        assert out.size == out_size
+        assert _black_count(out) == 0
+        area = (block[2] - block[0]) * (block[3] - block[1])
+        assert _red_count(out) >= 0.9 * area
 
 
 def test_crop_to_poster_local_focal_keeps_untransposed_frame(tmp_path):

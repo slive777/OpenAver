@@ -215,3 +215,28 @@ def test_faces_prep_exif(tmp_path):
     decoded2 = Image.open(io.BytesIO(base64.b64decode(b642)))
     assert decoded2.size == size2
     assert max(decoded2.size) == 650
+
+
+@pytest.mark.parametrize("orientation", range(1, 9))
+def test_upright_focal_to_raw_matches_pil_exif_transpose(tmp_path, orientation):
+    """Oracle = PIL 自己：原圖放色塊 → exif_transpose 後量色塊中心 → 換算必須回到原始中心。"""
+    from PIL import ImageOps
+    from core.ai_services.image_prep import read_exif_orientation, upright_focal_to_raw
+
+    raw = Image.new("RGB", (120, 80), (255, 255, 255))
+    raw.paste((255, 0, 0), (80, 10, 100, 30))  # 原始中心 (90,20)/(120,80) = (0.75, 0.25)
+    exif = Image.Exif()
+    exif[0x0112] = orientation
+    path = tmp_path / "o.jpg"
+    raw.save(path, "JPEG", quality=100, subsampling=0, exif=exif)
+    assert read_exif_orientation(str(path)) == orientation
+
+    with Image.open(path) as im:
+        up = ImageOps.exif_transpose(im).convert("RGB")
+    uw, uh = up.size
+    pts = [(x, y) for y in range(uh) for x in range(uw)
+           if (lambda p: p[0] > 200 and p[1] < 80 and p[2] < 80)(up.getpixel((x, y)))]
+    u = (sum(p[0] for p in pts) / len(pts) + 0.5) / uw
+    v = (sum(p[1] for p in pts) / len(pts) + 0.5) / uh
+    x, y = upright_focal_to_raw((u, v), orientation)
+    assert abs(x - 0.75) < 0.03 and abs(y - 0.25) < 0.03
