@@ -26,6 +26,7 @@ METATUBE_NEW = "mt-token-new-xxxx"
 
 CLAUDE_PLAIN = "sk-ant-claude-secret-dddd"
 CLAUDE_NEW = "sk-ant-claude-new-wwww"
+OPENAI_OFFICIAL_PLAIN = "sk-openai-official-eeee"
 
 CONNECT_URL = "http://192.168.1.10:8080"
 
@@ -111,6 +112,47 @@ class TestR1SettingsPageRoundTrip:
         after = _disk_secrets()
         assert after == before
         assert after == (GEMINI_PLAIN, OPENAI_PLAIN, METATUBE_PLAIN)
+
+    def test_upgrade_from_0186_config_preserves_translate_keys(self, client):
+        """0.18.6 形狀（無 openai_official、無 ai_services）升級後 GET→PUT 金鑰保留。"""
+        import json
+
+        from core import config as core_config
+
+        gemini_key = "TESTKEY-gemini-1"
+        claude_key = "TESTKEY-claude-1"
+        openai_key = "TESTKEY-openai-1"
+        provider = "openai"
+
+        cfg = core_config.AppConfig().model_dump()
+        cfg.pop("ai_services", None)
+        translate = cfg.setdefault("translate", {})
+        translate.pop("openai_official", None)
+        translate["provider"] = provider
+        translate.setdefault("gemini", {})["api_key"] = gemini_key
+        translate.setdefault("claude", {})["api_key"] = claude_key
+        translate.setdefault("openai", {})["api_key"] = openai_key
+
+        with open(core_config.CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+        get_resp = client.get("/api/config")
+        assert get_resp.status_code == 200
+        data = get_resp.json()["data"]
+        assert data["translate"]["gemini"]["api_key"] == mask_secret(gemini_key)
+        assert data["translate"]["claude"]["api_key"] == mask_secret(claude_key)
+        assert data["translate"]["openai"]["api_key"] == mask_secret(openai_key)
+
+        put_resp = client.put("/api/config", json=data)
+        assert put_resp.status_code == 200
+        assert put_resp.json()["success"] is True
+
+        disk = load_config()
+        assert disk["translate"]["gemini"]["api_key"] == gemini_key
+        assert disk["translate"]["claude"]["api_key"] == claude_key
+        assert disk["translate"]["openai"]["api_key"] == openai_key
+        assert disk["translate"]["openai_official"]["api_key"] == ""
+        assert disk["translate"]["provider"] == provider
 
 
 # ===========================================================================
@@ -307,6 +349,29 @@ class TestR6OpenAIModels:
         assert resp.json()["success"] is True
         headers = mock_client.get.call_args.kwargs["headers"]
         assert headers["Authorization"] == f"Bearer {OPENAI_PLAIN}"
+
+
+class TestR6OpenAIOfficialModels:
+    def test_r6oo1_mask_uses_official_stored(self, client):
+        """官方 models 遮罩還原必須讀 openai_official，不可誤送相容金鑰。"""
+        assert OPENAI_PLAIN != OPENAI_OFFICIAL_PLAIN
+        cfg = load_config()
+        cfg.setdefault("translate", {}).setdefault("openai", {})["api_key"] = OPENAI_PLAIN
+        cfg.setdefault("translate", {}).setdefault("openai_official", {})[
+            "api_key"
+        ] = OPENAI_OFFICIAL_PLAIN
+        save_config(cfg)
+
+        mock_cm, mock_client = _make_mock_httpx_client(
+            get_response=_ok_http_response({"data": []})
+        )
+        with patch("web.routers.openai_translate.httpx.AsyncClient", return_value=mock_cm):
+            client.post(
+                "/api/openai/official/models",
+                json={"api_key": mask_secret(OPENAI_OFFICIAL_PLAIN)},
+            )
+        headers = mock_client.get.call_args.kwargs["headers"]
+        assert headers["Authorization"] == f"Bearer {OPENAI_OFFICIAL_PLAIN}"
 
 
 class TestR6ClaudeModels:

@@ -15,6 +15,7 @@ from .actress import Actress, ActressRepository
 from .actress_library import get_library_actresses
 from .migrate import migrate_json_to_sqlite, backfill_readonly_nfo_mtime, backfill_readonly_nfo_mtime_once
 from .wishlist import WishlistRepository
+from .embeddings import EmbeddingRepository
 from .notifications import (
     insert_notification,
     mark_notifications_read,
@@ -42,6 +43,7 @@ __all__ = [
     "backfill_readonly_nfo_mtime",
     "backfill_readonly_nfo_mtime_once",
     "WishlistRepository",
+    "EmbeddingRepository",
     "insert_notification",
     "mark_notifications_read",
     "clear_all_notifications",

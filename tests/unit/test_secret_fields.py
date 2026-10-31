@@ -52,6 +52,10 @@ def _sample_cfg() -> dict:
                 "api_key": "sk-test-roundtrip",
                 "model": "claude-haiku-5-5",
             },
+            "openai_official": {
+                "api_key": "sk-test-roundtrip",
+                "model": "",
+            },
         },
         "metatube": {
             "enabled": True,
@@ -74,6 +78,7 @@ class TestRenderConfigSecrets:
         original_openai = cfg["translate"]["openai"]["api_key"]
         original_gemini = cfg["translate"]["gemini"]["api_key"]
         original_claude = cfg["translate"]["claude"]["api_key"]
+        original_official = cfg["translate"]["openai_official"]["api_key"]
         original_token = cfg["metatube"]["token"]
         cfg_id = id(cfg)
 
@@ -83,8 +88,12 @@ class TestRenderConfigSecrets:
         assert cfg["translate"]["openai"]["api_key"] == original_openai
         assert cfg["translate"]["gemini"]["api_key"] == original_gemini
         assert cfg["translate"]["claude"]["api_key"] == original_claude
+        assert cfg["translate"]["openai_official"]["api_key"] == original_official
         assert cfg["metatube"]["token"] == original_token
         assert cfg["translate"]["openai"]["api_key"] == "sk-test-roundtrip"
+        assert rendered["translate"]["openai_official"]["api_key"] == mask_secret(
+            "sk-test-roundtrip"
+        )
 
 
 # ============ B14: SECRET_FIELDS inventory ============

@@ -2610,6 +2610,15 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
             <h2>Navigation</h2>
 
             <div class="ds-subsection">
+                <h3>Underline Tabs</h3>
+                <p class="ds-desc">DaisyUI <code>tabs tabs-border</code> 底線分頁；設定頁「AI 功能」卡同形。底線色由 pages CSS 以 <code>var(--accent)</code> 覆寫。</p>
+                <div role="tablist" class="tabs tabs-border">
+                    <button type="button" role="tab" class="tab tab-active" aria-selected="true">翻譯</button>
+                    <button type="button" role="tab" class="tab" aria-selected="false">圖片相似</button>
+                </div>
+            </div>
+
+            <div class="ds-subsection">
                 <h3>Sidebar (Mini Demo)</h3>
                 <div class="ds-sidebar-demo">
                     <nav class="ds-sidebar-mini">

@@ -856,6 +856,23 @@
     line-height: 1;
 }
 
+/* 186-T6：魔杖「＋」徽章（右上；pointer-events none；x-show 控顯示，勿設 display） */
+.lightbox-similar-plus {
+    position: absolute;
+    top: -0.15rem;
+    right: -0.15rem;
+    min-width: 0.9rem;
+    height: 0.9rem;
+    padding: 0 0.15rem;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--color-base-100);
+    font-size: 0.65rem;
+    line-height: 0.9rem;
+    text-align: center;
+    pointer-events: none;
+}
+
 /* 56c-T7 舊手機 grid（.lightbox-similar-mobile / .similar-mobile-grid / .similar-mobile-card 等）
    已於 83b-T2 移除：T1 改為獨立全螢幕 .similar-mobile-panel；HTML block 已移除，CSS 同步清理。 */
 

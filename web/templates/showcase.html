@@ -869,6 +869,8 @@
                         @click="openSimilarMode()"
                         :aria-label="t('similar_mode.button_aria_label')">
                     <i class="bi bi-magic" aria-hidden="true"></i>
+                    <span class="lightbox-similar-plus" aria-hidden="true"
+                          x-show="boostedNumbers.includes((currentLightboxVideo?.number || '').toUpperCase())">＋</span>
                 </button>
 
                 <!-- 44a T4: Actress Lightbox Branch -->

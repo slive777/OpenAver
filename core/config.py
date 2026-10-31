@@ -133,6 +133,12 @@ class OpenAIConfig(BaseModel):
     use_custom_model: bool = False
 
 
+class OpenAIOfficialConfig(BaseModel):
+    """串接結構：OpenAI 官方配置（無 base_url；網址由常數固定）"""
+    api_key: str = ""
+    model: str = ""
+
+
 class ClaudeConfig(BaseModel):
     """串接結構：Claude 配置"""
     api_key: str = ""
@@ -149,13 +155,14 @@ class MetatubeConfig(BaseModel):
 
 class TranslateConfig(BaseModel):
     enabled: bool = False
-    provider: str = "ollama"  # "ollama" | "gemini" | "openai" | "claude"
+    provider: str = "ollama"  # "ollama" | "gemini" | "openai" | "claude" | "openai_official"
     batch_size: int = 10  # 批次翻譯大小
 
     # 嵌套結構
     ollama: OllamaConfig = OllamaConfig()
     gemini: GeminiConfig = GeminiConfig()
     openai: OpenAIConfig = OpenAIConfig()
+    openai_official: OpenAIOfficialConfig = OpenAIOfficialConfig()
     claude: ClaudeConfig = ClaudeConfig()
 
     # 舊字段（保留向後兼容）
@@ -239,6 +246,19 @@ class FocalDeviceState(BaseModel):
     set_by_user: bool = False  # True = 使用者決定；自動關閉／版本 reset 不得覆寫
 
 
+class ImageSimilarConfig(BaseModel):
+    """圖片相似自架 embeddings 端點設定（CD-186-8）。"""
+    enabled: bool = False
+    url: str = ""
+    api_key: str = ""
+    model: str = ""
+
+
+class AIServicesConfig(BaseModel):
+    """AI 功能卡共用巢（186）；伺服器擁有狀態不進此處。"""
+    image_similar: ImageSimilarConfig = ImageSimilarConfig()
+
+
 class AppConfig(BaseModel):
     scraper: ScraperConfig = ScraperConfig()
     search: SearchConfig = SearchConfig()
@@ -251,6 +271,7 @@ class AppConfig(BaseModel):
     thumbnail_cache_enabled: bool = False  # 縮圖快取開關（feature/71 T2）；預設關閉；top-level additive migration 補缺漏
     metatube: MetatubeConfig = MetatubeConfig()  # CD-63b-3；Pydantic default 自動補缺漏（no migration needed）
     focal_device: FocalDeviceState = FocalDeviceState()
+    ai_services: AIServicesConfig = AIServicesConfig()
 
 
 # ============ 載入 / 儲存 ============
@@ -300,6 +321,31 @@ def _migrate_proxy_scope(raw_config: dict) -> bool:
     except Exception as exc:
         logger.warning("[Config] proxy_scope 遷移發生例外，略過：%s", exc)
         return False
+
+
+def _ensure_openai_official_nest(t: dict) -> bool:
+    """巢不存在才補 openai_official；不改 provider（TASK-186-T1）。"""
+    if 'openai_official' not in t:
+        t['openai_official'] = {
+            'api_key': '',
+            'model': ''
+        }
+        logger.info("[Config] 遷移配置：添加 OpenAI Official 支持")
+        return True
+    return False
+
+
+def _ensure_ai_services(raw_config: dict) -> bool:
+    """Top-level ai_services／image_similar 缺才補（186-T3／BE-CONFIG-02）。"""
+    if 'ai_services' not in raw_config:
+        raw_config['ai_services'] = AIServicesConfig().model_dump()
+        return True
+    if 'image_similar' not in raw_config.get('ai_services', {}):
+        raw_config.setdefault('ai_services', {})['image_similar'] = (
+            ImageSimilarConfig().model_dump()
+        )
+        return True
+    return False
 
 
 def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；每加一個設定欄位的向後相容 migration 就得在此多開一支分支，這是它存在的理由而非缺陷；收斂設計已列 backlog（見 OpenAver架構評估-回應.md §七）
@@ -454,7 +500,7 @@ def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；
                 }
                 need_save = True
                 logger.info("[Config] 遷移配置：添加 Claude 支持")
-
+            need_save = _ensure_openai_official_nest(t) or need_save
         # Migration: folder_format → folder_layers（舊版只存 folder_format）
         s = raw_config.get('scraper', {})
         if 'folder_layers' not in s and 'folder_format' in s:
@@ -633,7 +679,7 @@ def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；
         if 'focal_device' not in raw_config:
             raw_config['focal_device'] = FocalDeviceState().model_dump()
             need_save = True
-
+        need_save = _ensure_ai_services(raw_config) or need_save
         if 'scraper' in raw_config and 'nfo_title_format' not in raw_config['scraper']:
             raw_config['scraper']['nfo_title_format'] = '[{num}]{title}'
             need_save = True

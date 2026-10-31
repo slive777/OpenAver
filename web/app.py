@@ -40,6 +40,7 @@ logger = get_logger(__name__)
 from core.config import load_config, mutate_config
 from core.data_layout import bootstrap_data_layout, consume_pending_bootstrap_result, consume_reset_access_auth_marker
 from core.focal import device_state
+from core.ai_services import similar_index
 from core.database import init_db
 from core.database import backfill_readonly_nfo_mtime_once
 from core.metatube.state import metatube_state as _mt_startup_state
@@ -319,6 +320,7 @@ from web.routers.notifications import emit_notification, start_notification_pers
 # 改由 web/app.py 在 module level 註冊通知埠——import 這件事在所有進入點
 # （含不啟動 lifespan 的桌面版與 TestClient）都必然發生，比 lifespan 更早、更穩。
 device_state.set_notification_sink(emit_notification)
+similar_index.set_notification_sink(emit_notification)
 from web.routers import similar as similar_router
 from web.routers import settings_link as settings_link_router
 from web.routers import scraper_sources as scraper_sources_router
@@ -332,6 +334,7 @@ from web.routers import wishlist as wishlist_router
 from web.routers import insights as insights_router
 from web.routers import source_probe as source_probe_router
 from web.routers import custom_sources as custom_sources_router
+from web.routers import ai_services as ai_services_router
 # Module-level imports for startup_reconnect / _fire_probe so that
 # patch("web.app.startup_reconnect") / patch("web.app._fire_probe") target the
 # correct use-site binding (TASK-63e-1; function-local import would defeat patch).
@@ -371,6 +374,7 @@ app.include_router(wishlist_router.router)
 app.include_router(insights_router.router)
 app.include_router(source_probe_router.router)
 app.include_router(custom_sources_router.router)
+app.include_router(ai_services_router.router)
 
 
 @app.exception_handler(RequestValidationError)

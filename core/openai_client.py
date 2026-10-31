@@ -7,6 +7,7 @@ OpenAI 相容 chat/completions 請求／解析／錯誤分類（OpenAI 翻譯唯
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import httpx
@@ -19,6 +20,57 @@ from core.cloud_translate import (
 )
 
 TAG = "OpenAI"
+
+OPENAI_OFFICIAL_BASE_URL = "https://api.openai.com/v1"
+OPENAI_NON_CHAT_TOKENS = (
+    "embedding",
+    "tts",
+    "whisper",
+    "audio",
+    "transcribe",
+    "realtime",
+    "image",
+    "dall-e",
+    "moderation",
+    "search",
+    "codex",
+)
+_DATE_SUFFIX_RE = re.compile(r"-(?:\d{4}-\d{2}-\d{2}|\d{8})$")
+
+
+def pick_official_models(models: list[tuple[str, int | None]]) -> list[str]:
+    """過濾 luna／terra／mini（不含 nano）、剔除非聊天類型、去重日期快照後排序。"""
+    candidates: list[tuple[str, int | None]] = []
+    for mid_raw, created in models:
+        mid = (mid_raw or "").lower()
+        if not (any(k in mid for k in ("luna", "terra", "mini")) and "nano" not in mid):
+            continue
+        if any(tok in mid for tok in OPENAI_NON_CHAT_TOKENS):
+            continue
+        candidates.append((mid_raw, created))
+
+    ids_lower = {m.lower() for m, _ in candidates}
+    filtered: list[tuple[str, int | None]] = []
+    for mid_raw, created in candidates:
+        mid = mid_raw.lower()
+        m = _DATE_SUFFIX_RE.search(mid)
+        if m is not None and mid[: m.start()] in ids_lower:
+            continue
+        filtered.append((mid_raw, created))
+
+    filtered.sort(key=lambda item: (item[1] is None, -(item[1] or 0), item[0].lower()))
+    return [mid for mid, _ in filtered]
+
+
+def default_official_model(models: list[str]) -> str:
+    """第一個含 luna 的，否則第一個含 mini 的，否則空字串。"""
+    for mid in models:
+        if "luna" in mid.lower():
+            return mid
+    for mid in models:
+        if "mini" in mid.lower():
+            return mid
+    return ""
 
 
 def build_headers(api_key: str) -> dict[str, str]:

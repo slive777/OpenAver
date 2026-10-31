@@ -15,6 +15,8 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query
 
+from core.ai_services.embedding_cache import EmbeddingMatrixCache
+from core.ai_services.similar_state import format_similar_model_id, fusion_vectors
 from core.config import load_config
 from core.database import VideoRepository
 from core.logger import get_logger
@@ -71,8 +73,13 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
     if target is None:
         raise HTTPException(status_code=404, detail="找不到影片")
 
+    # CD-186-14：融合向量要在 rank 前取；設定提前載入（同一物件沿用）
+    config = load_config()
+    vectors = fusion_vectors(config)
+    fused = vectors is not None and target.id in vectors
+
     ranker = SimilarRankerCache.get()
-    results_videos = ranker.rank(target, top_k=limit)
+    results_videos = ranker.rank(target, top_k=limit, vectors=vectors)
 
     # Codex PR#105 P2 修復：ranker.rank() 可能回 SimilarRankerCache 快取的 Video 物件（非
     # fresh DB row）。update_auto_focal()/update_manual_focal() 刻意不 invalidate 整個 ranker
@@ -81,10 +88,14 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
     focal_crop_map = repo.get_focal_crop_map([v.path for v in results_videos])
 
     # feature/71 T4：讀一次 thumbnail_cache flag，套用於 query_video + 每個 result
-    config = load_config()
     gallery_config = config.get('gallery', {})
     path_mappings = gallery_config.get('path_mappings', {})
     enabled = config.get('thumbnail_cache_enabled', False)
+
+    index_model = None
+    if fused:
+        from core.database import EmbeddingRepository
+        index_model = EmbeddingRepository().get_index_state().get("model")
 
     results = []
     for v in results_videos:
@@ -105,7 +116,7 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
 
     return {
         "video_id": video_id,
-        "model_id": "rule-based:v1",
+        "model_id": format_similar_model_id(index_model, fused=fused),
         "query_video": {
             "video_id": target.id,
             "number": target.number,
@@ -163,4 +174,14 @@ def warmup_similar_ranker() -> dict:
     warm-up 命中 → A 的 await 變 ~10ms invisible；warm-up 來不及 → A 仍正確（只是慢）。
     """
     SimilarRankerCache.get()
-    return {"ok": True}
+    config = load_config()
+    vectors = fusion_vectors(config)
+    if vectors is None:
+        boosted_numbers: list[str] = []
+    else:
+        from core.database import EmbeddingRepository
+        state = EmbeddingRepository().get_index_state()
+        boosted_numbers = EmbeddingMatrixCache.boosted_numbers(
+            state["model"], state["dim"],
+        )
+    return {"ok": True, "boosted_numbers": boosted_numbers}

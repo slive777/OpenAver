@@ -41,8 +41,16 @@ export function stateConfig() {
             openaiBaseUrl: '',
             openaiApiKey: '',
             openaiModel: 'gpt-4o-mini',
+            openaiOfficialApiKey: '',
+            openaiOfficialModel: '',
             claudeApiKey: '',
             claudeModel: 'claude-haiku-5-5',
+
+            // AI services — image similar（186-T6）
+            aiSimilarEnabled: false,
+            aiSimilarUrl: '',
+            aiSimilarApiKey: '',
+            aiSimilarModel: '',
 
             // Scraper
             createFolder: true,
@@ -719,6 +727,19 @@ export function stateConfig() {
                     this.form.claudeModel = config.translate.claude?.model || 'claude-haiku-5-5';
                     this.claudeModels = [this.form.claudeModel];
 
+                    // OpenAI Official
+                    this.form.openaiOfficialApiKey = config.translate.openai_official?.api_key || '';
+                    this.form.openaiOfficialModel = config.translate.openai_official?.model || '';
+                    this.openaiOfficialModels = this.form.openaiOfficialModel
+                        ? [this.form.openaiOfficialModel]
+                        : [];
+
+                    // AI services — image similar（186-T6）
+                    this.form.aiSimilarEnabled = config.ai_services?.image_similar?.enabled || false;
+                    this.form.aiSimilarUrl = config.ai_services?.image_similar?.url || '';
+                    this.form.aiSimilarApiKey = config.ai_services?.image_similar?.api_key || '';
+                    this.form.aiSimilarModel = config.ai_services?.image_similar?.model || '';
+
                     // 自動測試 Gemini（如果有 API Key 且是 gemini provider）
                     if (config.translate.gemini?.api_key && config.translate.provider === 'gemini') {
                         setTimeout(() => this.testGeminiConnection(), 100);
@@ -732,6 +753,11 @@ export function stateConfig() {
                     // 自動 fetch Claude models（如果有 API Key 且是 claude provider）
                     if (config.translate.claude?.api_key && config.translate.provider === 'claude') {
                         setTimeout(() => this.fetchClaudeModels({ source: 'auto' }), 100);
+                    }
+
+                    // 自動 fetch OpenAI Official models（如果有 API Key 且是 openai_official provider）
+                    if (config.translate.openai_official?.api_key && config.translate.provider === 'openai_official') {
+                        setTimeout(() => this.fetchOpenAIOfficialModels({ source: 'auto' }), 100);
                     }
 
                     // Scraper
@@ -1093,7 +1119,23 @@ export function stateConfig() {
                     claude: {
                         api_key: this.form.claudeApiKey,
                         model: this.form.claudeModel || 'claude-haiku-5-5'
+                    },
+                    openai_official: {
+                        api_key: this.form.openaiOfficialApiKey,
+                        model: this.form.openaiOfficialModel
                     }
+                };
+
+                // AI services — image similar（186-T6；spread 保留未知欄位）
+                config.ai_services = {
+                    ...config.ai_services,
+                    image_similar: {
+                        ...config.ai_services?.image_similar,
+                        enabled: this.form.aiSimilarEnabled,
+                        url: this.form.aiSimilarUrl,
+                        api_key: this.form.aiSimilarApiKey,
+                        model: this.form.aiSimilarModel,
+                    },
                 };
 
                 // 更新 gallery

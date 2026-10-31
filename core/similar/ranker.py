@@ -12,6 +12,12 @@ from core.similar.idf import build_idf, idf_jaccard, IDF_HOT_THRESHOLD  # noqa: 
 
 if TYPE_CHECKING:
     from core.database import Video
+    from array import array as ArrayType
+
+# CD-186-14：RRF 融合權重（只此一處）
+RRF_K = 60
+RRF_RULE_WEIGHT = 1.0
+RRF_VECTOR_WEIGHT = 1.0
 
 
 # CD-57a-5：番號 prefix 提取，支援多段 prefix（FC2-PPV 等）
@@ -147,20 +153,27 @@ class SimilarRanker:
         return actress_jac * 0.7 + maker_match * 0.3
 
     # CD-57a-4：mmr = λ·rel − (1−λ)·max_sim；減號絕對不可變加號
-    def _mmr_rerank(self, target: Video, candidates: list[Video], top_k: int = 12) -> list[Video]:
+    # CD-186-14：選填 rel（給定時取代 _score；鍵＝id(c)）
+    def _mmr_rerank(
+        self,
+        target: Video,
+        candidates: list[Video],
+        top_k: int = 12,
+        rel: dict[int, float] | None = None,
+    ) -> list[Video]:
         if not candidates or top_k <= 0:
             return []
         lambda_ = 0.7
-        rel_cache = {id(c): self._score(target, c) for c in candidates}
+        rel_cache = rel if rel is not None else {id(c): self._score(target, c) for c in candidates}
         remaining = list(candidates)
         selected: list[Video] = []
         while remaining and len(selected) < top_k:
             best = None
             best_score = float('-inf')
             for c in remaining:
-                rel = rel_cache[id(c)]
+                rel_v = rel_cache[id(c)]
                 max_sim = max((self._sim(c, s) for s in selected), default=0.0)
-                mmr = lambda_ * rel - (1 - lambda_) * max_sim
+                mmr = lambda_ * rel_v - (1 - lambda_) * max_sim
                 if mmr > best_score:
                     best_score = mmr
                     best = c
@@ -230,34 +243,79 @@ class SimilarRanker:
             return []
         return random.sample(pool, min(fill_n, len(pool)))
 
-    # spec-57 §2.4：Stage 1 retrieve → Stage 2 score → Stage 3 MMR → Tier 2/3/4 fallback
-    def rank(self, target: Video, top_k: int = 12) -> list[Video]:
-        if not self._corpus or top_k <= 0:
-            return []
+    def _rule_path_for_fusion(self, target: Video) -> list[Video]:
+        """融合規則路：_retrieve 前 100，剔 target，依 _score 降冪；不套 Tier1 ≥2 門檻。"""
+        retrieved = self._retrieve(canonicalize(target.tags), exclude=target, top_n=100)
+        target_key = self._stable_key(target)
+        rule = [c for c in retrieved if self._stable_key(c) != target_key]
+        rule.sort(key=lambda c: self._score(target, c), reverse=True)
+        return rule
 
+    def _vector_path_for_fusion(
+        self,
+        target: Video,
+        vectors: dict[int, ArrayType],
+    ) -> list[Video]:
+        """融合向量路：全量點積降冪後剔同女優非同系列，取前 30。"""
+        q = vectors[target.id]
+        scored: list[tuple[Video, float]] = []
+        for c in self._corpus:
+            if c.id is None or c.id == target.id or c.id not in vectors:
+                continue
+            scored.append((c, math.sumprod(q, vectors[c.id])))
+        scored.sort(key=lambda kv: kv[1], reverse=True)
+        vec: list[Video] = []
+        for c, _ in scored:
+            shares = set(target.actresses) & set(c.actresses)
+            same_series = c.series and c.series == target.series
+            if not (shares and not same_series):
+                vec.append(c)
+                if len(vec) >= 30:
+                    break
+        return vec
+
+    def _rrf_rel(
+        self,
+        rule: list[Video],
+        vec: list[Video],
+    ) -> tuple[list[Video], dict[int, float]]:
+        """RRF 合成候選列（規則路在前）與正規化 rel（鍵＝id(c)）。"""
+        rr = {id(c): r for r, c in enumerate(rule)}
+        vr = {id(c): r for r, c in enumerate(vec)}
+        pool: dict[int, Video] = {}
+        ordered: list[Video] = []
+        for c in rule + vec:
+            i = id(c)
+            if i in pool:
+                continue
+            pool[i] = c
+            ordered.append(c)
+        score = {
+            i: (
+                (RRF_RULE_WEIGHT / (RRF_K + rr[i]) if i in rr else 0.0)
+                + (RRF_VECTOR_WEIGHT / (RRF_K + vr[i]) if i in vr else 0.0)
+            )
+            for i in pool
+        }
+        mx = max(score.values()) if score else 1.0
+        if mx <= 0:
+            mx = 1.0
+        rel = {i: score[i] / mx for i in score}
+        ordered.sort(key=lambda c: rel[id(c)], reverse=True)
+        return ordered, rel
+
+    def _fill_fallbacks(
+        self,
+        target: Video,
+        top_k: int,
+        result: list[Video],
+        selected_keys: set[tuple],
+    ) -> list[Video]:
+        """Tier2／3／4 補位（融合與今天路徑共用）。"""
+        if len(result) >= top_k:
+            return result
         target_canon = canonicalize(target.tags)
         target_useful = {t for t in target_canon if self._idf_table.get(t, 0.0) > 0}
-
-        selected_keys: set[tuple] = {self._stable_key(target)}
-        result: list[Video] = []
-
-        retrieved = self._retrieve(target_canon, exclude=target, top_n=100)
-        # Codex P1 fix：DB 場景 target 可能是 corpus 內 row 的另一個 Python object
-        # （`_retrieve` 的 `is` 排不掉），用 stable_key 兜底防 Tier 1 slot 被 target 副本占用
-        target_key = self._stable_key(target)
-        tier1_pool = [
-            c for c in retrieved
-            if self._stable_key(c) != target_key
-            and len(target_useful & self._useful_set(c)) >= 2
-        ]
-        for c in self._mmr_rerank(target, tier1_pool, top_k=top_k):
-            k = self._stable_key(c)
-            if k in selected_keys:
-                continue
-            selected_keys.add(k)
-            result.append(c)
-            if len(result) >= top_k:
-                return result
 
         if len(result) < top_k:
             for c in self._fallback_tier2(target, target_canon, target_useful, selected_keys, top_k - len(result)):
@@ -290,3 +348,65 @@ class SimilarRanker:
                     return result
 
         return result
+
+    def _rank_fused(
+        self,
+        target: Video,
+        top_k: int,
+        vectors: dict[int, ArrayType],
+    ) -> list[Video]:
+        """CD-186-14：規則路 ∪ 向量路 → RRF → MMR(rel) → Tier2／3／4。"""
+        rule = self._rule_path_for_fusion(target)
+        vec = self._vector_path_for_fusion(target, vectors)
+        ordered, rel = self._rrf_rel(rule, vec)
+        selected_keys: set[tuple] = {self._stable_key(target)}
+        result: list[Video] = []
+        for c in self._mmr_rerank(target, ordered, top_k=top_k, rel=rel):
+            k = self._stable_key(c)
+            if k in selected_keys:
+                continue
+            selected_keys.add(k)
+            result.append(c)
+            if len(result) >= top_k:
+                return result
+        return self._fill_fallbacks(target, top_k, result, selected_keys)
+
+    # spec-57 §2.4：Stage 1 retrieve → Stage 2 score → Stage 3 MMR → Tier 2/3/4 fallback
+    # CD-186-14：vectors 閘——None 或不含 target.id → 今天路徑一行不變
+    def rank(
+        self,
+        target: Video,
+        top_k: int = 12,
+        vectors: dict[int, ArrayType] | None = None,
+    ) -> list[Video]:
+        if not self._corpus or top_k <= 0:
+            return []
+
+        if vectors is None or target.id not in vectors:
+            target_canon = canonicalize(target.tags)
+            target_useful = {t for t in target_canon if self._idf_table.get(t, 0.0) > 0}
+
+            selected_keys: set[tuple] = {self._stable_key(target)}
+            result: list[Video] = []
+
+            retrieved = self._retrieve(target_canon, exclude=target, top_n=100)
+            # Codex P1 fix：DB 場景 target 可能是 corpus 內 row 的另一個 Python object
+            # （`_retrieve` 的 `is` 排不掉），用 stable_key 兜底防 Tier 1 slot 被 target 副本占用
+            target_key = self._stable_key(target)
+            tier1_pool = [
+                c for c in retrieved
+                if self._stable_key(c) != target_key
+                and len(target_useful & self._useful_set(c)) >= 2
+            ]
+            for c in self._mmr_rerank(target, tier1_pool, top_k=top_k):
+                k = self._stable_key(c)
+                if k in selected_keys:
+                    continue
+                selected_keys.add(k)
+                result.append(c)
+                if len(result) >= top_k:
+                    return result
+
+            return self._fill_fallbacks(target, top_k, result, selected_keys)
+
+        return self._rank_fused(target, top_k, vectors)

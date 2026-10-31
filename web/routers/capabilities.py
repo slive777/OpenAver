@@ -1439,7 +1439,7 @@ _TOOLS: list[dict] = [
             "required": ["number"],
         },
         "output_schema": {
-            "model_id": "string — ranker 版本識別（固定 'rule-based:v1'，非 ML model id）",
+            "model_id": "string — rule-based:v1＝只用規則；rule-based:v1+rrf:<model>＝規則＋封面向量融合，<model> 是使用者自架端點回報的模型名",
             "query_video": "{video_id, number, title, cover_url}",
             "results": "[{video_id, number, title, cover_url, cosine_score, penalty_applied, actresses}]",
         },
@@ -1461,12 +1461,142 @@ _TOOLS: list[dict] = [
             "required": ["video_id"],
         },
         "output_schema": {
-            "model_id": "string — ranker 版本識別（固定 'rule-based:v1'，非 ML model id）",
+            "model_id": "string — rule-based:v1＝只用規則；rule-based:v1+rrf:<model>＝規則＋封面向量融合，<model> 是使用者自架端點回報的模型名",
             "query_video": "{video_id, number, title, cover_url}",
             "results": "[{video_id, number, title, cover_url, cosine_score, penalty_applied, actresses}]",
         },
         "retry_safe": True,
         "_example_template": "curl '{base}/api/similar-covers/123'",
+    },
+    {
+        "name": "ai_sample_embeddings",
+        "description": "取圖片相似端點的一致性測試樣本（兩張，皆為可公開的打碼 demo 圖與程式畫的合成圖，不是使用者的封面）與判定門檻。AI 助理替使用者架 embeddings 端點時，拿這兩張圖照 expect 的門檻自己驗過再回報。助理不在 OpenAver 同一台機器時，樣本也可從 docs/external-ai.md 的 GitHub 網址取得。不修改資料庫。",
+        "side_effect": False,
+        "method": "GET",
+        "path": "/api/ai/sample/embeddings",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "inputs": "[string, string] — 兩張樣本圖的 data URI（第一張 JPEG、第二張 PNG）",
+            "expect": "{same_min, diff_max, dim_min, dim_max} — 一致性測試門檻",
+            "steps": "[string] — 測試步驟（給 agent 照做）",
+        },
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/ai/sample/embeddings'",
+    },
+    {
+        "name": "ai_similar_test",
+        "description": "對圖片相似端點跑一致性測試（與設定頁「測試」按鈕同一份）：連得上嗎、回應符不符契約、同圖兩次是否一致、兩張不同樣本是否分得開。空 body＝測使用者已儲存的設定；帶 url／api_key／model 則測那組值（api_key 省略＝用已儲存的金鑰）。會對該端點送 3 次請求；不寫資料庫、不寫設定。失敗時 ok=false 並帶 kind（unreachable 連不上／contract 回應不符契約）與 check（哪一條沒過）。",
+        "side_effect": False,
+        "method": "POST",
+        "path": "/api/ai/similar/test",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "端點網址（不含 /v1/embeddings）；省略＝用已儲存的"},
+                "api_key": {"type": "string", "description": "金鑰；省略＝用已儲存的"},
+                "model": {"type": "string", "description": "送給端點的 model 欄位；省略＝用已儲存的"},
+            },
+            "required": [],
+        },
+        "output_schema": {
+            "ok": "boolean",
+            "kind": "string — 失敗時才有：unreachable／contract",
+            "check": "string — 失敗時才有：哪一條沒過（例如 dim_range、unstable、not_discriminative）",
+            "model": "string — 通過時端點回報的 model",
+            "dim": "integer — 通過時的向量維度",
+            "elapsed_ms": "integer",
+        },
+        "retry_safe": True,
+        "_example_template": (
+            "curl -X POST -H 'Content-Type: application/json' -d '{{}}' {base}/api/ai/similar/test"
+        ),
+    },
+    {
+        "name": "ai_similar_status",
+        "description": "查圖片相似索引的狀態：已索引／片庫總數、待處理張數、是否正在建、端點目前連不連得上、端點的模型是否已不同於建索引時的模型（需重建）、上次成功時間。不修改任何資料。",
+        "side_effect": False,
+        "method": "GET",
+        "path": "/api/ai/similar/status",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "running": "boolean — 索引工作是否正在跑",
+            "job_kind": "string|null — 正在跑的工作種類：build（建立／重建）或 incremental（掃描後補算新片）；沒在跑為 null",
+            "done": "integer — 本輪已處理張數",
+            "indexed": "integer — 已有向量的封面數",
+            "total": "integer — 片庫中有封面的影片數",
+            "pending": "integer — 待處理張數",
+            "unreadable": "integer — 封面讀不到、已試過而跳過的片數（indexed + unreadable + pending = total）；再呼叫一次 ai_similar_index 會重試一次（例如 NAS 接回之後）",
+            "unreachable": "boolean — 端點上次嘗試時是否連不上",
+            "kind": "string|null — 最近一次錯誤的類別",
+            "check": "string|null — 最近一次錯誤是哪一條檢查沒過",
+            "model": "string|null — 索引所用的模型",
+            "last_success_at": "number|null — 上次成功的時間（Unix 秒）",
+            "model_changed": "boolean — 端點的模型已不同於索引的模型，需重建",
+            "complete": "boolean — 索引是否已完整建完",
+        },
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/ai/similar/status'",
+    },
+    {
+        "name": "ai_similar_index",
+        "description": (
+            "建立圖片相似索引（模型變了時為重建）：先對使用者設定的外部端點跑一致性測試，沒過就不啟動並回 kind／check；"
+            "通過後在背景對片庫每張封面各送一次請求（數量約等於封面數，可能上千次）並把向量寫進 OpenAver 資料庫的向量表；"
+            "模型變了會覆蓋既有向量。不動影片、NFO、封面。已在跑時不會重複啟動。"
+            "AI 呼叫前必須先向使用者說明上述影響並取得確認。進度用 ai_similar_status 查。"
+        ),
+        "side_effect": True,
+        "method": "POST",
+        "path": "/api/ai/similar/index",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "ok": "boolean — 這次呼叫是否啟動了索引工作（已在跑時 ok=false、status=already_running；一致性測試沒過時 ok=false、status=test_failed）",
+            "status": "string — started（已啟動）／already_running（已在跑，沒有重複啟動）／test_failed（一致性測試沒過，沒有啟動）",
+            "kind": "string — status=test_failed 時才有：unreachable／contract",
+            "check": "string — status=test_failed 時才有：哪一條沒過",
+        },
+        "confirmation_required": True,  # 186-T7: index 必須先問使用者
+        "retry_safe": False,
+        "_example_template": "curl -X POST '{base}/api/ai/similar/index'",
+    },
+    {
+        "name": "ai_similar_rebuild",
+        "description": (
+            "刪除並重建圖片相似索引：先對使用者設定的外部端點跑一致性測試，沒過就什麼都不刪並回 kind／check；"
+            "通過後刪除全部既有向量，並在背景對片庫每張封面各送一次請求（數量約等於封面數，可能上千次，需數十分鐘）；"
+            "重算完成前星空走規則排序。已有索引工作在跑時拒絕（回 already_running）。不動影片、NFO、封面。"
+            "只該在使用者說明底層模型換了、但端點回報的模型名稱沒變時使用（名稱變了用 ai_similar_index 即可）。"
+            "AI 呼叫前必須先向使用者說明上述影響並取得確認。進度用 ai_similar_status 查。"
+        ),
+        "side_effect": True,
+        "method": "POST",
+        "path": "/api/ai/similar/index/rebuild",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "ok": "boolean — 這次呼叫是否啟動了重建工作（已在跑時 ok=false、status=already_running；一致性測試沒過時 ok=false、status=test_failed）",
+            "status": "string — started（已刪除既有向量並啟動重算）／already_running（已在跑，沒有刪除任何東西）／test_failed（一致性測試沒過，沒有刪除任何東西）",
+            "kind": "string — status=test_failed 時才有：unreachable／contract",
+            "check": "string — status=test_failed 時才有：哪一條沒過",
+        },
+        "confirmation_required": True,  # 186-T10: 會刪除全部向量，必須先問使用者
+        "retry_safe": False,
+        "_example_template": "curl -X POST '{base}/api/ai/similar/index/rebuild'",
     },
     {
         "name": "tag_alias_crud_read",

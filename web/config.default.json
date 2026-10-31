@@ -57,6 +57,10 @@
     "claude": {
       "api_key": "",
       "model": "claude-haiku-5-5"
+    },
+    "openai_official": {
+      "api_key": "",
+      "model": ""
     }
   },
   "gallery": {
@@ -205,5 +209,13 @@
     "consecutive_timeout_count": 0,
     "judged_at_version": "",
     "set_by_user": false
+  },
+  "ai_services": {
+    "image_similar": {
+      "enabled": false,
+      "url": "",
+      "api_key": "",
+      "model": ""
+    }
   }
 }
