@@ -266,7 +266,7 @@ EXEMPTIONS: dict[tuple[str, str], tuple[int, str]] = {
         "理由一致）。",
     ),
     ("core/database/connection.py", "init_db"): (
-        262,
+        266,
         "資料庫 schema 初始化主流程，逐表 CREATE TABLE/CREATE INDEX 語句序列，schema 仍在"
         "演進中；拆成多個小函式不會降低本質複雜度，只會增加呼叫層次與跨函式的 cursor/conn "
         "傳遞。"
@@ -290,7 +290,8 @@ EXEMPTIONS: dict[tuple[str, str], tuple[int, str]] = {
         "不必每一輪都重跑八個來源。**+11 行全部是那一句 DDL 的縮排展開，零分支、零遷移**，"
         "與同函式內既有 7 張表逐字同形。理由與上一段（`notifications`）逐字相同："
         "**每加一張表就長一次是這個函式的固有成本**，抽 helper 只會讓「這個庫有哪些表」"
-        "這件事散到函式外面去。",
+        "這件事散到函式外面去。"
+        " ／ 262→266（feature/187b-lightbox-plot T2a）：videos 新增 has_plot 三態欄位的冪等 migration，與同函式既有 focal_model／user_rating 逐字同形；schema 演進固有成本。",
     ),
 }
 

@@ -83,6 +83,7 @@ const LIGHTBOX_SLICE_FILES = [
   'web/static/js/pages/showcase/state-lightbox-samples.js',
   'web/static/js/pages/showcase/state-lightbox-tags.js',
   'web/static/js/pages/showcase/state-lightbox-translate.js',
+  'web/static/js/pages/showcase/state-lightbox-plot.js',
 ];
 
 // ---- RULES ----
@@ -1703,6 +1704,7 @@ const RULES = [
     ['state-lightbox-samples.js', 'stateLightboxSamples'],
     ['state-lightbox-tags.js', 'stateLightboxTags'],
     ['state-lightbox-translate.js', 'stateLightboxTranslate'],
+    ['state-lightbox-plot.js', 'stateLightboxPlot'],
   ].map(([file, fn]) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'required-string',
     pattern: `export function ${fn}`,
@@ -1738,18 +1740,18 @@ const RULES = [
     pattern: /^[ \t]*return[ \t]*mergeState\(/m,
     note: '[TestShowcaseESMGuard] test_main_js_calls_merge_state — 實際呼叫 mergeState(...)，非 Object.assign 等替代品（防 descriptor 丟失假綠，Codex P2）',
   },
-  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()'].map((fn) => ({
+  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()', 'stateLightboxPlot()'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'forbidden-string', pattern: `...${fn}`,
     note: '[TestShowcaseESMGuard] test_main_js_no_plain_spread_merge — 8 factory 全禁',
   })),
-  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate'].map((fn) => ({
+  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate', 'stateLightboxPlot'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: `${fn}.call(this)`,
     note: '[TestShowcaseESMGuard] test_main_js_factory_calls_use_call_this — 唯一有此斷言的頁（settings/scanner/search 皆未檢查）',
   })),
   { file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: 'window.showcaseState', note: '[TestShowcaseESMGuard] test_main_js_has_window_showcase_state_bridge — 唯一有 window bridge 斷言的頁' },
-  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js'].map((file) => ({
+  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
-    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate)\b/m,
+    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate|stateLightboxPlot)\b/m,
     note: `[TestShowcaseESMGuard] test_no_circular_state_factory_imports — ${file} 頂層 import 不可含 6 個 factory 函式名（判斷單位是 factory 名非檔名；state-base.js 本身不驗）`,
   })),
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
@@ -1759,17 +1761,17 @@ const RULES = [
   { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'forbidden-string', pattern: 'addFavoriteActress', note: '[TestShowcaseESMGuard] test_state_videos_no_actress_functions' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+openLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions — 方法定義 regex（行首縮排+openLightbox(，防誤殺 this.openLightbox(...) 呼叫）' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+closeLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions' },
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^(?!\s)(?!\/\/)(?!\*)[^\n]*window\.gsap/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層非註解行不可含 window.gsap`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^gsap\b/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層行不可以 gsap 識別字開頭`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string', pattern: 'this._PICKER_PARAMS',
     note: `[TestShowcaseESMGuard] test_no_this_picker_params_in_state_modules — ${file} 不可 this._PICKER_PARAMS（main.js 不在此列）`,
   })),
@@ -9365,6 +9367,26 @@ const RULES = [
     pattern: /^import\s*\{[^}]*\bstateLightboxTranslate\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-translate\.js'/m,
     note: '[lint-guard 172-T5-main-import] main.js 漏掉翻譯分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
   },
+  {
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
+    pattern: /^import\s*\{[^}]*\bstateLightboxPlot\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-plot\.js'/m,
+    note: '[lint-guard 187b-T5a-main-import] main.js 漏掉簡介分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: /(?<![\w:-])if \(this\.lbPlotOpen\) \{ e\.preventDefault\(\); this\.lbPlotClose\(\); return; \}/,
+    note: '[lint-guard 187b-T5a-esc] 影片 Esc 少了簡介先關層 → 使用者想收起簡介按 Esc，整座燈箱一起關掉',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',
+    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\._lbPlotReset\?\.\(\);\s*\}\)/,
+    note: '[lint-guard 187b-T5a-watch] 換片 $watch 少了 _lbPlotReset → 切片後簡介面仍開著、內容可能是上一片的',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: /(?<![\w:-])this\._lbPlotReset\?\.\(\)/,
+    note: '[lint-guard 187b-T5a-close-reset] closeLightbox 少了 _lbPlotReset → 關燈箱後再開簡介可能殘留上一片內容',
+  },
   // ---- [173-T13] 片商最新作品膠囊接線（node:test 繞過 Alpine runtime，接線只能靠 required-string）----
   {
     file: 'web/templates/search.html', kind: 'required-string', pattern: /(?<![\w:-])@click="startMakerSearch\(/,
@@ -9443,6 +9465,24 @@ const RULES = [
     file: { dir: 'web/static/js/pages/insights', ext: ['.js'] }, kind: 'forbidden-string', pattern: /\.(innerHTML|insertAdjacentHTML)\b/,
     stripLineComments: true,
     note: '[177-T2-no-innerHTML] 分析頁 JS 不得用 innerHTML／insertAdjacentHTML：標籤、導演名稱來自外部刮削的 NFO，當 HTML 插入會執行其中的 script／載入外部圖',
+  },
+
+  // 187b-T5b：燈箱簡介鈕／簡介面接線（模板接線存在；邏輯由 T5a node:test 守）
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-click',
+    pattern: /(?<![\w:-])@click\.stop="lbPlotToggle\(\)"/,
+    scope: { anchor: /class="lb-plot-btn"/, window: 700 },
+    note: '[187b-T5b-click] 使用者點標題行的簡介 icon → 按了沒有反應、簡介面永遠打不開（.lb-plot-btn 要綁 @click.stop="lbPlotToggle()"）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-inert',
+    pattern: /(?<![\w:-]):inert="!lbPlotOpen"/,
+    note: '[187b-T5b-inert] 使用者沒開簡介卻用 Tab 鍵走進看不見的簡介面按鈕（.lb-plot-face 要綁 :inert="!lbPlotOpen"）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-translate',
+    pattern: /(?<![\w:-])@click\.stop="lbPlotTranslate\(\)"/,
+    note: '[187b-T5b-translate] 使用者在簡介面按翻譯 icon → 沒有反應也沒有任何提示（狀態鈕要綁 @click.stop="lbPlotTranslate()"）',
   },
 ];
 

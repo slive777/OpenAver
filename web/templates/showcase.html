@@ -1211,6 +1211,15 @@
                                     <span x-text="t('showcase.samples.fetch_btn')"></span>
                                 </button>
                                 <span x-show="_fetchSamplesLoading" x-text="t('showcase.samples.fetching')"></span>
+                                <!-- 187b-T5b：簡介鈕（has_plot 才存在；只有 icon、點了才翻面，不做滑過即開）-->
+                                <button type="button" class="lb-plot-btn"
+                                        x-show="lbPlotShowButton()"
+                                        :aria-pressed="lbPlotOpen"
+                                        @click.stop="lbPlotToggle()"
+                                        data-tooltip="{{ t('showcase.lightbox.plot_tooltip') }}"
+                                        aria-label="{{ t('showcase.lightbox.plot_tooltip') }}">
+                                    <i class="bi bi-card-text" aria-hidden="true"></i>
+                                </button>
                                 <!-- 98b-T4：焦點裁切遮罩 toggle（低調圓鈕，styled-like .lb-action-btn 但更小）-->
                                 <!-- 101d-T2：影片焦點 gate 綁 _posterModeActive()（窄/poster 模式才顯示）。與女優
                                      _focalIconVisible() 的 per-image 門檻刻意不同——根因：影片只在 ≤899px 裁、
@@ -1223,6 +1232,11 @@
                                     <i class="bi bi-person-bounding-box" aria-hidden="true"></i>
                                 </button>
                             </div>
+                            <!-- 187b-T5b：Row2–Row6 與簡介面同一塊區域翻面（class 切換，不用 x-show／x-transition，FE-ALPINE-17） -->
+                            <div class="lb-faces">
+                            <div class="lb-info-face"
+                                 :class="{'is-flipped': lbPlotOpen}"
+                                 :inert="lbPlotOpen">
                             <!-- Row 2: Original Title (showcase only) -->
                             <div class="lb-otitle-row">
                             <div class="lb-otitle"
@@ -1351,6 +1365,41 @@
                                             @click.stop="cancelAddLbTag()"
                                             title="✕">✕</button>
                                 </span>
+                            </div>
+                            </div>
+                            <div class="lb-plot-face"
+                                 :class="{'is-open': lbPlotOpen}"
+                                 :inert="!lbPlotOpen"
+                                 :aria-hidden="!lbPlotOpen">
+                                <div class="lb-plot-face-head">
+                                    <span class="lb-plot-face-title">{{ t('showcase.lightbox.plot_face_title') }}</span>
+                                    <button type="button" class="lb-translate-btn"
+                                        x-show="!_lbPlotView.error && !_lbPlotView.loading && (lbPlotButtons.includes('translate') || lbPlotButtons.includes('retranslate'))"
+                                        @click.stop="lbPlotTranslate()"
+                                        :disabled="!!_lbPlotInFlight[currentLightboxVideo?.path]"
+                                        :aria-busy="!!_lbPlotInFlight[currentLightboxVideo?.path]"
+                                        :data-tooltip="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"
+                                        :aria-label="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"><i class="bi" :class="lbPlotButtons.includes('retranslate') ? 'bi-arrow-repeat' : 'bi-translate'" x-show="!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="!!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i></button>
+                                    <button type="button" class="lb-translate-btn"
+                                        x-show="!_lbPlotView.error && !_lbPlotView.loading && lbPlotButtons.includes('toggle')"
+                                        @click.stop="lbPlotToggleOriginal()"
+                                        :data-tooltip="_lbPlotView.showing === 'plot' ? t('showcase.lightbox.plot_show_original_tooltip') : t('showcase.lightbox.plot_show_translated_tooltip')"
+                                        :aria-label="_lbPlotView.showing === 'plot' ? t('showcase.lightbox.plot_show_original_tooltip') : t('showcase.lightbox.plot_show_translated_tooltip')"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></button>
+                                    <button type="button" class="lb-translate-btn lb-plot-close"
+                                        @click.stop="lbPlotClose()"
+                                        data-tooltip="{{ t('showcase.lightbox.plot_close') }}"
+                                        aria-label="{{ t('showcase.lightbox.plot_close') }}"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                </div>
+                                <div class="lb-plot-body">
+                                    <div class="lb-plot-skeleton" x-show="_lbPlotView.loading" aria-hidden="true">
+                                        <span class="lb-plot-skeleton-line"></span>
+                                        <span class="lb-plot-skeleton-line"></span>
+                                    </div>
+                                    <p class="lb-plot-unavailable" x-show="!_lbPlotView.loading && _lbPlotView.error">{{ t('showcase.lightbox.plot_unavailable') }}</p>
+                                    <p class="lb-plot-text" x-show="!_lbPlotView.loading && !_lbPlotView.error"
+                                       x-text="_lbPlotView.showing === 'original' ? _lbPlotView.original : _lbPlotView.plot"></p>
+                                </div>
+                            </div>
                             </div>
 
                         </div>

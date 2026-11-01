@@ -741,3 +741,68 @@ class TestFocalModelColumn:
         assert db_cols <= allowed, f"未登記欄位：{sorted(db_cols - allowed)}"
 
 
+
+
+def test_old_db_migration_adds_has_plot(tmp_path):
+    """舊 DB（無 has_plot）init_db 後欄位出現、既有列 NULL、get_by_path 不拋、序列化 false。"""
+    from web.routers.showcase import _serialize_video
+
+    db_path = tmp_path / "old_no_has_plot.db"
+    path = to_file_uri("/old_has_plot.mp4")
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        """
+        CREATE TABLE videos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT UNIQUE NOT NULL,
+            number TEXT,
+            title TEXT,
+            original_title TEXT,
+            actresses TEXT,
+            maker TEXT,
+            director TEXT DEFAULT '',
+            series TEXT,
+            label TEXT DEFAULT '',
+            tags TEXT,
+            sample_images TEXT DEFAULT '',
+            user_tags TEXT DEFAULT '[]',
+            output_dir TEXT DEFAULT '',
+            duration INTEGER,
+            size_bytes INTEGER,
+            cover_path TEXT,
+            release_date TEXT,
+            mtime REAL,
+            nfo_mtime REAL,
+            scrape_attempted_at REAL DEFAULT 0,
+            auto_focal TEXT DEFAULT '',
+            crop_mode TEXT NOT NULL DEFAULT 'auto',
+            focal_attempted_at TIMESTAMP DEFAULT NULL,
+            focal_model TEXT NOT NULL DEFAULT 'local-pigo',
+            user_rating INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO videos (path, title) VALUES (?, ?)",
+        (path, "舊片"),
+    )
+    conn.commit()
+    conn.close()
+
+    init_db(db_path)
+
+    conn = sqlite3.connect(str(db_path))
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(videos)").fetchall()}
+    assert "has_plot" in cols
+    vals = [r[0] for r in conn.execute("SELECT has_plot FROM videos").fetchall()]
+    assert vals == [None]
+    conn.close()
+
+    repo = VideoRepository(db_path)
+    got = repo.get_by_path(path)
+    assert got is not None
+    assert got.title == "舊片"
+    assert got.has_plot is None
+    assert _serialize_video(got, {})["has_plot"] is False

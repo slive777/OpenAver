@@ -63,6 +63,7 @@ from core.path_utils import (
     uri_to_fs_path,
     uri_to_local_fs_path,
 )
+from core.plot_nfo import plot_present
 from core.scraper import search_jav, search_jav_single_source
 from core.video_extensions import get_video_extensions
 
@@ -263,6 +264,7 @@ def _upsert_db(
         mtime=file_info['mtime'],
         nfo_mtime=assets['nfo_mtime'],
         scrape_attempted_at=time.time(),
+        has_plot=plot_present(meta.get('_summary')),
     )
     repo.upsert(v)
 

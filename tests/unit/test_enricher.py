@@ -2389,3 +2389,67 @@ class TestNfoTitleFormatWiring:
 
         assert mock_nfo.call_args is not None, "generate_nfo 應被呼叫"
         assert mock_nfo.call_args.kwargs.get("nfo_title_format") == "{num}-{title}"
+
+
+class TestEnrichHasPlotFollowsDiskNfo:
+    """187b-T3：has_plot 跟磁碟 NFO；讀不到沿用既有值。"""
+
+    def test_enrich_has_plot_follows_disk_nfo(self, tmp_path):
+        from contextlib import ExitStack
+        from core.enricher import enrich_single
+
+        def _repo(**kw):
+            r = MagicMock()
+            r.db_path = ":memory:"
+            r.get_by_numbers.return_value = kw.get("by_num", {})
+            r.get_by_path.return_value = kw.get("by_path")
+            return r
+
+        def _run(repo, path, mode, data, extra=(), **ekw):
+            with ExitStack() as stack:
+                for p in (
+                    patch("core.enricher.VideoRepository", return_value=repo),
+                    patch("core.enricher.search_jav", return_value=data),
+                    patch("core.enricher.download_image", return_value=True),
+                    *extra,
+                ):
+                    stack.enter_context(p)
+                return enrich_single(
+                    file_path=str(path), number="SONE-205", mode=mode,
+                    write_nfo=True, write_cover=False, write_extrafanart=False,
+                    **ekw,
+                )
+
+        # refresh_full 寫出含 <plot> → True
+        p = tmp_path / "rf.mp4"; p.write_bytes(b"x")
+        data = {"title": "T", "_summary": "簡介", "url": "http://x/", "source": "scraper"}
+        repo = _repo()
+        assert _run(repo, p, "refresh_full", data, overwrite_existing=True,
+                    scraper_data=dict(data)).success
+        repo.upsert.assert_called()
+        assert repo.upsert.call_args.args[0].has_plot is True
+
+        # fill_missing + 預置含 <plot> NFO（_write_nfo 回 False）→ True
+        p = tmp_path / "fm.mp4"; p.write_bytes(b"x")
+        p.with_suffix(".nfo").write_text(
+            '<?xml version="1.0"?><movie><title>t</title><plot>預置</plot></movie>',
+            encoding="utf-8",
+        )
+        data = _make_scraper_result(label="FILLED")
+        repo = _repo(by_num={"SONE-205": [_make_video(label="")]})
+        assert _run(repo, p, "fill_missing", data, overwrite_existing=False).success
+        repo.upsert.assert_called()
+        assert repo.upsert.call_args.args[0].has_plot is True
+
+        # read_plot_flag None + 既有 True → 仍 True
+        p = tmp_path / "rn.mp4"; p.write_bytes(b"x")
+        existing = _make_video(); existing.has_plot = True
+        data = {"title": "T", "_summary": "x", "url": "http://x/", "source": "scraper"}
+        repo = _repo(by_path=existing)
+        assert _run(
+            repo, p, "refresh_full", data,
+            extra=(patch("core.enricher.read_plot_flag", return_value=None),),
+            overwrite_existing=True, scraper_data=dict(data),
+        ).success
+        repo.upsert.assert_called()
+        assert repo.upsert.call_args.args[0].has_plot is True

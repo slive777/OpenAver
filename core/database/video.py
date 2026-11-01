@@ -48,6 +48,7 @@ class Video:
     focal_attempted_at: Optional[str] = None  # NULL=從未偵測過；非 NULL=偵測跑過（Codex PR#105 P2）
     user_rating: int = 0  # 精選標記（spec-123）；判準恆為 > 0，只由 set_user_rating()/
     # set_user_rating_bulk() 與 repath() 分支 3 的 max() 合併寫入（CD-123-1/3/4）
+    has_plot: Optional[bool] = None  # 187b：True=非空 <plot>、False=已確認沒有、None=未知
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -88,7 +89,8 @@ class Video:
             cover_path=info.img,
             release_date=info.date,
             mtime=mtime_unix,
-            nfo_mtime=0.0  # VideoInfo 沒有直接的 nfo_mtime
+            nfo_mtime=0.0,  # VideoInfo 沒有直接的 nfo_mtime
+            has_plot=info.has_plot,
         )
 
     def to_dict(self) -> dict:
@@ -156,6 +158,9 @@ class Video:
         # focal_model 等不進 dataclass 的 DB 欄位：過濾後再建，避免 TypeError 癱瘓讀取
         allowed = {f.name for f in fields(cls)}
         data = {k: v for k, v in data.items() if k in allowed}
+        # SQLite INTEGER 0/1 → bool；NULL 保持 None（CD-187b-1）
+        if data.get('has_plot') is not None:
+            data['has_plot'] = bool(data['has_plot'])
         return cls(**data)
 
 
@@ -1252,6 +1257,64 @@ class VideoRepository:
             cursor.execute(
                 "UPDATE videos SET title = ?, original_title = ?, nfo_mtime = ?, updated_at = CURRENT_TIMESTAMP WHERE path = ?",
                 (title, original_title, nfo_mtime, path)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def get_plot_unknown_rows(self) -> List[Video]:
+        """回填候選：has_plot IS NULL 且 nfo_mtime > 0（CD-187b-3）。
+
+        回輕量 Video（只填 path / output_dir / nfo_mtime），供 locate_video_nfo 使用。
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT path, output_dir, nfo_mtime FROM videos "
+                "WHERE has_plot IS NULL AND nfo_mtime > 0"
+            )
+            return [
+                Video(path=row[0], output_dir=row[1] or "", nfo_mtime=row[2] or 0.0)
+                for row in cursor.fetchall()
+            ]
+        finally:
+            conn.close()
+
+    def set_has_plot_bulk(self, pairs: List[Tuple[str, bool]]) -> int:
+        """批次寫入已確認的 has_plot（只 SET has_plot，不碰 updated_at／其他欄）。
+
+        # ranker-invalidate-ok: has_plot 非相似排序語料欄位，同 _sync_nfo_mtime
+        空 pairs 直接回 0，不開連線。單一交易 executemany ＋ 一次 commit。
+        """
+        if not pairs:
+            return 0
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.executemany(
+                "UPDATE videos SET has_plot = ? WHERE path = ?",
+                [(1 if flag else 0, path) for path, flag in pairs],
+            )
+            conn.commit()
+            return cursor.rowcount if cursor.rowcount is not None and cursor.rowcount >= 0 else len(pairs)
+        finally:
+            conn.close()
+
+    def update_plot_flag(self, path: str, has_plot: bool, nfo_mtime: float) -> bool:
+        """同一條 UPDATE 寫 has_plot 與 nfo_mtime（不碰 updated_at；CD-187b-6.5）。
+
+        # ranker-invalidate-ok: has_plot／nfo_mtime 非相似排序語料欄位，同 _sync_nfo_mtime
+        Returns:
+            bool: path 是否命中。不存在時回 False。
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE videos SET has_plot = ?, nfo_mtime = ? WHERE path = ?",
+                (1 if has_plot else 0, nfo_mtime, path),
             )
             conn.commit()
             return cursor.rowcount > 0

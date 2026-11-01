@@ -37,6 +37,7 @@ from core.nfo_title_format import resolve_preserved_title_for_write, resolve_tit
 from core.nfo_updater import parse_nfo
 from core.organizer import crop_to_poster, download_image, find_subtitle_files, generate_nfo, _strip_num_prefixes
 from core.path_utils import to_file_uri, uri_to_fs_path, uri_to_local_fs_path
+from core.plot_nfo import read_plot_flag
 from core.scraper import search_jav
 from core.scrapers.utils import check_subtitle
 
@@ -768,21 +769,12 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
     # db_to_sidecar 不打 scraper 也不更新 DB（metadata 不變）
     if mode in ("refresh_full", "fill_missing") and source_used not in ("db", "nfo", ""):
         local_cover = resolve_cover_target(str(Path(fs_path).with_suffix("")), external_manager) if cover_written else ""
-        nfo_path = Path(fs_path).with_suffix(".nfo")
-        # TASK-113b-T1: TOCTOU 對齊 S4 既有失敗語意——.exists() 判定後檔案在 .stat()
-        # 前消失（OSError）視為「沒有值」，記 warning，不讓整個 enrich_single 炸掉。
-        _NFO_MTIME_POLICY = NFO_MTIME_REFRESH
-        try:
-            _mt = nfo_mtime_or_none(nfo_path, on_error=_reraise_nfo_stat_error) if nfo_path.exists() else None
-        except OSError as e:
-            logger.warning("nfo_mtime stat 失敗 (%s): %s", number, e)
-            _mt = None
-        nfo_mtime = _mt if _mt is not None else 0.0
+        nfo_mtime, has_plot = _nfo_mtime_and_plot_flag(fs_path, number)
         # wrapper callsite decision point; helper itself: enforced at callsites
         # db-ns-ok: fs_path_for_db passed through to _db_upsert's internal primitive sink
         _db_upsert(repo, number, fs_path_for_db, meta, local_cover_path=local_cover,
                    nfo_mtime=nfo_mtime, written_uris=extrafanart_res.uris,
-                   path_mappings=path_mappings)
+                   path_mappings=path_mappings, has_plot=has_plot)
 
         # 重刮 focal trigger（TASK-98b-T2 + 99a-T1b CD-4）：只在「實際寫入新封面內容」
         # （cover_written=True）時才作廢舊手動焦點、再排新的背景偵測；reset 必須在
@@ -818,6 +810,26 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
         source_used=source_used,
         has_servable_cover=has_servable_cover,
     )
+
+
+def _nfo_mtime_and_plot_flag(fs_path: str, number: str):
+    """Stat NFO mtime（S3／TASK-113b-T1）並讀 has_plot（187b-T3）。
+
+    從 enrich_single 抽出：純搬移 mtime 段 + 末尾加 read_plot_flag，換規模閘淨負。
+    回傳 (nfo_mtime, has_plot)；has_plot 為 Optional[bool]（None＝讀不到）。
+    """
+    nfo_path = Path(fs_path).with_suffix(".nfo")
+    # TASK-113b-T1: TOCTOU 對齊 S4 既有失敗語意——.exists() 判定後檔案在 .stat()
+    # 前消失（OSError）視為「沒有值」，記 warning，不讓整個 enrich_single 炸掉。
+    _NFO_MTIME_POLICY = NFO_MTIME_REFRESH
+    try:
+        _mt = nfo_mtime_or_none(nfo_path, on_error=_reraise_nfo_stat_error) if nfo_path.exists() else None
+    except OSError as e:
+        logger.warning("nfo_mtime stat 失敗 (%s): %s", number, e)
+        _mt = None
+    nfo_mtime = _mt if _mt is not None else 0.0
+    has_plot = read_plot_flag(nfo_path)
+    return nfo_mtime, has_plot
 
 
 def _sync_nfo_mtime(  # ranker-invalidate-ok: (SET 的是 nfo_mtime，不是 corpus 欄位；本標記隨這段 SQL 從 enrich_single 一起搬過來，理由不變)
@@ -870,11 +882,15 @@ def _db_upsert(
     nfo_mtime: float = 0.0,
     written_uris: List[str] = None,
     path_mappings: dict = None,
+    has_plot: Optional[bool] = None,
 ) -> None:
     """更新 DB 記錄。fs_path 為 DB key 專用（不做反解），必須是「DB 儲存命名空間」的 FS 路徑。
 
     db-ns-ok: enforced at callsites — 本體內 to_file_uri(fs_path) primitive sink 命名空間
     正確性委派給呼叫端保證（TASK-91b-T1 wrapper sink 登記，callsite 各自標記）。
+
+    has_plot（187b-T3）：None＝沿用 existing.has_plot（無 existing＝None）；
+    True/False＝呼叫端已從磁碟 NFO 確認的值。
     """
     try:
         path_uri = to_file_uri(fs_path)
@@ -905,6 +921,9 @@ def _db_upsert(
         else:
             sample_imgs = existing.sample_images if existing else []
 
+        if has_plot is None:
+            has_plot = existing.has_plot if existing else None
+
         video = Video(
             path=path_uri,
             number=number,
@@ -924,6 +943,7 @@ def _db_upsert(
             nfo_mtime=nfo_mtime,
             output_dir=preserved_output_dir,
             scrape_attempted_at=time.time(),
+            has_plot=has_plot,
         )
         repo.upsert(video)
     except Exception as e:

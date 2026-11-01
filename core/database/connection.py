@@ -168,6 +168,7 @@ def init_db(db_path: Path = None) -> None:
             crop_mode TEXT NOT NULL DEFAULT 'auto',
             focal_attempted_at TIMESTAMP DEFAULT NULL,
             focal_model TEXT NOT NULL DEFAULT 'local-pigo',
+            has_plot INTEGER DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -372,6 +373,10 @@ def init_db(db_path: Path = None) -> None:
     # Migration: focal_model（187a-T2；舊列 DEFAULT local-pigo；唯一寫入者 update_auto_focal）
     if 'focal_model' not in existing_cols:
         cursor.execute("ALTER TABLE videos ADD COLUMN focal_model TEXT NOT NULL DEFAULT 'local-pigo'")
+
+    # Migration: has_plot（187b-T2a；三態 NULL/0/1；掃描寫 True/False，舊列留 NULL 由回填 pass 補）
+    if 'has_plot' not in existing_cols:
+        cursor.execute("ALTER TABLE videos ADD COLUMN has_plot INTEGER DEFAULT NULL")
 
     # Migration: 加入 user_rating 欄位（videos，spec-123 精選標記；0=未精選，>0=已精選。
     # 只由 set_user_rating()/set_user_rating_bulk() 與 repath() 分支 3 的 max() 合併寫入，
