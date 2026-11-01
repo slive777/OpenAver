@@ -336,3 +336,40 @@ test('test_translate_lock_capture_undo', async () => {
         await pReopen;
     });
 });
+
+test('test_undo_ignored_while_retranslate_in_flight', async () => {
+    await withEnv(async ({ A, c, f, toasts }) => {
+        const pLoad = c.lbPlotToggle();
+        f.pending.plotGet[0]({ success: true, plot: '日本語', original_plot: '', has_original: false });
+        await pLoad;
+
+        // 第一次翻譯完成 → 取得 6 秒復原 toast
+        const p1 = c.lbPlotTranslate();
+        f.pending.translate[0]({ success: true, result: '中文一' });
+        await tick();
+        f.pending.plotPost[0]({ success: true, plot: '中文一', original_plot: '日本語', has_original: true });
+        await p1;
+        const undoToast = toasts.find((t) => t[0] === 'showcase.lightbox.plot_translate_done');
+
+        // 看原文 → 重翻（翻譯請求掛起，鎖持有中）
+        c.lbPlotToggleOriginal();
+        const p2 = c.lbPlotTranslate();
+        assert.equal(f.count('translate'), 2);
+
+        // 此時點舊復原：不得送出第二個寫回 POST
+        await undoToast[3].onClick();
+        assert.equal(f.count('plotPost'), 1, '重翻 in-flight 時舊復原不送 POST');
+
+        // 重翻照常完成；之後鎖已釋放，復原可用
+        f.pending.translate[1]({ success: true, result: '中文二' });
+        await tick();
+        f.pending.plotPost[1]({ success: true, plot: '中文二', original_plot: '日本語', has_original: true });
+        await p2;
+        const undoP = undoToast[3].onClick();
+        assert.equal(f.count('plotPost'), 3, '鎖釋放後復原可送出');
+        f.pending.plotPost[2]({ success: true, plot: '日本語', original_plot: '', has_original: false });
+        await undoP;
+        assert.deepEqual(c._lbPlotInFlight, {}, '復原結束釋放鎖');
+        assert.equal(A.path, c._lbPlotView.path);
+    });
+});

@@ -193,6 +193,10 @@ export function stateLightboxPlot() {
         },
 
         async _lbPlotUndo(path, snapshot) {
+            // 與翻譯共用 per-path 鎖：重翻進行中（或另一次復原中）舊 toast 的復原直接忽略，
+            // 避免兩個寫回 POST 重疊、落地順序決定 NFO 內容
+            if (this._lbPlotInFlight[path]) return;
+            this._lbPlotInFlight[path] = true;
             try {
                 const resp = await fetch('/api/showcase/video/plot', {
                     method: 'POST',
@@ -212,6 +216,8 @@ export function stateLightboxPlot() {
                 this.showToast(window.t('showcase.lightbox.plot_translate_undone'), 'success');
             } catch (e) {
                 this.showToast(window.t('showcase.lightbox.plot_write_failed'), 'error');
+            } finally {
+                delete this._lbPlotInFlight[path];
             }
         },
     };
