@@ -6,7 +6,7 @@ import re
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from core.similar.canonicalize import canonicalize
+from core.similar.canonicalize import canonical_video_tags
 from core.similar.cast_bucket import cast_bucket
 from core.similar.idf import build_idf, idf_jaccard, IDF_HOT_THRESHOLD  # noqa: F401
 
@@ -72,8 +72,8 @@ class SimilarRanker:
     def __init__(self, corpus: list[Video]) -> None:
         self._corpus: list[Video] = corpus
         # CD-57a-3：建構期預先 canonicalize，rank() / _retrieve() 不重做
-        self._canon_tags: list[list[str]] = [canonicalize(v.tags) for v in corpus]
-        # CD-57a-9：IDF 只看 v.tags（_canon_tags），不含 user_tags
+        self._canon_tags: list[list[str]] = [canonical_video_tags(v) for v in corpus]
+        # CD-188a-1：IDF／倒排索引含 user_tags
         self._idf_table: dict[str, float] = build_idf(self._canon_tags)
         self._inverted_index: dict[str, list[int]] = {}
         for i, tags in enumerate(self._canon_tags):
@@ -107,8 +107,8 @@ class SimilarRanker:
 
     # spec-57 §2.4：base + series/maker/year/duration/cast bonus + actress penalty（同系列例外）；不 clamp
     def _score(self, target: Video, cand: Video) -> float:
-        target_canon = set(canonicalize(target.tags))
-        cand_canon = set(canonicalize(cand.tags))
+        target_canon = set(canonical_video_tags(target))
+        cand_canon = set(canonical_video_tags(cand))
         rel = idf_jaccard(target_canon, cand_canon, self._idf_table)
 
         if cand.series and cand.series == target.series:
@@ -143,7 +143,7 @@ class SimilarRanker:
 
     # Q-T6-1 方案 B：實時計算（per-call 微小成本）
     def _useful_set(self, video) -> set[str]:
-        return {t for t in canonicalize(video.tags) if self._idf_table.get(t, 0.0) > 0}
+        return {t for t in canonical_video_tags(video) if self._idf_table.get(t, 0.0) > 0}
 
     # CD-57a-4：MMR similarity = actress jaccard * 0.7 + maker match * 0.3
     def _sim(self, a: Video, b: Video) -> float:
@@ -245,7 +245,7 @@ class SimilarRanker:
 
     def _rule_path_for_fusion(self, target: Video) -> list[Video]:
         """融合規則路：_retrieve 前 100，剔 target，依 _score 降冪；不套 Tier1 ≥2 門檻。"""
-        retrieved = self._retrieve(canonicalize(target.tags), exclude=target, top_n=100)
+        retrieved = self._retrieve(canonical_video_tags(target), exclude=target, top_n=100)
         target_key = self._stable_key(target)
         rule = [c for c in retrieved if self._stable_key(c) != target_key]
         rule.sort(key=lambda c: self._score(target, c), reverse=True)
@@ -314,7 +314,7 @@ class SimilarRanker:
         """Tier2／3／4 補位（融合與今天路徑共用）。"""
         if len(result) >= top_k:
             return result
-        target_canon = canonicalize(target.tags)
+        target_canon = canonical_video_tags(target)
         target_useful = {t for t in target_canon if self._idf_table.get(t, 0.0) > 0}
 
         if len(result) < top_k:
@@ -383,7 +383,7 @@ class SimilarRanker:
             return []
 
         if vectors is None or target.id not in vectors:
-            target_canon = canonicalize(target.tags)
+            target_canon = canonical_video_tags(target)
             target_useful = {t for t in target_canon if self._idf_table.get(t, 0.0) > 0}
 
             selected_keys: set[tuple] = {self._stable_key(target)}

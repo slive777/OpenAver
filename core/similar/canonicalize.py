@@ -99,3 +99,8 @@ def canonicalize(tags: Iterable[str]) -> list[str]:
         seen.add(canonical)
         result.append(canonical)
     return result
+
+
+def canonical_video_tags(video) -> list[str]:
+    """刮削 tags 在前、user_tags 在後，經 canonicalize 去重／別名／停用詞。"""
+    return canonicalize([*(video.tags or []), *(video.user_tags or [])])
