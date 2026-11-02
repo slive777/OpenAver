@@ -14,7 +14,7 @@ EXCLUDE_PREFIXES = ("core/clip/", "core/similar/", "tests/", "archive/")
 # 三種觸發 SQL pattern（corpus 欄位 raw mutation）
 _SQL_PATTERNS = [
     re.compile(
-        r"UPDATE\s+videos\s+SET[^;]*\b(number|tags|actresses|maker|series|release_date|duration)\b",
+        r"UPDATE\s+videos\s+SET[^;]*\b(number|tags|actresses|maker|series|release_date|duration|user_tags)\b",
         re.DOTALL | re.IGNORECASE,
     ),
     re.compile(r"DELETE\s+FROM\s+videos\b", re.DOTALL | re.IGNORECASE),

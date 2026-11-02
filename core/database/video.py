@@ -1223,6 +1223,8 @@ class VideoRepository:
     def update_user_tags(self, path: str, user_tags: List[str]) -> bool:
         """安全更新 user_tags 欄位（不碰其他欄位）
 
+        user_tags 是相似排序語料欄位（188a）
+
         Args:
             path: 影片路徑（DB key，file:/// URI 格式）
             user_tags: 新的 user_tags 列表
@@ -1238,7 +1240,14 @@ class VideoRepository:
                 (json.dumps(user_tags, ensure_ascii=False), path)
             )
             conn.commit()
-            return cursor.rowcount > 0
+            updated = cursor.rowcount > 0
+            if updated:
+                try:
+                    from core.similar.ranker_cache import SimilarRankerCache
+                    SimilarRankerCache.invalidate()  # 188a：user_tags 是相似排序語料欄位
+                except Exception:
+                    logger.exception("SimilarRankerCache invalidate failed (non-fatal)")
+            return updated
         finally:
             conn.close()
 
