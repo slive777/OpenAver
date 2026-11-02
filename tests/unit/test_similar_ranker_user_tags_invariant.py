@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from core.database import Video
 from core.similar.ranker import SimilarRanker
+from tests.unit.test_similar_fusion import _build_base_corpus, _fill_vectors, _unit
 
 @pytest.fixture(autouse=True)
 def _isolate_canonicalize_cache():
@@ -81,4 +82,45 @@ def test_rank_order_and_scores_equal_with_and_without_user_tags():
     for c_cand, d_cand in zip(clean_out, dirty_out):
         assert clean._score(clean_target, c_cand) == dirty._score(dirty_target, d_cand)
 
+
+def test_golden_rule_path_matches_pre_188a():
+    """規則路排序與分數基線。
+
+    使用者流程：沒有任何 user tag 時，升級後星空前 12 名換了。
+    字面值取自 05866a69（188a 之前）；若日後刻意改排序，改這裡必須同時改 CHANGELOG。
+    """
+    corpus = _build_corpus(False)
+    ranker = SimilarRanker(corpus)
+    target = corpus[0]
+    out = ranker.rank(target, top_k=12)
+
+    assert [v.number for v in out] == [
+        "CORE-001",
+        "CORE-002",
+        "CORE-003",
+        "CORE-004",
+        "CORE-005",
+        "CORE-006",
+        "CORE-007",
+        "CORE-008",
+        "CORE-009",
+        "CORE-010",
+        "CORE-011",
+        "CORE-012",
+    ]
+    assert [repr(ranker._score(target, v)) for v in out] == ["0.3587779996848771"] * 12
+
+
+def test_golden_fusion_path_matches_pre_188a():
+    """融合路排序基線。
+
+    使用者流程：沒有任何 user tag 時，升級後星空前 12 名換了。
+    字面值取自 05866a69（188a 之前）；若日後刻意改排序，改這裡必須同時改 CHANGELOG。
+    """
+    corpus, target, dim = _build_base_corpus()
+    ranker = SimilarRanker(corpus)
+    vectors = _fill_vectors(corpus, {1: _unit(dim, 0), 200: _unit(dim, 1)}, dim)
+    out = ranker.rank(target, vectors=vectors)
+
+    assert [v.id for v in out] == [105, 100, 5014, 101, 5030, 102, 103, 5000, 104, 5001, 5002, 106]
 
