@@ -262,10 +262,18 @@ class FacesConfig(BaseModel):
     model: str = ""
 
 
+class TagsConfig(BaseModel):
+    """AI 標籤設定（CD-188b-14）；金鑰網址沿用 translate.<provider>.*。"""
+    enabled: bool = False
+    provider: str = ""  # "ollama" | "gemini" | "openai" | "claude" | "openai_official"
+    model: str = ""
+
+
 class AIServicesConfig(BaseModel):
-    """AI 功能卡共用巢（186／187）；伺服器擁有狀態不進此處。"""
+    """AI 功能卡共用巢（186／187／188b）；伺服器擁有狀態不進此處。"""
     image_similar: ImageSimilarConfig = ImageSimilarConfig()
     faces: FacesConfig = FacesConfig()
+    tags: TagsConfig = TagsConfig()
 
 
 class AppConfig(BaseModel):
@@ -345,7 +353,7 @@ def _ensure_openai_official_nest(t: dict) -> bool:
 
 
 def _ensure_ai_services(raw_config: dict) -> bool:
-    """Top-level ai_services／image_similar／faces 缺才補（186-T3／187-T1／BE-CONFIG-02）。"""
+    """Top-level ai_services／image_similar／faces／tags 缺才補（186-T3／187-T1／188b-T8／BE-CONFIG-02）。"""
     if 'ai_services' not in raw_config:
         raw_config['ai_services'] = AIServicesConfig().model_dump()
         return True
@@ -356,6 +364,9 @@ def _ensure_ai_services(raw_config: dict) -> bool:
         changed = True
     if 'faces' not in ai:
         ai['faces'] = FacesConfig().model_dump()
+        changed = True
+    if 'tags' not in ai:
+        ai['tags'] = TagsConfig().model_dump()
         changed = True
     return changed
 

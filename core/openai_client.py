@@ -121,6 +121,7 @@ def classify_http_error(resp: httpx.Response) -> TranslateError:
     """依狀態碼與 error 欄位分類；非 JSON 本體仍回 TranslateError。"""
     status = resp.status_code
     err_type = ""
+    err_code = ""
     message = ""
     has_reasons = False
     try:
@@ -128,11 +129,13 @@ def classify_http_error(resp: httpx.Response) -> TranslateError:
         err = body.get("error") if isinstance(body, dict) else None
         if isinstance(err, dict):
             err_type = str(err.get("type") or "")
+            err_code = str(err.get("code") or "")
             message = str(err.get("message") or "")
             meta = err.get("metadata")
             has_reasons = isinstance(meta, dict) and "reasons" in meta
     except Exception:
         err_type = ""
+        err_code = ""
         message = getattr(resp, "reason_phrase", "") or ""
 
     if status == 401:
@@ -142,6 +145,10 @@ def classify_http_error(resp: httpx.Response) -> TranslateError:
         if has_reasons or "moderation" in lowered or "flagged" in lowered:
             return build_error(TAG, "blocked", status, err_type, message)
         return build_error(TAG, "forbidden", status, err_type, message)
+    if status == 400 and (
+        err_code == "content_policy_violation" or "safety system" in message.lower()
+    ):
+        return build_error(TAG, "blocked", status, err_type, message)
     if status == 404:
         return build_error(TAG, "not_found", status, err_type, message)
     if status in (429, 402):
@@ -165,6 +172,64 @@ async def request_translation(
         headers=build_headers(api_key),
         timeout=timeout,
         json=build_translate_payload(model, prompt),
+    )
+    try:
+        resp.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        raise classify_http_error(e.response) from None
+
+    try:
+        data = resp.json()
+    except Exception as e:
+        raise build_error(TAG, "api_error", None, "", f"invalid JSON: {e}") from e
+    if not isinstance(data, dict):
+        raise build_error(TAG, "api_error", None, "", "response is not a JSON object")
+    return extract_text(data)
+
+
+def build_vision_payload(
+    model: str,
+    system: str,
+    user_text: str,
+    image_data_uri: str,
+) -> dict[str, Any]:
+    # 刻意不送任何生成參數；image_url 保留 data URI 原樣
+    return {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_text},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image_data_uri},
+                    },
+                ],
+            },
+        ],
+    }
+
+
+async def request_vision(
+    base_url: str,
+    api_key: str,
+    model: str,
+    system: str,
+    user_text: str,
+    image_data_uri: str,
+    *,
+    timeout: float,
+) -> str:
+    """POST <base_url>/chat/completions with image；成功回非空 str，失敗拋 TranslateError。"""
+    resp = await cloud_request(
+        TAG,
+        "POST",
+        base_url.rstrip("/") + "/chat/completions",
+        headers=build_headers(api_key),
+        timeout=timeout,
+        json=build_vision_payload(model, system, user_text, image_data_uri),
     )
     try:
         resp.raise_for_status()

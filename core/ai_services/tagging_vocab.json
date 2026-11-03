@@ -1,0 +1,265 @@
+[
+ {
+  "group": "服裝",
+  "model_name": "制服",
+  "display_name": "校服",
+  "def": "學生穿的制服，例如水手服、西裝外套式校服、格子百褶裙",
+  "aliases": [
+   "制服",
+   "学生服",
+   "水手服",
+   "セーラー服"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "体操着・ブルマ",
+  "display_name": "體育服",
+  "def": "學校體育服、燈籠褲",
+  "aliases": [
+   "体操着・ブルマ"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "競泳・スクール水着",
+  "display_name": "學校泳裝",
+  "def": "深藍連身學校泳裝或競賽泳裝",
+  "aliases": [
+   "競泳・スクール水着"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "水着",
+  "display_name": "泳裝",
+  "def": "比基尼等一般泳裝（不含學校泳裝）",
+  "aliases": [
+   "水着",
+   "泳衣"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "OL",
+  "display_name": "OL",
+  "def": "上班族套裝、襯衫配窄裙、西裝外套",
+  "aliases": [
+   "ビジネススーツ",
+   "白领"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "看護婦・ナース",
+  "display_name": "看護婦・ナース",
+  "def": "護士制服、護士帽",
+  "aliases": [
+   "护士",
+   "看護婦",
+   "護士"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "メイド",
+  "display_name": "女僕",
+  "def": "女僕圍裙、頭飾",
+  "aliases": [
+   "メイド"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "和服・浴衣",
+  "display_name": "和服・浴衣",
+  "def": "和服、浴衣",
+  "aliases": [
+   "和服・喪服",
+   "浴衣和服",
+   "着物・浴衣"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "バニーガール",
+  "display_name": "兔女郎",
+  "def": "兔耳、兔女郎裝",
+  "aliases": [
+   "バニーガール"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "スチュワーデス",
+  "display_name": "空中小姐",
+  "def": "空服員制服",
+  "aliases": [
+   "スチュワーデス"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "チャイナドレス",
+  "display_name": "旗袍",
+  "def": "中式旗袍",
+  "aliases": [
+   "チャイナドレス"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "チアガール",
+  "display_name": "啦啦隊",
+  "def": "啦啦隊制服、彩球",
+  "aliases": [
+   "チアガール"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "レオタード",
+  "display_name": "緊身衣",
+  "def": "韻律服、緊身連身衣",
+  "aliases": [
+   "レオタード"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "レースクィーン",
+  "display_name": "賽車女郎",
+  "def": "賽車女郎服裝",
+  "aliases": [
+   "レースクィーン"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "裸エプロン",
+  "display_name": "裸體圍裙",
+  "def": "只穿圍裙",
+  "aliases": [
+   "裸エプロン"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "コスプレ",
+  "display_name": "角色扮演",
+  "def": "動漫或遊戲角色服裝、假髮（上面各類職業制服不算）",
+  "aliases": [
+   "コスプレ"
+  ]
+ },
+ {
+  "group": "服裝",
+  "model_name": "ミニスカ",
+  "display_name": "迷你裙",
+  "def": "明顯很短的裙子",
+  "aliases": [
+   "ミニスカ"
+  ]
+ },
+ {
+  "group": "腿",
+  "model_name": "パンスト・タイツ",
+  "display_name": "連褲襪",
+  "def": "任何透膚絲襪、褲襪、長筒絲襪、吊帶襪、網襪（不透膚的棉襪、過膝襪不算）",
+  "aliases": [
+   "パンスト・タイツ",
+   "パンスト"
+  ]
+ },
+ {
+  "group": "腿",
+  "model_name": "脚フェチ",
+  "display_name": "戀腿癖",
+  "def": "構圖刻意強調腿部：腿部佔畫面大部分、腿部特寫、蹺腿或伸腿展示（只是全身照不算）",
+  "aliases": [
+   "脚フェチ"
+  ]
+ },
+ {
+  "group": "露出",
+  "model_name": "パンチラ",
+  "display_name": "走光",
+  "def": "裙底露出內褲",
+  "aliases": [
+   "パンチラ"
+  ]
+ },
+ {
+  "group": "外觀",
+  "model_name": "めがね",
+  "display_name": "眼鏡",
+  "def": "戴眼鏡",
+  "aliases": [
+   "めがね"
+  ]
+ },
+ {
+  "group": "外觀",
+  "model_name": "ギャル",
+  "display_name": "辣妹",
+  "def": "日系辣妹妝髮：染淺色頭髮、濃妝、美甲",
+  "aliases": [
+   "ギャル"
+  ]
+ },
+ {
+  "group": "外觀",
+  "model_name": "日焼け",
+  "display_name": "曬黑",
+  "def": "明顯曬黑或曬痕",
+  "aliases": [
+   "日焼け"
+  ]
+ },
+ {
+  "group": "場景",
+  "model_name": "温泉",
+  "display_name": "温泉",
+  "def": "露天或室內溫泉",
+  "aliases": [
+   "溫泉"
+  ]
+ },
+ {
+  "group": "場景",
+  "model_name": "お風呂",
+  "display_name": "浴室",
+  "def": "浴缸、淋浴間",
+  "aliases": [
+   "お風呂"
+  ]
+ },
+ {
+  "group": "場景",
+  "model_name": "野外・露出",
+  "display_name": "野外・露出",
+  "def": "明顯在戶外",
+  "aliases": []
+ },
+ {
+  "group": "服裝",
+  "model_name": "スポーツウェア",
+  "display_name": "運動服",
+  "def": "運動內衣、緊身運動褲、瑜珈服、健身服（非 DMM 分類，owner 例外收）",
+  "aliases": []
+ },
+ {
+  "group": "服裝",
+  "model_name": "ウェディングドレス",
+  "display_name": "婚紗",
+  "def": "白色婚紗、新娘頭紗（非 DMM 分類，owner 例外收）",
+  "aliases": []
+ },
+ {
+  "group": "露出",
+  "model_name": "全裸",
+  "display_name": "全裸",
+  "def": "畫面中人物沒穿任何衣物（非 DMM 分類，owner 例外收；也是不硬塞其他服裝標籤的出口）",
+  "aliases": []
+ }
+]

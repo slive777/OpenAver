@@ -731,14 +731,43 @@ class TestFocalModelColumn:
         assert repo.get_by_path(path).title == "重掃描"
 
     def test_videos_columns_whitelist_allows_only_video_fields_plus_focal_model(self, temp_db):
-        """結構守衛：videos 欄位集合 ⊆ Video fields ∪ {focal_model}。"""
+        """結構守衛：videos 欄位集合 ⊆ Video fields ∪ {focal_model, ai_tagged_at}。"""
         conn = sqlite3.connect(str(temp_db))
         try:
             db_cols = {row[1] for row in conn.execute("PRAGMA table_info(videos)").fetchall()}
         finally:
             conn.close()
-        allowed = {f.name for f in fields(Video)} | {"focal_model"}
+        allowed = {f.name for f in fields(Video)} | {"focal_model", "ai_tagged_at"}
         assert db_cols <= allowed, f"未登記欄位：{sorted(db_cols - allowed)}"
+
+
+class TestAiTaggedAt:
+    """188b-T1：ai_tagged_at 寫入／保留（DB-only，不進 Video dataclass）。"""
+
+    def test_user_tag_edit_keeps_ai_tagged_at_untouched(self, temp_db):
+        repo = VideoRepository(temp_db)
+        p = to_file_uri("/ai_tagged_at_edit.mp4")
+        repo.upsert(Video(path=p, title="片"))
+        repo.update_user_tags(p, ["A"])
+        assert repo.get_ai_tagged_at(p) is None
+        repo.update_user_tags(p, ["A", "B"], ai_tagged=True)
+        assert repo.get_ai_tagged_at(p) is not None
+        conn = sqlite3.connect(str(temp_db))
+        conn.execute("UPDATE videos SET ai_tagged_at = '2020-01-01 00:00:00' WHERE path = ?", (p,))
+        conn.commit()
+        conn.close()
+        repo.update_user_tags(p, ["A"])
+        assert repo.get_ai_tagged_at(p) == "2020-01-01 00:00:00"
+
+    def test_rescan_upsert_keeps_ai_tagged_at(self, temp_db):
+        repo = VideoRepository(temp_db)
+        p = to_file_uri("/ai_tagged_at_rescan.mp4")
+        repo.upsert(Video(path=p, title="片"))
+        repo.update_user_tags(p, ["A"], ai_tagged=True)
+        stamped = repo.get_ai_tagged_at(p)
+        assert stamped is not None
+        repo.upsert(Video(path=p, title="重掃"))
+        assert repo.get_ai_tagged_at(p) == stamped
 
 
 

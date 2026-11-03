@@ -38,6 +38,7 @@ def _run_lifespan_with_bootstrap(monkeypatch, fake_bootstrap, emit: Mock):
     monkeypatch.setattr(webapp, "bootstrap_data_layout", fake_bootstrap)
     monkeypatch.setattr(webapp, "emit_notification", emit)
     monkeypatch.setattr(webapp, "init_db", Mock())
+    monkeypatch.setattr(webapp, "seed_builtin_aliases", Mock())
     monkeypatch.setattr(webapp, "start_notification_persistence", Mock())
     monkeypatch.setattr(webapp, "stop_notification_persistence", Mock())
     monkeypatch.setattr(webapp, "ensure_schema", Mock())

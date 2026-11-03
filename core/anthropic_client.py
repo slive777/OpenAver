@@ -262,3 +262,110 @@ async def list_models(api_key: str, *, timeout: float) -> dict:
         logger.warning("[Claude] models has_more=True; not paginating (limit=1000)")
 
     return data
+
+
+VISION_MAX_TOKENS = 6000
+
+
+def _strip_vision_data_uri(uri: str) -> str:
+    return uri.split(",", 1)[1]
+
+
+def build_vision_payload(
+    model: str,
+    system: str,
+    user_text: str,
+    image_data_uri: str,
+) -> dict[str, Any]:
+    return {
+        "model": model,
+        "max_tokens": VISION_MAX_TOKENS,
+        "system": system,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/jpeg",
+                            "data": _strip_vision_data_uri(image_data_uri),
+                        },
+                    },
+                    {"type": "text", "text": user_text},
+                ],
+            }
+        ],
+    }
+
+
+def _parse_messages_response(resp: httpx.Response) -> dict:
+    if resp.status_code >= 400:
+        raise classify_http_error(resp)
+    try:
+        data = resp.json()
+    except Exception as e:
+        raise _log_and_build_error(
+            "api_error",
+            resp.status_code,
+            "",
+            f"invalid JSON: {e}",
+        ) from e
+    if not isinstance(data, dict):
+        raise _log_and_build_error(
+            "api_error",
+            resp.status_code,
+            "",
+            "response is not a JSON object",
+        )
+    return data
+
+
+async def _post_messages(api_key: str, payload: dict, *, timeout: float) -> dict:
+    headers = build_headers(api_key)
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(
+                f"{ANTHROPIC_BASE_URL}/v1/messages",
+                headers=headers,
+                json=payload,
+            )
+    except httpx.TimeoutException as e:
+        raise _log_and_build_error(
+            "connection_timeout",
+            None,
+            "",
+            str(e),
+        ) from e
+    except (httpx.LocalProtocolError, UnicodeEncodeError):
+        # 金鑰含空白／換行／非 ASCII → 拒送；str(e) 內含金鑰，絕不可進 message／log
+        raise _log_and_build_error(
+            "auth_failed",
+            None,
+            "invalid_api_key_format",
+            _ILLEGAL_KEY_MESSAGE,
+        ) from None
+    except (httpx.HTTPError, OSError) as e:
+        raise _log_and_build_error(
+            "connection_failed",
+            None,
+            "",
+            str(e),
+        ) from e
+    return _parse_messages_response(resp)
+
+
+async def request_vision(
+    api_key: str,
+    model: str,
+    system: str,
+    user_text: str,
+    image_data_uri: str,
+    *,
+    timeout: float,
+) -> str:
+    """POST /v1/messages with image；成功回非空 str，失敗拋 AnthropicError。"""
+    payload = build_vision_payload(model, system, user_text, image_data_uri)
+    data = await _post_messages(api_key, payload, timeout=timeout)
+    return extract_text(data)

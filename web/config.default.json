@@ -222,6 +222,11 @@
       "url": "",
       "api_key": "",
       "model": ""
+    },
+    "tags": {
+      "enabled": false,
+      "provider": "",
+      "model": ""
     }
   }
 }

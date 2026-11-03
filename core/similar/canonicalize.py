@@ -109,3 +109,8 @@ def canonical_video_tags(video) -> list[str]:
     tags = [t for t in (video.tags or []) if isinstance(t, str)]
     user_tags = [t for t in (video.user_tags or []) if isinstance(t, str)]
     return canonicalize([*tags, *user_tags])
+
+
+def alias_key(name: str) -> str:
+    """只解析別名、不濾停用詞，與 canonicalize 同一份 map。"""
+    return _load_merged_map().get(name, name)

@@ -111,6 +111,7 @@ class TestDbMigration:
         for col in (
             'director', 'label', 'output_dir', 'scrape_attempted_at',
             'auto_focal', 'crop_mode', 'focal_attempted_at', 'user_rating', 'user_tags',
+            'ai_tagged_at',
         ):
             assert col in columns, col
 
