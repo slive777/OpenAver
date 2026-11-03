@@ -58,6 +58,11 @@ export function stateConfig() {
             aiFacesApiKey: '',
             aiFacesModel: '',
 
+            // AI services — tags（188c-T8a）
+            aiTagsEnabled: false,
+            aiTagsProvider: '',
+            aiTagsModel: '',
+
             // Scraper
             createFolder: true,
             // 資料夾層級：{id,value}[] 動態清單（外→內，上到下）。load 時 slice(0,3) 正規化
@@ -752,24 +757,51 @@ export function stateConfig() {
                     this.form.aiFacesApiKey = config.ai_services?.faces?.api_key || '';
                     this.form.aiFacesModel = config.ai_services?.faces?.model || '';
 
-                    // 自動測試 Gemini（如果有 API Key 且是 gemini provider）
+                    // AI services — tags（188c-T8a；必須在 savedState 快照之前）
+                    this.form.aiTagsEnabled = config.ai_services?.tags?.enabled || false;
+                    this.form.aiTagsProvider = config.ai_services?.tags?.provider || '';
+                    this.form.aiTagsModel = config.ai_services?.tags?.model || '';
+                    const tagsProvider = config.ai_services?.tags?.provider || '';
+
+                    // 自動測試 Gemini（翻譯選到該家；否則 tags 選到該家走 ensureProviderModels）
+                    // 同家：翻譯抓完後再 ensureProviderModels（清單已滿 → 只做 tags 預選，不重抓）
                     if (config.translate.gemini?.api_key && config.translate.provider === 'gemini') {
-                        setTimeout(() => this.testGeminiConnection(), 100);
+                        setTimeout(async () => {
+                            await this.testGeminiConnection();
+                            if (tagsProvider === 'gemini') await this.ensureProviderModels('gemini');
+                        }, 100);
+                    } else if (config.translate.gemini?.api_key && tagsProvider === 'gemini') {
+                        setTimeout(() => this.ensureProviderModels('gemini'), 100);
                     }
 
-                    // 自動 fetch OpenAI models（如果有 base_url 且是 openai provider）
+                    // 自動 fetch OpenAI models（翻譯選到該家；否則 tags 選到該家）
                     if (config.translate.openai?.base_url && config.translate.provider === 'openai') {
-                        setTimeout(() => this.fetchOpenAIModels({ source: 'auto' }), 100);
+                        setTimeout(async () => {
+                            await this.fetchOpenAIModels({ source: 'auto' });
+                            if (tagsProvider === 'openai') await this.ensureProviderModels('openai');
+                        }, 100);
+                    } else if (config.translate.openai?.base_url && tagsProvider === 'openai') {
+                        setTimeout(() => this.ensureProviderModels('openai'), 100);
                     }
 
-                    // 自動 fetch Claude models（如果有 API Key 且是 claude provider）
+                    // 自動 fetch Claude models（翻譯選到該家；否則 tags 選到該家）
                     if (config.translate.claude?.api_key && config.translate.provider === 'claude') {
-                        setTimeout(() => this.fetchClaudeModels({ source: 'auto' }), 100);
+                        setTimeout(async () => {
+                            await this.fetchClaudeModels({ source: 'auto' });
+                            if (tagsProvider === 'claude') await this.ensureProviderModels('claude');
+                        }, 100);
+                    } else if (config.translate.claude?.api_key && tagsProvider === 'claude') {
+                        setTimeout(() => this.ensureProviderModels('claude'), 100);
                     }
 
-                    // 自動 fetch OpenAI Official models（如果有 API Key 且是 openai_official provider）
+                    // 自動 fetch OpenAI Official models（翻譯選到該家；否則 tags 選到該家）
                     if (config.translate.openai_official?.api_key && config.translate.provider === 'openai_official') {
-                        setTimeout(() => this.fetchOpenAIOfficialModels({ source: 'auto' }), 100);
+                        setTimeout(async () => {
+                            await this.fetchOpenAIOfficialModels({ source: 'auto' });
+                            if (tagsProvider === 'openai_official') await this.ensureProviderModels('openai_official');
+                        }, 100);
+                    } else if (config.translate.openai_official?.api_key && tagsProvider === 'openai_official') {
+                        setTimeout(() => this.ensureProviderModels('openai_official'), 100);
                     }
 
                     // Scraper
@@ -919,10 +951,16 @@ export function stateConfig() {
                     try { await this.hydrateMetatubeStatus(); } catch (_e) { this.metatubeConnected = false; }
 
                     // 背景載入 Ollama 模型列表（不阻塞表單）
+                    // 同家：翻譯 loadOllamaModels（會改 form.ollamaModel，既有行為）後再 ensureProviderModels 只預選 tags
                     const ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url;
                     const ollamaModel = config.translate.ollama?.model || config.translate.ollama_model;
                     if (ollamaUrl && config.translate.provider === 'ollama') {
-                        this.loadOllamaModels(ollamaUrl, ollamaModel);  // 不 await
+                        (async () => {
+                            await this.loadOllamaModels(ollamaUrl, ollamaModel);
+                            if (tagsProvider === 'ollama') await this.ensureProviderModels('ollama');
+                        })();
+                    } else if (ollamaUrl && tagsProvider === 'ollama') {
+                        this.ensureProviderModels('ollama');  // 不 await；唯讀抓取＋tags 預選
                     }
                 }
             } catch (e) {
@@ -1154,6 +1192,12 @@ export function stateConfig() {
                         url: this.form.aiFacesUrl,
                         api_key: this.form.aiFacesApiKey,
                         model: this.form.aiFacesModel,
+                    },
+                    tags: {
+                        ...config.ai_services?.tags,
+                        enabled: this.form.aiTagsEnabled,
+                        provider: this.form.aiTagsProvider,
+                        model: this.form.aiTagsModel,
                     },
                 };
 
