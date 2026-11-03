@@ -22,9 +22,9 @@ from core.database import Video, VideoRepository, get_connection, get_db_path
 from core.logger import get_logger
 from core.multipart_group import resolve_groups_bulk
 from core.nfo_updater import update_nfo_user_tags
-from core.path_utils import CURRENT_ENV, reverse_path_mapping, to_file_uri, uri_to_fs_path, uri_to_local_fs_path
-from core.readonly_paths import resolve_owning_output_root
+from core.path_utils import CURRENT_ENV, reverse_path_mapping, to_file_uri, uri_to_fs_path
 from core.scraper import extract_number, is_number_format
+from core.user_tags_write import apply_user_tags
 
 logger = get_logger(__name__)
 
@@ -731,6 +731,7 @@ class UserTagsRequest(BaseModel):
     file_path: str                # file:/// URI 格式（DB key）
     add: List[str] = Field(default_factory=list)
     remove: List[str] = Field(default_factory=list)
+    ai_tagged: bool = False       # True → 記「AI 跑過」；合併無變化時跳過 NFO（188b-T2a）
 
 
 @user_tags_router.post("/user-tags")
@@ -739,12 +740,10 @@ def post_user_tags(request: UserTagsRequest) -> dict:
     新增 / 移除 user tags。
 
     資料流：
-    1. get_by_path(file_path) 查 DB
-    2. 不存在 → 自動建立 stub 紀錄（從檔名解析 number），用於 Search 拖入但未掃描的檔案
-    3. 合併 add / 移除 remove（去重，remove 優先）
-    4. update_user_tags(file_path, merged) 更新 DB
-    5. 重寫 NFO（失敗不阻擋回傳）
-    6. 回傳 {success: true, user_tags: [...], nfo_updated: bool}
+    0. 解析路徑（canonical URI + local FS path）
+    1. get_by_path；不存在 → 自動建立 stub（Search 拖入未掃描）
+    2. apply_user_tags（鎖內：合併→DB→NFO→導出旗標；可選 ai_tagged）
+    3. 回傳 {success, user_tags, nfo_updated, readonly_no_output, nfo_write_blocked}
     """
     db_path = get_db_path()
     repo = VideoRepository(db_path)
@@ -790,59 +789,21 @@ def post_user_tags(request: UserTagsRequest) -> dict:
         if video is None:
             return {"success": False, "error": "建立 DB 紀錄失敗"}
 
-    # 2. 去重合併（remove 優先）
-    existing = list(video.user_tags)
-    # add：先加不重複的，同時對 add 本身去重
-    seen_add = set()
-    unique_add = []
-    for t in request.add:
-        if t not in seen_add:
-            seen_add.add(t)
-            unique_add.append(t)
-    after_add = existing + [t for t in unique_add if t not in existing]
-    # remove：移除指定 tags
-    merged_tags = [t for t in after_add if t not in request.remove]
-
-    # 3. 更新 DB
-    updated = repo.update_user_tags(file_path, merged_tags)
-    if not updated:
-        return {"success": False, "error": "DB 更新失敗"}
-
-    # 4. Surgical NFO update — 唯讀來源改寫輸出夾那份，來源零寫入（CD-143-4）
-    nfo_updated = False
-    nfo_exists = False
-    is_readonly = resolve_owning_output_root(file_path, config) is not None
-    if is_readonly:
-        # 樁列（從未成功 produce、輸出夾沒有東西）直接跳過，nfo_updated 維持 False
-        if video.output_dir:
-            try:
-                out_fs = Path(uri_to_local_fs_path(video.output_dir, path_mappings))
-                nfo_candidates = list(out_fs.glob("*.nfo"))
-                # 份數不是恰好一份時不猜（full-mode produce 是 holistic，正常恰有一份）
-                if len(nfo_candidates) == 1:
-                    nfo_updated = update_nfo_user_tags(str(nfo_candidates[0]), merged_tags)
-            except Exception as e:
-                logger.warning("[user-tags] 唯讀輸出夾 NFO 寫入失敗（忽略）: %s", e)
-    else:
-        try:
-            nfo_path = str(Path(local_fs_path).with_suffix(".nfo"))
-            nfo_exists = Path(nfo_path).exists()
-            nfo_updated = update_nfo_user_tags(nfo_path, merged_tags)
-        except Exception as e:
-            logger.warning("[user-tags] NFO 寫入失敗（忽略）: %s", e)
-
-    # readonly_no_output 是**導出的**，不是逐個失敗分支去設的（Codex PR #179 round 2）。
-    # 上一輪的修法是「例外路徑補一個 readonly_no_output = True」，下一輪就被找到第四種
-    # 失敗形狀：輸出夾恰有一份 NFO 但它壞掉／glob 之後消失時，`update_nfo_user_tags`
-    # 是 **catch 後回 False**（`core/nfo_updater.py:50`）不是 raise ⇒ 三個分支一個都沒中，
-    # 而標籤其實只進了 DB。列舉失敗分支這個形狀本身會一直生出下一個洞。
-    #
-    # 這個旗標要講的事情只有一句：**唯讀來源的片，媒體伺服器讀的那份 NFO 這次沒有更新。**
-    # 那就直接從結果導出。`update_nfo_user_tags` 的 False 只有「檔案不存在」與「解析／
-    # 寫入失敗」兩種來源（沒有「不需要改所以回 False」），所以不會誤報。
-    readonly_no_output = is_readonly and not nfo_updated
-    nfo_write_blocked = (not is_readonly) and nfo_exists and not nfo_updated
-    return {"success": True, "user_tags": merged_tags, "nfo_updated": nfo_updated, "readonly_no_output": readonly_no_output, "nfo_write_blocked": nfo_write_blocked}
+    result = apply_user_tags(
+        repo, file_path, local_fs_path, config,
+        add=request.add, remove=request.remove,
+        ai_tagged=request.ai_tagged,
+        nfo_writer=update_nfo_user_tags,
+    )
+    if not result.ok:
+        return {"success": False, "error": result.error}
+    return {
+        "success": True,
+        "user_tags": result.user_tags,
+        "nfo_updated": result.nfo_updated,
+        "readonly_no_output": result.readonly_no_output,
+        "nfo_write_blocked": result.nfo_write_blocked,
+    }
 
 
 @user_tags_router.get("/user-tags")
