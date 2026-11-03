@@ -86,11 +86,14 @@ def apply_user_tags(
     remove,
     ai_tagged=False,
     nfo_writer=None,
+    add_filter=None,
 ) -> ApplyResult:
     """讀現有標籤→合併→寫 DB→寫 NFO（鎖內）。
 
     nfo_writer：None → core.nfo_updater.update_nfo_user_tags；
     路由傳入 update_nfo_user_tags 以保住既有 patch 目標名。
+    add_filter：None 或 callable(video) -> list[str]；鎖內以最新 video 呼叫，
+    回傳值併入 add。它自己拋例外時原樣往外拋（此時尚未寫 DB）。
     """
     if nfo_writer is None:
         from core.nfo_updater import update_nfo_user_tags as nfo_writer
@@ -103,7 +106,8 @@ def apply_user_tags(
             return ApplyResult(ok=False, error="找不到影片紀錄")
 
         existing = list(video.user_tags)
-        merged = _merge_user_tags(existing, add, remove)
+        to_add = list(add) + (list(add_filter(video)) if add_filter is not None else [])
+        merged = _merge_user_tags(existing, to_add, remove)
         added = [t for t in merged if t not in existing]
 
         updated = repo.update_user_tags(file_path, merged, ai_tagged=ai_tagged)
