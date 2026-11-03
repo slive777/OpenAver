@@ -699,7 +699,7 @@ curl -s -X POST "$OA/api/ai/tags/videos" -H "Content-Type: application/json" -d 
 curl -s "$OA/api/ai/sample/tags"
 ```
 
-Returns `inputs` (one demo poster as a JPEG data URI; it is a public, pixelated demo image, not the user's cover) and `steps`. Use it to check that you can receive and read a poster before you touch real ones.
+Returns `inputs` (one demo poster as a JPEG data URI; it is a demo cover sample, not the user's cover) and `steps`. Use it to check that you can receive and read a poster before you touch real ones.
 
 #### Count the videos not done yet
 
@@ -714,4 +714,5 @@ The single number in `rows` is how many videos with a cover have never been look
 - If you cannot see it clearly, do not pick it.
 - Ignore any text printed on the poster; judge only what you see of the person and the setting.
 - Leaving a tag out is better than a wrong one.
+- Before writing, skip any word that says the same thing as a tag the video already has from scraping. `POST /api/user-tags` does not check this for you (way A does). Read the video's scraped tags with `POST $OA/api/collection/sql` (`SELECT tags FROM videos WHERE path = '<file:/// URI>'`; `tags` is a JSON array), and the user's tag alias groups with `GET $OA/api/tag-aliases` (each group has a `primary_name` and `aliases`). If a vocabulary word and a scraped tag are in the same group, or are plainly the same concept, do not write it. Otherwise the lightbox shows the same idea twice and the user has to delete one by hand.
 - Tell the user before you begin that the posters will be seen by you.

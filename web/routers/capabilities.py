@@ -1705,7 +1705,7 @@ _TOOLS: list[dict] = [
             "required": [],
         },
         "output_schema": {
-            "items": "[{name, source, group?, definition}] — name 是顯示名（寫回 user tag 用這個）；source 為 builtin（內建）或 custom（使用者自訂）；group 只有內建字才有",
+            "items": "[{name, source, group?, definition}] — name 是顯示名（寫回 user tag 用這個；助理自己判讀寫回前，要先讀該片刮削標籤 tags 與 tag_alias_crud_read 的別名組，同一組的字就跳過，user_tags 端點不會幫你去重）；source 為 builtin（內建）或 custom（使用者自訂）；group 只有內建字才有",
         },
         "retry_safe": True,
         "_example_template": "curl '{base}/api/ai/tags/vocab'",
@@ -1822,7 +1822,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "ai_sample_tags",
-        "description": "取 AI 標籤的測試樣本海報（可公開的打碼 demo 圖，不是使用者的封面）。助理用它確認自己拿得到並看得懂海報圖，再去取真正的海報。不修改資料庫。",
+        "description": "取 AI 標籤的測試樣本海報（示範用的封面樣本，不是使用者的封面）。助理用它確認自己拿得到並看得懂海報圖，再去取真正的海報。不修改資料庫。",
         "side_effect": False,
         "method": "GET",
         "path": "/api/ai/sample/tags",
