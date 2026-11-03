@@ -875,3 +875,21 @@ class TestSaveConfigBlockedBeforeLayoutFinalized:
 
 # ============ test_nfo_title_format ============
 
+
+# ============ test_migration_ai_tags_config ============
+
+class TestMigrationAITagsConfig:
+    """ai_services.tags 缺才補（TASK-188b-T8，CD-188b-14）"""
+
+    def test_legacy_ai_services_without_tags_gets_default_tags(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"ai_services": {"image_similar": {"enabled": False, "url": "", "api_key": "", "model": ""}, "faces": {"enabled": True, "url": "http://faces.invalid", "api_key": "", "model": "m"}}})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        assert result["ai_services"]["tags"] == {"enabled": False, "provider": "", "model": ""}
+        assert result["ai_services"]["faces"]["enabled"] is True
+        assert _read_config(config_path)["ai_services"]["tags"] == {"enabled": False, "provider": "", "model": ""}
+
