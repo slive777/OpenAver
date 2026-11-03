@@ -1790,7 +1790,7 @@ _TOOLS: list[dict] = [
         "description": (
             "叫 OpenAver 替一部片做 AI 標籤：把這部片的海報送到使用者在設定頁選好的 AI 連線，依詞表判讀後把標籤寫進資料庫與 NFO（user tag）。"
             "會花使用者的錢（每部約一次請求）。"
-            "使用者沒在設定頁開啟 AI 標籤時拒絕（reason=disabled），助理不能繞過；這一版設定頁還沒有開關（下一版才有），目前會回 disabled，請改用助理自己看圖寫回（方法 B）。"
+            "使用者沒在設定頁開啟 AI 標籤時拒絕（reason=disabled），助理不能繞過。"
             "失敗時 HTTP 仍是 200，body 為 success=false 並帶 reason。"
             "AI 呼叫前必須先向使用者說明上述影響並取得確認。"
         ),

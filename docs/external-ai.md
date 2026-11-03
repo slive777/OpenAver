@@ -615,7 +615,7 @@ AI tags need **no endpoint to host** and have **no consistency test**. OpenAver 
 
 There are two ways to use it.
 
-- **A. OpenAver does it.** The user has switched AI tags on and chosen a connection on the settings page. You call `POST $OA/api/ai/tags/videos` for one video. **Ask the user first**: the poster is sent to the AI connection the user chose (this may cost money) and tags are written to the database and the NFO. If the feature is off on the settings page the call is refused with `reason: "disabled"`; you cannot work around that. **This version has no settings-page switch for AI tags yet (it arrives in the next release), so way A is not available yet: use way B.**
+- **A. OpenAver does it.** The user has switched AI tags on and chosen a connection on the settings page. You call `POST $OA/api/ai/tags/videos` for one video. **Ask the user first**: the poster is sent to the AI connection the user chose (this may cost money) and tags are written to the database and the NFO. If the feature is off on the settings page the call is refused with `reason: "disabled"`; you cannot work around that.
 - **B. You do it yourself.** This costs nothing on the OpenAver side. Steps: get the vocabulary, get the poster, judge it yourself, then write the tags back with `POST $OA/api/user-tags` and `"ai_tagged": true`.
 
 #### Get the vocabulary
