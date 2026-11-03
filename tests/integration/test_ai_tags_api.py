@@ -144,6 +144,7 @@ def test_poster_endpoint_serves_same_bytes_as_model_input(client, tmp_path, monk
         "not_ready",
         "delete_missing",
         "delete_builtin",
+        "delete_slash",
     ],
     ids=[
         "ok",
@@ -152,6 +153,7 @@ def test_poster_endpoint_serves_same_bytes_as_model_input(client, tmp_path, monk
         "not_ready",
         "delete_missing",
         "delete_builtin",
+        "delete_slash",
     ],
 )
 def test_vocab_write_error_codes_map_to_http_status(client, env, case):
@@ -210,6 +212,20 @@ def test_vocab_write_error_codes_map_to_http_status(client, env, case):
         resp = client.delete("/api/ai/tags/vocab/不存在")
         assert resp.status_code == 404
         assert resp.json()["reason"] == "not_found"
+        return
+
+    if case == "delete_slash":
+        name = "黑絲/白絲"
+        added = client.post(
+            "/api/ai/tags/vocab",
+            json={"name": name, "definition": ""},
+        )
+        assert added.status_code == 200
+        resp = client.delete("/api/ai/tags/vocab/%E9%BB%91%E7%B5%B2%2F%E7%99%BD%E7%B5%B2")
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        items = client.get("/api/ai/tags/vocab").json()["items"]
+        assert all(i["name"] != name for i in items)
         return
 
     # delete_builtin

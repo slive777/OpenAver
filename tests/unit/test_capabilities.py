@@ -325,7 +325,10 @@ class TestTranslateTitleTools:
         registered = set()
         for r in client.app.routes:
             for m in getattr(r, "methods", None) or ():
-                registered.add((m, getattr(r, "path", None)))
+                path = getattr(r, "path", None)
+                if isinstance(path, str):
+                    path = re.sub(r"\{(\w+):\w+\}", r"{\1}", path)
+                registered.add((m, path))
         tools = self._tools(client)
         for name in (
             "video_title_writeback",

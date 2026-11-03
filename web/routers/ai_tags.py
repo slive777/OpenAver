@@ -135,7 +135,7 @@ def post_vocab(body: VocabAddRequest):
     return {"success": True, "item": _vocab_item_payload(item)}
 
 
-@router.delete("/tags/vocab/{name}")
+@router.delete("/tags/vocab/{name:path}")
 def delete_vocab(name: str):
     target = name.strip()
     if _is_builtin_name(target):
