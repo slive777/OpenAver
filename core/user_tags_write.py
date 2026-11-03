@@ -7,6 +7,7 @@ TASK-188b-T2a：從 web.routers.collection.post_user_tags 步驟 2–5 抽出。
 from __future__ import annotations
 
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List
@@ -18,6 +19,13 @@ from core.readonly_paths import resolve_owning_output_root
 logger = get_logger(__name__)
 
 _LOCK = threading.Lock()
+
+
+@contextmanager
+def hold_nfo_write():
+    """持有 NFO 寫入鎖（與 apply_user_tags 同一把 _LOCK）；不可重入，勿在內層再呼叫 apply_user_tags。"""
+    with _LOCK:
+        yield
 
 
 @dataclass
