@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from core.cloud_translate import TranslateError, finalize_translation
+from core.cloud_translate import TranslateError, finalize_translation, redact_secrets
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -33,7 +33,7 @@ def _log_and_build_error(
     error_type: str,
     message: str,
 ) -> AnthropicError:
-    msg = (message or "")[:300]
+    msg = redact_secrets((message or "")[:300])
     logger.warning(
         "[Claude] %s status=%s type=%s msg=%s",
         kind,

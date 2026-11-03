@@ -25,6 +25,29 @@ _MAX_CLEAN_PASSES = 10
 _THINK_BLOCK_RE = re.compile(r"<(think|thought)>.*?</\1>", re.DOTALL | re.IGNORECASE)
 _STRAY_MARKER_RE = re.compile(r"</?(?:think|thought)>", re.IGNORECASE)
 
+# Gateway / proxy may echo credentials in error.message — redact before log.
+_SK_KEY_RE = re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b")
+_AIZA_KEY_RE = re.compile(r"\bAIza[A-Za-z0-9_-]{10,}\b")
+_BEARER_RE = re.compile(r"(?i)\b(Bearer\s+)([A-Za-z0-9._\-+=/]+)")
+_LONG_TOKEN_RE = re.compile(r"\b[A-Za-z0-9_-]{32,}\b")
+
+
+def _mask_keep4(value: str) -> str:
+    return f"{value[:4]}***" if len(value) > 4 else "***"
+
+
+def redact_secrets(text: str) -> str:
+    """Replace credential-shaped fragments; keep surrounding prose readable.
+
+    Public so anthropic_client (and other cloud clients) can share one redact
+    path without importing a private name (ruff PLC2701).
+    """
+    out = _SK_KEY_RE.sub(lambda m: _mask_keep4(m.group(0)), text)
+    out = _AIZA_KEY_RE.sub(lambda m: _mask_keep4(m.group(0)), out)
+    out = _BEARER_RE.sub(lambda m: m.group(1) + _mask_keep4(m.group(2)), out)
+    out = _LONG_TOKEN_RE.sub(lambda m: _mask_keep4(m.group(0)), out)
+    return out
+
 SETTINGS_ERROR_KEY = {
     "auth_failed": "auth_failed",
     "forbidden": "forbidden",
@@ -66,7 +89,7 @@ def build_error(
     message: str,
 ) -> TranslateError:
     """記 warning（不含 headers／body）並回 TranslateError；message 截 300 字。"""
-    msg = (message or "")[:_MESSAGE_LIMIT]
+    msg = redact_secrets((message or "")[:_MESSAGE_LIMIT])
     logger.warning("[%s] %s status=%s type=%s msg=%s", tag, kind, status, error_type, msg)
     return TranslateError(kind, status, error_type, msg)
 

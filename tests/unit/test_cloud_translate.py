@@ -1,19 +1,28 @@
 """core.cloud_translate 共用層（171-T1）：清理 oracle、錯誤分類、cloud_request 例外映射。"""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
-from core.anthropic_client import extract_text
+from core.anthropic_client import classify_http_error, extract_text
 from core.cloud_translate import (
     TranslateError,
+    build_error,
     cloud_request,
     failure_category,
     finalize_translation,
 )
 
 FAKE_KEY = "FAKEKEY-xyz"
+
+# Credential-shaped fixtures for build_error log redaction (gateway may echo keys).
+_SK_ANT = "sk-ant-abcdefghijklmnopqrstuvwxyz012345"
+_SK_PROJ = "sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"
+_AIZA = "AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz0123456"
+_BEARER_TOKEN = "tok_abcdefghijklmnopqrstuvwxyz0123456789"
+_LONG_TOKEN = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_extra"
 
 
 def _mock_client(post=None, get=None):
@@ -60,6 +69,54 @@ def test_finalize_unpaired_marker_fails(caplog):
 ])
 def test_failure_category_table(kind, expected):
     assert failure_category(kind) == expected
+
+
+# ---- build_error log redaction ----
+
+@pytest.mark.parametrize(
+    "secret,raw",
+    [
+        # sk-ant- echoed by a self-hosted gateway
+        (_SK_ANT, f"Incorrect API key provided: {_SK_ANT}"),
+        # sk-proj-
+        (_SK_PROJ, f"Incorrect API key provided: {_SK_PROJ}"),
+        # Google AIza
+        (_AIZA, f"API key not valid. Please pass a valid API key. key={_AIZA}"),
+        # Bearer <token>
+        (_BEARER_TOKEN, f"Unauthorized Bearer {_BEARER_TOKEN}"),
+        # ≥32 continuous credential-shaped fragment
+        (_LONG_TOKEN, f"upstream rejected token={_LONG_TOKEN}"),
+    ],
+    ids=["sk-ant", "sk-proj", "AIza", "Bearer", "long32"],
+)
+def test_build_error_redacts_credential_fragments_in_log(caplog, secret, raw):
+    """Gateway 在 error.message 回顯金鑰 → debug.log 不得留下明文。"""
+    with caplog.at_level(logging.WARNING, logger="OpenAver.core.cloud_translate"):
+        err = build_error("T", "auth_failed", 401, "invalid_request", raw)
+    assert secret not in caplog.text
+    assert secret not in err.message
+    # 一般錯誤描述仍可讀
+    assert "Incorrect API key" in caplog.text or "API key" in caplog.text or "Unauthorized" in caplog.text or "upstream rejected" in caplog.text
+
+
+def test_anthropic_log_and_build_error_redacts_sk_ant_in_log(caplog):
+    """Claude 路徑（_log_and_build_error）同樣不得把回顯的 sk-ant 金鑰寫進 log。"""
+    resp = MagicMock()
+    resp.status_code = 401
+    resp.json = MagicMock(
+        return_value={
+            "error": {
+                "type": "authentication_error",
+                "message": f"Incorrect API key provided: {_SK_ANT}",
+            }
+        }
+    )
+    with caplog.at_level(logging.WARNING, logger="OpenAver.core.anthropic_client"):
+        err = classify_http_error(resp)
+    assert _SK_ANT not in caplog.text
+    assert _SK_ANT not in err.message
+    assert "Incorrect API key" in caplog.text
+    assert err.kind == "auth_failed"
 
 
 # ---- cloud_request ----
