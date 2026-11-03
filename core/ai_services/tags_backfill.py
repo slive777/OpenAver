@@ -1,9 +1,9 @@
-"""補完全庫 job 核心（188c-T4a，CD-188c-2／-3／-4／-8／-9／-10；序列版，並行＝1）。
+"""補完全庫 job 核心（188c-T4a／T4b，CD-188c-2／-3／-4／-5／-6／-7／-8／-9／-10／-11）。
 
 與 ``similar_index.py``／``faces_recompute.py`` 為三份刻意重複的骨架，統一留給 189。
 
 公開介面：``start_build()``、``start_rebuild()``、``request_stop()``、
-``schedule_incremental()``、``status()``。路由（T5）、並行／降速／429／重試（T4b）不在這裡。
+``schedule_incremental()``、``status()``。路由（T5）不在這裡。
 
 併發模型（不變式 J1～J5 的承載）：
 
@@ -15,6 +15,8 @@
 - ``request_stop()`` 在同一把鎖內設停止旗標並清掉承接；停止後 job 不會自行重開（J2）。
 - 本次 job 內失敗的片進 ``ctx.abandoned``，不再被撈（J4）；每部結果在 ``tag_video`` 內已落盤（J5）。
 - 重啟不起任何背景執行緒（I-STATUS）：模組載入不做事，``status()`` 只讀 DB。
+- T4b：``_process_batch`` 內開 ``MAX_CONCURRENCY`` 條 pool thread＋名額 gate；政策由
+  ``tags_backfill_policy.RunPolicy`` 驅動；429 等待用 ``_STOP.wait``。
 """
 from __future__ import annotations
 
@@ -22,7 +24,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Optional
 
-from core.ai_services import tags_state
+from core.ai_services import tags_backfill_policy, tags_state
 from core.ai_services.tagging import tag_video_sync
 from core.config import load_config
 from core.database import VideoRepository
@@ -31,6 +33,8 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 THREAD_NAME = "tags-backfill"
+_NOTIF_INCREMENTAL = "notif.ai_tags_unreachable"
+_NOTIF_BACKFILL = "notif.ai_tags_backfill_stopped"
 
 _JOB_LOCK = threading.Lock()
 _STATE_LOCK = threading.Lock()
@@ -46,6 +50,18 @@ class _Ctx:
     repo: VideoRepository
     abandoned: set = field(default_factory=set)
     released: bool = False
+    # T4b：政策／gate／halt（不新增模組層可變狀態，BE-TEST-38）
+    policy: tags_backfill_policy.RunPolicy = field(
+        default_factory=tags_backfill_policy.RunPolicy)
+    lock: threading.Lock = field(default_factory=threading.Lock)
+    inflight: int = 0
+    n_waiting: int = 0
+    halt_reason: Optional[str] = None
+    suppress_notify: bool = False  # 第一次 halt 當下若使用者已停止 → 整批不通知
+    gate: threading.Condition = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.gate = threading.Condition(self.lock)
 
 
 # ── 鎖與承接旗標（只在 _STATE_LOCK 內動） ──────────────────────────────────────
@@ -250,10 +266,26 @@ def _finish_if_drained(ctx: _Ctx) -> Optional[str]:
 
 
 def _process_batch(ctx: _Ctx, pending: list) -> str:
-    for path in pending:
-        if _STOP.is_set():
-            return "stopped"
-        _process_one(ctx, path)
+    """開 pool thread 處理本批 pending；回傳前 join 全部。非 ``ok``＝halt／stopped。"""
+    queue = list(pending)
+    n = tags_backfill_policy.MAX_CONCURRENCY
+    workers = [
+        threading.Thread(
+            target=_pool_worker,
+            args=(ctx, queue),
+            name=f"tags-backfill-w{k}",
+            daemon=True,
+        )
+        for k in range(n)
+    ]
+    for t in workers:
+        t.start()
+    for t in workers:
+        t.join()
+    if ctx.halt_reason is not None:
+        return ctx.halt_reason
+    if _STOP.is_set():
+        return "stopped"
     return "ok"
 
 
@@ -262,13 +294,166 @@ def _tag_one(path: str):
     return tag_video_sync(path)
 
 
-def _process_one(ctx: _Ctx, path: str) -> None:
+def _pool_worker(ctx: _Ctx, queue: list) -> None:
+    while True:
+        claimed = _claim(ctx, queue)
+        if claimed is None:
+            return
+        path, started_degraded = claimed
+        # _process_one 負責釋放（含 429 等待期間暫放再取）
+        _process_one(ctx, path, started_degraded)
+
+
+def _gate_blocked(ctx: _Ctx) -> bool:
+    return ctx.halt_reason is not None or _STOP.is_set()
+
+
+def _wait_for_slot(ctx: _Ctx) -> bool:
+    """呼叫端已持有 ``ctx.gate``；等到 ``inflight < limit`` 或被 stop／halt。回 False＝應退出。"""
+    while ctx.inflight >= ctx.policy.limit:
+        if _gate_blocked(ctx):
+            return False
+        ctx.gate.wait(timeout=0.5)
+        if _gate_blocked(ctx):
+            return False
+    return True
+
+
+def _claim(ctx: _Ctx, queue: list) -> Optional[tuple[str, bool]]:
+    """取得一個名額並領取下一部片；放行當下捕獲 ``started_degraded``。"""
+    with ctx.gate:
+        while True:
+            if _gate_blocked(ctx) or not queue:
+                return None
+            if not _wait_for_slot(ctx):
+                return None
+            if not queue:
+                return None
+            path = queue.pop(0)
+            ctx.inflight += 1
+            started_degraded = ctx.policy.attempt_started()
+            return path, started_degraded
+
+
+def _acquire_slot(ctx: _Ctx) -> Optional[bool]:
+    """429 等待後重送：再取一個名額並捕獲新的 ``started_degraded``。"""
+    with ctx.gate:
+        while True:
+            if _gate_blocked(ctx):
+                return None
+            if not _wait_for_slot(ctx):
+                return None
+            ctx.inflight += 1
+            return ctx.policy.attempt_started()
+
+
+def _release_slot(ctx: _Ctx) -> None:
+    with ctx.gate:
+        ctx.inflight -= 1
+        ctx.gate.notify_all()
+
+
+def _halt(ctx: _Ctx, reason: str) -> None:
+    """整批停止：設 halt 旗標、喚醒 gate／429 等待；stop_reason 只寫第一次，通知靠 note_failure 去重。"""
+    first = False
+    with ctx.gate:
+        if ctx.halt_reason is None:
+            # 鎖定「halt 當下使用者是否已停止」；之後 _STOP.set 只為喚醒 429，不改此判斷
+            ctx.suppress_notify = _STOP.is_set()
+            ctx.halt_reason = reason
+            first = True
+        ctx.gate.notify_all()
+    if first:
+        tags_state.job_set(stop_reason=reason)
+    # 每位做出 halt 決策的 worker 都走到這裡；去重由 note_failure。再 set _STOP 喚醒 429。
+    if reason != "disabled" and not ctx.suppress_notify:
+        if tags_state.note_failure():
+            key = _NOTIF_INCREMENTAL if ctx.kind == "incremental" else _NOTIF_BACKFILL
+            tags_state.emit(key)
+    _STOP.set()  # 喚醒 _wait_429；halt 優先於 stopped（_process_batch 先看 halt_reason）
+
+
+def _wait_429(ctx: _Ctx, decision: tags_backfill_policy.Decision) -> bool:
+    """429 等待；回 True＝被停止或 halt。``wait_s == 0`` 也必須呼叫 ``_STOP.wait``。"""
+    with ctx.gate:
+        ctx.n_waiting += 1
+        tags_state.job_set(waiting=True)
     try:
-        _tag_one(path)
-    except Exception:
-        # I-FAIL ③：任何失敗當 skip、不中斷整批（政策表屬 T4b）
-        logger.exception("[tags_backfill] tag failed, skipping: %s", path)
-        ctx.abandoned.add(path)
-        tags_state.job_skip()
-        return
-    tags_state.job_progress()
+        stopped = _STOP.wait(decision.wait_s)
+    finally:
+        with ctx.gate:
+            ctx.n_waiting -= 1
+            if ctx.n_waiting == 0:
+                tags_state.job_set(waiting=False)
+            ctx.gate.notify_all()
+    return bool(stopped) or ctx.halt_reason is not None
+
+
+def _reacquire_after_yield(ctx: _Ctx) -> Optional[bool]:
+    """降速／429 後重取名額；回 None＝應退出，否則為新的 started_degraded。"""
+    if ctx.halt_reason is not None or _STOP.is_set():
+        return None
+    return _acquire_slot(ctx)
+
+
+def _process_one(ctx: _Ctx, path: str, started_degraded: bool) -> None:
+    """處理一部片（含 429 重送與 unreachable 重試）；進入時已持有飛行名額，離開前釋放。"""
+    retries_used = 0
+    holding = True
+    try:
+        while True:
+            if ctx.halt_reason is not None or _STOP.is_set():
+                return
+            try:
+                _tag_one(path)
+            except Exception as exc:
+                # 決策⑤：使用者停止之後才回來的失敗 → 不重試、不 skip、不 _halt
+                if _STOP.is_set() and ctx.halt_reason is None:
+                    return
+                verdict = tags_backfill_policy.classify_failure(exc)
+                with ctx.lock:
+                    decision = ctx.policy.on_failure(
+                        verdict, started_degraded, retries_used)
+                    degraded_now = ctx.policy.degraded
+                if degraded_now:
+                    tags_state.job_set(slow=True)
+                if decision.action == "halt":
+                    # 每位 halt 決策者都進 _halt（通知靠 note_failure 去重；stop_reason 只寫第一次）
+                    _halt(ctx, decision.stop_reason or "unreachable")
+                    return
+                if ctx.halt_reason is not None or _STOP.is_set():
+                    return  # 已 halt／停止：不 skip、不重試
+                if decision.action == "skip":
+                    logger.exception(
+                        "[tags_backfill] tag failed, skipping: %s", path)
+                    ctx.abandoned.add(path)
+                    tags_state.job_skip()
+                    return
+                if decision.action == "wait_retry":
+                    _release_slot(ctx)
+                    holding = False
+                    if _wait_429(ctx, decision):
+                        return  # 被停止／halt：不重送、不放棄
+                    started = _reacquire_after_yield(ctx)
+                    if started is None:
+                        return
+                    started_degraded = started
+                    holding = True
+                    continue
+                # retry：降速後必須重走 gate，重新捕獲 started_degraded
+                retries_used += 1
+                _release_slot(ctx)
+                holding = False
+                started = _reacquire_after_yield(ctx)
+                if started is None:
+                    return
+                started_degraded = started
+                holding = True
+                continue
+            with ctx.lock:
+                ctx.policy.on_success()
+            tags_state.job_progress()
+            return
+    finally:
+        if holding:
+            _release_slot(ctx)
