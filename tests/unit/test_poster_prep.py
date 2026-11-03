@@ -63,3 +63,16 @@ def test_poster_functions_return_none_on_unreadable_input(tmp_path):
     for path in ("", str(tmp_path / "nope.jpg"), str(fake)):
         assert poster_to_jpeg_bytes(path, "default", "") is None
         assert poster_to_data_uri(path, "default", "") is None
+
+
+def test_poster_to_jpeg_bytes_logs_warning_on_corrupt_image(tmp_path, caplog):
+    bad = tmp_path / "broken.jpg"; bad.write_bytes(b"\x00not-an-image\x01")
+    with caplog.at_level("WARNING"):
+        assert poster_to_jpeg_bytes(str(bad), "default", "") is None
+    assert any("broken.jpg" in r.getMessage() and r.levelname == "WARNING" for r in caplog.records)
+
+
+def test_poster_to_jpeg_bytes_missing_file_returns_none_without_warning(tmp_path, caplog):
+    with caplog.at_level("WARNING"):
+        assert poster_to_jpeg_bytes(str(tmp_path / "nope.jpg"), "default", "") is None
+    assert not [r for r in caplog.records if r.levelname == "WARNING"]

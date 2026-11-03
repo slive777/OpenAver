@@ -8,6 +8,9 @@ import io
 from PIL import Image, ImageOps
 
 from core.focal.detector import parse_focal
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 EMBED_MAX_EDGE = 448
 FACES_MAX_EDGE = 650
@@ -165,7 +168,10 @@ def poster_to_jpeg_bytes(fs_path, crop_mode, auto_focal):
             buf = io.BytesIO()
             cropped.save(buf, format="JPEG", quality=90)
             return buf.getvalue()
-    except Exception:
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        logger.warning("poster_to_jpeg_bytes failed for %s: %s", fs_path, e)
         return None
 
 
