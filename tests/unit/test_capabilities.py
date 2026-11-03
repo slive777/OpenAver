@@ -199,6 +199,13 @@ class TestCapabilitiesEndpoint:
         assert "auto-organize" not in blob, "capabilities 不得揭露自動整理的控制端點"
         assert "auto_organize" not in blob, "capabilities 不得揭露自動整理的控制端點"
 
+    def test_no_ai_tags_backfill_or_test_exposed(self, client):
+        """補完全庫／測試端點不揭露給助理，避免助理自己對全庫發請求花使用者的錢。"""
+        import json
+        blob = json.dumps(client.get("/api/capabilities").json(), ensure_ascii=False).lower()
+        assert "tags/backfill" not in blob, "capabilities 不得揭露 AI 標籤補完全庫端點"
+        assert "tags/test" not in blob, "capabilities 不得揭露 AI 標籤測試端點"
+
     def test_each_tool_has_required_fields(self, client):
         data = client.get("/api/capabilities").json()
         for tool in data["tools"]:

@@ -10,6 +10,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
+from core.ai_services import tags_backfill
 from core.ai_services.image_prep import poster_to_data_uri, poster_to_jpeg_bytes
 from core.ai_services.tagging import (
     TaggingFailure,
@@ -249,3 +250,54 @@ async def post_tags_test(body: TagsTestRequest | None = None):
             }
         raise
     return await run_vision_test(conn, vocab, sample_uri)
+
+
+def _tags_feature_enabled(config: dict) -> bool:
+    tags = (config.get("ai_services") or {}).get("tags")
+    return bool(isinstance(tags, dict) and tags.get("enabled"))
+
+
+def _backfill_refusal(*, rebuild: bool) -> dict | None:
+    """前置判斷：not_enabled → not_configured → nothing_to_do；通過回 None。"""
+    config = load_config()
+    if not _tags_feature_enabled(config):
+        return {"ok": False, "status": "not_enabled"}
+    try:
+        resolve_vision_conn(config)
+    except TaggingFailure as exc:
+        if exc.reason == "not_configured":
+            return {"ok": False, "status": "not_configured"}
+        raise
+    total, pending = VideoRepository().count_ai_tag_progress()
+    if rebuild:
+        if total == 0:
+            return {"ok": False, "status": "nothing_to_do"}
+    elif pending == 0:
+        return {"ok": False, "status": "nothing_to_do"}
+    return None
+
+
+@router.get("/tags/backfill/status")
+def get_tags_backfill_status():
+    return tags_backfill.status()
+
+
+@router.post("/tags/backfill")
+def post_tags_backfill():
+    refusal = _backfill_refusal(rebuild=False)
+    if refusal is not None:
+        return refusal
+    return tags_backfill.start_build()
+
+
+@router.post("/tags/backfill/rebuild")
+def post_tags_backfill_rebuild():
+    refusal = _backfill_refusal(rebuild=True)
+    if refusal is not None:
+        return refusal
+    return tags_backfill.start_rebuild()
+
+
+@router.post("/tags/backfill/stop")
+def post_tags_backfill_stop():
+    return tags_backfill.request_stop()
