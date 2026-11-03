@@ -709,7 +709,10 @@ def _post_ingest_after_enrich(request, canonical, success, readonly_action=None)
     if route is None:
         return
     try:
-        post_ingest.run_after_ingest(canonical, route=route, skip_faces=True)
+        post_ingest.run_after_ingest(
+            canonical, route=route, skip_faces=True,
+            skip_translate=bool(request.preserve_title),
+        )
     except Exception:
         logger.warning("enrich_single: 入庫後 AI 掛勾排程失敗（不影響重刮結果）", exc_info=True)
 

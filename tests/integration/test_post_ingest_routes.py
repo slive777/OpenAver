@@ -80,12 +80,12 @@ def _scrape(env, inflow="synced", ok=True):
     return to_file_uri(NEW_FILE, {})
 
 
-def _enrich(env, *, mode, overwrite, ok=True):
+def _enrich(env, *, mode, overwrite, ok=True, preserve=False):
     env.mocker.patch("web.routers.scraper.enrich_single",
                      return_value=_ok() if ok else _fail())
     resp = env.client.post("/api/enrich-single", json={
         "file_path": ENRICH_FILE, "number": "ABC-001",
-        "mode": mode, "overwrite_existing": overwrite,
+        "mode": mode, "overwrite_existing": overwrite, "preserve_title": preserve,
     })
     assert resp.status_code == 200
     return coerce_to_file_uri(ENRICH_FILE, {})
@@ -107,7 +107,7 @@ def _enrich_mapped(env, monkeypatch):
     return db_key
 
 
-def _readonly(env, action):
+def _readonly(env, action, preserve=False):
     env.mocker.patch("web.routers.scraper.load_config", return_value={
         "gallery": {"directories": [{"path": RO_DIR, "readonly": True}], "path_mappings": {}},
         "search": {}, "scraper": {},
@@ -119,6 +119,7 @@ def _readonly(env, action):
     env.mocker.patch("web.routers.scraper.enrich_one_readonly", return_value=_ok())
     resp = env.client.post("/api/enrich-single", json={
         "file_path": RO_FILE, "number": "ABC-001", "readonly_action": action,
+        "preserve_title": preserve,
     })
     assert resp.status_code == 200
     return coerce_to_file_uri(RO_FILE, {})
@@ -161,19 +162,25 @@ def _round(env, statuses):
 
 
 SHOULD_CALL = [
-    pytest.param(lambda e: _scrape(e), "scrape_single", True, False, id="scrape_single"),
+    pytest.param(lambda e: _scrape(e), "scrape_single", True, False, False, id="scrape_single"),
     pytest.param(lambda e: _enrich(e, mode="refresh_full", overwrite=True),
-                 "enrich_rescrape", True, False, id="enrich_rescrape"),
-    pytest.param(_enrich_mapped, "enrich_rescrape", True, False, id="enrich_rescrape_path_mapped"),
-    pytest.param(lambda e: _readonly(e, "rescrape"), "readonly_rescrape", True, False,
+                 "enrich_rescrape", True, False, False, id="enrich_rescrape"),
+    pytest.param(lambda e: _enrich(e, mode="refresh_full", overwrite=True, preserve=True),
+                 "enrich_rescrape", True, False, True, id="enrich_rescrape_preserve_title"),
+    pytest.param(_enrich_mapped, "enrich_rescrape", True, False, False,
+                 id="enrich_rescrape_path_mapped"),
+    pytest.param(lambda e: _readonly(e, "rescrape"), "readonly_rescrape", True, False, False,
                  id="readonly_rescrape"),
+    pytest.param(lambda e: _readonly(e, "rescrape", preserve=True),
+                 "readonly_rescrape", True, False, True, id="readonly_rescrape_preserve_title"),
     pytest.param(lambda e: _round(e, {"AAA-001.mp4": "synced", "BBB-002.mp4": "not_linked"}),
-                 "auto_organize", False, True, id="auto_organize"),
+                 "auto_organize", False, True, False, id="auto_organize"),
 ]
 
 
-@pytest.mark.parametrize("run, route, skip_faces, notify", SHOULD_CALL)
-def test_hook_called_on_rows_that_should(env, monkeypatch, run, route, skip_faces, notify):
+@pytest.mark.parametrize("run, route, skip_faces, notify, skip_translate", SHOULD_CALL)
+def test_hook_called_on_rows_that_should(env, monkeypatch, run, route, skip_faces, notify,
+                                         skip_translate):
     uri = run(env, monkeypatch) if run is _enrich_mapped else run(env)
     assert len(env.hook_calls) == 1
     args, kwargs = env.hook_calls[0]
@@ -181,6 +188,7 @@ def test_hook_called_on_rows_that_should(env, monkeypatch, run, route, skip_face
     assert kwargs["route"] == route
     assert kwargs["skip_faces"] is skip_faces
     assert kwargs.get("notify", False) is notify
+    assert kwargs.get("skip_translate", False) is skip_translate
     assert len(env.round_starts) == (1 if route == "auto_organize" else 0)
 
 

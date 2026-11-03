@@ -102,9 +102,11 @@ def _flag_on(cfg: dict, *keys) -> bool:
     return bool(cur)
 
 
-def _decide_translate(cfg: dict, row) -> Verdict:
+def _decide_translate(cfg: dict, row, skip_translate: bool = False) -> Verdict:
     if not _flag_on(cfg, "translate", "enabled"):
         return Verdict(False, "off")
+    if skip_translate:
+        return Verdict(False, "preserve_title")
     locale = (cfg.get("general") or {}).get("locale") or "zh-TW"
     if locale == "ja" or not title_needs_translation(row):
         return Verdict(False, "title_in_target_language")
@@ -146,9 +148,10 @@ def decide(
     skip_faces: bool,
     index_ready: bool,
     cover_exists: bool,
+    skip_translate: bool = False,
 ) -> Plan:
     return Plan(
-        translate=_decide_translate(cfg, row),
+        translate=_decide_translate(cfg, row, skip_translate),
         similar=_decide_similar(cfg, row, index_ready),
         faces=_decide_faces(row, skip_faces, cover_exists),
         tags=_decide_tags(cfg, row),
@@ -335,10 +338,12 @@ def run_after_ingest(
     route: str,
     skip_faces: bool = False,
     notify: bool = False,
+    skip_translate: bool = False,
 ) -> None:
     try:
         _run_after_ingest(
             video_uri, route=route, skip_faces=skip_faces, notify=notify,
+            skip_translate=skip_translate,
         )
     except Exception:
         logger.exception(
@@ -352,6 +357,7 @@ def _run_after_ingest(
     route: str,
     skip_faces: bool,
     notify: bool,
+    skip_translate: bool = False,
 ) -> None:
     cfg = load_config()
     translate_on = _flag_on(cfg, "translate", "enabled")
@@ -378,6 +384,7 @@ def _run_after_ingest(
         skip_faces=skip_faces,
         index_ready=index_ready,
         cover_exists=cover_exists,
+        skip_translate=skip_translate,
     )
     logger.info("%s", format_log(route, row, plan))
     ctx = IngestContext(

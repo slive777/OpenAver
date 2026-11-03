@@ -55,6 +55,9 @@ _CASES = [
     ("tr_run", _cfg(),
      _row(title="これはテスト", original_title="orig", nfo_mtime=3.0),
      False, True, True, "translate", "run"),
+    ("tr_preserve", _cfg(),
+     _row(title="これはテスト", original_title="orig", nfo_mtime=3.0),
+     False, True, True, "translate", "preserve_title"),
     ("tr_nfo0", _cfg(),
      _row(title="カタカナ", original_title="x", nfo_mtime=0),
      False, True, True, "translate", "title_in_target_language"),
@@ -97,6 +100,7 @@ _CASES = [
 def test_decide_table(case, cfg, row, skip_faces, index_ready, cover_exists, item, expect):
     plan = post_ingest.decide(
         cfg, row, skip_faces=skip_faces, index_ready=index_ready, cover_exists=cover_exists,
+        skip_translate=(case == "tr_preserve"),
     )
     v = getattr(plan, item)
     if expect == "run":
