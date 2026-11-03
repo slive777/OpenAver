@@ -1,7 +1,7 @@
 """圖片相似索引工作核心（186-T4a，CD-186-9／-10／-11／-12）。
 
 公開介面（T4b／T5 依賴）：``start_build()``、``request_stop()``、``schedule_incremental()``、
-``status()``、``set_notification_sink(fn)``。入口（HTTP）在 T4b；這裡全是 core 邏輯。
+``status()``、``set_notification_sink(fn)``、``index_one(video_uri)``（189a 單片入口，不取鎖）。入口（HTTP）在 T4b；這裡全是 core 邏輯。
 
 併發模型（不變式 I1／I5／I13 的承載）：
 
@@ -24,7 +24,7 @@ from core.ai_services import embeddings, samples, similar_state
 from core.ai_services.embeddings import EndpointError
 from core.ai_services.image_prep import cover_to_data_uri
 from core.config import load_config
-from core.database import EmbeddingRepository
+from core.database import EmbeddingRepository, VideoRepository
 from core.database.embeddings import pack_vector
 from core.logger import get_logger
 from core.path_utils import uri_to_local_fs_path
@@ -178,6 +178,41 @@ def _prepare_build(rebuild: bool = False) -> tuple:
     return _Ctx("build", repo, cfg, _path_mappings(config), test.model, test.dim), None
 
 
+def index_one(video_uri: str) -> str:
+    """入庫後單片入口（189a-T3）：強制重算該片封面向量並覆寫。不取任何鎖、不查 enabled
+    （開關由呼叫端負責）、不發通知、不外拋。回 ``"indexed"``／``"unreadable"``／
+    ``"index_not_ready"``／``"model_changed"``／``"error"``。"""
+    try:
+        return _index_one(video_uri)
+    except EndpointError as e:
+        similar_state.observe_failure(e.kind, e.check)
+        return "error"
+    except Exception:
+        logger.exception("[similar_index] index_one failed")
+        return "error"
+
+
+def _index_one(video_uri: str) -> str:
+    config = load_config()
+    repo = EmbeddingRepository()
+    state = repo.get_index_state()
+    if not _incremental_allowed(state):
+        built = state["model"] and state["dim"] is not None and state["complete"] == "1"
+        return "model_changed" if built else "index_not_ready"
+    video = VideoRepository().get_by_path(video_uri)
+    if video is None or not video.cover_path:
+        return "error"
+    ctx = _Ctx(
+        "incremental", repo, _endpoint_cfg(_image_cfg(config)), _path_mappings(config),
+        state["model"], state["dim"],
+    )
+    outcome = _embed_and_store(ctx, video.id, video.cover_path)
+    if outcome != "model_changed":  # 寫了 DB（含 unreadable 讓舊向量失效）才清星空快取
+        from core.ai_services.embedding_cache import EmbeddingMatrixCache
+        EmbeddingMatrixCache.invalidate()
+    return outcome
+
+
 def request_stop() -> dict:
     """停止：最多再完成當下那一張。同時中止排隊中的承接（I13 例外）。"""
     global _rerun
@@ -327,22 +362,29 @@ def _cover_data_uri(ctx: _Ctx, cover_path: str) -> Optional[str]:
         return None
 
 
-def _process_one(ctx: _Ctx, video_id: int, cover_path: str) -> str:
+def _embed_and_store(ctx: _Ctx, video_id: int, cover_path: str) -> str:
+    """讀封面→embed→比對模型→寫向量／寫 unreadable（job 與 ``index_one`` 共用）。
+    回 ``"indexed"``／``"unreadable"``／``"model_changed"``；``EndpointError`` 原樣外拋。"""
     uri = _cover_data_uri(ctx, cover_path)
     if uri is None:  # 封面讀不到：本機檔案問題，不算端點錯誤（I7）
         ctx.repo.write_unreadable(video_id, ctx.model, cover_path)
-        return "ok"
+        return "unreadable"
     first, ctx.first = ctx.first, False
-    try:
-        result = embeddings.embed(ctx.cfg, uri, first=first)
-    except EndpointError as e:
-        return _on_endpoint_error(ctx, e)
+    result = embeddings.embed(ctx.cfg, uri, first=first)
     similar_state.observe_success(result.model, result.dim)
     index_model, index_dim = ctx.model, ctx.dim
     if result.model != index_model or result.dim != index_dim:
         return "model_changed"
     ctx.repo.write_vector(video_id, result.model, result.dim, pack_vector(result.vector), cover_path)
-    return "ok"
+    return "indexed"
+
+
+def _process_one(ctx: _Ctx, video_id: int, cover_path: str) -> str:
+    try:
+        outcome = _embed_and_store(ctx, video_id, cover_path)
+    except EndpointError as e:
+        return _on_endpoint_error(ctx, e)
+    return "model_changed" if outcome == "model_changed" else "ok"
 
 
 def _on_endpoint_error(ctx: _Ctx, err: EndpointError) -> str:
