@@ -229,6 +229,10 @@ def test_bad_translation_never_written_back(monkeypatch, source, translated, exp
         return {"success": True}
     monkeypatch.setattr(post_ingest, "create_translate_service", lambda *_a, **_k: _Svc())
     monkeypatch.setattr(post_ingest, "apply_title_writeback", _fake_writeback)
+    monkeypatch.setattr(
+        post_ingest, "VideoRepository",
+        lambda: type("R", (), {"get_by_path": lambda _s, _p: _row(title=source)})(),
+    )
     ctx = post_ingest.IngestContext(video_uri="file:///videos/SSIS-001.mp4", route="scrape", notify=False, cfg={"general": {"locale": "zh-TW"}, "translate": {}}, row=_row(title=source))
     assert post_ingest._job_translate(ctx) == ("bad_translation" if expect_bad else None)
     assert len(calls) == (0 if expect_bad else 1)

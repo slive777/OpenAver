@@ -231,6 +231,15 @@ def _bad_translation(source: str, translated: str) -> bool:
     return any(m in t.lower() for m in _REFUSAL_MARKERS)
 
 
+def _row_stale(fresh, row) -> bool:
+    """入隊後這列被改過（或不見了）→ 不能拿舊譯文蓋回去。"""
+    if fresh is None:
+        return True
+    return any(
+        getattr(fresh, f) != getattr(row, f) for f in ("title", "original_title", "nfo_mtime")
+    )
+
+
 def _job_translate(ctx: IngestContext) -> Optional[str]:
     locale = (ctx.cfg.get("general") or {}).get("locale") or "zh-TW"
     service = create_translate_service(ctx.cfg.get("translate") or {}, locale)
@@ -242,8 +251,12 @@ def _job_translate(ctx: IngestContext) -> Optional[str]:
         return "bad_translation"
     mappings = _path_mappings(ctx)
     with hold_nfo_write():
+        repo = VideoRepository()
+        fresh = repo.get_by_path(ctx.video_uri)
+        if _row_stale(fresh, ctx.row):
+            return "stale_row"
         result = apply_title_writeback(
-            VideoRepository(), ctx.row, translated, None, ctx.cfg, mappings,
+            repo, fresh, translated, None, ctx.cfg, mappings,
         )
     if not result.get("success"):
         return result.get("error") or "write_failed"

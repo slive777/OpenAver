@@ -199,6 +199,35 @@ def test_translate_and_tags_never_overwrite_each_other(monkeypatch, tmp_path):
     assert repo.get_by_path(uri).title == "新翻譯標題"
 
 
+def test_stale_row_is_not_overwritten_by_queued_translation(monkeypatch, tmp_path, caplog):
+    db = tmp_path / "t.db"
+    init_db(db)
+    mp4 = tmp_path / "AI-001.mp4"
+    mp4.write_bytes(b"x")
+    nfo = mp4.with_suffix(".nfo")
+    nfo.write_text("<movie><title>あいう</title><num>AI-001</num></movie>", encoding="utf-8")
+    uri, repo = to_file_uri(str(mp4)), VideoRepository(db)
+    repo.upsert(Video(path=uri, number="AI-001", title="あいう", original_title="o", nfo_mtime=1.0))
+    cfg = {"translate": {"enabled": True}, "general": {"locale": "zh-TW"},
+           "gallery": {}, "ai_services": {}}
+    monkeypatch.setattr(post_ingest, "load_config", lambda: cfg)
+    monkeypatch.setattr(post_ingest, "VideoRepository", lambda: repo)
+
+    class _Svc:  # 排隊期間使用者在燈箱手動改了標題
+        async def translate_or_raise(self, _title, _ctx=None):
+            repo.update_titles(uri, "手動標題", "o", 1.0)
+            return "舊的機器翻譯"
+
+    monkeypatch.setattr(post_ingest, "create_translate_service", lambda *_a: _Svc())
+    before = nfo.read_text(encoding="utf-8")
+    with caplog.at_level(logging.INFO, logger=post_ingest.logger.name):
+        post_ingest.run_after_ingest(uri, route="scrape", skip_faces=True)
+        _wait_idle()
+    assert "translate failed reason=stale_row" in caplog.text
+    assert nfo.read_text(encoding="utf-8") == before
+    assert repo.get_by_path(uri).title == "手動標題"
+
+
 def test_unreachable_notifies_once_per_round(monkeypatch):
     _setup(monkeypatch, _jp_row(number="SSIS-001"), _cfg(translate=False))
     tag_keys, sim_keys = [], []
