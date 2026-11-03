@@ -135,3 +135,65 @@ async def request_translation(
     if not isinstance(data, dict):
         raise build_error(TAG, "api_error", None, "", "response is not a JSON object")
     return extract_text(data)
+
+
+def _strip_vision_data_uri(uri: str) -> str:
+    return uri.split(",", 1)[1]
+
+
+def build_vision_payload(
+    model: str,
+    system: str,
+    user_text: str,
+    image_data_uri: str,
+) -> dict[str, Any]:
+    # model 在 URL 內，payload 不帶；刻意不送 generationConfig
+    return {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "inline_data": {
+                            "mime_type": "image/jpeg",
+                            "data": _strip_vision_data_uri(image_data_uri),
+                        }
+                    },
+                    {"text": user_text},
+                ]
+            }
+        ],
+        "system_instruction": {"parts": [{"text": system}]},
+        "safetySettings": [dict(s) for s in SAFETY_SETTINGS],
+    }
+
+
+async def request_vision(
+    api_key: str,
+    model: str,
+    system: str,
+    user_text: str,
+    image_data_uri: str,
+    *,
+    timeout: float,
+) -> str:
+    """POST :generateContent with image；成功回非空 str，失敗拋 TranslateError。"""
+    resp = await cloud_request(
+        TAG,
+        "POST",
+        f"{GEMINI_BASE_URL}/models/{model}:generateContent",
+        headers=build_headers(api_key),
+        timeout=timeout,
+        json=build_vision_payload(model, system, user_text, image_data_uri),
+    )
+    try:
+        resp.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        raise classify_http_error(e.response) from None
+
+    try:
+        data = resp.json()
+    except Exception as e:
+        raise build_error(TAG, "api_error", None, "", f"invalid JSON: {e}") from e
+    if not isinstance(data, dict):
+        raise build_error(TAG, "api_error", None, "", "response is not a JSON object")
+    return extract_text(data)
