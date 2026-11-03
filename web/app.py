@@ -41,6 +41,7 @@ from core.config import load_config, mutate_config
 from core.data_layout import bootstrap_data_layout, consume_pending_bootstrap_result, consume_reset_access_auth_marker
 from core.focal import device_state
 from core.ai_services import faces_state, similar_index
+from core.ai_services.tagging_aliases import seed_builtin_aliases
 from core.database import init_db
 from core.database import backfill_readonly_nfo_mtime_once
 from core.metatube.state import metatube_state as _mt_startup_state
@@ -186,6 +187,10 @@ async def lifespan(app: FastAPI):
     # 移除 legacy clip_embedding / clip_model_id），確保 Video.from_row cls(**data)
     # 不會因 legacy schema 欄位收到未知 keyword 而 500。CD-57b-8 contract。
     init_db()
+    try:
+        seed_builtin_aliases()
+    except Exception:
+        logger.warning("lifespan: seed_builtin_aliases failed unexpectedly", exc_info=True)
     start_notification_persistence()
 
     _pending = consume_pending_bootstrap_result()
