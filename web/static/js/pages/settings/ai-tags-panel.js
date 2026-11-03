@@ -1,21 +1,21 @@
 /**
- * ai-tags-panel.js — 設定頁「AI 標籤」分頁獨立 Alpine 元件（TASK-188c-T8b）
+ * ai-tags-panel.js — 設定頁「AI 標籤」分頁獨立 Alpine 元件（TASK-188c-T8b；補跑邏輯 189a-T11a 起改走共用 mixin）
  *
- * Alpine.data('aiTagsPanel')；自有 key 一律 aiTags 前綴；不進 mergeState。
- * 外求恰 6（不複製父層 key）：form／isDirty／aiTab／showToast／
+ * Alpine.data('aiTagsPanel')；面板獨有 key 一律 aiTags 前綴、補跑 key 一律 bf 前綴（展開自 ai-backfill-controls.js）；
+ * 不進 mergeState。外求恰 6（不複製父層 key）：form／isDirty／aiTab／showToast／
  *   aiTagsModelLists()／ensureProviderModels()。
  *
- * 對外名單（T9 照名單綁）：
- *   狀態：aiTagsStatus／aiTagsTestResult／aiTagsTestBusy／aiTagsBusy
- *   方法：panelMode()、modelOptions()、onProviderChange()、testDisabled()、runTest()、
- *         backfillAction()（回 {action, disabled, reason}）、startBackfill()、stopBackfill()、
- *         rebuildVisible()、rebuildDisabled()、rebuildBackfill()、statusLineText()、
- *         costLineText(kind)（kind ∈ 'backfill'|'rebuild'）、firstRunHint()
+ * 對外名單（模板照名單綁）：
+ *   面板獨有：aiTagsTestResult／aiTagsTestBusy；panelMode()、modelOptions()、onProviderChange()、
+ *         testDisabled()、runTest()、statusLineText()、costLineText(kind)（kind ∈ 'backfill'|'rebuild'）、firstRunHint()
+ *   補跑（mixin）：bfStatus／bfBusy；bfAction()（回 {action, disabled, reason}）、bfStart()、bfStop()、
+ *         bfRebuildVisible()、bfRebuildDisabled()、bfRebuild()
  */
 
+import { aiBackfillControls } from './ai-backfill-controls.js';
 import {
+    adapter as TAGS_ADAPTER,
     panelMode,
-    backfillAction,
     statusLine,
     pickTagsModel,
     costHint,
@@ -24,38 +24,32 @@ import {
     testResultLine,
 } from './ai-tags-logic.js';
 
-const STATUS_URL = '/api/ai/tags/backfill/status';
 const TEST_URL = '/api/ai/tags/test';
-const BACKFILL_URL = '/api/ai/tags/backfill';
-const REBUILD_URL = '/api/ai/tags/backfill/rebuild';
-const STOP_URL = '/api/ai/tags/backfill/stop';
-const POLL_MS = 1000;
-/** 補完中 status 連續失敗上限（約 30 秒）後才停輪詢。 */
-const POLL_FAIL_MAX = 30;
+
+/** 補跑 mixin 的面板端 hooks：開關、POST 後 toast（判定順序不變）。 */
+const TAGS_HOOKS = {
+    enabled: (vm) => Boolean(vm.form.aiTagsEnabled),
+    afterPost(vm, kind, { ok, data, failed }) {
+        if (failed || !ok) {
+            vm.showToast(window.t('settings.ai.tags.backfill_http_error'), 'error');
+        } else if (data && data.status === 'not_enabled') {
+            vm.showToast(window.t('settings.ai.tags.backfill_not_enabled'), 'error');
+        } else if (data && data.status === 'not_configured') {
+            vm.showToast(window.t('settings.ai.tags.test_not_configured'), 'error');
+        }
+    },
+};
 
 export function aiTagsPanel() {
     return {
-        aiTagsStatus: null,
+        ...aiBackfillControls(TAGS_ADAPTER, TAGS_HOOKS),
         aiTagsTestResult: '',
         aiTagsTestBusy: false,
-        aiTagsBusy: false,
-        aiTagsPollTimer: null,
-        aiTagsGen: 0,
-        aiTagsFailCount: 0,
-        aiTagsDestroyed: false,
 
         init() {
-            this.$watch('aiTab', (val) => {
-                if (this.aiTagsDestroyed) return;
-                if (val === 'tags') {
-                    this.refreshStatus();
-                } else {
-                    this._aiTagsStopPoll();
-                }
-            });
             // 第一次打開開關：預選翻譯用的連線（載入設定時 isDirty 為 false，不動）
             this.$watch('form.aiTagsEnabled', (val) => {
-                if (this.aiTagsDestroyed) return;
+                if (this.bfDestroyed) return;
                 if (val !== true || this.isDirty !== true) return;
                 if (this.form.aiTagsProvider !== '') return;
                 const tp = this.form.translateProvider;
@@ -63,35 +57,11 @@ export function aiTagsPanel() {
                 this.form.aiTagsProvider = tp;
                 this.onProviderChange();
             });
-            if (this.aiTab === 'tags') {
-                this.refreshStatus();
-            }
+            this.bfOnInit();
         },
 
         destroy() {
-            this._aiTagsStopPoll();
-            this.aiTagsDestroyed = true;
-            this.aiTagsGen++;
-        },
-
-        _aiTagsStopPoll() {
-            if (this.aiTagsPollTimer !== null) {
-                clearTimeout(this.aiTagsPollTimer);
-                this.aiTagsPollTimer = null;
-            }
-        },
-
-        /** 鏈式 setTimeout：上一次 status 處理完才排下一次（間隔 POLL_MS）。 */
-        _aiTagsEnsurePoll() {
-            if (this.aiTagsPollTimer !== null) return;
-            this.aiTagsPollTimer = setTimeout(() => {
-                this.aiTagsPollTimer = null;
-                if (this.aiTagsDestroyed || this.aiTab !== 'tags') {
-                    this._aiTagsStopPoll();
-                    return;
-                }
-                this.refreshStatus();
-            }, POLL_MS);
+            this.bfOnDestroy();
         },
 
         panelMode() {
@@ -129,28 +99,8 @@ export function aiTagsPanel() {
             return this.aiTagsTestBusy || this.form.aiTagsProvider === '';
         },
 
-        backfillAction() {
-            const r = backfillAction(this.aiTagsStatus, {
-                dirty: Boolean(this.isDirty),
-                enabled: Boolean(this.form.aiTagsEnabled),
-            });
-            if (this.aiTagsBusy && r.action !== 'stop') {
-                return { ...r, disabled: true };
-            }
-            return r;
-        },
-
-        rebuildVisible() {
-            const s = this.aiTagsStatus;
-            return Boolean(this.form.aiTagsEnabled && s && !s.running && s.total > 0);
-        },
-
-        rebuildDisabled() {
-            return Boolean(this.aiTagsBusy || this.isDirty);
-        },
-
         statusLineText() {
-            const desc = statusLine(this.aiTagsStatus);
+            const desc = statusLine(this.bfStatus);
             if (!desc || !desc.key) return '';
             let text = window.t(desc.key, desc.params || {});
             for (const extraKey of desc.extra || []) {
@@ -161,7 +111,7 @@ export function aiTagsPanel() {
 
         /** kind：'backfill'（還沒跑的 pending 部）或 'rebuild'（全庫 total 部）。 */
         costLineText(kind) {
-            const s = this.aiTagsStatus;
+            const s = this.bfStatus;
             const n = s ? (kind === 'rebuild' ? s.total : s.pending) : 0;
             if (!(n > 0)) return '';
             const h = costHint(this.form.aiTagsProvider, this.form.aiTagsModel, n);
@@ -173,45 +123,8 @@ export function aiTagsPanel() {
         },
 
         firstRunHint() {
-            if (!this.aiTagsStatus) return '';
-            return window.t('settings.ai.tags.first_run_hint', { n: this.aiTagsStatus.pending });
-        },
-
-        async refreshStatus() {
-            if (this.aiTagsDestroyed) return;
-            if (this.aiTab !== 'tags') {
-                this._aiTagsStopPoll();
-                return;
-            }
-            const gen = ++this.aiTagsGen;
-            let data = null;
-            try {
-                const res = await fetch(STATUS_URL);
-                data = res.ok ? await res.json() : null;
-            } catch {
-                data = null;
-            }
-            if (gen !== this.aiTagsGen || this.aiTagsDestroyed) return;
-            if (!data) {
-                // 補完中短暫斷線：保留舊狀態，繼續排下一次；連續失敗滿 POLL_FAIL_MAX 才停
-                if (this.aiTagsStatus?.running && this.aiTab === 'tags') {
-                    this.aiTagsFailCount += 1;
-                    if (this.aiTagsFailCount < POLL_FAIL_MAX) {
-                        this._aiTagsEnsurePoll();
-                        return;
-                    }
-                }
-                this._aiTagsStopPoll();
-                return;
-            }
-            this.aiTagsFailCount = 0;
-            this.aiTagsStatus = data;
-            // 請求在途時離開分頁：只更新狀態，不再排下一次
-            if (data.running && this.aiTab === 'tags') {
-                this._aiTagsEnsurePoll();
-            } else {
-                this._aiTagsStopPoll();
-            }
+            if (!this.bfStatus) return '';
+            return window.t('settings.ai.tags.first_run_hint', { n: this.bfStatus.pending });
         },
 
         async runTest() {
@@ -240,52 +153,6 @@ export function aiTagsPanel() {
             } finally {
                 this.aiTagsTestBusy = false;
             }
-        },
-
-        /** start／rebuild 共用：POST 後依回應 status 對應 toast，結束一律 refreshStatus。 */
-        async _aiTagsPostAction(url) {
-            this.aiTagsBusy = true;
-            try {
-                const res = await fetch(url, { method: 'POST' });
-                let data = null;
-                try { data = await res.json(); } catch { data = null; }
-                if (!res.ok) {
-                    this.showToast(window.t('settings.ai.tags.backfill_http_error'), 'error');
-                } else if (data && data.status === 'not_enabled') {
-                    this.showToast(window.t('settings.ai.tags.backfill_not_enabled'), 'error');
-                } else if (data && data.status === 'not_configured') {
-                    this.showToast(window.t('settings.ai.tags.test_not_configured'), 'error');
-                }
-            } catch {
-                this.showToast(window.t('settings.ai.tags.backfill_http_error'), 'error');
-            } finally {
-                this.aiTagsBusy = false;
-            }
-            await this.refreshStatus();
-        },
-
-        /** 「補完全庫」與「繼續」是同一個端點，後端自己承接。 */
-        async startBackfill() {
-            const a = this.backfillAction();
-            if (a.disabled || (a.action !== 'start' && a.action !== 'continue')) return;
-            await this._aiTagsPostAction(BACKFILL_URL);
-        },
-
-        async stopBackfill() {
-            try {
-                await fetch(STOP_URL, { method: 'POST' });
-            } catch {
-                /* 靜默；接著 refresh */
-            }
-            await this.refreshStatus();
-        },
-
-        async rebuildBackfill() {
-            if (this.rebuildDisabled()) return;
-            const n = this.aiTagsStatus?.total || 0;
-            // eslint-disable-next-line no-alert -- rebuildBackfill cost confirm, same shape as rebuildIndex confirm
-            if (!confirm(window.t('settings.ai.tags.rebuild_confirm', { n }))) return;
-            await this._aiTagsPostAction(REBUILD_URL);
         },
     };
 }

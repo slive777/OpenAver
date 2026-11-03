@@ -1702,56 +1702,56 @@
 
                             <p class="settings-hint ai-tags-status"
                                id="aiTagsStatusLine"
-                               x-show="aiTagsStatus !== null"
+                               x-show="bfStatus !== null"
                                x-text="statusLineText()"></p>
 
                             <div class="ai-tags-index-row">
                                 <button type="button" class="btn btn-sm btn-outline"
                                         id="aiTagsStopBtn"
-                                        x-show="backfillAction().action === 'stop'"
-                                        @click="stopBackfill()">
+                                        x-show="bfAction().action === 'stop'"
+                                        @click="bfStop()">
                                     <span x-text="window.t('settings.ai.tags.btn_stop')"></span>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-primary"
                                         id="aiTagsBackfillBtn"
-                                        x-show="backfillAction().action === 'start'"
-                                        @click="startBackfill()"
-                                        :disabled="backfillAction().disabled">
-                                    <span x-show="aiTagsBusy" class="loading loading-spinner loading-sm"></span>
-                                    <span x-show="!aiTagsBusy"
+                                        x-show="bfAction().action === 'start'"
+                                        @click="bfStart()"
+                                        :disabled="bfAction().disabled">
+                                    <span x-show="bfBusy" class="loading loading-spinner loading-sm"></span>
+                                    <span x-show="!bfBusy"
                                           x-text="window.t('settings.ai.tags.btn_backfill')"></span>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-primary"
                                         id="aiTagsContinueBtn"
-                                        x-show="backfillAction().action === 'continue'"
-                                        @click="startBackfill()"
-                                        :disabled="backfillAction().disabled">
-                                    <span x-show="aiTagsBusy" class="loading loading-spinner loading-sm"></span>
-                                    <span x-show="!aiTagsBusy"
+                                        x-show="bfAction().action === 'continue'"
+                                        @click="bfStart()"
+                                        :disabled="bfAction().disabled">
+                                    <span x-show="bfBusy" class="loading loading-spinner loading-sm"></span>
+                                    <span x-show="!bfBusy"
                                           x-text="window.t('settings.ai.tags.btn_continue')"></span>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-ghost"
                                         id="aiTagsRebuildBtn"
-                                        x-show="rebuildVisible()"
-                                        @click="rebuildBackfill()"
-                                        :disabled="rebuildDisabled()">
+                                        x-show="bfRebuildVisible()"
+                                        @click="bfRebuild()"
+                                        :disabled="bfRebuildDisabled()">
                                     <span x-text="window.t('settings.ai.tags.btn_rebuild')"></span>
                                 </button>
                                 <span class="settings-hint" id="aiTagsPendingLine"
-                                      x-show="backfillAction().action === 'start' || backfillAction().action === 'continue'"
-                                      x-text="window.t('settings.ai.tags.pending_line', { n: aiTagsStatus?.pending || 0 })"></span>
+                                      x-show="bfAction().action === 'start' || bfAction().action === 'continue'"
+                                      x-text="window.t('settings.ai.tags.pending_line', { n: bfStatus?.pending || 0 })"></span>
                                 <span class="settings-hint ai-tags-save-first"
-                                      x-show="isDirty && (backfillAction().action === 'start' || backfillAction().action === 'continue' || rebuildVisible())"
+                                      x-show="isDirty && (bfAction().action === 'start' || bfAction().action === 'continue' || bfRebuildVisible())"
                                       x-text="window.t('settings.ai.tags.save_first')"></span>
                             </div>
 
                             <p class="settings-hint ai-tags-cost"
                                id="aiTagsCostLine"
-                               x-show="(backfillAction().action === 'start' || backfillAction().action === 'continue') && costLineText('backfill')"
+                               x-show="(bfAction().action === 'start' || bfAction().action === 'continue') && costLineText('backfill')"
                                x-text="costLineText('backfill')"></p>
                             <p class="settings-hint ai-tags-cost"
                                id="aiTagsRebuildCostLine"
-                               x-show="rebuildVisible() && costLineText('rebuild')"
+                               x-show="bfRebuildVisible() && costLineText('rebuild')"
                                x-text="costLineText('rebuild')"></p>
 
                             <pre class="ai-tags-test-result"
