@@ -576,11 +576,11 @@ export function stateProviders() {
                 await this.fetchOpenAIModels({ source: 'auto' });
             }
 
-            // FE-TIMING-16：await 後再讀 form；provider 已換或 model 已有 → 不寫
+            // FE-TIMING-16：await 後再讀 form；provider 已換或 model 已有 → 不寫。
+            // 已存 model 空時預選不進 savedState：畫面 isDirty=true，引導使用者存一次（CD-188c-14）。
             if (this.form.aiTagsProvider === provider && !this.form.aiTagsModel) {
                 const lists = this.aiTagsModelLists();
                 this.form.aiTagsModel = pickTagsModel(provider, '', lists[provider] || []);
-                if (this.savedState) this.savedState.aiTagsModel = this.form.aiTagsModel;
             }
         },
     };

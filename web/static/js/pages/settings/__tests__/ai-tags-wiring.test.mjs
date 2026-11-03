@@ -150,20 +150,22 @@ async function waitUntil(pred, label, ms = 2000) {
   throw new Error(`timeout waiting for ${label}`);
 }
 
-async function assertClaudeTagsPreselect(translateProvider) {
+function claudeModelsFetch() {
+  return {
+    json: async () => ({
+      success: true,
+      models: ['claude-sonnet-5', 'claude-haiku-9-9'],
+      latest_haiku: 'claude-haiku-9-9',
+      default_model: 'claude-sonnet-5',
+    }),
+  };
+}
+
+async function assertClaudeEmptyModelPreselect(translateProvider) {
   const fakeThis = makeFakeThis();
   globalThis.fetch = async (url, opts) => {
     const u = String(url);
-    if (u.includes('/api/claude/models')) {
-      return {
-        json: async () => ({
-          success: true,
-          models: ['claude-sonnet-5', 'claude-haiku-9-9'],
-          latest_haiku: 'claude-haiku-9-9',
-          default_model: 'claude-sonnet-5',
-        }),
-      };
-    }
+    if (u.includes('/api/claude/models')) return claudeModelsFetch();
     if (u.includes('/api/config') && opts && opts.method === 'PUT') {
       return { json: async () => ({ success: true }) };
     }
@@ -197,22 +199,64 @@ async function assertClaudeTagsPreselect(translateProvider) {
   );
   await new Promise((r) => setTimeout(r, 0));
 
+  // 已存 model 空 → 預選不進磁碟；畫面應顯示未儲存，引導按一次儲存
   assert.equal(fakeThis.form.aiTagsModel, 'claude-haiku-9-9');
-  assert.equal(fakeThis.isDirty, false);
-  return fakeThis;
+  assert.equal(fakeThis.isDirty, true);
 }
 
-test('tags_load_not_dirty_claude_preselect', async () => {
-  // tags-only：翻譯 gemini、tags claude → ensureProviderModels 路徑
-  const tagsOnly = await assertClaudeTagsPreselect('gemini');
-  tagsOnly.form.aiTagsModel = 'x';
-  assert.equal(tagsOnly.isDirty, true);
+test('tags_load_claude_preselect', async () => {
+  // tags-only：翻譯 gemini、tags claude、已存 model 空 → 預選 haiku 且 isDirty
+  await assertClaudeEmptyModelPreselect('gemini');
 
-  // 同家：翻譯與 tags 都是 claude → 翻譯分支抓完後也要預選（P2 修正）
-  await assertClaudeTagsPreselect('claude');
+  // 同家：翻譯與 tags 都是 claude、已存 model 空 → 同樣預選且 isDirty
+  await assertClaudeEmptyModelPreselect('claude');
+
+  // 已存 model 非空 → 不預選、不弄髒
+  const fakeThis = makeFakeThis();
+  globalThis.fetch = async (url, opts) => {
+    const u = String(url);
+    if (u.includes('/api/claude/models')) return claudeModelsFetch();
+    if (u.includes('/api/config') && opts && opts.method === 'PUT') {
+      return { json: async () => ({ success: true }) };
+    }
+    if (u.includes('/api/config')) {
+      return {
+        json: async () => ({
+          success: true,
+          data: minimalConfig({
+            translate: {
+              enabled: false,
+              provider: 'gemini',
+              ollama: { url: 'http://localhost:11434', model: '' },
+              gemini: {},
+              openai: {},
+              claude: { api_key: 'k' },
+            },
+            ai_services: {
+              tags: { enabled: true, provider: 'claude', model: 'claude-x' },
+            },
+          }),
+        }),
+      };
+    }
+    return { json: async () => ({ success: true, data: {} }) };
+  };
+
+  await fakeThis.loadConfig.call(fakeThis);
+  // 等清單抓完（seed 1 → 抓回 2），確認非空 model 不被改
+  await waitUntil(
+    () => Array.isArray(fakeThis.claudeModels) && fakeThis.claudeModels.length > 1,
+    'claude models fetched',
+  );
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(fakeThis.form.aiTagsModel, 'claude-x');
+  assert.equal(fakeThis.isDirty, false);
+  fakeThis.form.aiTagsModel = 'y';
+  assert.equal(fakeThis.isDirty, true);
 });
 
-test('tags_load_not_dirty_ollama_untouched', async () => {
+test('tags_load_ollama_untouched', async () => {
   const fakeThis = makeFakeThis();
   const ollamaList = ['llava', 'm2'];
   globalThis.fetch = async (url, opts) => {
@@ -256,7 +300,8 @@ test('tags_load_not_dirty_ollama_untouched', async () => {
 
   assert.equal(fakeThis.form.ollamaModel, '');
   assert.deepEqual(fakeThis.ollamaModels, ollamaList);
-  assert.equal(fakeThis.isDirty, false);
+  // 已存 tags model 空 → 預選後應 dirty（引導儲存）；翻譯 ollamaModel 仍不被改
+  assert.equal(fakeThis.isDirty, true);
 });
 
 test('tags_save_roundtrip_keeps_siblings', async () => {
