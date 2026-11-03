@@ -339,3 +339,34 @@ def tag_video_sync(
 ) -> TagOutcome:
     """Sync wrapper; only call from a worker thread with no running event loop."""
     return asyncio.run(tag_video(file_path, config=config, vision_fn=vision_fn))
+
+
+_TEST_UNUSABLE_REASONS = frozenset({"model_unsupported", "bad_response"})
+
+
+async def run_vision_test(conn, vocab, sample_uri, *, vision_fn=None) -> dict:
+    """One-shot vision probe for the settings test button (no writes)."""
+    ask = vision_fn or vision_chat
+    prep = _Prepared(
+        cfg={},
+        repo=None,
+        conn=conn,
+        poster_uri=sample_uri,
+        vocab=list(vocab),
+        local_fs_path="",
+    )
+    try:
+        names, refused = await _ask_model(prep, ask)
+    except TaggingFailure as exc:
+        if exc.reason in _TEST_UNUSABLE_REASONS:
+            return {"ok": False, "outcome": "unusable", "detail": exc.reason}
+        return {
+            "ok": False,
+            "outcome": "unreachable",
+            "detail": exc.detail or exc.reason,
+        }
+    if refused:
+        return {"ok": False, "outcome": "unusable", "detail": "refused"}
+    if not names:
+        return {"ok": False, "outcome": "unusable", "detail": "no_tags"}
+    return {"ok": True, "outcome": "ok", "tags": names}
