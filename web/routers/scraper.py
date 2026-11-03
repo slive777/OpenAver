@@ -23,6 +23,7 @@ from core import cover_upload
 from core.actress_photo import CONTENT_TYPE_MAP
 from core.database import VideoRepository, organize_failures
 from core.db_inflow import try_inflow_upsert
+from core.ai_services import post_ingest
 from core.focal_trigger import maybe_submit_video_focal
 from core.enricher import enrich_single, fetch_samples_only, resolve_nfo_cover_paths
 from core.enrich_contract import did_enrich_something, enrich_success, should_preserve_cover
@@ -230,6 +231,18 @@ def get_scrape_cover(token: str):
     return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
+def _post_ingest_after_scrape(target_file, db_sync_status, path_mappings) -> None:
+    """整理入庫後排 AI 後處理（189a-T5）：只在片庫追蹤夾內（有 DB 列）才叫；失敗不影響整理結果。"""
+    if db_sync_status != "synced":
+        return
+    try:
+        post_ingest.run_after_ingest(
+            to_file_uri(target_file, path_mappings), route="scrape_single", skip_faces=True,
+        )
+    except Exception:
+        logger.warning("scrape_single: 入庫後 AI 掛勾排程失敗（不影響整理結果）", exc_info=True)
+
+
 @router.post("/scrape-single")
 def scrape_single(request: ScrapeRequest) -> dict:
     """
@@ -381,6 +394,7 @@ def scrape_single(request: ScrapeRequest) -> dict:
                     )
             except Exception:
                 logger.warning("scrape_single: 首刮 focal 排程失敗（不影響整理結果）", exc_info=True)
+        _post_ingest_after_scrape(target_file, db_sync_status, path_mappings)
 
     return {**result, "db_sync_status": db_sync_status}
 
@@ -682,6 +696,24 @@ def _reconcile_wishlist_after_write() -> None:
         )
 
 
+def _post_ingest_after_enrich(request, canonical, success, readonly_action=None) -> None:
+    """單片重刮成功後排 AI 後處理（189a-T5）：只有重刮算；補完（fill_missing／不覆蓋）一律不叫。"""
+    if not success:
+        return
+    if readonly_action is not None:
+        route = "readonly_rescrape" if readonly_action == "rescrape" else None
+    elif request.mode == "refresh_full" and request.overwrite_existing is True:
+        route = "enrich_rescrape"
+    else:
+        route = None
+    if route is None:
+        return
+    try:
+        post_ingest.run_after_ingest(canonical, route=route, skip_faces=True)
+    except Exception:
+        logger.warning("enrich_single: 入庫後 AI 掛勾排程失敗（不影響重刮結果）", exc_info=True)
+
+
 def _check_refresh_full_overwrite_guard(request, config, path_mappings, resolved_write_cover) -> None:
     # CD-62-4 分裂陷阱智慧防呆：refresh_full + overwrite=false 時，若這組設定不會寫出任何
     # sidecar（NFO/cover）卻仍 _db_upsert，就是純分裂。一個 sidecar「會寫」需 write 旗標開 + 檔案缺
@@ -809,6 +841,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             )
             if result.success:
                 _reconcile_wishlist_after_write()
+            _post_ingest_after_enrich(request, canonical, result.success, action)
             return asdict(result)
         except CfChallengeRequired:
             # F-0：完整 EnrichResult 形狀 ＋ additive cf_needed/cf_source（不得回 partial dict）
@@ -880,6 +913,8 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
         if result.success:
             thumbnail_cache.invalidate(coerce_to_file_uri(request.file_path))  # uri-no-reverse: coerce_to_file_uri forward URI build, D2 complement
             _reconcile_wishlist_after_write()
+        # 掛勾的鍵必須與 enricher 寫 DB 的鍵同源（core/enricher.py:585，不套 path_mappings）
+        _post_ingest_after_enrich(request, to_file_uri(uri_to_fs_path(request.file_path)), result.success)  # db-ns-ok: DB round-trip value, no reverse mapping applied  # uri-no-reverse: DB key must stay in DB's stored namespace
         return asdict(result)
     except CfChallengeRequired:
         outcome = _begin_solve_for_source(request.source)
