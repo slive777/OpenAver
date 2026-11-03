@@ -436,6 +436,26 @@ def test_ran_or_not_decision_table(
     assert (repo.get_ai_tagged_at(file_uri) is not None) is ran
 
 
+def test_missing_cover_file_counts_as_ran(tmp_path, monkeypatch):
+    """封面路徑有值但檔案不在磁碟 → 仍拋 no_cover、但記跑過且不動使用者標籤。"""
+    from core.ai_services.tagging import tag_video
+
+    repo, file_uri, mp4, nfo, config = _make_tag_env(tmp_path, monkeypatch)
+    assert repo.count_ai_tag_progress() == (1, 1)
+    (tmp_path / "AI-001-poster.jpg").unlink()
+    assert repo.get_by_path(file_uri).cover_path != ""
+    stub, calls = _make_vision_stub(_OK_JSON)
+
+    with pytest.raises(TaggingFailure) as ei:
+        asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
+    assert ei.value.reason == "no_cover"
+
+    assert len(calls) == 0
+    assert repo.get_ai_tagged_at(file_uri) is not None
+    assert repo.count_ai_tag_progress() == (1, 0)
+    assert repo.get_by_path(file_uri).user_tags == ["★4"]
+
+
 def test_observation_runs_off_loop_and_never_changes_tag_video_result(
     tmp_path, monkeypatch
 ):

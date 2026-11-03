@@ -1269,6 +1269,20 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def mark_ai_tagged(self, path: str) -> bool:
+        """記「AI 跑過」：只設 ai_tagged_at，不碰 user_tags／updated_at；已有時間戳不覆寫"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE videos SET ai_tagged_at = CURRENT_TIMESTAMP WHERE path = ? AND ai_tagged_at IS NULL",
+                (path,),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
     def count_ai_tag_progress(self) -> Tuple[int, int]:
         """(total, pending)：total＝有封面的片數；pending＝其中 ai_tagged_at 為 NULL 的片數（188c-T1）"""
         conn = self._get_connection()
