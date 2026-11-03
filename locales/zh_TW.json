@@ -697,6 +697,33 @@
         "check_no_face": "樣本圖裡沒找到臉",
         "check_center_off": "找到的臉位置和樣本差太多",
         "check_unknown": "回傳不符契約（原因不明）"
+      },
+      "tags": {
+        "status_none": "尚未取得狀態",
+        "status_running": "已處理 {n}／{m}",
+        "status_slow_extra": "・服務要求放慢，已改為逐部處理",
+        "status_waiting_extra": "・服務要求放慢，等待中",
+        "status_skipped_extra": "・另有 {k} 部沒標成",
+        "status_stopped_unreachable": "已停止：連不上這個服務，按「繼續」接著跑",
+        "status_stopped_auth": "已停止：金鑰被拒，請檢查連線區的金鑰",
+        "status_stopped_model_unsupported": "已停止：這個模型看不懂圖，請換一個模型",
+        "status_stopped_quota": "服務額度用完，稍後按「繼續」",
+        "status_stopped_not_configured": "已停止：連線還沒設好",
+        "status_stopped_disabled": "已停止：AI 標籤已關閉",
+        "status_unreachable": "上次成功 {time}・目前連不上",
+        "status_unreachable_no_time": "目前連不上",
+        "status_incomplete": "補完全庫未完成，還有 {n} 部待處理",
+        "status_ready": "已跑 {n}／{m} 部・上次成功 {time}",
+        "status_ready_no_time": "已跑 {n}／{m} 部",
+        "test_ok": "通過・模型在樣本圖上標到：{tags}",
+        "test_ok_no_tags": "通過，但在樣本圖上沒標到字；若使用時也都是 0 個，請換一個看得懂圖的模型",
+        "test_unreachable": "連不上這個連線",
+        "test_unusable_model_unsupported": "連上了，但這個模型看不懂圖，請換一個",
+        "test_unusable_bad_response": "連上了，但模型回傳的內容讀不出來",
+        "test_unusable_refused": "連上了，但模型不肯看這張樣本圖",
+        "test_unusable_no_tags": "連上了，但模型在樣本圖上一個字都沒標到，請換一個看得懂圖的模型",
+        "test_not_configured": "請先選連線並填好上面的連線資料",
+        "test_failed_generic": "測試失敗"
       }
     },
     "translate": {
