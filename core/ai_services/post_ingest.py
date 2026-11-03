@@ -217,6 +217,20 @@ def _path_mappings(ctx: IngestContext) -> dict:
     return (ctx.cfg.get("gallery") or {}).get("path_mappings") or {}
 
 
+_REFUSAL_MARKERS = ("無法翻譯", "無法提供", "抱歉", "i can't", "i cannot", "i'm sorry", "sorry")
+
+
+def _bad_translation(source: str, translated: str) -> bool:
+    s, t = source.strip(), translated.strip()
+    if not t: return True
+    t = t.replace("’", "'")
+    if t == s or has_japanese(t) or "\n" in t:
+        return True
+    if len(t) > max(2 * len(s), len(s) + 40):
+        return True
+    return any(m in t.lower() for m in _REFUSAL_MARKERS)
+
+
 def _job_translate(ctx: IngestContext) -> Optional[str]:
     locale = (ctx.cfg.get("general") or {}).get("locale") or "zh-TW"
     service = create_translate_service(ctx.cfg.get("translate") or {}, locale)
@@ -224,6 +238,8 @@ def _job_translate(ctx: IngestContext) -> Optional[str]:
         ctx.row.title,
         {"actors": ctx.row.actresses or [], "number": ctx.row.number or ""},
     ))
+    if _bad_translation(ctx.row.title, translated):
+        return "bad_translation"
     mappings = _path_mappings(ctx)
     with hold_nfo_write():
         result = apply_title_writeback(

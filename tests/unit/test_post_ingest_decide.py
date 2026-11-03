@@ -206,3 +206,29 @@ def test_entry_never_raises_and_items_independent(monkeypatch, caplog):
     post_ingest.run_after_ingest(row.path, route="scrape", skip_faces=False, notify=False)
     assert any(c[0][0] == "faces" for c in run_item.calls)
     assert "faces" not in [c[0] for c in submit.calls]
+
+
+@pytest.mark.parametrize("source,translated,expect_bad", [
+    ("美人妻教師", " 美人妻教師 ", True),
+    ("これはテスト", "這是テスト", True),
+    ("これはテスト", "這是\n測試", True),
+    ("あいうえお", "測" * 46, True),
+    ("これはテスト", "抱歉，我無法翻譯這個標題", True),
+    ("これはテスト", "I can’t translate this", True),
+    ("これはテスト", "這是測試", False),
+    ("美しい人妻の秘密", "美麗人妻的秘密", False),
+])
+def test_bad_translation_never_written_back(monkeypatch, source, translated, expect_bad):
+    assert post_ingest._bad_translation(source, translated) is expect_bad
+    class _Svc:
+        async def translate_or_raise(self, _title, _ctx=None):
+            return translated
+    calls = []
+    def _fake_writeback(*a, **k):
+        calls.append((a, k))
+        return {"success": True}
+    monkeypatch.setattr(post_ingest, "create_translate_service", lambda *_a, **_k: _Svc())
+    monkeypatch.setattr(post_ingest, "apply_title_writeback", _fake_writeback)
+    ctx = post_ingest.IngestContext(video_uri="file:///videos/SSIS-001.mp4", route="scrape", notify=False, cfg={"general": {"locale": "zh-TW"}, "translate": {}}, row=_row(title=source))
+    assert post_ingest._job_translate(ctx) == ("bad_translation" if expect_bad else None)
+    assert len(calls) == (0 if expect_bad else 1)
