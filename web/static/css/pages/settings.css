@@ -1797,3 +1797,50 @@ html.theme-transition-active::view-transition-new(root) {
     font-size: 0.875rem;
     line-height: 1.4;
 }
+
+#settings-components .ai-tags-empty-desc {
+    margin: 0.75rem 0;
+}
+
+#settings-components .ai-tags-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0.75rem 0 1rem;
+}
+
+#settings-components .ai-tags-status {
+    margin: 0.25rem 0 0;
+}
+
+#settings-components .ai-tags-index-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#settings-components .ai-tags-save-first {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+#settings-components .ai-tags-test-result {
+    margin: 0.25rem 0 0;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--fluent-radius-sm);
+    background: var(--surface-2);
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    font-family: inherit;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+#settings-components .ai-tags-first-run {
+    margin: 0.25rem 0 0;
+}
+
+#settings-components .ai-tags-cost {
+    margin: 0.25rem 0 0;
+}

@@ -1226,6 +1226,11 @@
                                 :aria-selected="aiTab === 'faces'"
                                 :class="{ 'tab-active': aiTab === 'faces' }"
                                 x-text="window.t('settings.ai.tab_faces')"></button>
+                            <button type="button" role="tab" class="tab" id="aiTabTags"
+                                @click="selectAiTab('tags')"
+                                :aria-selected="aiTab === 'tags'"
+                                :class="{ 'tab-active': aiTab === 'tags' }"
+                                x-text="window.t('settings.ai.tab_tags')"></button>
                         </div>
                         <div class="popover-anchor" x-data="helpPopover">
                             <button type="button" class="help-popover-btn"
@@ -1639,20 +1644,137 @@
                         </div>
                     </div>
 
-                    <!-- 連線區（只在翻譯分頁；翻譯關閉時變淡並鎖住，與 main 的 #translateOptions 一致） -->
-                    <div id="aiConnections" class="ai-connections" :class="{ 'opacity-50': !form.translateEnabled }" x-show="aiTab === 'translate'" x-cloak>
+                    <div id="aiPanelTags" role="tabpanel" x-show="aiTab === 'tags'" x-cloak
+                         x-data="aiTagsPanel">
+                        <div class="settings-form-group">
+                            <label class="settings-label">
+                                <input type="checkbox" class="toggle toggle-primary"
+                                       id="aiTagsEnabled"
+                                       x-model="form.aiTagsEnabled">
+                                <span class="label-text">{{ t('settings.ai.tags.enabled_label') }}</span>
+                            </label>
+                        </div>
+                        <p class="settings-hint ai-tags-empty-desc"
+                           x-show="panelMode() === 'empty'">{{ t('settings.ai.tags.empty_desc') }}</p>
+                        <p class="settings-hint ai-tags-first-run"
+                           id="aiTagsFirstRunHint"
+                           x-text="firstRunHint()"></p>
+
+                        <div class="ai-tags-fields" x-show="panelMode() === 'fields'">
+                            <div class="settings-form-row">
+                                <label class="row-label" for="aiTagsProvider">{{ t('settings.ai.tags.provider_label') }}</label>
+                                <div class="flex-1">
+                                    <select class="select select-bordered select-sm" id="aiTagsProvider"
+                                            x-model="form.aiTagsProvider"
+                                            @change="onProviderChange()">
+                                        <option value="">{{ t('settings.ai.tags.provider_placeholder') }}</option>
+                                        <option value="ollama">Ollama{{ t('settings.translate.ollama_local') }}</option>
+                                        <option value="gemini">Gemini{{ t('settings.translate.gemini_cloud') }}</option>
+                                        <option value="claude">Claude{{ t('settings.translate.claude_cloud') }}</option>
+                                        <option value="openai_official">{{ t('settings.translate.openai_official') }}</option>
+                                        <option value="openai">{{ t('settings.translate.openai_compatible') }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-form-row">
+                                <label class="row-label" for="aiTagsModel">{{ t('settings.ai.tags.model_label') }}</label>
+                                <div class="flex-1 flex flex-col gap-1">
+                                    <div class="variable-input-group">
+                                        <select class="select select-bordered select-sm flex-1" id="aiTagsModel"
+                                                x-model="form.aiTagsModel"
+                                                :disabled="form.aiTagsProvider === ''">
+                                            <option value="" disabled x-show="modelOptions().length === 0"></option>
+                                            <template x-for="m in modelOptions()" :key="m">
+                                                <option :value="m" x-text="m"></option>
+                                            </template>
+                                        </select>
+                                        <button class="btn btn-sm btn-outline" type="button"
+                                                id="aiTagsTestBtn"
+                                                @click="runTest()"
+                                                :disabled="testDisabled()">
+                                            <span x-show="aiTagsTestBusy" class="loading loading-spinner loading-sm"></span>
+                                            <span x-show="!aiTagsTestBusy" x-text="window.t('settings.action.test')"></span>
+                                        </button>
+                                    </div>
+                                    <small class="settings-hint">{{ t('settings.ai.tags.model_hint') }}</small>
+                                </div>
+                            </div>
+
+                            <p class="settings-hint ai-tags-status"
+                               id="aiTagsStatusLine"
+                               x-show="aiTagsStatus !== null"
+                               x-text="statusLineText()"></p>
+
+                            <div class="ai-tags-index-row">
+                                <button type="button" class="btn btn-sm btn-outline"
+                                        id="aiTagsStopBtn"
+                                        x-show="backfillAction().action === 'stop'"
+                                        @click="stopBackfill()">
+                                    <span x-text="window.t('settings.ai.tags.btn_stop')"></span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-primary"
+                                        id="aiTagsBackfillBtn"
+                                        x-show="backfillAction().action === 'start'"
+                                        @click="startBackfill()"
+                                        :disabled="backfillAction().disabled">
+                                    <span x-show="aiTagsBusy" class="loading loading-spinner loading-sm"></span>
+                                    <span x-show="!aiTagsBusy"
+                                          x-text="window.t('settings.ai.tags.btn_backfill')"></span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-primary"
+                                        id="aiTagsContinueBtn"
+                                        x-show="backfillAction().action === 'continue'"
+                                        @click="startBackfill()"
+                                        :disabled="backfillAction().disabled">
+                                    <span x-show="aiTagsBusy" class="loading loading-spinner loading-sm"></span>
+                                    <span x-show="!aiTagsBusy"
+                                          x-text="window.t('settings.ai.tags.btn_continue')"></span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-ghost"
+                                        id="aiTagsRebuildBtn"
+                                        x-show="rebuildVisible()"
+                                        @click="rebuildBackfill()"
+                                        :disabled="rebuildDisabled()">
+                                    <span x-text="window.t('settings.ai.tags.btn_rebuild')"></span>
+                                </button>
+                                <span class="settings-hint" id="aiTagsPendingLine"
+                                      x-show="backfillAction().action === 'start' || backfillAction().action === 'continue'"
+                                      x-text="window.t('settings.ai.tags.pending_line', { n: aiTagsStatus?.pending || 0 })"></span>
+                                <span class="settings-hint ai-tags-save-first"
+                                      x-show="isDirty && (backfillAction().action === 'start' || backfillAction().action === 'continue' || rebuildVisible())"
+                                      x-text="window.t('settings.ai.tags.save_first')"></span>
+                            </div>
+
+                            <p class="settings-hint ai-tags-cost"
+                               id="aiTagsCostLine"
+                               x-show="(backfillAction().action === 'start' || backfillAction().action === 'continue') && costLineText('backfill')"
+                               x-text="costLineText('backfill')"></p>
+                            <p class="settings-hint ai-tags-cost"
+                               id="aiTagsRebuildCostLine"
+                               x-show="rebuildVisible() && costLineText('rebuild')"
+                               x-text="costLineText('rebuild')"></p>
+
+                            <pre class="ai-tags-test-result"
+                                 id="aiTagsTestResult"
+                                 x-show="aiTagsTestResult"
+                                 x-text="aiTagsTestResult"></pre>
+                        </div>
+                    </div>
+
+                    <!-- 連線區（翻譯與 AI 標籤分頁共用；未啟用任一家時變淡並鎖住） -->
+                    <div id="aiConnections" class="ai-connections" :class="{ 'opacity-50': !aiConnEnabled('ollama') && !aiConnEnabled('gemini') && !aiConnEnabled('claude') && !aiConnEnabled('openai_official') && !aiConnEnabled('openai') }" x-show="aiTab === 'translate' || aiTab === 'tags'" x-cloak>
                         <p class="settings-tier-label">{{ t('settings.ai.connections_title') }}</p>
 
-                        <div data-ai-conn="ollama" x-show="form.translateProvider === 'ollama'">
+                        <div data-ai-conn="ollama" x-show="aiConnShown('ollama')">
                             <div class="settings-form-row">
                                 <label class="row-label">Ollama URL</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
                                         <input type="text" class="input input-bordered input-sm flex-1" id="ollamaUrl"
-                                            x-model="form.ollamaUrl" :disabled="!form.translateEnabled">
+                                            x-model="form.ollamaUrl" :disabled="!aiConnEnabled('ollama')">
                                         <button class="btn btn-sm btn-outline" type="button" id="testOllamaBtn"
                                             @click="testOllamaConnection()"
-                                            :disabled="!form.translateEnabled || testOllamaLoading">
+                                            :disabled="!aiConnEnabled('ollama') || testOllamaLoading">
                                             <span x-show="testOllamaLoading" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!testOllamaLoading">
                                                 <i class="bi bi-plug"></i>
@@ -1665,16 +1787,16 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="gemini" x-show="form.translateProvider === 'gemini'">
+                        <div data-ai-conn="gemini" x-show="aiConnShown('gemini')">
                             <div class="settings-form-row">
                                 <label class="row-label">Gemini API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
                                         <input type="password" class="input input-bordered input-sm flex-1" id="geminiApiKey"
-                                            x-model="form.geminiApiKey" placeholder="AIza..." :disabled="!form.translateEnabled">
+                                            x-model="form.geminiApiKey" placeholder="AIza..." :disabled="!aiConnEnabled('gemini')">
                                         <button class="btn btn-sm btn-outline" type="button" id="testGeminiBtn"
                                             @click="testGeminiConnection()"
-                                            :disabled="!form.translateEnabled || testGeminiLoading">
+                                            :disabled="!aiConnEnabled('gemini') || testGeminiLoading">
                                             <span x-show="testGeminiLoading" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!testGeminiLoading">
                                                 <i class="bi bi-plug"></i>
@@ -1703,7 +1825,7 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="claude" x-show="form.translateProvider === 'claude'" x-cloak>
+                        <div data-ai-conn="claude" x-show="aiConnShown('claude')" x-cloak>
                             <div class="settings-form-row">
                                 <label class="row-label">Claude API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
@@ -1711,10 +1833,10 @@
                                         <input type="password" class="input input-bordered input-sm flex-1" id="claudeApiKey"
                                             x-model="form.claudeApiKey"
                                             :placeholder="window.t('settings.translate.claude_api_key_placeholder')"
-                                            :disabled="!form.translateEnabled">
+                                            :disabled="!aiConnEnabled('claude')">
                                         <button class="btn btn-sm btn-outline" type="button" id="testClaudeBtn"
                                             @click="fetchClaudeModels()"
-                                            :disabled="!form.translateEnabled || fetchingClaudeModels">
+                                            :disabled="!aiConnEnabled('claude') || fetchingClaudeModels">
                                             <span x-show="fetchingClaudeModels" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!fetchingClaudeModels">
                                                 <i class="bi bi-plug"></i>
@@ -1738,17 +1860,17 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="openai_official" x-show="form.translateProvider === 'openai_official'">
+                        <div data-ai-conn="openai_official" x-show="aiConnShown('openai_official')">
                             <div class="settings-form-row">
                                 <label class="row-label">OpenAI API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
                                         <input type="password" class="input input-bordered input-sm flex-1" id="openaiOfficialApiKey"
                                             x-model="form.openaiOfficialApiKey"
-                                            placeholder="sk-..." :disabled="!form.translateEnabled">
+                                            placeholder="sk-..." :disabled="!aiConnEnabled('openai_official')">
                                         <button class="btn btn-sm btn-outline" type="button" id="testOpenaiOfficialBtn"
                                             @click="fetchOpenAIOfficialModels()"
-                                            :disabled="!form.translateEnabled || fetchingOpenaiOfficialModels">
+                                            :disabled="!aiConnEnabled('openai_official') || fetchingOpenaiOfficialModels">
                                             <span x-show="fetchingOpenaiOfficialModels" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!fetchingOpenaiOfficialModels">
                                                 <i class="bi bi-plug"></i>
@@ -1771,7 +1893,7 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="openai" x-show="form.translateProvider === 'openai'" x-cloak>
+                        <div data-ai-conn="openai" x-show="aiConnShown('openai')" x-cloak>
                             <div class="settings-form-row">
                                 <label class="row-label" x-text="'Base URL'"></label>
                                 <div class="flex-1 flex flex-col gap-1">
@@ -1779,10 +1901,10 @@
                                         <input type="text" class="input input-bordered input-sm flex-1"
                                             x-model="form.openaiBaseUrl"
                                             placeholder="https://api.openai.com/v1"
-                                            :disabled="!form.translateEnabled">
+                                            :disabled="!aiConnEnabled('openai')">
                                         <button class="btn btn-sm btn-outline" type="button"
                                             @click="fetchOpenAIModels()"
-                                            :disabled="!form.translateEnabled || fetchingOpenaiModels">
+                                            :disabled="!aiConnEnabled('openai') || fetchingOpenaiModels">
                                             <span x-show="fetchingOpenaiModels" class="loading loading-spinner loading-sm"></span>
                                             <template x-if="!fetchingOpenaiModels">
                                                 <i class="bi bi-plug"></i>
@@ -1799,7 +1921,7 @@
                                     <input type="password" class="input input-bordered input-sm"
                                         x-model="form.openaiApiKey"
                                         :placeholder="window.t('settings.translate.openai_api_key_placeholder')"
-                                        :disabled="!form.translateEnabled">
+                                        :disabled="!aiConnEnabled('openai')">
                                     <small class="settings-hint" x-text="window.t('settings.translate.openai_api_key_hint')"></small>
                                 </div>
                             </div>
