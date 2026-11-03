@@ -1814,7 +1814,7 @@ _TOOLS: list[dict] = [
             "nfo_updated": "boolean — NFO 是否同步更新",
             "readonly_no_output": "boolean — 唯讀來源且尚無輸出夾時為 true（標籤已存進 DB，但沒有 NFO 被更新）",
             "nfo_write_blocked": "boolean — NFO 寫入被擋下時為 true",
-            "reason": "string — success=false 時才有：disabled／not_configured／unreachable／model_unsupported／bad_response／not_found／no_cover（有封面路徑但檔案不在時，這部片仍會記為跑過，不再留在設定頁「還有 N 部沒跑」裡）／write_failed",
+            "reason": "string — success=false 時才有：disabled／not_configured／unreachable／model_unsupported／bad_response／not_found／no_cover（有封面路徑、資料夾在但檔案不在時，這部片仍會記為跑過，不再留在設定頁「還有 N 部沒跑」裡；資料夾整個讀不到時不記）／write_failed",
             "detail": "string — success=false 時可能帶的補充說明",
         },
         "confirmation_required": True,  # 188b-T9b: 標一部片會花使用者的錢並寫標籤

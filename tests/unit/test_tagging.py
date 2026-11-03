@@ -456,6 +456,23 @@ def test_missing_cover_file_counts_as_ran(tmp_path, monkeypatch):
     assert repo.get_by_path(file_uri).user_tags == ["★4"]
 
 
+def test_unreachable_cover_folder_not_counted_as_ran(tmp_path, monkeypatch):
+    from core.ai_services.tagging import tag_video
+    repo, file_uri, mp4, nfo, config = _make_tag_env(tmp_path, monkeypatch)
+    missing = tmp_path / "nas-off" / "AI-001-poster.jpg"
+    video = repo.get_by_path(file_uri)
+    video.cover_path = to_file_uri(str(missing))
+    repo.upsert(video)
+    stub, calls = _make_vision_stub(_OK_JSON)
+    with pytest.raises(TaggingFailure) as ei:
+        asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
+    assert ei.value.reason == "no_cover"
+    assert len(calls) == 0
+    assert repo.get_ai_tagged_at(file_uri) is None
+    assert repo.count_ai_tag_progress() == (1, 1)
+    assert repo.get_by_path(file_uri).user_tags == ["★4"]
+
+
 def test_observation_runs_off_loop_and_never_changes_tag_video_result(
     tmp_path, monkeypatch
 ):

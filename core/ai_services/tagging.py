@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -249,13 +250,14 @@ def _prepare(file_path: str, config: dict | None) -> _Prepared:
     mappings = cfg.get("gallery", {}).get("path_mappings", {}) or {}
     poster_uri = None
     if video.cover_path:
+        cover_fs = uri_to_local_fs_path(video.cover_path, mappings)
         poster_uri = poster_to_data_uri(
-            uri_to_local_fs_path(video.cover_path, mappings),
+            cover_fs,
             video.crop_mode,
             video.auto_focal,
         )
     if poster_uri is None:
-        if video.cover_path:
+        if video.cover_path and os.path.isdir(os.path.dirname(cover_fs)):
             _mark_ran_best_effort(repo, file_path)
         raise TaggingFailure("no_cover")
     return _Prepared(
