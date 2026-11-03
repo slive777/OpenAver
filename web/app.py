@@ -342,6 +342,7 @@ from web.routers import insights as insights_router
 from web.routers import source_probe as source_probe_router
 from web.routers import custom_sources as custom_sources_router
 from web.routers import ai_services as ai_services_router
+from web.routers import ai_tags as ai_tags_router
 # Module-level imports for startup_reconnect / _fire_probe so that
 # patch("web.app.startup_reconnect") / patch("web.app._fire_probe") target the
 # correct use-site binding (TASK-63e-1; function-local import would defeat patch).
@@ -383,6 +384,7 @@ app.include_router(insights_router.router)
 app.include_router(source_probe_router.router)
 app.include_router(custom_sources_router.router)
 app.include_router(ai_services_router.router)
+app.include_router(ai_tags_router.router)
 
 
 @app.exception_handler(RequestValidationError)
