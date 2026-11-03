@@ -6,60 +6,43 @@ Module-level: restart clears memory. ``last_success_at`` persistence is throttle
 
 from __future__ import annotations
 
-import threading
 import time
-from contextlib import closing
 from typing import Callable, Optional
 
-from core.database import connection
+from core.ai_services import backfill_state
 from core.logger import get_logger
 
 logger = get_logger(__name__)
 
 NOTIFY_KEY = "notif.ai_faces_unreachable"
 META_LAST_SUCCESS = "ai.faces.last_success_at"
-_PERSIST_INTERVAL_S = 60.0
 
 # monkeypatch seam for observe_success throttle tests (DoD 4)
 _monotonic = time.monotonic
 
-_lock = threading.Lock()
+# 共用欄位（notified／last_success_at／job／鎖／sink／節流）在 ``_STATE``（189a-T8）；
+# ``degraded`` 語意是「任何失敗都設」，與 ``_STATE.unreachable`` 不同，留在模組層。
+_STATE = backfill_state.BackfillState(name="faces_state", task_type="ai_faces")
 
 observed_model: Optional[str] = None
 degraded: bool = False
 last_error_kind: Optional[str] = None
 last_error_check: Optional[str] = None
-notified: bool = False
-last_success_at: Optional[float] = None
-job: dict = {"kind": None, "done": 0, "outcome": None}
-
-_last_persist_mono: Optional[float] = None
-_notification_sink: Optional[Callable[..., None]] = None
 
 
 def set_notification_sink(fn: Callable[..., None]) -> None:
     """core cannot import web: web/app.py registers ``emit_notification`` (BE-LINT-09)."""
-    global _notification_sink
-    _notification_sink = fn
+    _STATE.set_sink(fn)
 
 
 def meta_get(key: str) -> Optional[str]:
     """Read one ``app_meta`` value (None if absent)."""
-    with closing(connection.get_connection()) as conn:
-        row = conn.execute(
-            "SELECT value FROM app_meta WHERE key = ?", (key,)
-        ).fetchone()
-    return row[0] if row else None
+    return backfill_state.meta_get(key)
 
 
 def meta_set(key: str, value: str) -> None:
     """Upsert one ``app_meta`` value."""
-    with closing(connection.get_connection()) as conn:
-        conn.execute(
-            "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)",
-            (key, value),
-        )
-        conn.commit()
+    backfill_state.meta_set(key, value)
 
 
 def observe_success(model: str) -> None:
@@ -67,20 +50,17 @@ def observe_success(model: str) -> None:
 
     Persist ``ai.faces.last_success_at`` at most once per 60s (first call immediate).
     """
-    global observed_model, degraded, last_error_kind, last_error_check, notified
-    global last_success_at, _last_persist_mono
+    global observed_model, degraded, last_error_kind, last_error_check
     now = time.time()
     now_mono = _monotonic()
     persist = False
-    with _lock:
+    with _STATE.lock:
         observed_model = model
         degraded = False
         last_error_kind = last_error_check = None
-        notified = False
-        last_success_at = now
-        if _last_persist_mono is None or (now_mono - _last_persist_mono) >= _PERSIST_INTERVAL_S:
-            _last_persist_mono = now_mono
-            persist = True
+        _STATE.notified = False
+        _STATE.last_success_at = now
+        persist = _STATE.persist_due(now_mono)
     if persist:
         try:
             meta_set(META_LAST_SUCCESS, repr(now))
@@ -91,63 +71,46 @@ def observe_success(model: str) -> None:
 def observe_failure(kind: Optional[str], check: Optional[str]) -> None:
     """Any endpoint failure: mark degraded and record kind/check."""
     global degraded, last_error_kind, last_error_check
-    with _lock:
+    with _STATE.lock:
         degraded = True
         last_error_kind, last_error_check = kind, check
 
 
 def note_failure() -> bool:
     """Return True once per round (first background failure that should notify)."""
-    global notified
-    with _lock:
-        if notified:
-            return False
-        notified = True
-        return True
+    return _STATE.note_failure()
 
 
 def new_round() -> None:
     """Scan-round reset: only clears the notification dedupe flag."""
-    global notified
-    with _lock:
-        notified = False
+    _STATE.reset_notified()
 
 
 def emit_unreachable() -> None:
     """Fire the sidebar notice via the registered sink (no-op if unset)."""
-    sink = _notification_sink
-    if sink is None:
-        return
-    try:
-        sink("warn", NOTIFY_KEY, task_type="ai_faces")
-    except Exception:
-        logger.exception("[faces_state] notification sink failed")
+    _STATE.emit(NOTIFY_KEY)
 
 
 def job_begin(kind: str) -> None:
-    global job
-    with _lock:
-        job = {"kind": kind, "done": 0, "outcome": None}
+    _STATE.job_begin(kind)
 
 
 def job_progress() -> None:
-    with _lock:
-        job["done"] += 1
+    _STATE.job_progress()
 
 
 def job_end(outcome: str) -> None:
-    with _lock:
-        job["outcome"] = outcome
+    _STATE.job_end(outcome)
 
 
 def snapshot() -> dict:
-    with _lock:
+    with _STATE.lock:
         return {
             "observed_model": observed_model,
             "degraded": degraded,
             "kind": last_error_kind,
             "check": last_error_check,
-            "notified": notified,
-            "last_success_at": last_success_at,
-            "job": dict(job),
+            "notified": _STATE.notified,
+            "last_success_at": _STATE.last_success_at,
+            "job": dict(_STATE.job),
         }

@@ -137,10 +137,12 @@ def _reset_state(monkeypatch) -> None:
                       ("_STOP", threading.Event()), ("_rerun", False),
                       ("_notification_sink", None)):
         monkeypatch.setattr(similar_index, name, val)
-    for name, val in (("observed_model", None), ("observed_dim", None), ("unreachable", False),
-                      ("last_error_kind", None), ("last_error_check", None),
-                      ("job", {"kind": None, "done": 0, "outcome": None})):
+    for name, val in (("observed_model", None), ("observed_dim", None),
+                      ("last_error_kind", None), ("last_error_check", None)):
         monkeypatch.setattr(similar_state, name, val)
+    for name, val in (("unreachable", False),
+                      ("job", {"kind": None, "done": 0, "outcome": None})):
+        monkeypatch.setattr(similar_state._STATE, name, val)
 
 
 def _workers() -> list:

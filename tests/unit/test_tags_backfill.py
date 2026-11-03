@@ -88,12 +88,12 @@ def _reset_state(monkeypatch) -> None:
                       ("_STOP", threading.Event()), ("_rerun", False)):
         monkeypatch.setattr(tags_backfill, name, val)
     for name, val in (
-        ("unreachable", False), ("last_success_at", None), ("_last_persist_mono", None),
-        ("notified", False), ("_notification_sink", None),
+        ("unreachable", False), ("last_success_at", None), ("last_persist_mono", None),
+        ("notified", False), ("notification_sink", None),
         ("job", {"kind": None, "done": 0, "skipped": 0, "slow": False, "waiting": False,
                  "stop_reason": None, "outcome": None}),
     ):
-        monkeypatch.setattr(tags_state, name, val)
+        monkeypatch.setattr(tags_state._STATE, name, val)
 
 
 def _workers() -> list:

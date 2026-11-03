@@ -228,10 +228,10 @@ def _isolate_tags_state(monkeypatch):
 
     monkeypatch.setattr(tags_state, "meta_set", lambda key, value: None)
     for name, val in (
-        ("unreachable", False), ("last_success_at", None), ("_last_persist_mono", None),
-        ("notified", False), ("_notification_sink", None),
+        ("unreachable", False), ("last_success_at", None), ("last_persist_mono", None),
+        ("notified", False), ("notification_sink", None),
     ):
-        monkeypatch.setattr(tags_state, name, val)
+        monkeypatch.setattr(tags_state._STATE, name, val)
 
 
 def _make_tag_env(
@@ -499,7 +499,7 @@ def test_observation_runs_off_loop_and_never_changes_tag_video_result(
     # (3) 真 observe_*：旗標轉移（rate_limited 不設旗標；連不上設旗標；成功清旗標）
     monkeypatch.setattr(tags_state, "observe_success", real_success)
     monkeypatch.setattr(tags_state, "observe_failure", real_failure)
-    assert tags_state.unreachable is False
+    assert tags_state._STATE.unreachable is False
 
     def fail_with(kind, status):
         stub, _ = _make_vision_stub(TranslateError(kind, status, "", "x"))
@@ -507,8 +507,8 @@ def test_observation_runs_off_loop_and_never_changes_tag_video_result(
             asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
 
     fail_with("rate_limited", 429)
-    assert tags_state.unreachable is False
+    assert tags_state._STATE.unreachable is False
     fail_with("connection_failed", None)
-    assert tags_state.unreachable is True
+    assert tags_state._STATE.unreachable is True
     asyncio.run(tag_video(file_uri, config=config, vision_fn=ok_stub))
-    assert tags_state.unreachable is False and tags_state.last_success_at is not None
+    assert tags_state._STATE.unreachable is False and tags_state._STATE.last_success_at is not None

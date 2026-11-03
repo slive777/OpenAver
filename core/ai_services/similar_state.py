@@ -7,87 +7,74 @@
 """
 from __future__ import annotations
 
-import threading
 from pathlib import Path
 from typing import Optional
 
+from core.ai_services import backfill_state
 from core.database import EmbeddingRepository
 
-_lock = threading.Lock()
+# 共用欄位（unreachable／job／鎖／入庫後掛勾旗標 hook_notified）在 ``_STATE``（189a-T8）。
+_STATE = backfill_state.BackfillState(name="similar_state")
 
 observed_model: Optional[str] = None
 observed_dim: Optional[int] = None
-unreachable: bool = False
 last_error_kind: Optional[str] = None
 last_error_check: Optional[str] = None
-job: dict = {"kind": None, "done": 0, "outcome": None}
-notified: bool = False
 
 
 def observe_success(model: str, dim: int) -> None:
     """端點回了合法向量：記下模型、解除 unreachable、清錯誤。"""
-    global observed_model, observed_dim, unreachable, last_error_kind, last_error_check
-    with _lock:
+    global observed_model, observed_dim, last_error_kind, last_error_check
+    with _STATE.lock:
         observed_model, observed_dim = model, int(dim)
-        unreachable = False
+        _STATE.unreachable = False
         last_error_kind = last_error_check = None
 
 
 def observe_failure(kind: Optional[str], check: Optional[str]) -> None:
     """端點出錯：``kind == 'unreachable'`` 才算連不上；契約不符只記 check。"""
-    global unreachable, last_error_kind, last_error_check
-    with _lock:
-        unreachable = kind == "unreachable"
+    global last_error_kind, last_error_check
+    with _STATE.lock:
+        _STATE.unreachable = kind == "unreachable"
         last_error_kind, last_error_check = kind, check
 
 
 def note_failure() -> bool:
     """每輪第一次回 True，之後 False（``new_round`` 重置）。"""
-    global notified
-    with _lock:
-        if notified:
-            return False
-        notified = True
-        return True
+    return _STATE.note_hook_failure()
 
 
 def new_round() -> None:
-    global notified
-    with _lock:
-        notified = False
+    _STATE.new_hook_round()
 
 
 def snapshot() -> dict:
-    with _lock:
+    with _STATE.lock:
         return {
             "observed_model": observed_model,
             "observed_dim": observed_dim,
-            "unreachable": unreachable,
+            "unreachable": _STATE.unreachable,
             "kind": last_error_kind,
             "check": last_error_check,
-            "job": dict(job),
+            "job": dict(_STATE.job),
         }
 
 
 def job_begin(kind: str) -> None:
-    global job
-    with _lock:
-        job = {"kind": kind, "done": 0, "outcome": None}
+    _STATE.job_begin(kind)
 
 
 def job_progress() -> None:
-    with _lock:
-        job["done"] += 1
+    _STATE.job_progress()
 
 
 def job_end(outcome: str) -> None:
-    with _lock:
-        job["outcome"] = outcome
+    _STATE.job_end(outcome)
 
 
 def model_changed(index_model: Optional[str], index_dim: Optional[int]) -> bool:
     """觀察到的模型跟索引模型不同（觀察值或索引模型任一為空＝沒資訊，視為沒變）。"""
-    with _lock:
+    with _STATE.lock:
         if observed_model is None or index_model is None:
             return False
         return (observed_model, observed_dim) != (index_model, index_dim)

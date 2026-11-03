@@ -218,13 +218,16 @@ def _reset_state(monkeypatch) -> None:
         ("degraded", False),
         ("last_error_kind", None),
         ("last_error_check", None),
+    ):
+        monkeypatch.setattr(faces_state, name, val)
+    for name, val in (
         ("notified", False),
         ("last_success_at", None),
         ("job", {"kind": None, "done": 0, "outcome": None}),
-        ("_last_persist_mono", None),
-        ("_notification_sink", None),
+        ("last_persist_mono", None),
+        ("notification_sink", None),
     ):
-        monkeypatch.setattr(faces_state, name, val)
+        monkeypatch.setattr(faces_state._STATE, name, val)
 
 
 def _workers() -> list:

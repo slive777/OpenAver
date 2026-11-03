@@ -20,10 +20,11 @@ URI = "file:///videos/FC2-PPV-1234567.mp4"
 def _isolate(monkeypatch):
     monkeypatch.setattr(post_ingest, "_LANES", {})
     for name, val in (("notified", False), ("hook_notified", False), ("unreachable", False),
-                      ("_notification_sink", None)):
-        monkeypatch.setattr(tags_state, name, val)
-    for name, val in (("notified", False), ("unreachable", False),
-                      ("last_error_kind", None), ("last_error_check", None)):
+                      ("notification_sink", None)):
+        monkeypatch.setattr(tags_state._STATE, name, val)
+    for name, val in (("hook_notified", False), ("unreachable", False)):
+        monkeypatch.setattr(similar_state._STATE, name, val)
+    for name, val in (("last_error_kind", None), ("last_error_check", None)):
         monkeypatch.setattr(similar_state, name, val)
     monkeypatch.setattr(similar_index, "_notification_sink", None)
     yield

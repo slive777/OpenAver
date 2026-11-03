@@ -30,9 +30,9 @@ def _reset_state(monkeypatch) -> None:
     for name, val in (
         ("unreachable", False),
         ("last_success_at", None),
-        ("_last_persist_mono", None),
+        ("last_persist_mono", None),
         ("notified", False),
-        ("_notification_sink", None),
+        ("notification_sink", None),
         (
             "job",
             {
@@ -46,7 +46,7 @@ def _reset_state(monkeypatch) -> None:
             },
         ),
     ):
-        monkeypatch.setattr(tags_state, name, val)
+        monkeypatch.setattr(tags_state._STATE, name, val)
 
 
 def _workers() -> list:
