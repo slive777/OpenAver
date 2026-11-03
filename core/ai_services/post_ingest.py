@@ -9,26 +9,39 @@
 不變式（本張）：
 - 入口任何例外都不傳回入庫路（I-HOOK-NEVER-RAISES）。
 - 三開關全關且 ``skip_faces=True`` → 不讀 DB、不 log、不交棒（I-HOOK-OFF）。
-- 本張不啟動背景工作或交棒佇列，不呼叫任何 AI／對焦／翻譯／標籤／相似 job；
-  ``_submit``／``_run_item`` 皆為 no-op，供 T4b 替換本體。
+- 翻譯／相似／標籤各自一條 daemon lane（FIFO、並行度 1、惰性建立），入口只排工作不等結果；
+  一項慢或失敗不拖累其他項（I-HOOK-NONBLOCK／I-ITEMS-INDEPENDENT）。人臉項在呼叫端 thread 同步排給既有 worker。
+- 掛勾內任何時刻最多一個 job 在改某部片的 NFO：翻譯寫回持 ``hold_nfo_write()``
+  （與 ``apply_user_tags`` 同一把鎖，I-NFO-ONE-WRITER）。
+- 連不上 AI 服務的側欄通知每輪每項至多一則（I-NOTIFY-PER-ROUND）；``notify=False`` 的路只寫 log。
 """
 from __future__ import annotations
 
+import asyncio
 import functools
 import os
+import queue
+import threading
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Optional
 
+from core.ai_services import similar_index, similar_state, tags_backfill_policy, tags_state
+from core.ai_services.tagging import TaggingFailure, tag_video_sync
 from core.config import load_config
 from core.database import VideoRepository
 from core.focal import requires_face_detection
+from core.focal_trigger import maybe_submit_video_focal
 from core.logger import get_logger
 from core.path_utils import uri_to_local_fs_path
 from core.scrapers.utils import has_japanese
+from core.title_writeback import apply_title_writeback
+from core.translate_service import create_translate_service
+from core.user_tags_write import hold_nfo_write
 
 logger = get_logger(__name__)
 
 ITEMS = ("translate", "similar", "faces", "tags")
+_TAGS_NOTIFY_KEY = "notif.ai_tags_unreachable"
 
 
 @dataclass(frozen=True)
@@ -158,17 +171,133 @@ def _cover_exists(row, cfg: dict) -> bool:
     )
 
 
+class _Lane:
+    def __init__(self, item: str):
+        self.item = item
+        self.queue = queue.Queue()
+        self.thread = None
+
+
+_LANES: dict[str, _Lane] = {}
+_LANES_LOCK = threading.Lock()
+
+
+def _get_lane(item: str) -> _Lane:
+    with _LANES_LOCK:
+        lane = _LANES.get(item)
+        if lane is None:
+            lane = _LANES[item] = _Lane(item)
+        if lane.thread is None:
+            lane.thread = threading.Thread(
+                target=_lane_main, args=(lane,), name=f"post-ingest-{item}", daemon=True,
+            )
+            lane.thread.start()
+        return lane
+
+
+def _lane_main(lane: _Lane) -> None:
+    while True:
+        job = lane.queue.get()
+        if job is None:
+            return
+        try:
+            job()
+        except Exception:
+            logger.exception("[post_ingest] lane job crashed item=%s", lane.item)
+        finally:
+            lane.queue.task_done()
+
+
 def _submit(item: str, job: Callable[[], None]) -> None:
+    lane = _get_lane(item)
+    lane.queue.put(job)
+
+
+def _path_mappings(ctx: IngestContext) -> dict:
+    return (ctx.cfg.get("gallery") or {}).get("path_mappings") or {}
+
+
+def _job_translate(ctx: IngestContext) -> Optional[str]:
+    locale = (ctx.cfg.get("general") or {}).get("locale") or "zh-TW"
+    service = create_translate_service(ctx.cfg.get("translate") or {}, locale)
+    translated = asyncio.run(service.translate_or_raise(
+        ctx.row.title,
+        {"actors": ctx.row.actresses or [], "number": ctx.row.number or ""},
+    ))
+    mappings = _path_mappings(ctx)
+    with hold_nfo_write():
+        result = apply_title_writeback(
+            VideoRepository(), ctx.row, translated, None, ctx.cfg, mappings,
+        )
+    if not result.get("success"):
+        return result.get("error") or "write_failed"
+    return None
+
+
+def _job_similar(ctx: IngestContext) -> Optional[str]:
+    outcome = similar_index.index_one(ctx.video_uri)
+    if outcome == "indexed":
+        return None
+    if outcome == "unreachable" and ctx.notify:
+        if similar_state.note_failure():
+            similar_index._notify_unreachable()
+    return outcome
+
+
+def _is_unreachable_failure(e: BaseException) -> bool:
+    return tags_backfill_policy.stop_reason(e) not in (None, "disabled")
+
+
+def _job_tags(ctx: IngestContext) -> Optional[str]:
+    try:
+        tag_video_sync(ctx.video_uri, config=ctx.cfg)
+    except TaggingFailure as e:
+        if ctx.notify and _is_unreachable_failure(e):
+            if tags_state.note_hook_failure():
+                tags_state.emit(_TAGS_NOTIFY_KEY)
+        return e.reason
+    return None
+
+
+def _job_faces(ctx: IngestContext) -> Optional[str]:
+    cover_fs = uri_to_local_fs_path(ctx.row.cover_path, _path_mappings(ctx))
+    maybe_submit_video_focal(
+        ctx.row.number, ctx.row.maker, ctx.video_uri, cover_fs,
+        cover_path_uri=ctx.row.cover_path,
+    )
     return None
 
 
 def _run_item(item: str, ctx: IngestContext) -> None:
-    return None
+    try:
+        reason = None
+        try:
+            if item == "translate":
+                reason = _job_translate(ctx)
+            elif item == "similar":
+                reason = _job_similar(ctx)
+            elif item == "tags":
+                reason = _job_tags(ctx)
+            elif item == "faces":
+                reason = _job_faces(ctx)
+        except Exception as e:
+            reason = type(e).__name__
+        if reason is not None:
+            logger.warning(
+                "[post_ingest] %s failed reason=%s video=%s",
+                item, reason, video_label(ctx.row),
+            )
+    except Exception:
+        logger.exception("[post_ingest] run_item failed item=%s", item)
 
 
 def begin_round() -> None:
-    """T4b 會在此重置 round 狀態；本張空殼。"""
-    return None
+    """新一輪（定時整理開跑前呼叫）：重置通知旗標，每項可再發一則。絕不拋。"""
+    try:
+        tags_state.new_round()
+        similar_state.new_round()
+    except Exception:
+        logger.exception("[post_ingest] begin_round failed")
 
 
 def run_after_ingest(

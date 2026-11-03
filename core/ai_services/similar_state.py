@@ -21,6 +21,7 @@ unreachable: bool = False
 last_error_kind: Optional[str] = None
 last_error_check: Optional[str] = None
 job: dict = {"kind": None, "done": 0, "outcome": None}
+notified: bool = False
 
 
 def observe_success(model: str, dim: int) -> None:
@@ -38,6 +39,22 @@ def observe_failure(kind: Optional[str], check: Optional[str]) -> None:
     with _lock:
         unreachable = kind == "unreachable"
         last_error_kind, last_error_check = kind, check
+
+
+def note_failure() -> bool:
+    """每輪第一次回 True，之後 False（``new_round`` 重置）。"""
+    global notified
+    with _lock:
+        if notified:
+            return False
+        notified = True
+        return True
+
+
+def new_round() -> None:
+    global notified
+    with _lock:
+        notified = False
 
 
 def snapshot() -> dict:

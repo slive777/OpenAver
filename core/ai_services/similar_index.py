@@ -181,12 +181,12 @@ def _prepare_build(rebuild: bool = False) -> tuple:
 def index_one(video_uri: str) -> str:
     """入庫後單片入口（189a-T3）：強制重算該片封面向量並覆寫。不取任何鎖、不查 enabled
     （開關由呼叫端負責）、不發通知、不外拋。回 ``"indexed"``／``"unreadable"``／
-    ``"index_not_ready"``／``"model_changed"``／``"error"``。"""
+    ``"index_not_ready"``／``"model_changed"``／``"unreachable"``（端點連不上）／``"error"``。"""
     try:
         return _index_one(video_uri)
     except EndpointError as e:
         similar_state.observe_failure(e.kind, e.check)
-        return "error"
+        return "unreachable" if e.kind == "unreachable" else "error"
     except Exception:
         logger.exception("[similar_index] index_one failed")
         return "error"

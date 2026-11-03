@@ -42,6 +42,7 @@ unreachable: bool = False
 last_success_at: Optional[float] = None
 job: dict = _new_job()
 notified: bool = False
+hook_notified: bool = False  # 入庫後掛勾（189a）專用；與補完全庫的 ``notified`` 互不影響
 
 _last_persist_mono: Optional[float] = None
 _notification_sink: Optional[Callable[..., None]] = None
@@ -121,6 +122,23 @@ def note_failure() -> bool:
             return False
         notified = True
         return True
+
+
+def note_hook_failure() -> bool:
+    """入庫後掛勾每輪第一次回 True（``new_round`` 重置）；不碰補完全庫的 ``notified``。"""
+    global hook_notified
+    with _lock:
+        if hook_notified:
+            return False
+        hook_notified = True
+        return True
+
+
+def new_round() -> None:
+    """新一輪掛勾通知：只清 ``hook_notified``（189a）。"""
+    global hook_notified
+    with _lock:
+        hook_notified = False
 
 
 def emit(key: str) -> None:
