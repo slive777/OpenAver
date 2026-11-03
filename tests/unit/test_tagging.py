@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
+import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from core.ai_services.tagging import (
@@ -14,8 +20,12 @@ from core.ai_services.tagging import (
 )
 from core.ai_services.tagging_vocab import VocabItem
 from core.ai_services.vision_chat import VisionConn
+from core.ai_services.tagging_vocab import load_builtin
 from core.cloud_translate import TranslateError
+from core.database import Video, VideoRepository, init_db
 from core.openai_client import OPENAI_OFFICIAL_BASE_URL
+from core.path_utils import to_file_uri
+from core.user_tags_write import apply_user_tags
 
 
 def test_parse_tags_three_way_boundary():
@@ -183,3 +193,228 @@ def test_classify_failure_table():
             assert isinstance(got, TaggingFailure)
             assert got.reason == expect
             assert got.detail == kind
+
+
+# ---------------------------------------------------------------------------
+# T7b: tag_video orchestration (real tmp DB + real NFO + real JPEG cover)
+# 時序／真寫入類測試需 tmp DB＋NFO＋封面＋thread，測試行數超過產品碼屬預期。
+# ---------------------------------------------------------------------------
+
+_MINIMAL_NFO = """<?xml version='1.0' encoding='utf-8'?>
+<movie><title>t</title></movie>
+"""
+
+
+@pytest.fixture(autouse=True)
+def _isolate_canonicalize_cache():
+    """canonicalize 的模組級 alias map 冷時會連真 DB → 每支測試前後隔離。"""
+    from core.similar import canonicalize
+
+    mock_repo = MagicMock()
+    mock_repo.get_all.return_value = []
+    canonicalize._invalidate_cache()
+    with patch("core.database.TagAliasRepository", return_value=mock_repo):
+        yield
+    canonicalize._invalidate_cache()
+
+
+def _make_tag_env(
+    tmp_path, monkeypatch, *, scraped_tags=(), cover=True, enabled=True, vocab=None
+):
+    """回 (repo, file_uri, mp4, nfo, config)；DB 一列 user_tags=["★4"]。"""
+    from PIL import Image
+
+    db_path = tmp_path / "test_tagging.db"
+    init_db(db_path)
+
+    mp4 = tmp_path / "AI-001.mp4"
+    mp4.write_bytes(b"fake-video")
+    nfo = mp4.with_suffix(".nfo")
+    nfo.write_text(_MINIMAL_NFO, encoding="utf-8")
+
+    cover_path = ""
+    if cover:
+        jpg = tmp_path / "AI-001-poster.jpg"
+        Image.new("RGB", (300, 400), (120, 80, 200)).save(jpg, format="JPEG")
+        cover_path = to_file_uri(str(jpg))
+
+    file_uri = to_file_uri(str(mp4))
+    repo = VideoRepository(db_path)
+    repo.upsert(
+        Video(
+            path=file_uri,
+            number="AI-001",
+            title="AI-001",
+            cover_path=cover_path,
+            tags=list(scraped_tags),
+            user_tags=["★4"],
+        )
+    )
+    monkeypatch.setattr("core.ai_services.tagging.VideoRepository", lambda *a, **k: repo)
+    monkeypatch.setattr(
+        "core.ai_services.tagging.merged", lambda: vocab or load_builtin()
+    )
+    config = {
+        "gallery": {"path_mappings": {}},
+        "ai_services": {"tags": {"enabled": enabled, "provider": "ollama", "model": "m"}},
+        "translate": {"ollama": {"url": ""}},
+    }
+    return repo, file_uri, mp4, nfo, config
+
+
+def _make_vision_stub(reply):
+    """回 (stub, calls)；reply 是 Exception 實例就 raise，否則 return 該字串。"""
+    calls: list = []
+
+    async def stub(conn, system, user_text, image_uri):
+        calls.append((conn, system, user_text, image_uri))
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    return stub, calls
+
+
+def _reply_for(item) -> str:
+    return '{"tags":[{"tag":"%s","confidence":"high"}]}' % item.model_name
+
+
+def _nfo_user_tags(nfo) -> set:
+    return {e.text for e in ET.parse(str(nfo)).getroot().findall("user_tag")}
+
+
+def test_user_tag_added_while_model_runs_survives_in_db_and_nfo(tmp_path, monkeypatch):
+    """使用者等 AI 回應時在燈箱加「待看」→ 回來後三者都在，DB 與 NFO 一致。"""
+    from core.ai_services.tagging import tag_video_sync
+
+    repo, file_uri, mp4, nfo, config = _make_tag_env(tmp_path, monkeypatch)
+    item = load_builtin()[0]
+
+    async def stub(conn, system, user_text, image_uri):
+        res = apply_user_tags(
+            repo, file_uri, str(mp4), config, add=["待看"], remove=[]
+        )
+        assert res.ok
+        return _reply_for(item)
+
+    with ThreadPoolExecutor(max_workers=1) as ex:
+        outcome = ex.submit(
+            tag_video_sync, file_uri, config=config, vision_fn=stub
+        ).result(timeout=30)
+
+    assert outcome.added == [item.name]
+    db_tags = repo.get_by_path(file_uri).user_tags
+    assert {"★4", "待看", item.name} <= set(db_tags)
+    assert _nfo_user_tags(nfo) == set(db_tags)
+    assert repo.get_ai_tagged_at(file_uri) is not None
+
+
+_ALIAS_VOCAB = [
+    VocabItem(
+        name="看護婦・ナース",
+        source="builtin",
+        group="服裝",
+        definition="d",
+        model_name="看護婦・ナース",
+    )
+]
+_STOPWORD_VOCAB = [
+    VocabItem(name="4K", source="custom", group="自訂", definition="", model_name="4K")
+]
+
+
+@pytest.mark.parametrize(
+    "scraped, vocab, aliases, expect_added, expect_user_tags",
+    [
+        pytest.param(
+            ["护士"],
+            _ALIAS_VOCAB,
+            [SimpleNamespace(primary_name="看護婦・ナース", aliases=["护士"])],
+            [],
+            ["★4"],
+            id="alias_group_already_scraped",
+        ),
+        pytest.param(
+            [],
+            _STOPWORD_VOCAB,
+            [],
+            ["4K"],
+            ["★4", "4K"],
+            id="stopword_custom_tag",
+        ),
+    ],
+)
+def test_scraped_alias_group_not_rewritten_and_stopword_custom_tag_still_written(
+    tmp_path, monkeypatch, scraped, vocab, aliases, expect_added, expect_user_tags
+):
+    """刮削已有「护士」不再寫「看護婦・ナース」；自訂字「4K」照常寫入、不拋。"""
+    from core.ai_services.tagging import tag_video
+    from core.similar import canonicalize
+
+    repo, file_uri, mp4, nfo, config = _make_tag_env(
+        tmp_path, monkeypatch, scraped_tags=scraped, vocab=vocab
+    )
+    stub, calls = _make_vision_stub(_reply_for(vocab[0]))
+
+    alias_repo = MagicMock()
+    alias_repo.get_all.return_value = aliases
+    canonicalize._invalidate_cache()
+    with patch("core.database.TagAliasRepository", return_value=alias_repo):
+        outcome = asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
+    canonicalize._invalidate_cache()
+
+    assert len(calls) == 1
+    assert outcome.added == expect_added
+    assert repo.get_by_path(file_uri).user_tags == expect_user_tags
+
+
+_OK_JSON = '{"tags":[{"tag":"%s","confidence":"high"}]}' % load_builtin()[0].model_name
+
+
+@pytest.mark.parametrize(
+    "reply, cover, enabled, failure_reason, refused, ran, expected_calls",
+    [
+        pytest.param(_OK_JSON, True, True, None, False, True, 1, id="success"),
+        pytest.param(
+            TranslateError("blocked", None, "", "m"),
+            True, True, None, True, True, 1, id="api_refusal",
+        ),
+        pytest.param(
+            "この画像では適切なタグが見つかりません。",
+            True, True, None, True, True, 1, id="prose_refusal",
+        ),
+        pytest.param(
+            TranslateError("connection_failed", None, "", "m"),
+            True, True, "unreachable", False, False, 1, id="unreachable",
+        ),
+        pytest.param(
+            "{not json", True, True, "bad_response", False, False, 1, id="bad_json"
+        ),
+        pytest.param(_OK_JSON, False, True, "no_cover", False, False, 0, id="no_cover"),
+        pytest.param(_OK_JSON, True, False, "disabled", False, False, 0, id="disabled"),
+    ],
+)
+def test_ran_or_not_decision_table(
+    tmp_path, monkeypatch, reply, cover, enabled, failure_reason, refused, ran,
+    expected_calls,
+):
+    """斷網／壞 JSON／沒封面／沒開啟的片不記跑過也不亂花錢；拒答的片記跑過、0 字。"""
+    from core.ai_services.tagging import tag_video
+
+    repo, file_uri, mp4, nfo, config = _make_tag_env(
+        tmp_path, monkeypatch, cover=cover, enabled=enabled
+    )
+    stub, calls = _make_vision_stub(reply)
+
+    if failure_reason is not None:
+        with pytest.raises(TaggingFailure) as ei:
+            asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
+        assert ei.value.reason == failure_reason
+    else:
+        outcome = asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
+        assert outcome.refused is refused
+        if refused:
+            assert outcome.added == []
+
+    assert len(calls) == expected_calls
+    assert (repo.get_ai_tagged_at(file_uri) is not None) is ran

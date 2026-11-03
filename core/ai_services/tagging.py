@@ -5,15 +5,24 @@ I/O orchestration (`tag_video`) lives in T7b.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from core.ai_services.image_prep import poster_to_data_uri
 from core.ai_services.tagging_vocab import VocabItem
+from core.ai_services.tagging_vocab import merged
 from core.ai_services.vision_chat import VisionConn
+from core.ai_services.vision_chat import vision_chat
 from core.cloud_translate import TranslateError
+from core.config import load_config
+from core.database import VideoRepository
 from core.openai_client import OPENAI_OFFICIAL_BASE_URL
+from core.path_utils import uri_to_local_fs_path
 from core.secret_fields import read_secret
+from core.similar.canonicalize import alias_key
+from core.user_tags_write import apply_user_tags
 
 USER_TEXT = "請標這張海報。"
 
@@ -204,3 +213,114 @@ def resolve_vision_conn(config: dict) -> VisionConn:
         base_url=OPENAI_OFFICIAL_BASE_URL,
         api_key=key,
     )
+
+
+@dataclass(frozen=True)
+class _Prepared:
+    cfg: dict
+    repo: object
+    conn: VisionConn
+    poster_uri: str
+    vocab: list[VocabItem]
+    local_fs_path: str
+
+
+def _prepare(file_path: str, config: dict | None) -> _Prepared:
+    """All synchronous I/O before the model call (CD-188b-12)."""
+    cfg = config if config is not None else load_config()
+    if not _tags_section(cfg).get("enabled"):
+        raise TaggingFailure("disabled")
+    conn = resolve_vision_conn(cfg)
+    repo = VideoRepository()
+    video = repo.get_by_path(file_path)
+    if video is None:
+        raise TaggingFailure("not_found")
+    mappings = cfg.get("gallery", {}).get("path_mappings", {}) or {}
+    poster_uri = None
+    if video.cover_path:
+        poster_uri = poster_to_data_uri(
+            uri_to_local_fs_path(video.cover_path, mappings),
+            video.crop_mode,
+            video.auto_focal,
+        )
+    if poster_uri is None:
+        raise TaggingFailure("no_cover")
+    return _Prepared(
+        cfg=cfg,
+        repo=repo,
+        conn=conn,
+        poster_uri=poster_uri,
+        vocab=list(merged()),
+        local_fs_path=uri_to_local_fs_path(file_path, mappings),
+    )
+
+
+async def _ask_model(prep: _Prepared, vision_fn) -> tuple[list[str], bool]:
+    """Ask the model (no lock held). Returns (display names, refused)."""
+    system = build_system_prompt(prep.vocab)
+    try:
+        text = await vision_fn(prep.conn, system, USER_TEXT, prep.poster_uri)
+    except TranslateError as exc:
+        failure = classify_failure(exc)
+        if failure is None:
+            return [], True
+        raise failure from None
+    parsed = parse_tags(text)
+    if parsed.status == "refused":
+        return [], True
+    if parsed.status == "bad":
+        raise TaggingFailure("bad_response", detail="bad_json")
+    return to_display_names(parsed.tags, prep.vocab), False
+
+
+def _make_add_filter(names: list[str]):
+    """In-lock filter: drop names whose alias group is already in scraped tags."""
+
+    def _filter(video) -> list[str]:
+        have = {alias_key(t) for t in video.tags if isinstance(t, str)}
+        return [n for n in names if alias_key(n) not in have]
+
+    return _filter
+
+
+def _write(
+    prep: _Prepared, file_path: str, names: list[str], refused: bool
+) -> TagOutcome:
+    """Write user tags + ai_tagged_at under the shared lock (CD-188b-13)."""
+    result = apply_user_tags(
+        prep.repo,
+        file_path,
+        prep.local_fs_path,
+        prep.cfg,
+        add=[],
+        remove=[],
+        ai_tagged=True,
+        add_filter=_make_add_filter(names),
+    )
+    if not result.ok:
+        raise TaggingFailure("write_failed", detail=result.error)
+    return TagOutcome(
+        added=result.added,
+        refused=refused,
+        user_tags=result.user_tags,
+        nfo_updated=result.nfo_updated,
+        readonly_no_output=result.readonly_no_output,
+        nfo_write_blocked=result.nfo_write_blocked,
+    )
+
+
+async def tag_video(
+    file_path: str, *, config: dict | None = None, vision_fn=None
+) -> TagOutcome:
+    """Tag one video from its poster (CD-188b-12). `file_path` = videos.path URI."""
+    ask = vision_fn or vision_chat
+    prep = await asyncio.to_thread(_prepare, file_path, config)
+    names, refused = await _ask_model(prep, ask)
+    return await asyncio.to_thread(_write, prep, file_path, names, refused)
+
+
+def tag_video_sync(
+    file_path: str, *, config: dict | None = None, vision_fn=None
+) -> TagOutcome:
+    """Sync wrapper; only call from a worker thread with no running event loop."""
+    return asyncio.run(tag_video(file_path, config=config, vision_fn=vision_fn))
