@@ -1486,41 +1486,39 @@
 
                             <p class="settings-hint ai-similar-status"
                                id="aiSimilarStatusLine"
-                               x-show="aiSimStatus !== null"
+                               x-show="bfStatus !== null"
                                x-text="statusLineText()"></p>
 
                             <div class="ai-similar-index-row">
                                 <button type="button" class="btn btn-sm btn-outline"
                                         id="aiSimilarStopBtn"
-                                        x-show="indexAction() === 'stop'"
-                                        @click="stopIndex()">
+                                        x-show="bfAction().action === 'stop'"
+                                        @click="bfStop()">
                                     <span x-text="window.t('settings.ai.similar.btn_stop')"></span>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-primary"
                                         id="aiSimilarIndexBtn"
-                                        x-show="indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue' || indexAction() === 'retry'"
-                                        :data-action="indexAction()"
-                                        @click="startIndex()"
-                                        :disabled="indexDisabled()">
-                                    <span x-show="aiSimIndexBusy" class="loading loading-spinner loading-sm"></span>
-                                    <span x-show="!aiSimIndexBusy && indexAction() === 'build'"
+                                        x-show="bfAction().action === 'start' || bfAction().action === 'continue' || bfExtraAction().action === 'retry'"
+                                        :data-action="bfExtraAction().action === 'retry' ? 'retry' : bfAction().action"
+                                        @click="bfExtraAction().action === 'retry' ? bfRetry() : bfStart()"
+                                        :disabled="bfExtraAction().action === 'retry' ? bfExtraAction().disabled : bfAction().disabled">
+                                    <span x-show="bfBusy" class="loading loading-spinner loading-sm"></span>
+                                    <span x-show="!bfBusy && bfAction().action === 'start'"
                                           x-text="window.t('settings.ai.similar.btn_build')"></span>
-                                    <span x-show="!aiSimIndexBusy && indexAction() === 'rebuild'"
-                                          x-text="window.t('settings.ai.similar.btn_rebuild')"></span>
-                                    <span x-show="!aiSimIndexBusy && indexAction() === 'continue'"
+                                    <span x-show="!bfBusy && bfAction().action === 'continue'"
                                           x-text="window.t('settings.ai.similar.btn_continue')"></span>
-                                    <span x-show="!aiSimIndexBusy && indexAction() === 'retry'"
-                                          x-text="window.t('settings.ai.similar.btn_retry_unreadable', { n: aiSimStatus?.unreadable || 0 })"></span>
+                                    <span x-show="!bfBusy && bfExtraAction().action === 'retry'"
+                                          x-text="window.t('settings.ai.similar.btn_retry_unreadable', { n: bfStatus?.unreadable || 0 })"></span>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-ghost"
                                         id="aiSimilarRebuildBtn"
-                                        x-show="rebuildVisible()"
-                                        @click="rebuildIndex()"
-                                        :disabled="indexDisabled()">
+                                        x-show="bfRebuildVisible()"
+                                        @click="bfRebuild()"
+                                        :disabled="bfRebuildDisabled()">
                                     <span x-text="window.t('settings.ai.similar.btn_delete_rebuild')"></span>
                                 </button>
                                 <span class="settings-hint ai-similar-save-first"
-                                      x-show="isDirty && (indexAction() === 'build' || indexAction() === 'rebuild' || indexAction() === 'continue' || indexAction() === 'retry' || rebuildVisible())"
+                                      x-show="isDirty && (bfAction().action === 'start' || bfAction().action === 'continue' || bfExtraAction().action === 'retry' || bfRebuildVisible())"
                                       x-text="window.t('settings.ai.similar.save_first')"></span>
                             </div>
 
@@ -1593,7 +1591,7 @@
 
                             <p class="settings-hint ai-similar-status"
                                id="aiFacesStatusLine"
-                               x-show="aiFacesStatus !== null"
+                               x-show="bfStatus !== null"
                                x-text="statusLineText()"></p>
                             <p class="settings-hint ai-similar-status"
                                id="aiFacesRecomputeLine"
@@ -1603,28 +1601,28 @@
                             <div class="ai-similar-index-row">
                                 <button type="button" class="btn btn-sm btn-outline"
                                         id="aiFacesStopBtn"
-                                        x-show="recomputeAction() === 'stop'"
-                                        @click="stopRecompute()">
+                                        x-show="bfAction().action === 'stop'"
+                                        @click="bfStop()">
                                     <span x-text="window.t('settings.ai.faces.btn_stop')"></span>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-primary"
                                         id="aiFacesResumeBtn"
-                                        x-show="recomputeAction() === 'resume'"
-                                        @click="resumeRecompute()"
-                                        :disabled="actionDisabled()">
-                                    <span x-show="aiFacesBusy" class="loading loading-spinner loading-sm"></span>
-                                    <span x-show="!aiFacesBusy"
+                                        x-show="bfAction().action === 'continue'"
+                                        @click="bfStart()"
+                                        :disabled="bfAction().disabled">
+                                    <span x-show="bfBusy" class="loading loading-spinner loading-sm"></span>
+                                    <span x-show="!bfBusy"
                                           x-text="window.t('settings.ai.faces.btn_continue')"></span>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-ghost"
                                         id="aiFacesRebuildBtn"
-                                        x-show="deleteRebuildVisible()"
-                                        @click="rebuildFaces()"
-                                        :disabled="actionDisabled()">
+                                        x-show="bfRebuildVisible()"
+                                        @click="bfRebuild()"
+                                        :disabled="bfRebuildDisabled()">
                                     <span x-text="window.t('settings.ai.faces.btn_delete_rebuild')"></span>
                                 </button>
                                 <span class="settings-hint ai-similar-save-first"
-                                      x-show="isDirty && (recomputeAction() === 'resume' || deleteRebuildVisible())"
+                                      x-show="isDirty && (bfAction().action === 'continue' || bfRebuildVisible())"
                                       x-text="window.t('settings.ai.faces.save_first')"></span>
                             </div>
 
