@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'partials/ai_backfill_controls.html' import ai_backfill_controls %}
 
 {% block title %}{{ t('settings.page_title') }} - OpenAver{% endblock %}
 
@@ -1489,38 +1490,7 @@
                                x-show="bfStatus !== null"
                                x-text="statusLineText()"></p>
 
-                            <div class="ai-similar-index-row">
-                                <button type="button" class="btn btn-sm btn-outline"
-                                        id="aiSimilarStopBtn"
-                                        x-show="bfAction().action === 'stop'"
-                                        @click="bfStop()">
-                                    <span x-text="window.t('settings.ai.similar.btn_stop')"></span>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-primary"
-                                        id="aiSimilarIndexBtn"
-                                        x-show="bfAction().action === 'start' || bfAction().action === 'continue' || bfExtraAction().action === 'retry'"
-                                        :data-action="bfExtraAction().action === 'retry' ? 'retry' : bfAction().action"
-                                        @click="bfExtraAction().action === 'retry' ? bfRetry() : bfStart()"
-                                        :disabled="bfExtraAction().action === 'retry' ? bfExtraAction().disabled : bfAction().disabled">
-                                    <span x-show="bfBusy" class="loading loading-spinner loading-sm"></span>
-                                    <span x-show="!bfBusy && bfAction().action === 'start'"
-                                          x-text="window.t('settings.ai.similar.btn_build')"></span>
-                                    <span x-show="!bfBusy && bfAction().action === 'continue'"
-                                          x-text="window.t('settings.ai.similar.btn_continue')"></span>
-                                    <span x-show="!bfBusy && bfExtraAction().action === 'retry'"
-                                          x-text="window.t('settings.ai.similar.btn_retry_unreadable', { n: bfStatus?.unreadable || 0 })"></span>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-ghost"
-                                        id="aiSimilarRebuildBtn"
-                                        x-show="bfRebuildVisible()"
-                                        @click="bfRebuild()"
-                                        :disabled="bfRebuildDisabled()">
-                                    <span x-text="window.t('settings.ai.similar.btn_delete_rebuild')"></span>
-                                </button>
-                                <span class="settings-hint ai-similar-save-first"
-                                      x-show="isDirty && (bfAction().action === 'start' || bfAction().action === 'continue' || bfExtraAction().action === 'retry' || bfRebuildVisible())"
-                                      x-text="window.t('settings.ai.similar.save_first')"></span>
-                            </div>
+                            {{ ai_backfill_controls('aiSimilar', 'ai-similar', retry=true) }}
 
                             <pre class="ai-similar-test-result"
                                  id="aiSimilarTestResult"
@@ -1598,33 +1568,7 @@
                                x-show="recomputeLineText()"
                                x-text="recomputeLineText()"></p>
 
-                            <div class="ai-similar-index-row">
-                                <button type="button" class="btn btn-sm btn-outline"
-                                        id="aiFacesStopBtn"
-                                        x-show="bfAction().action === 'stop'"
-                                        @click="bfStop()">
-                                    <span x-text="window.t('settings.ai.faces.btn_stop')"></span>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-primary"
-                                        id="aiFacesResumeBtn"
-                                        x-show="bfAction().action === 'continue'"
-                                        @click="bfStart()"
-                                        :disabled="bfAction().disabled">
-                                    <span x-show="bfBusy" class="loading loading-spinner loading-sm"></span>
-                                    <span x-show="!bfBusy"
-                                          x-text="window.t('settings.ai.faces.btn_continue')"></span>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-ghost"
-                                        id="aiFacesRebuildBtn"
-                                        x-show="bfRebuildVisible()"
-                                        @click="bfRebuild()"
-                                        :disabled="bfRebuildDisabled()">
-                                    <span x-text="window.t('settings.ai.faces.btn_delete_rebuild')"></span>
-                                </button>
-                                <span class="settings-hint ai-similar-save-first"
-                                      x-show="isDirty && (bfAction().action === 'continue' || bfRebuildVisible())"
-                                      x-text="window.t('settings.ai.faces.save_first')"></span>
-                            </div>
+                            {{ ai_backfill_controls('aiFaces', 'ai-similar') }}
 
                             <pre class="ai-similar-test-result"
                                  id="aiFacesTestResult"
@@ -1703,45 +1647,7 @@
                                x-show="bfStatus !== null"
                                x-text="statusLineText()"></p>
 
-                            <div class="ai-tags-index-row">
-                                <button type="button" class="btn btn-sm btn-outline"
-                                        id="aiTagsStopBtn"
-                                        x-show="bfAction().action === 'stop'"
-                                        @click="bfStop()">
-                                    <span x-text="window.t('settings.ai.tags.btn_stop')"></span>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-primary"
-                                        id="aiTagsBackfillBtn"
-                                        x-show="bfAction().action === 'start'"
-                                        @click="bfStart()"
-                                        :disabled="bfAction().disabled">
-                                    <span x-show="bfBusy" class="loading loading-spinner loading-sm"></span>
-                                    <span x-show="!bfBusy"
-                                          x-text="window.t('settings.ai.tags.btn_backfill')"></span>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-primary"
-                                        id="aiTagsContinueBtn"
-                                        x-show="bfAction().action === 'continue'"
-                                        @click="bfStart()"
-                                        :disabled="bfAction().disabled">
-                                    <span x-show="bfBusy" class="loading loading-spinner loading-sm"></span>
-                                    <span x-show="!bfBusy"
-                                          x-text="window.t('settings.ai.tags.btn_continue')"></span>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-ghost"
-                                        id="aiTagsRebuildBtn"
-                                        x-show="bfRebuildVisible()"
-                                        @click="bfRebuild()"
-                                        :disabled="bfRebuildDisabled()">
-                                    <span x-text="window.t('settings.ai.tags.btn_rebuild')"></span>
-                                </button>
-                                <span class="settings-hint" id="aiTagsPendingLine"
-                                      x-show="bfAction().action === 'start' || bfAction().action === 'continue'"
-                                      x-text="window.t('settings.ai.tags.pending_line', { n: bfStatus?.pending || 0 })"></span>
-                                <span class="settings-hint ai-tags-save-first"
-                                      x-show="isDirty && (bfAction().action === 'start' || bfAction().action === 'continue' || bfRebuildVisible())"
-                                      x-text="window.t('settings.ai.tags.save_first')"></span>
-                            </div>
+                            {{ ai_backfill_controls('aiTags', 'ai-tags') }}
 
                             <p class="settings-hint ai-tags-cost"
                                id="aiTagsCostLine"
