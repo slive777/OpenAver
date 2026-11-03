@@ -1220,7 +1220,7 @@ class VideoRepository:
         finally:
             conn.close()
 
-    def update_user_tags(self, path: str, user_tags: List[str]) -> bool:
+    def update_user_tags(self, path: str, user_tags: List[str], *, ai_tagged: bool = False) -> bool:
         """安全更新 user_tags 欄位（不碰其他欄位）
 
         user_tags 是相似排序語料欄位（188a）
@@ -1228,15 +1228,20 @@ class VideoRepository:
         Args:
             path: 影片路徑（DB key，file:/// URI 格式）
             user_tags: 新的 user_tags 列表
+            ai_tagged: True 時同一條 UPDATE 記「AI 跑過」（ai_tagged_at = CURRENT_TIMESTAMP）
 
         Returns:
             bool: 是否成功更新
         """
+        if ai_tagged:
+            sql = "UPDATE videos SET user_tags = ?, ai_tagged_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE path = ?"
+        else:
+            sql = "UPDATE videos SET user_tags = ?, updated_at = CURRENT_TIMESTAMP WHERE path = ?"
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "UPDATE videos SET user_tags = ?, updated_at = CURRENT_TIMESTAMP WHERE path = ?",
+                sql,
                 (json.dumps(user_tags, ensure_ascii=False), path)
             )
             conn.commit()
@@ -1248,6 +1253,19 @@ class VideoRepository:
                 except Exception:
                     logger.exception("SimilarRankerCache invalidate failed (non-fatal)")
             return updated
+        finally:
+            conn.close()
+
+    def get_ai_tagged_at(self, path: str) -> Optional[str]:
+        """讀取 ai_tagged_at（188b-T1；NULL＝從未 AI 標過，非 NULL＝跑過）"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT ai_tagged_at FROM videos WHERE path = ?", (path,))
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            return row[0]
         finally:
             conn.close()
 

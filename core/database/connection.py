@@ -168,6 +168,7 @@ def init_db(db_path: Path = None) -> None:
             crop_mode TEXT NOT NULL DEFAULT 'auto',
             focal_attempted_at TIMESTAMP DEFAULT NULL,
             focal_model TEXT NOT NULL DEFAULT 'local-pigo',
+            ai_tagged_at TIMESTAMP DEFAULT NULL,
             has_plot INTEGER DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -373,6 +374,10 @@ def init_db(db_path: Path = None) -> None:
     # Migration: focal_model（187a-T2；舊列 DEFAULT local-pigo；唯一寫入者 update_auto_focal）
     if 'focal_model' not in existing_cols:
         cursor.execute("ALTER TABLE videos ADD COLUMN focal_model TEXT NOT NULL DEFAULT 'local-pigo'")
+
+    # Migration: ai_tagged_at（188b-T1；DB-only，不進 Video dataclass；有值＝AI 標過）
+    if 'ai_tagged_at' not in existing_cols:
+        cursor.execute("ALTER TABLE videos ADD COLUMN ai_tagged_at TIMESTAMP DEFAULT NULL")
 
     # Migration: has_plot（187b-T2a；三態 NULL/0/1；掃描寫 True/False，舊列留 NULL 由回填 pass 補）
     if 'has_plot' not in existing_cols:
