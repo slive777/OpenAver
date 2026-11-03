@@ -5,17 +5,16 @@
 
 併發模型（不變式 I1／I5／I13 的承載）：
 
-- ``_JOB_LOCK`` 以 ``acquire(blocking=False)`` 取得，最多一份工作（建立或增量）。
-- ``_STATE_LOCK`` 是短暫的互斥：「取得／釋放工作鎖」與「承接旗標 ``_rerun``」只在它裡面
+- ``_SHELL.job_lock`` 以 ``acquire(blocking=False)`` 取得，最多一份工作（建立或增量）。
+- ``_SHELL.state_lock`` 是短暫的互斥：「取得／釋放工作鎖」與「承接旗標 ``_SHELL.rerun``」只在它裡面
   動。工作結束前的最後一次檢查（待處理＝0、沒有被停止、沒有排隊中的承接）與釋放工作鎖
-  在**同一個** ``_STATE_LOCK`` 區段內完成；掃描端的「嘗試取得，失敗就排隊承接」也在同一把
+  在**同一個** ``_SHELL.state_lock`` 區段內完成；掃描端的「嘗試取得，失敗就排隊承接」也在同一把
   鎖內 ⇒ 掃描要嘛看到鎖已釋放（自己開新工作）、要嘛把旗標留給仍在跑的那份工作消化。
 - ``request_stop()`` 在同一把鎖內設停止旗標並清掉排隊中的承接；停止後工作不會自行重開。
 - 不在重啟時啟動任何 thread（I6）：模組載入不做任何事，``status()`` 只讀 DB。
 """
 from __future__ import annotations
 
-import threading
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Callable, Optional
@@ -23,6 +22,7 @@ from typing import Callable, Optional
 from core.ai_services import embeddings, samples, similar_state
 from core.ai_services.embeddings import EndpointError
 from core.ai_services.image_prep import cover_to_data_uri
+from core.ai_services.job_shell import JobShell
 from core.config import load_config
 from core.database import EmbeddingRepository, VideoRepository
 from core.database.embeddings import pack_vector
@@ -34,10 +34,7 @@ logger = get_logger(__name__)
 NOTIFY_KEY = "notif.ai_similar_unreachable"
 THREAD_NAME = "similar-index"
 
-_JOB_LOCK = threading.Lock()
-_STATE_LOCK = threading.Lock()
-_STOP = threading.Event()
-_rerun = False
+_SHELL = JobShell()
 _notification_sink: Optional[Callable[..., None]] = None
 
 
@@ -61,41 +58,24 @@ def set_notification_sink(fn: Callable[..., None]) -> None:
     _notification_sink = fn
 
 
-# ── 鎖與承接旗標（只在 _STATE_LOCK 內動） ──────────────────────────────────────
-
-def _try_acquire_job() -> bool:
-    if not _JOB_LOCK.acquire(blocking=False):
-        return False
-    return True
-
+# ── 鎖與承接旗標（只在 _SHELL.state_lock 內動） ────────────────────────────────
 
 def _begin_job_locked(kind: str) -> None:
-    global _rerun
-    _STOP.clear()
-    _rerun = False
+    _SHELL.begin_locked()
     similar_state.job_begin(kind)
 
 
 def _release_job_locked(ctx: Optional[_Ctx], outcome: str) -> None:
-    global _rerun
-    _rerun = False
-    similar_state.job_end(outcome)
-    if ctx is not None:
-        ctx.released = True
-    _JOB_LOCK.release()
+    def _before_release() -> None:
+        similar_state.job_end(outcome)
+        if ctx is not None:
+            ctx.released = True
+
+    _SHELL.release_locked(before_release=_before_release)
 
 
 def _release_unlaunched(outcome: str) -> None:
-    with _STATE_LOCK:
-        _release_job_locked(None, outcome)
-
-
-def _consume_handoff_locked() -> bool:
-    global _rerun
-    if _rerun:
-        _rerun = False
-        return True
-    return False
+    _SHELL.release_unlaunched(before_release=lambda: similar_state.job_end(outcome))
 
 
 # ── 設定 ──────────────────────────────────────────────────────────────────────
@@ -115,12 +95,9 @@ def _path_mappings(config: dict) -> dict:
 
 
 def _start_thread(ctx: _Ctx) -> None:
-    t = threading.Thread(target=_worker_main, args=(ctx,), name=THREAD_NAME, daemon=True)
-    try:
-        t.start()
-    except BaseException:
-        _release_unlaunched("error")
-        raise
+    _SHELL.start_thread(
+        _worker_main, (ctx,), name=THREAD_NAME,
+        on_failure=lambda: _release_unlaunched("error"))
 
 
 # ── 公開介面 ──────────────────────────────────────────────────────────────────
@@ -141,8 +118,8 @@ def start_rebuild() -> dict:
 
 
 def _start(rebuild: bool) -> dict:
-    with _STATE_LOCK:
-        if not _try_acquire_job():
+    with _SHELL.state_lock:
+        if not _SHELL.try_acquire():
             return {"ok": False, "status": "already_running"}
         _begin_job_locked("build")
     try:
@@ -171,7 +148,7 @@ def _prepare_build(rebuild: bool = False) -> tuple:
     if rebuild:
         repo.reset_index(test.model, test.dim)
         from core.ai_services.embedding_cache import EmbeddingMatrixCache
-        EmbeddingMatrixCache.invalidate()  # 刪除之後不可能再讀到舊矩陣（仍在 _JOB_LOCK 內）
+        EmbeddingMatrixCache.invalidate()  # 刪除之後不可能再讀到舊矩陣（仍在 _SHELL.job_lock 內）
     else:
         repo.begin_index(test.model, test.dim)
     repo.clear_unreadable(test.model)  # 使用者發起的工作：讀不到的片重試一次（增量不做）
@@ -215,11 +192,8 @@ def _index_one(video_uri: str) -> str:
 
 def request_stop() -> dict:
     """停止：最多再完成當下那一張。同時中止排隊中的承接（I13 例外）。"""
-    global _rerun
-    with _STATE_LOCK:
-        _STOP.set()
-        _rerun = False
-    return {"ok": True, "running": _JOB_LOCK.locked()}
+    _SHELL.request_stop()
+    return {"ok": True, "running": _SHELL.is_running()}
 
 
 def schedule_incremental() -> None:
@@ -232,22 +206,20 @@ def schedule_incremental() -> None:
 
 
 def _schedule_incremental() -> None:
-    global _rerun
     config = load_config()
     if not _image_cfg(config).get("enabled"):
         return
     repo = EmbeddingRepository()
-    with _STATE_LOCK:
-        if not _try_acquire_job():
-            _rerun = True  # I13：有工作在跑（含收尾）→ 由它在邊界承接
-            return
+    with _SHELL.state_lock:
+        if not _SHELL.schedule_handoff():
+            return  # I13：有工作在跑（含收尾）→ 由它在邊界承接
         try:
             ctx = _prepare_incremental(repo, config)
         except BaseException:
-            _JOB_LOCK.release()  # 取得鎖之後任何例外都必須放掉，否則卡在「執行中」
+            _SHELL.abort_acquire()  # 取得鎖之後任何例外都必須放掉，否則卡在「執行中」
             raise
         if ctx is None:
-            _JOB_LOCK.release()
+            _SHELL.abort_acquire()
             return
     _start_thread(ctx)
 
@@ -276,7 +248,7 @@ def status() -> dict:
     state = repo.get_index_state()
     counts = repo.counts(state["model"], state["dim"])
     snap = similar_state.snapshot()
-    running = _JOB_LOCK.locked()
+    running = _SHELL.is_running()
     return {
         "running": running,
         "job_kind": snap["job"]["kind"] if running else None,
@@ -307,7 +279,7 @@ def _worker_main(ctx: _Ctx) -> None:
         from core.ai_services.embedding_cache import EmbeddingMatrixCache
         EmbeddingMatrixCache.invalidate()
         if not ctx.released:
-            with _STATE_LOCK:
+            with _SHELL.state_lock:
                 _release_job_locked(ctx, outcome)
 
 
@@ -332,11 +304,11 @@ def _work_loop(ctx: _Ctx) -> str:
 def _finish_if_drained(ctx: _Ctx) -> Optional[str]:
     """待處理＝0 的邊界：被停止 → 結束；有排隊的承接 → 回 None 再跑一輪；
     否則（建立工作）寫 ``index_complete='1'`` 並在同一區段釋放工作鎖。"""
-    with _STATE_LOCK:
-        if _STOP.is_set():
+    with _SHELL.state_lock:
+        if _SHELL.stop.is_set():
             _release_job_locked(ctx, "stopped")
             return "stopped"
-        if _consume_handoff_locked():
+        if _SHELL.consume_handoff_locked():
             return None
         if ctx.kind == "build":
             ctx.repo.mark_complete()
@@ -346,7 +318,7 @@ def _finish_if_drained(ctx: _Ctx) -> Optional[str]:
 
 def _process_batch(ctx: _Ctx, pending: list) -> str:
     for video_id, cover_path in pending:
-        if _STOP.is_set():
+        if _SHELL.stop.is_set():
             return "stopped"
         outcome = _process_one(ctx, video_id, cover_path)
         if outcome != "ok":

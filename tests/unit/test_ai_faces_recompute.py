@@ -204,9 +204,12 @@ def _reset_state(monkeypatch) -> None:
     from core.ai_services import faces_recompute
 
     for name, val in (
-        ("_JOB_LOCK", threading.Lock()),
-        ("_STATE_LOCK", threading.Lock()),
-        ("_STOP", threading.Event()),
+        ("job_lock", threading.Lock()),
+        ("state_lock", threading.Lock()),
+        ("stop", threading.Event()),
+    ):
+        monkeypatch.setattr(faces_recompute._SHELL, name, val)
+    for name, val in (
         ("_unreadable", 0),
         ("_stopped_reason", None),
         ("_stopped_kind", None),
