@@ -1269,6 +1269,45 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def count_ai_tag_progress(self) -> Tuple[int, int]:
+        """(total, pending)：total＝有封面的片數；pending＝其中 ai_tagged_at 為 NULL 的片數（188c-T1）"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT COUNT(*), COALESCE(SUM(ai_tagged_at IS NULL), 0) "
+                "FROM videos WHERE cover_path <> ''"
+            )
+            row = cursor.fetchone()
+            return (int(row[0]), int(row[1]))
+        finally:
+            conn.close()
+
+    def list_ai_pending_paths(self) -> List[str]:
+        """待 AI 標籤的片 path（有封面且從未跑過），依 id 順序；條件與 count_ai_tag_progress 的 pending 同一個"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT path FROM videos "
+                "WHERE cover_path <> '' AND ai_tagged_at IS NULL "
+                "ORDER BY id"
+            )
+            return [r[0] for r in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def reset_all_ai_tagged(self) -> int:
+        """全部重建用：只清「跑過」記號，不動使用者標籤與 updated_at；回被清掉的列數"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("UPDATE videos SET ai_tagged_at = NULL WHERE ai_tagged_at IS NOT NULL")
+            conn.commit()
+            return cursor.rowcount
+        finally:
+            conn.close()
+
     def update_titles(self, path: str, title: str, original_title: str, nfo_mtime: float) -> bool:
         """安全更新 title / original_title / nfo_mtime（不碰其他欄位，鏡射 update_user_tags）。
 

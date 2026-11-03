@@ -57,7 +57,7 @@ from core.platform_info import DSM_PERMISSION_HINT, is_synology
 from core.proxy_policy import proxy_kwargs
 from web.routers.notifications import emit_notification as _emit_notif
 from core.wishlist_reconcile import reconcile_wishlist, format_wishlist_removed_message
-from core.ai_services import faces_state, similar_index
+from core.ai_services import faces_state, similar_index, tags_backfill
 
 logger = get_logger(__name__)
 
@@ -271,6 +271,10 @@ def _schedule_ai_incremental() -> None:
     except Exception:  # 186-T4b: 增量排程失敗不得影響掃描收尾
         logger.exception("圖片相似增量排程失敗（掃描完成收尾）")
     _new_faces_round()  # 187a-T4b：同一個非 abort 收尾點（generate_avlist 已在豁免上限，不再加行）
+    try:
+        tags_backfill.schedule_incremental()
+    except Exception:
+        logger.exception("AI 標籤增量排程失敗（掃描完成收尾）")
 
 
 def _post_scan_cleanup_and_plot_backfill(repo, config, path_mappings, is_aborted):

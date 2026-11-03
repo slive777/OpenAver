@@ -60,8 +60,49 @@ def test_ai_tab_faces_persists_after_reload(page: Page, base_url: str) -> None:
     assert page.locator("#aiPanelFaces").is_visible()
 
 
+def test_ai_tab_tags_persists_after_reload(page: Page, base_url: str) -> None:
+    """第四分頁 settle 後可見＋localStorage 記憶（TASK-188c-T14）。"""
+    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+    page.wait_for_selector("#aiServicesCard")
+
+    page.locator("#aiTabTags").click()
+    page.wait_for_function(
+        "() => document.getElementById('aiPanelTags') "
+        "&& getComputedStyle(document.getElementById('aiPanelTags')).display !== 'none'"
+    )
+
+    assert page.locator("#aiPanelTranslate").is_hidden()
+    assert page.locator("#aiPanelTags").is_visible()
+    assert page.evaluate("() => localStorage.getItem('settings_ai_tab')") == "tags"
+
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_selector("#aiServicesCard")
+    page.wait_for_function(
+        "() => document.getElementById('aiPanelTags') "
+        "&& getComputedStyle(document.getElementById('aiPanelTags')).display !== 'none'"
+    )
+
+    assert page.locator("#aiPanelTranslate").is_hidden()
+    assert page.locator("#aiPanelTags").is_visible()
+
+
+def _force_tags_off(page: Page) -> None:
+    """GET /api/config 時把 ai_services.tags.enabled 設成 False（188c-T14）。"""
+    def handler(route):
+        if route.request.method == "GET":
+            envelope = route.fetch().json()
+            cfg = envelope["data"] if isinstance(envelope, dict) and "data" in envelope else envelope
+            cfg.setdefault("ai_services", {}).setdefault("tags", {})["enabled"] = False
+            route.fulfill(json=envelope)
+        else:
+            route.continue_()
+
+    page.route(re.compile(r"/api/config$"), handler)
+
+
 def test_connection_area_shows_only_selected_provider(page: Page, base_url: str) -> None:
     """連線區只顯示目前翻譯服務那一家（TASK-186-T9）。不儲存。"""
+    _force_tags_off(page)
     with page.expect_response(
         lambda r: r.url.rstrip("/").endswith("/api/config") and r.request.method == "GET"
     ):
@@ -94,6 +135,7 @@ def _open_settings(page: Page, base_url: str) -> None:
 
 def test_connection_inputs_locked_when_translate_off(page: Page, base_url: str) -> None:
     """翻譯關閉時，連線區每家的輸入框與按鈕全部鎖住（TASK-186-T9）。不儲存。"""
+    _force_tags_off(page)
     _open_settings(page, base_url)
     page.locator("#aiTabTranslate").click()
     for provider in ("ollama", "gemini", "claude", "openai_official", "openai"):

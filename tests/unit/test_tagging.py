@@ -218,6 +218,22 @@ def _isolate_canonicalize_cache():
     canonicalize._invalidate_cache()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_tags_state(monkeypatch):
+    """tag_video 會呼叫 tags_state.observe_*（寫 app_meta）→ 不得碰真實預設 DB（G1）。
+
+    meta_set 換成 no-op，並把模組層觀察值歸零（BE-TEST-38）。
+    """
+    from core.ai_services import tags_state
+
+    monkeypatch.setattr(tags_state, "meta_set", lambda key, value: None)
+    for name, val in (
+        ("unreachable", False), ("last_success_at", None), ("_last_persist_mono", None),
+        ("notified", False), ("_notification_sink", None),
+    ):
+        monkeypatch.setattr(tags_state, name, val)
+
+
 def _make_tag_env(
     tmp_path, monkeypatch, *, scraped_tags=(), cover=True, enabled=True, vocab=None
 ):
@@ -418,3 +434,61 @@ def test_ran_or_not_decision_table(
 
     assert len(calls) == expected_calls
     assert (repo.get_ai_tagged_at(file_uri) is not None) is ran
+
+
+def test_observation_runs_off_loop_and_never_changes_tag_video_result(
+    tmp_path, monkeypatch
+):
+    """按燈箱 AI 鈕畫面不卡頓；狀態列的小毛病不會吞掉已成功的標籤；狀態列不說謊。"""
+    from core.ai_services import tags_state
+    from core.ai_services.tagging import tag_video
+
+    real_success, real_failure = tags_state.observe_success, tags_state.observe_failure
+    repo, file_uri, mp4, nfo, config = _make_tag_env(tmp_path, monkeypatch)
+    item = load_builtin()[0]
+    ok_stub, _ = _make_vision_stub(_reply_for(item))
+
+    # (1) observe_success 不得在 event loop thread 上執行（不靠時間窗）
+    on_loop: list[bool] = []
+
+    def spy_success():
+        try:
+            asyncio.get_running_loop()
+            on_loop.append(True)
+        except RuntimeError:
+            on_loop.append(False)
+
+    monkeypatch.setattr(tags_state, "observe_success", spy_success)
+    outcome = asyncio.run(tag_video(file_uri, config=config, vision_fn=ok_stub))
+    assert on_loop == [False]
+    assert outcome.added == [item.name]
+
+    # (2) 觀察函式自己壞掉：回傳／原例外不變
+    def broken(*args, **kwargs):
+        raise RuntimeError("observer down")
+
+    monkeypatch.setattr(tags_state, "observe_success", broken)
+    monkeypatch.setattr(tags_state, "observe_failure", broken)
+    outcome = asyncio.run(tag_video(file_uri, config=config, vision_fn=ok_stub))
+    assert outcome.refused is False  # 沒拋、結果照常回
+    bad_stub, _ = _make_vision_stub("{not json")
+    with pytest.raises(TaggingFailure) as ei:
+        asyncio.run(tag_video(file_uri, config=config, vision_fn=bad_stub))
+    assert ei.value.reason == "bad_response"
+
+    # (3) 真 observe_*：旗標轉移（rate_limited 不設旗標；連不上設旗標；成功清旗標）
+    monkeypatch.setattr(tags_state, "observe_success", real_success)
+    monkeypatch.setattr(tags_state, "observe_failure", real_failure)
+    assert tags_state.unreachable is False
+
+    def fail_with(kind, status):
+        stub, _ = _make_vision_stub(TranslateError(kind, status, "", "x"))
+        with pytest.raises(TaggingFailure):
+            asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
+
+    fail_with("rate_limited", 429)
+    assert tags_state.unreachable is False
+    fail_with("connection_failed", None)
+    assert tags_state.unreachable is True
+    asyncio.run(tag_video(file_uri, config=config, vision_fn=ok_stub))
+    assert tags_state.unreachable is False and tags_state.last_success_at is not None

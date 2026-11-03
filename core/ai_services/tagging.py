@@ -10,6 +10,7 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from core.ai_services import tags_state
 from core.ai_services.image_prep import poster_to_data_uri
 from core.ai_services.tagging_vocab import VocabItem
 from core.ai_services.tagging_vocab import merged
@@ -18,11 +19,14 @@ from core.ai_services.vision_chat import vision_chat
 from core.cloud_translate import TranslateError
 from core.config import load_config
 from core.database import VideoRepository
+from core.logger import get_logger
 from core.openai_client import OPENAI_OFFICIAL_BASE_URL
 from core.path_utils import uri_to_local_fs_path
 from core.secret_fields import read_secret
 from core.similar.canonicalize import alias_key
 from core.user_tags_write import apply_user_tags
+
+logger = get_logger(__name__)
 
 USER_TEXT = "請標這張海報。"
 
@@ -315,7 +319,18 @@ async def tag_video(
     """Tag one video from its poster (CD-188b-12). `file_path` = videos.path URI."""
     ask = vision_fn or vision_chat
     prep = await asyncio.to_thread(_prepare, file_path, config)
-    names, refused = await _ask_model(prep, ask)
+    try:
+        names, refused = await _ask_model(prep, ask)
+    except TaggingFailure as exc:
+        try:
+            tags_state.observe_failure(exc.reason, exc.detail)
+        except Exception:
+            logger.exception("[tagging] observe_failure failed")
+        raise
+    try:
+        await asyncio.to_thread(tags_state.observe_success)
+    except Exception:
+        logger.exception("[tagging] observe_success failed")
     return await asyncio.to_thread(_write, prep, file_path, names, refused)
 
 
@@ -324,3 +339,34 @@ def tag_video_sync(
 ) -> TagOutcome:
     """Sync wrapper; only call from a worker thread with no running event loop."""
     return asyncio.run(tag_video(file_path, config=config, vision_fn=vision_fn))
+
+
+_TEST_UNUSABLE_REASONS = frozenset({"model_unsupported", "bad_response"})
+
+
+async def run_vision_test(conn, vocab, sample_uri, *, vision_fn=None) -> dict:
+    """One-shot vision probe for the settings test button (no writes)."""
+    ask = vision_fn or vision_chat
+    prep = _Prepared(
+        cfg={},
+        repo=None,
+        conn=conn,
+        poster_uri=sample_uri,
+        vocab=list(vocab),
+        local_fs_path="",
+    )
+    try:
+        names, refused = await _ask_model(prep, ask)
+    except TaggingFailure as exc:
+        if exc.reason in _TEST_UNUSABLE_REASONS:
+            return {"ok": False, "outcome": "unusable", "detail": exc.reason}
+        return {
+            "ok": False,
+            "outcome": "unreachable",
+            "detail": exc.detail or exc.reason,
+        }
+    if refused:
+        return {"ok": False, "outcome": "unusable", "detail": "refused"}
+    if not names:
+        return {"ok": False, "outcome": "unusable", "detail": "no_tags"}
+    return {"ok": True, "outcome": "ok", "tags": names}

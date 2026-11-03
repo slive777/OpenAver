@@ -150,3 +150,29 @@ test('confirmAddLbTag: nfo_write_blocked true → showToast(tag_nfo_write_blocke
     }
 });
 
+
+// TASK-188c-T10: 請求在途中換片 → 回應只改按下當下那一片（CD-188c-18）
+for (const kind of ['add', 'remove']) {
+    test(`switch_mid_flight_${kind}`, async () => {
+        const A = { path: 'file:////tmp/t10-A.mp4', user_tags: ['EXISTING'] };
+        const B = { path: 'file:////tmp/t10-B.mp4', user_tags: ['OTHER'] };
+        const bBefore = structuredClone(B);
+        const reply = kind === 'add' ? ['EXISTING', 'TESTTAG'] : [];
+        const c = makeComponent({ currentLightboxVideo: A });
+        const prev = globalThis.fetch;
+        globalThis.fetch = async () => {
+            c.currentLightboxVideo = B; // fetch 已發出、回應處理之前換片
+            return { ok: true, status: 200, json: async () => ({ success: true, user_tags: reply }) };
+        };
+        try {
+            if (kind === 'add') await c.confirmAddLbTag();
+            else await c.removeLbUserTag('EXISTING');
+            assert.equal(c.currentLightboxVideo, B, '切片必須真的發生');
+            assert.deepEqual(A.user_tags, reply);
+            assert.ok(Array.isArray(A._badges));
+            assert.deepEqual(B, bBefore);
+        } finally {
+            globalThis.fetch = prev;
+        }
+    });
+}

@@ -84,6 +84,7 @@ const LIGHTBOX_SLICE_FILES = [
   'web/static/js/pages/showcase/state-lightbox-tags.js',
   'web/static/js/pages/showcase/state-lightbox-translate.js',
   'web/static/js/pages/showcase/state-lightbox-plot.js',
+  'web/static/js/pages/showcase/state-lightbox-ai-tags.js',
 ];
 
 // ---- RULES ----
@@ -1241,6 +1242,19 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="rebuildFaces\(\)"/, note: '[187a-T5] 刪除並重新對焦鈕必須呼叫 rebuildFaces()' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-model="form\.aiFacesEnabled"/, note: '[187a-T5] 開關必須綁 form.aiFacesEnabled' },
   { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('aiFacesPanel'", note: '[187a-T5] aiFacesPanel 必須具名註冊於 main.js' },
+  // ---- [188c-T9] AI 標籤分頁／面板／連線區接線釘 ----
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="selectAiTab\('tags'\)"/, note: '[lint-guard 188c-T9-tab-click] 使用者點「AI 標籤」沒反應，其餘 lint 與單元測試照樣全綠' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-data="aiTagsPanel"/, note: '[lint-guard 188c-T9-mount] 使用者點「AI 標籤」分頁卻沒掛上面板，開關與按鈕全部沒反應' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-model="form\.aiTagsEnabled"/, note: '[lint-guard 188c-T9-toggle-model] 開關綁錯變數存不進去，AI 標籤永遠開不起來' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="runTest\(\)"/, scope: /(id="aiPanelTags"[\s\S]*?)<div id="aiConnections"/, note: '[lint-guard 188c-T9-test-btn] AI 標籤測試鈕沒接上，使用者選好模型按測試沒反應' },
+  { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /(?<![\w:-])@click="startBackfill\(\)"/, count: 2, note: '[lint-guard 188c-T9-start-btn] 重啟後該有的「繼續」鈕被刪掉，使用者只能重按「補完全庫」' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="stopBackfill\(\)"/, note: '[lint-guard 188c-T9-stop-btn] 看不到停止鈕，停不下 4 條並行的付費請求' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="rebuildBackfill\(\)"/, note: '[lint-guard 188c-T9-rebuild-btn] 「全部重建」鈕沒接上，使用者按了沒反應' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-text="firstRunHint\(\)"/, note: '[lint-guard 188c-T9-first-run] 「開啟後下一次更新片庫會處理 N 部」被刪掉，使用者不知道會掃進全庫' },
+  { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /costLineText\('(?:backfill|rebuild)'\)/, count: 4, note: '[lint-guard 188c-T9-cost] 費用提示被刪掉，使用者在不知道會花多少錢的情況下開啟、一次掃進全庫' },
+  { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('aiTagsPanel'", note: '[lint-guard 188c-T9-register] aiTagsPanel 未註冊，分頁掛了 x-data 也是空殼' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="aiTab === 'translate' \|\| aiTab === 'tags'"/, note: '[lint-guard 188c-T9-conn-visible] 切到 AI 標籤時卡底連線區不出現，金鑰欄根本沒有' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: /form\.translate(?:Enabled|Provider)\b/, scope: /(<div id="aiConnections"[\s\S]*?)<\/section><!-- \/sec-ai -->/, note: '[lint-guard 188c-T9-conn-no-translate-only] 翻譯關著、只開 AI 標籤選 Gemini，卡底看得到金鑰欄卻打不了字，測試鈕永遠 disabled' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: /(?<![\w:-])class="lightbox-similar-plus"/, note: '[186-T6] 燈箱魔杖必須含 lightbox-similar-plus' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: /(?<![\w:-])boostedNumbers\.includes/, note: '[186-T6] 燈箱＋必須讀 boostedNumbers' },
   { file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', pattern: /(?<![\w:-])Array\.isArray\(data\.boosted_numbers\)/, note: '[186-T6] warmup 必須讀 boosted_numbers' },
@@ -1705,6 +1719,7 @@ const RULES = [
     ['state-lightbox-tags.js', 'stateLightboxTags'],
     ['state-lightbox-translate.js', 'stateLightboxTranslate'],
     ['state-lightbox-plot.js', 'stateLightboxPlot'],
+    ['state-lightbox-ai-tags.js', 'stateLightboxAiTags'],
   ].map(([file, fn]) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'required-string',
     pattern: `export function ${fn}`,
@@ -1740,18 +1755,18 @@ const RULES = [
     pattern: /^[ \t]*return[ \t]*mergeState\(/m,
     note: '[TestShowcaseESMGuard] test_main_js_calls_merge_state — 實際呼叫 mergeState(...)，非 Object.assign 等替代品（防 descriptor 丟失假綠，Codex P2）',
   },
-  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()', 'stateLightboxPlot()'].map((fn) => ({
+  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()', 'stateLightboxPlot()', 'stateLightboxAiTags()'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'forbidden-string', pattern: `...${fn}`,
     note: '[TestShowcaseESMGuard] test_main_js_no_plain_spread_merge — 8 factory 全禁',
   })),
-  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate', 'stateLightboxPlot'].map((fn) => ({
+  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate', 'stateLightboxPlot', 'stateLightboxAiTags'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: `${fn}.call(this)`,
     note: '[TestShowcaseESMGuard] test_main_js_factory_calls_use_call_this — 唯一有此斷言的頁（settings/scanner/search 皆未檢查）',
   })),
   { file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: 'window.showcaseState', note: '[TestShowcaseESMGuard] test_main_js_has_window_showcase_state_bridge — 唯一有 window bridge 斷言的頁' },
-  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js'].map((file) => ({
+  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-ai-tags.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
-    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate|stateLightboxPlot)\b/m,
+    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate|stateLightboxPlot|stateLightboxAiTags)\b/m,
     note: `[TestShowcaseESMGuard] test_no_circular_state_factory_imports — ${file} 頂層 import 不可含 6 個 factory 函式名（判斷單位是 factory 名非檔名；state-base.js 本身不驗）`,
   })),
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
@@ -1761,17 +1776,17 @@ const RULES = [
   { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'forbidden-string', pattern: 'addFavoriteActress', note: '[TestShowcaseESMGuard] test_state_videos_no_actress_functions' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+openLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions — 方法定義 regex（行首縮排+openLightbox(，防誤殺 this.openLightbox(...) 呼叫）' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+closeLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions' },
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^(?!\s)(?!\/\/)(?!\*)[^\n]*window\.gsap/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層非註解行不可含 window.gsap`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^gsap\b/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層行不可以 gsap 識別字開頭`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-ai-tags.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string', pattern: 'this._PICKER_PARAMS',
     note: `[TestShowcaseESMGuard] test_no_this_picker_params_in_state_modules — ${file} 不可 this._PICKER_PARAMS（main.js 不在此列）`,
   })),
@@ -9483,6 +9498,28 @@ const RULES = [
     file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-translate',
     pattern: /(?<![\w:-])@click\.stop="lbPlotTranslate\(\)"/,
     note: '[187b-T5b-translate] 使用者在簡介面按翻譯 icon → 沒有反應也沒有任何提示（狀態鈕要綁 @click.stop="lbPlotTranslate()"）',
+  },
+  // ---- [188c-T11] 燈箱 AI 標籤鈕接線（node:test 繞過 Alpine runtime，接線只能靠 required-string）----
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count', pattern: /(?<![\w:-])@click\.stop="lbAiTag\(\)"/, count: 1,
+    note: '[lint-guard 188c-T11-click] 燈箱 AI 標籤鈕少了或多了點擊接線 → 鈕還在但按了沒反應，或第二顆 AI 鈕冒在不該出現的地方，而測試全綠',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="lbAiVisible\(\)"/,
+    note: '[lint-guard 188c-T11-show] 燈箱 AI 標籤鈕少了顯示條件 → 設定頁關著 AI 標籤或沒封面的片也看到鈕，按下去才被擋或一直失敗',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'window.__SHOWCASE_AI_TAGS__ =',
+    note: '[lint-guard 188c-T11-inject] 瀏覽頁沒有注入 AI 標籤開關 → 設定頁開著 AI 標籤，燈箱卻永遠沒有鈕，使用者找不到入口也沒有任何錯誤提示',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: /(?:ai_services|tags)\s*\|\s*tojson/,
+    note: '[lint-guard 188c-T11-no-config-leak] 整包 AI 服務／標籤設定被注入頁面 → 使用者的雲端 API key 出現在瀏覽頁原始碼裡，LAN 內任何人檢視原始碼即可取得',
+  },
+  {
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
+    pattern: /^import\s*\{[^}]*\bstateLightboxAiTags\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-ai-tags\.js'/m,
+    note: '[lint-guard 188c-T11-main-import] main.js 漏掉 AI 標籤分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
   },
 ];
 

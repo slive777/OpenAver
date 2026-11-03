@@ -1,4 +1,5 @@
 import { pickClaudeModel } from './claude-model-pick.js';
+import { connShown, connEnabled, pickTagsModel } from '@/settings/ai-tags-logic.js';
 
 export function stateProviders() {
     return {
@@ -33,7 +34,7 @@ export function stateProviders() {
         testGeminiTranslateLoading: false,
 
         // ===== Methods =====
-        async loadOllamaModels(url, savedModel = '') {
+        async loadOllamaModels(url, savedModel = '', { keepModel = false } = {}) {
             if (!url) return;
 
             this.ollamaStatus = `<span class="text-base-content/50">${window.t('settings.status.loading_models')}</span>`;
@@ -45,11 +46,14 @@ export function stateProviders() {
                 if (result.success && result.models && result.models.length > 0) {
                     this.ollamaModels = result.models;
 
-                    // 設定儲存的模型
-                    if (savedModel && result.models.includes(savedModel)) {
-                        this.form.ollamaModel = savedModel;
-                    } else if (result.models.length > 0) {
-                        this.form.ollamaModel = result.models[0];
+                    // keepModel：只填清單／狀態列，不改 form.ollamaModel（AI 標籤唯讀抓取）
+                    if (!keepModel) {
+                        // 設定儲存的模型
+                        if (savedModel && result.models.includes(savedModel)) {
+                            this.form.ollamaModel = savedModel;
+                        } else if (result.models.length > 0) {
+                            this.form.ollamaModel = result.models[0];
+                        }
                     }
 
                     this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.n_models', {count: result.models.length})}</span>`;
@@ -535,6 +539,48 @@ export function stateProviders() {
                 this.openaiOfficialModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.openai_official_translate_failed')}</span>`;
             } finally {
                 this.testingOpenaiOfficialTranslate = false;
+            }
+        },
+
+        // ===== AI tags（188c-T8a）=====
+        aiTagsModelLists() {
+            return {
+                ollama: this.ollamaModels,
+                gemini: this.geminiModels,
+                claude: this.claudeModels,
+                openai_official: this.openaiOfficialModels,
+                openai: this.openaiModels,
+            };
+        },
+
+        aiConnShown(p) {
+            return connShown(this.form, p);
+        },
+
+        aiConnEnabled(p) {
+            return connEnabled(this.form, p);
+        },
+
+        async ensureProviderModels(provider) {
+            // 清單 ≤1 視為還沒抓過（載入播種）；金鑰／網址已填才抓
+            const n = (arr) => (Array.isArray(arr) ? arr.length : 0);
+            if (provider === 'ollama' && n(this.ollamaModels) <= 1 && this.form.ollamaUrl) {
+                await this.loadOllamaModels(this.form.ollamaUrl, '', { keepModel: true });
+            } else if (provider === 'gemini' && n(this.geminiModels) <= 1 && this.form.geminiApiKey) {
+                await this.testGeminiConnection();
+            } else if (provider === 'claude' && n(this.claudeModels) <= 1 && this.form.claudeApiKey) {
+                await this.fetchClaudeModels({ source: 'auto' });
+            } else if (provider === 'openai_official' && n(this.openaiOfficialModels) <= 1 && this.form.openaiOfficialApiKey) {
+                await this.fetchOpenAIOfficialModels({ source: 'auto' });
+            } else if (provider === 'openai' && n(this.openaiModels) <= 1 && this.form.openaiBaseUrl) {
+                await this.fetchOpenAIModels({ source: 'auto' });
+            }
+
+            // FE-TIMING-16：await 後再讀 form；provider 已換或 model 已有 → 不寫。
+            // 已存 model 空時預選不進 savedState：畫面 isDirty=true，引導使用者存一次（CD-188c-14）。
+            if (this.form.aiTagsProvider === provider && !this.form.aiTagsModel) {
+                const lists = this.aiTagsModelLists();
+                this.form.aiTagsModel = pickTagsModel(provider, '', lists[provider] || []);
             }
         },
     };

@@ -594,6 +594,38 @@ body.sidebar-collapsed .showcase-footer {
     color: var(--accent);
 }
 
+/* 188c-T11：燈箱 AI 標籤鈕（沿用 .lb-tag-add-btn 數值；inline-flex 讓 spinner transform 有視覺） */
+.lb-tag-ai-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 6px;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    background: transparent;
+    border: 1px dashed var(--text-muted);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm, 4px);
+    cursor: pointer;
+}
+
+.lb-tag-ai-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.lb-tag-ai-btn:disabled {
+    cursor: default;
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.lb-tag-ai-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px var(--glow-subtle);
+}
+
 /* 輸入框包裝 */
 .lb-tag-input-wrapper {
     display: inline-flex;

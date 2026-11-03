@@ -6,7 +6,7 @@
  */
 
 const KEY = 'settings_ai_tab';
-const AI_TABS = ['translate', 'similar', 'faces'];
+const AI_TABS = ['translate', 'similar', 'faces', 'tags'];
 
 function readAiTab() {
     try {
