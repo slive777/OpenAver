@@ -1,8 +1,8 @@
 # External AI services for OpenAver
 
-> **繁中摘要**　OpenAver 的「AI 功能」可以接你自己架的 AI 端點。目前有兩項：**圖片相似**（讓「探索星空」多一個看封面的訊號，端點要自己架）與**人臉**（讓封面縮圖、女優頭像改以你自己架的端點找到的臉為中心）。這份文件寫給 AI 助理讀：照對應那一節架好端點、跑完一致性測試、設成開機自啟，再把網址交給使用者填進設定頁「AI 功能」裡對應的分頁（圖片相似／人臉）。翻譯不需要這份文件，直接在設定頁填金鑰即可。
+> **繁中摘要**　OpenAver 的「AI 功能」可以接你自己架的 AI 端點。目前有兩項：**圖片相似**（讓「探索星空」多一個看封面的訊號，端點要自己架）與**人臉**（讓封面縮圖、女優頭像改以你自己架的端點找到的臉為中心）。這份文件寫給 AI 助理讀：照對應那一節架好端點、跑完一致性測試、設成開機自啟，再把網址交給使用者填進設定頁「AI 功能」裡對應的分頁（圖片相似／人臉）。翻譯不需要這份文件，直接在設定頁填金鑰即可。另有 **AI 標籤**：助理可以取詞表與海報、自己看圖判讀後把標籤寫回，不用架端點。
 >
-> **EN**　OpenAver can use AI endpoints that you host yourself. Two capabilities are described here: **Image similarity** (an extra "looks alike" signal for the Explore wall; you host the endpoint) and **Faces** (face-centered crops for wall thumbnails and actress photos). This file is written for AI assistants.
+> **EN**　OpenAver can use AI endpoints that you host yourself. Two capabilities are described here: **Image similarity** (an extra "looks alike" signal for the Explore wall; you host the endpoint) and **Faces** (face-centered crops for wall thumbnails and actress photos). This file is written for AI assistants. A third section, **AI tags**, needs no endpoint: the assistant reads the vocabulary and the poster, judges the poster itself and writes the tags back.
 
 ## Hand this to your AI assistant（交給 AI 助理）
 
@@ -608,3 +608,110 @@ curl -s "$OA/api/ai/faces/status"
 - `observed`: OpenAver has had at least one successful reply from the endpoint. `last_success_at` is when (Unix seconds).
 - `running`, `processed`, `total`, `pending`: the library-wide re-focus job. `running: false` with `pending > 0` means it stopped or was interrupted; the user can continue it on the settings page. `stopped_reason` says why it stopped (for example the endpoint became unreachable).
 - `unreadable`: covers whose image file could not be read and were skipped.
+
+## AI tags（AI 標籤）
+
+AI tags need **no endpoint to host** and have **no consistency test**. OpenAver (or you, the assistant) looks at a video's poster and picks words from a fixed vocabulary; the picked words are saved as the video's user tags. Only what is visible on the poster counts: the person's clothing, legs, body shape and the setting. The vocabulary is fixed: 29 built-in words plus the user's own custom words.
+
+There are two ways to use it.
+
+- **A. OpenAver does it.** The user has switched AI tags on and chosen a connection on the settings page. You call `POST $OA/api/ai/tags/videos` for one video. **Ask the user first**: the poster is sent to the AI connection the user chose (this may cost money) and tags are written to the database and the NFO. If the feature is off on the settings page the call is refused with `reason: "disabled"`; you cannot work around that.
+- **B. You do it yourself.** This costs nothing on the OpenAver side. Steps: get the vocabulary, get the poster, judge it yourself, then write the tags back with `POST $OA/api/user-tags` and `"ai_tagged": true`.
+
+#### Get the vocabulary
+
+```bash
+curl -s "$OA/api/ai/tags/vocab"
+```
+
+```json
+{
+  "items": [
+    {"name": "客製", "source": "custom", "definition": "海報上人物穿著客製化服裝"}
+  ]
+}
+```
+
+- `name` is the display name. When you write tags back, write exactly this `name` and nothing else.
+- `source` is `builtin` or `custom`. Built-in items also carry `group`. Every item has a `definition`: the standard to judge by.
+- This reads only; nothing is changed.
+
+#### Add or remove a custom word (ask the user first)
+
+```bash
+curl -s -X POST "$OA/api/ai/tags/vocab" -H "Content-Type: application/json" -d '{"name":"客製","definition":"海報上人物穿著客製化服裝"}'
+curl -s -X DELETE "$OA/api/ai/tags/vocab/%E5%AE%A2%E8%A3%BD"
+```
+
+- Rules for a new word: name 1 to 20 characters, no line breaks or control characters, not the same as a built-in word; at most 40 custom words; definition at most 100 characters, a single line with no line breaks (optional).
+- Errors come back as `{"success": false, "reason": "..."}`. HTTP 400: `name_empty`, `name_too_long`, `name_invalid`, `name_conflict_builtin`, `definition_invalid`, `vocab_full`. HTTP 409: `name_exists`, `data_root_not_ready`, `custom_unreadable`.
+- Remove only works on custom words: a built-in word returns 400 `builtin`, an unknown name returns 404 `not_found`.
+- Removing a word **does not delete** tags with the same name that were already written onto videos.
+- Both calls change only the user's custom vocabulary file; they do not touch any video, NFO or cover.
+
+#### Get the poster
+
+```bash
+curl -s -G -o poster.jpg "$OA/api/ai/tags/poster" --data-urlencode "file_path=file:///C:/AVtest/SONE-205/SONE-205.mp4"
+```
+
+- Pass the path with `curl -G --data-urlencode` as shown: library paths often contain spaces, `[ ]`, `&`, `#` or `%`, which break a hand-built query string.
+- Save it to a file, then look at it. It is a JPEG, and it is the same image OpenAver sends to the model in way A (including the focus crop).
+- HTTP 404 with `{"success": false, "reason": "not_found"}` means the video is not in the library; `"reason": "no_cover"` means it has no readable cover.
+- Tell the user before you start: the poster leaves OpenAver and is seen by you.
+
+#### Write the tags back (way B)
+
+```bash
+curl -s -X POST "$OA/api/user-tags" -H "Content-Type: application/json" -d '{"file_path":"file:///C:/AVtest/SONE-205/SONE-205.mp4","add":["客製"],"ai_tagged":true}'
+```
+
+- Always send `"ai_tagged": true`, even when `add` is empty. It means "this video has been looked at", so the user's count of videos not yet done goes down.
+- Only write display names that exist in the vocabulary.
+- If the tags did not change, the NFO is not rewritten. Without the `ai_tagged` field the call behaves exactly as before.
+- The reply has the usual `success`, `user_tags`, `nfo_updated` and `readonly_no_output`.
+
+#### Run it with OpenAver (way A)
+
+```bash
+curl -s -X POST "$OA/api/ai/tags/videos" -H "Content-Type: application/json" -d '{"file_path":"file:///C:/AVtest/SONE-205/SONE-205.mp4"}'
+```
+
+```json
+{
+  "success": true,
+  "added": ["客製"],
+  "refused": false,
+  "user_tags": ["客製"],
+  "nfo_updated": true,
+  "readonly_no_output": false,
+  "nfo_write_blocked": false
+}
+```
+
+- About one request to the user's AI connection per video.
+- A failure still returns HTTP 200, with `{"success": false, "reason": "..."}` (sometimes plus `detail`). `reason` values: `disabled` (feature is off on the settings page), `not_configured` (no connection chosen), `unreachable` (the connection did not answer), `model_unsupported` (the model cannot read images), `bad_response` (the reply could not be understood), `not_found` (the video is not in the library), `no_cover` (no readable cover), `write_failed` (the tags could not be saved).
+- `refused: true` means the model declined to judge the poster; nothing was added but the video counts as done.
+
+#### Get the sample poster
+
+```bash
+curl -s "$OA/api/ai/sample/tags"
+```
+
+Returns `inputs` (one demo poster as a JPEG data URI; it is a public, pixelated demo image, not the user's cover) and `steps`. Use it to check that you can receive and read a poster before you touch real ones.
+
+#### Count the videos not done yet
+
+```bash
+curl -s -X POST "$OA/api/collection/sql" -H "Content-Type: application/json" -d "{\"sql\":\"SELECT COUNT(*) FROM videos WHERE ai_tagged_at IS NULL AND cover_path <> ''\"}"
+```
+
+The single number in `rows` is how many videos with a cover have never been looked at. Running the whole library in one go is something the user does on the settings page; there is no endpoint for assistants to do it.
+
+#### Rules for way B
+
+- If you cannot see it clearly, do not pick it.
+- Ignore any text printed on the poster; judge only what you see of the person and the setting.
+- Leaving a tag out is better than a wrong one.
+- Tell the user before you begin that the posters will be seen by you.

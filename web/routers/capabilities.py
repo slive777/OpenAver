@@ -492,6 +492,7 @@ _TOOLS: list[dict] = [
                 "nfo_mtime": "REAL — NFO 檔案 mtime (Unix timestamp)",
                 "created_at": "TIMESTAMP",
                 "updated_at": "TIMESTAMP",
+                "ai_tagged_at": "TIMESTAMP — AI 標籤跑過的時間，NULL＝沒跑過",
             },
         },
         "sql_examples": [
@@ -501,6 +502,7 @@ _TOOLS: list[dict] = [
             "SELECT * FROM videos WHERE actresses LIKE '%明日花%' AND release_date > '2025-01-01'",
             "SELECT maker, COUNT(*) FROM videos WHERE release_date > '2025-01-01' GROUP BY maker ORDER BY COUNT(*) DESC",
             "SELECT strftime('%Y', release_date) as year, COUNT(*) FROM videos GROUP BY year ORDER BY year DESC",
+            "SELECT COUNT(*) FROM videos WHERE ai_tagged_at IS NULL AND cover_path <> ''",
         ],
         "note": "actresses 和 tags 是 JSON 字串，用 LIKE '%name%' 或 json_each() 查詢",
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"sql\":\"SELECT COUNT(*) as total FROM videos\"}}' {base}/api/collection/sql",
@@ -658,6 +660,10 @@ _TOOLS: list[dict] = [
                 "file_path": {"type": "string", "description": "影片路徑（DB key，file:/// URI 格式）"},
                 "add": {"type": "array", "items": {"type": "string"}, "description": "要新增的 tags（可省略）"},
                 "remove": {"type": "array", "items": {"type": "string"}, "description": "要移除的 tags（可省略）"},
+                "ai_tagged": {
+                    "type": "boolean",
+                    "description": "助理自己判讀海報後寫回時帶 true＝「這部片跑過了」，即使 add 為空也會記下；標籤沒變時不重寫 NFO；沒帶此欄位時行為與以往完全相同",
+                },
             },
             "required": ["file_path"],
         },
@@ -1683,6 +1689,154 @@ _TOOLS: list[dict] = [
         },
         "retry_safe": True,
         "_example_template": "curl '{base}/api/ai/faces/status'",
+    },
+    {
+        "name": "ai_tags_vocab",
+        "description": (
+            "取 AI 標籤的詞表（內建字＋使用者自訂字）。助理自己看海報判讀時，只准從這份挑字，並寫顯示名 name。"
+            "內建字帶 group，每個字都有 definition（判讀標準）。不修改任何資料。"
+        ),
+        "side_effect": False,
+        "method": "GET",
+        "path": "/api/ai/tags/vocab",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "items": "[{name, source, group?, definition}] — name 是顯示名（寫回 user tag 用這個）；source 為 builtin（內建）或 custom（使用者自訂）；group 只有內建字才有",
+        },
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/ai/tags/vocab'",
+    },
+    {
+        "name": "ai_tags_vocab_add",
+        "description": (
+            "新增一個 AI 標籤自訂字（只寫進 OpenAver 資料根的自訂詞表檔，不動影片、NFO、封面，也不會替任何片打標籤）。"
+            "規則：名稱 1 到 20 字、不含換行或控制字元、不能與內建字同名、最多 40 個自訂字；說明最多 100 字，且須為單行、不可含換行。"
+            "不符規則回 400，名稱已存在回 409。"
+            "AI 呼叫前必須先向使用者說明上述影響並取得確認。"
+        ),
+        "side_effect": True,
+        "method": "POST",
+        "path": "/api/ai/tags/vocab",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "自訂字（1 到 20 字）"},
+                "definition": {"type": "string", "description": "判讀說明（最多 100 字，單行、不可含換行；可省略）"},
+            },
+            "required": ["name"],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "item": "{name, source, definition} — 新增成功時才有",
+            "reason": "string — 失敗時才有（HTTP 400／409）：name_empty／name_too_long／name_invalid／name_conflict_builtin／definition_invalid／vocab_full／name_exists／data_root_not_ready／custom_unreadable",
+        },
+        "confirmation_required": True,
+        "retry_safe": False,
+        "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"name\":\"客製\",\"definition\":\"海報上人物穿著客製化服裝\"}}' {base}/api/ai/tags/vocab",
+    },
+    {
+        "name": "ai_tags_vocab_remove",
+        "description": (
+            "刪除一個 AI 標籤自訂字（只刪詞表裡的自訂字；已經寫進片子的同名標籤不會被刪）。"
+            "內建字不能刪（回 400），找不到回 404。"
+            "AI 呼叫前必須先向使用者說明上述影響並取得確認。"
+        ),
+        "side_effect": True,
+        "method": "DELETE",
+        "path": "/api/ai/tags/vocab/{name}",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "自訂字（URL path parameter，需 URL 編碼）"},
+            },
+            "required": ["name"],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "reason": "string — 失敗時才有：builtin（HTTP 400，內建字不能刪）／not_found（HTTP 404）／data_root_not_ready／custom_unreadable（HTTP 409）",
+        },
+        "confirmation_required": True,
+        "idempotent": True,
+        "retry_safe": True,
+        "_example_template": "curl -X DELETE '{base}/api/ai/tags/vocab/%E5%AE%A2%E8%A3%BD'",
+    },
+    {
+        "name": "ai_tags_poster",
+        "description": (
+            "取一部片的海報（JPEG）給助理自己看圖判讀：與 OpenAver 送給 AI 模型的是同一張（含對焦裁切）。"
+            "file_path 為影片路徑（file:/// URI 或本機路徑）。影片不在片庫回 404（reason=not_found），"
+            "沒有封面或讀不到回 404（reason=no_cover）。不修改任何資料。"
+        ),
+        "side_effect": False,
+        "method": "GET",
+        "path": "/api/ai/tags/poster",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "影片路徑（file:/// URI 或本機路徑），放在 query string；路徑常含空格、[ ]、&、#、%，請用 curl -G --data-urlencode 編碼"},
+            },
+            "required": ["file_path"],
+        },
+        "output_schema": "binary — image/jpeg 圖片二進位資料；用 curl -o poster.jpg 存成檔案再看。找不到時回 404 與 JSON {success:false, reason}（reason：not_found／no_cover）。",
+        "retry_safe": True,
+        "_example_template": "curl -G -o poster.jpg '{base}/api/ai/tags/poster' --data-urlencode 'file_path=file:///C:/AVtest/SONE-205/SONE-205.mp4'",
+    },
+    {
+        "name": "ai_tags_tag_video",
+        "description": (
+            "叫 OpenAver 替一部片做 AI 標籤：把這部片的海報送到使用者在設定頁選好的 AI 連線，依詞表判讀後把標籤寫進資料庫與 NFO（user tag）。"
+            "會花使用者的錢（每部約一次請求）。"
+            "使用者沒在設定頁開啟 AI 標籤時拒絕（reason=disabled），助理不能繞過。"
+            "失敗時 HTTP 仍是 200，body 為 success=false 並帶 reason。"
+            "AI 呼叫前必須先向使用者說明上述影響並取得確認。"
+        ),
+        "side_effect": True,
+        "method": "POST",
+        "path": "/api/ai/tags/videos",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "影片路徑（file:/// URI 或本機路徑）"},
+            },
+            "required": ["file_path"],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "added": "[string] — 這次新增的標籤",
+            "refused": "boolean — 模型拒絕判讀這張海報時為 true（此時沒有新增標籤，但這部片仍記為跑過）",
+            "user_tags": "[string] — 更新後的完整 user_tags 清單",
+            "nfo_updated": "boolean — NFO 是否同步更新",
+            "readonly_no_output": "boolean — 唯讀來源且尚無輸出夾時為 true（標籤已存進 DB，但沒有 NFO 被更新）",
+            "nfo_write_blocked": "boolean — NFO 寫入被擋下時為 true",
+            "reason": "string — success=false 時才有：disabled／not_configured／unreachable／model_unsupported／bad_response／not_found／no_cover／write_failed",
+            "detail": "string — success=false 時可能帶的補充說明",
+        },
+        "confirmation_required": True,  # 188b-T9b: 標一部片會花使用者的錢並寫標籤
+        "retry_safe": False,
+        "cost_hint": "會把這部片的海報送到使用者選的 AI 連線（可能產生費用）並寫入 user tag；每部約一次請求",
+        "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"file:///C:/AVtest/SONE-205/SONE-205.mp4\"}}' {base}/api/ai/tags/videos",
+    },
+    {
+        "name": "ai_sample_tags",
+        "description": "取 AI 標籤的測試樣本海報（可公開的打碼 demo 圖，不是使用者的封面）。助理用它確認自己拿得到並看得懂海報圖，再去取真正的海報。不修改資料庫。",
+        "side_effect": False,
+        "method": "GET",
+        "path": "/api/ai/sample/tags",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "inputs": "[string] — 樣本海報的 data URI（JPEG）",
+            "steps": "[string] — 測試步驟（給 agent 照做）",
+        },
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/ai/sample/tags'",
     },
     {
         "name": "tag_alias_crud_read",

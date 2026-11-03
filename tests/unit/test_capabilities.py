@@ -93,6 +93,12 @@ EXPECTED_TOOL_NAMES = {
     "ai_faces_sample",
     "ai_faces_test",
     "ai_faces_status",
+    "ai_tags_vocab",
+    "ai_tags_vocab_add",
+    "ai_tags_vocab_remove",
+    "ai_tags_poster",
+    "ai_tags_tag_video",
+    "ai_sample_tags",
     "tag_alias_crud_read",
     "tag_alias_crud_write",
     "tags_top",
@@ -146,7 +152,13 @@ class TestCapabilitiesEndpoint:
         """建立索引會對使用者的外部端點發出約等於封面數的請求、換模型時覆蓋向量：AI 助理必須先問使用者。"""
         data = client.get("/api/capabilities").json()
         tools = {t["name"]: t for t in data["tools"]}
-        for name in ("ai_similar_index", "ai_similar_rebuild"):
+        for name in (
+            "ai_similar_index",
+            "ai_similar_rebuild",
+            "ai_tags_vocab_add",
+            "ai_tags_vocab_remove",
+            "ai_tags_tag_video",
+        ):
             assert tools[name]["side_effect"] is True
             assert tools[name]["confirmation_required"] is True
 
@@ -315,7 +327,17 @@ class TestTranslateTitleTools:
             for m in getattr(r, "methods", None) or ():
                 registered.add((m, getattr(r, "path", None)))
         tools = self._tools(client)
-        for name in ("video_title_writeback", "wishlist_add", "wishlist_membership"):
+        for name in (
+            "video_title_writeback",
+            "wishlist_add",
+            "wishlist_membership",
+            "ai_tags_vocab",
+            "ai_tags_vocab_add",
+            "ai_tags_vocab_remove",
+            "ai_tags_poster",
+            "ai_tags_tag_video",
+            "ai_sample_tags",
+        ):
             t = tools[name]
             assert (t["method"], t["path"]) in registered, name
 
