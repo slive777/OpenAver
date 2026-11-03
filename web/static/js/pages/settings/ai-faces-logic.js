@@ -137,7 +137,8 @@ export const adapter = {
             processed: raw.processed || 0,
             total: raw.total || 0,
             pending,
-            resumable: pending > 0 && Boolean(raw.target_model),
+            // 上一輪因失敗／被關閉而停下（stopped_reason 在下一輪開工前一直保留）且還有待處理
+            resumable: pending > 0 && Boolean(raw.target_model) && Boolean(raw.stopped_reason),
             lastSuccessAt: raw.last_success_at ?? null,
             unreachable: Boolean(raw.unreachable),
             stopReason: raw.stopped_reason ?? null,
@@ -146,7 +147,7 @@ export const adapter = {
     },
     actionOf(view) {
         if (view.running) return 'stop';
-        if (view.resumable) return 'continue';
+        if (view.pending > 0) return view.resumable ? 'continue' : 'start';
         return null;
     },
     extraAction() {

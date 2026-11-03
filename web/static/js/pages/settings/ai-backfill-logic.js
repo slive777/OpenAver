@@ -12,13 +12,14 @@
  *   功能  舊函式回傳         新 actionOf  新 extraAction  新通用 rebuildVisible
  *   相似  indexAction null    null          null            ＝舊 rebuildVisible
  *         'stop'              'stop'        null            false
- *         'continue'          'continue'    null            ＝舊 rebuildVisible
+ *         'continue'          resumable? 'continue' : 'start'  null  ＝舊 rebuildVisible
  *         'build'             'start'       null            ＝舊 rebuildVisible
  *         'retry'             null          'retry'         ＝舊 rebuildVisible
  *         'rebuild'           null          null            true
  *   人臉  recomputeAction 'stop'    'stop'      null        false
- *         'resume'            'continue'    null            ＝舊 deleteRebuildVisible
+ *         'resume'            resumable? 'continue' : 'start'  null  ＝舊 deleteRebuildVisible
  *         'none'              null          null            ＝舊 deleteRebuildVisible
+ *   只有中途停下（view.resumable）才叫 'continue'；沒在中途停下但有待補一律 'start'。
  *   標籤  backfillAction {action,disabled,reason}  整物件相同  null  enabled ∧ !running ∧ total>0
  */
 

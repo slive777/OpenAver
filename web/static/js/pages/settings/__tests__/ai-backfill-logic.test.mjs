@@ -4,13 +4,15 @@
 //   功能  舊函式回傳         新 actionOf  新 extraAction  新通用 rebuildVisible
 //   相似  indexAction null    null          null            ＝舊 rebuildVisible
 //         'stop'              'stop'        null            false
-//         'continue'          'continue'    null            ＝舊 rebuildVisible
+//         'continue'          resumable? 'continue' : 'start'  null  ＝舊 rebuildVisible
 //         'build'             'start'       null            ＝舊 rebuildVisible
 //         'retry'             null          'retry'         ＝舊 rebuildVisible
 //         'rebuild'           null          null            true
 //   人臉  recomputeAction 'stop'    'stop'      null        false
-//         'resume'            'continue'    null            ＝舊 deleteRebuildVisible
+//         'resume'            resumable? 'continue' : 'start'  null  ＝舊 deleteRebuildVisible
 //         'none'              null          null            ＝舊 deleteRebuildVisible
+//   resumable（只有中途停下才叫「繼續」，其餘有待補一律「補完全庫」＝start）：
+//     相似＝已定模型 ∧ 索引未 complete ∧ indexed+unreadable>0；人臉＝有 target_model ∧ pending>0 ∧ stopped_reason 有值；標籤沿用後端 resumable。
 //   標籤  backfillAction {action,disabled,reason}  整物件 deepEqual  null  enabled ∧ !running ∧ total>0
 
 import { test } from 'node:test';
@@ -42,35 +44,42 @@ import {
     adapter as tagsAdapter,
 } from '../ai-tags-logic.js';
 
+// 映射表的 action 可為 { resumable, fresh }：中途停下叫 continue，其餘有待補叫 start
+const pickAction = (a, resumable) => (a !== null && typeof a === 'object' ? (resumable ? a.resumable : a.fresh) : a);
+
 const SIM_MAP = {
     null: { action: null, extra: null, rebuild: 'legacy' },
     stop: { action: 'stop', extra: null, rebuild: false },
-    continue: { action: 'continue', extra: null, rebuild: 'legacy' },
+    continue: { action: { resumable: 'continue', fresh: 'start' }, extra: null, rebuild: 'legacy' },
     build: { action: 'start', extra: null, rebuild: 'legacy' },
     retry: { action: null, extra: 'retry', rebuild: 'legacy' },
     rebuild: { action: null, extra: null, rebuild: true },
 };
 const FACES_MAP = {
     stop: { action: 'stop', rebuild: false },
-    resume: { action: 'continue', rebuild: 'legacy' },
+    resume: { action: { resumable: 'continue', fresh: 'start' }, rebuild: 'legacy' },
     none: { action: null, rebuild: 'legacy' },
 };
 
-// [id, status, testPassed]：逐字取自 ai-similar-logic.test.mjs indexAction_table 的 13 個呼叫
+// [id, status, testPassed, 期望 view.resumable]：逐字取自 ai-similar-logic.test.mjs indexAction_table 的 13 個呼叫
 const SIM_INDEX_CASES = [
-    ['S01', null, true],
-    ['S02', undefined, true],
-    ['S03', { running: true, model_changed: true, model: 'm', pending: 1, complete: false }, true],
-    ['S04', { running: true, model_changed: false, model: null, pending: 0, complete: false }, false],
-    ['S05', { running: false, model_changed: true, model: 'old', pending: 0, complete: true }, true],
-    ['S06', { running: false, model_changed: false, model: 'm', pending: 3, complete: false }, true],
-    ['S07', { running: false, model_changed: false, model: 'm', pending: 0, complete: false }, false],
-    ['S08', { running: false, model_changed: false, model: null, pending: 0, complete: false }, true],
-    ['S09', { running: false, model_changed: false, model: '', pending: 0, complete: false }, true],
-    ['S10', { running: false, model_changed: false, model: null, pending: 0, complete: false }, false],
-    ['S11', { running: false, model_changed: false, model: 'm', pending: 0, complete: true, unreadable: 0 }, true],
-    ['S12', { running: false, model_changed: false, model: 'm', pending: 0, complete: true, unreadable: 3 }, true],
-    ['S13', { running: false, model_changed: false, model: 'm', pending: 0, complete: true, unreadable: 0 }, false],
+    ['S01', null, true, false],
+    ['S02', undefined, true, false],
+    ['S03', { running: true, model_changed: true, model: 'm', pending: 1, complete: false }, true, false],
+    ['S04', { running: true, model_changed: false, model: null, pending: 0, complete: false }, false, false],
+    ['S05', { running: false, model_changed: true, model: 'old', pending: 0, complete: true }, true, false],
+    ['S06', { running: false, model_changed: false, model: 'm', pending: 3, complete: false }, true, false],
+    ['S07', { running: false, model_changed: false, model: 'm', pending: 0, complete: false }, false, false],
+    ['S08', { running: false, model_changed: false, model: null, pending: 0, complete: false }, true, false],
+    ['S09', { running: false, model_changed: false, model: '', pending: 0, complete: false }, true, false],
+    ['S10', { running: false, model_changed: false, model: null, pending: 0, complete: false }, false, false],
+    ['S11', { running: false, model_changed: false, model: 'm', pending: 0, complete: true, unreadable: 0 }, true, false],
+    ['S12', { running: false, model_changed: false, model: 'm', pending: 0, complete: true, unreadable: 3 }, true, false],
+    ['S13', { running: false, model_changed: false, model: 'm', pending: 0, complete: true, unreadable: 0 }, false, false],
+    // 新增夾具（舊 indexAction 皆回 'continue'）：中途停下（未 complete 且已有進度）→ 繼續；新片入庫（complete 且 pending>0）→ 補完全庫
+    ['S14', { running: false, model_changed: false, model: 'm', pending: 3, complete: false, indexed: 5, unreadable: 0 }, false, true],
+    ['S15', { running: false, model_changed: false, model: 'm', pending: 4, complete: false, indexed: 0, unreadable: 2 }, false, true],
+    ['S16', { running: false, model_changed: false, model: 'm', pending: 3, complete: true, indexed: 5, unreadable: 0 }, false, false],
 ];
 
 // [id, status, enabled]：rebuildVisible_table 的 7 個呼叫（idle 取自該測試內的 const）
@@ -85,7 +94,7 @@ const SIM_REBUILD_CASES = [
     ['R07', undefined, true],
 ];
 
-// recomputeAction 6 個＋deleteRebuildVisible 6 個
+// recomputeAction 6 個（F13~F15 為新增）＋deleteRebuildVisible 6 個
 const FACES_ACTION_CASES = [
     ['F01', { running: true, pending: 0 }],
     ['F02', { running: true, pending: 5 }],
@@ -93,6 +102,10 @@ const FACES_ACTION_CASES = [
     ['F04', { running: false, pending: 3, target_model: null }],
     ['F05', { running: false, pending: 0 }],
     ['F06', null],
+    // 新增夾具：上一輪因失敗／被關閉停下（舊 recomputeAction 皆回 'resume'）→ 繼續；無 target_model 仍 none
+    ['F13', { running: false, pending: 3, target_model: 'm', stopped_reason: 'unreachable' }],
+    ['F14', { running: false, pending: 3, target_model: 'm', stopped_reason: 'contract' }],
+    ['F15', { running: false, pending: 3, target_model: null, stopped_reason: 'unreachable' }],
 ];
 const FACES_IDLE = { running: false, rebuild_count: 7, pending: 0 };
 const FACES_REBUILD_CASES = [
@@ -125,7 +138,7 @@ const TAGS_CASES = [
 
 test('adapter_actions_equal_legacy_via_mapping_table', () => {
     // ── 相似：indexAction 13 個呼叫
-    for (const [id, status, tp] of SIM_INDEX_CASES) {
+    for (const [id, status, tp, resumable] of SIM_INDEX_CASES) {
         const old = String(indexAction(status, tp));
         const row = SIM_MAP[old];
         assert.ok(row, `${id}: 映射表查不到舊回傳 ${old}`);
@@ -133,7 +146,8 @@ test('adapter_actions_equal_legacy_via_mapping_table', () => {
         const ctx = { enabled: true, testPassed: tp };
         const main = actionOf(simAdapter, view, ctx);
         const extra = extraActionOf(simAdapter, view, ctx);
-        assert.equal(main.action, row.action, `${id}: 主動作`);
+        if (view) assert.equal(view.resumable, resumable, `${id}: resumable`);
+        assert.equal(main.action, pickAction(row.action, resumable), `${id}: 主動作`);
         assert.equal(extra.action, row.extra, `${id}: 副動作`);
         const wantRebuild = row.rebuild === 'legacy' ? simLegacyRebuildVisible(status, true) : row.rebuild;
         assert.equal(rebuildVisible(simAdapter, view, ctx), wantRebuild, `${id}: 重建鈕`);
@@ -153,7 +167,13 @@ test('adapter_actions_equal_legacy_via_mapping_table', () => {
         const row = FACES_MAP[old];
         assert.ok(row, `${id}: 映射表查不到舊回傳 ${old}`);
         const view = normalizeStatus(facesAdapter, status);
-        assert.equal(actionOf(facesAdapter, view, { enabled: true }).action, row.action, `${id}: 主動作`);
+        const resumable = Boolean(status && status.target_model && status.pending > 0 && status.stopped_reason);
+        if (view) assert.equal(view.resumable, resumable, `${id}: resumable`);
+        assert.equal(
+            actionOf(facesAdapter, view, { enabled: true }).action,
+            pickAction(row.action, resumable),
+            `${id}: 主動作`,
+        );
         assert.equal(extraActionOf(facesAdapter, view, { enabled: true }).action, null, `${id}: 副動作`);
         const wantRebuild = row.rebuild === 'legacy' ? facesLegacyRebuildVisible(status, true) : row.rebuild;
         assert.equal(rebuildVisible(facesAdapter, view, { enabled: true }), wantRebuild, `${id}: 重建鈕`);

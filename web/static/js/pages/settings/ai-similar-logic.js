@@ -134,7 +134,9 @@ export const adapter = {
             processed: (raw.indexed || 0) + (raw.unreadable || 0),
             total: raw.total || 0,
             pending: raw.model_changed ? 0 : (raw.pending || 0),
-            resumable: false,
+            // 上一輪建索引中途停下：已定模型、索引未 complete（begin/reset 寫 '0'、跑完才 '1'）、已有進度
+            resumable: Boolean(raw.model) && !raw.complete && !raw.model_changed
+                && (raw.indexed || 0) + (raw.unreadable || 0) > 0,
             lastSuccessAt: raw.last_success_at ?? null,
             unreachable: Boolean(raw.unreachable),
             stopReason: null,
@@ -146,7 +148,7 @@ export const adapter = {
         if (view.running) return 'stop';
         if (s.model_changed) return null;
         const hasModel = Boolean(s.model);
-        if (hasModel && (s.pending > 0 || !s.complete)) return 'continue';
+        if (hasModel && (s.pending > 0 || !s.complete)) return view.resumable ? 'continue' : 'start';
         if (!hasModel && ctx.testPassed) return 'start';
         return null;
     },
