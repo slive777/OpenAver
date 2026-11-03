@@ -6,6 +6,7 @@ import { customSources }     from '@/settings/state-custom-sources.js';
 import { aiServicesCard }    from '@/settings/ai-services-card.js';
 import { aiSimilarPanel }    from '@/settings/ai-similar-panel.js';
 import { aiFacesPanel }      from '@/settings/ai-faces-panel.js';
+import { aiTagsPanel }       from '@/settings/ai-tags-panel.js';
 import { browseDirState }    from '@/shared/state-browse-dir.js';
 import { toastState }        from '@/shared/state-toast.js';
 import { mergeState }        from '@/shared/merge-state.js';
@@ -27,4 +28,6 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('aiSimilarPanel', aiSimilarPanel);
     // 187a-T5: 人臉分頁（不進 mergeState）
     Alpine.data('aiFacesPanel', aiFacesPanel);
+    // 188c-T8b: AI 標籤分頁（不進 mergeState）
+    Alpine.data('aiTagsPanel', aiTagsPanel);
 });

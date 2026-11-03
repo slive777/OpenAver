@@ -77,6 +77,18 @@ const CASES = [
             assert.equal(c.aiTab, 'similar');
         },
     },
+    {
+        name: 'tags_is_legal_tab',
+        setup() { store[KEY] = 'tags'; },
+        run(c) {
+            assert.equal(c.aiTab, 'tags');
+            const c2 = aiServicesCard();
+            c2.selectAiTab('translate');
+            c2.selectAiTab('tags');
+            assert.equal(c2.aiTab, 'tags');
+            assert.equal(store[KEY], 'tags');
+        },
+    },
 ];
 
 for (const tc of CASES) {

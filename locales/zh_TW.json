@@ -723,7 +723,14 @@
         "test_unusable_refused": "連上了，但模型不肯看這張樣本圖",
         "test_unusable_no_tags": "連上了，但模型在樣本圖上一個字都沒標到，請換一個看得懂圖的模型",
         "test_not_configured": "請先選連線並填好上面的連線資料",
-        "test_failed_generic": "測試失敗"
+        "test_failed_generic": "測試失敗",
+        "rebuild_confirm": "會對 {n} 部片重新請 AI 看一次（會產生費用）；已有的標籤不會被刪除。",
+        "cost_per1000": "約 USD ${per1000}／每 1000 部（依 2026-11 公開價格估算，實際以帳單為準）",
+        "cost_total": "這次大約 USD ${total}（以 {label} 估）",
+        "first_run_hint": "開啟後，下一次更新片庫會一併處理片庫裡還沒跑過的 {n} 部",
+        "test_http_error": "測試請求失敗",
+        "backfill_http_error": "補完全庫請求失敗",
+        "backfill_not_enabled": "請先開啟 AI 標籤並按「儲存」，再補完全庫"
       }
     },
     "translate": {
