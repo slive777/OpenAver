@@ -118,3 +118,53 @@ export function statusLine(status, now) {
     }
     return { key: 'settings.ai.similar.status_none', params: {}, extra: null };
 }
+
+/** 補跑共用層 adapter（TASK-189a-T10）：只放功能獨有的那一半。 */
+export const adapter = {
+    tab: 'similar',
+    urls: {
+        status: '/api/ai/similar/status',
+        start: '/api/ai/similar/index',
+        rebuild: '/api/ai/similar/index/rebuild',
+        stop: '/api/ai/similar/index/stop',
+    },
+    normalize(raw) {
+        return {
+            running: Boolean(raw.running),
+            processed: (raw.indexed || 0) + (raw.unreadable || 0),
+            total: raw.total || 0,
+            pending: raw.model_changed ? 0 : (raw.pending || 0),
+            resumable: false,
+            lastSuccessAt: raw.last_success_at ?? null,
+            unreachable: Boolean(raw.unreachable),
+            stopReason: null,
+            raw,
+        };
+    },
+    actionOf(view, ctx) {
+        const s = view.raw;
+        if (view.running) return 'stop';
+        if (s.model_changed) return null;
+        const hasModel = Boolean(s.model);
+        if (hasModel && (s.pending > 0 || !s.complete)) return 'continue';
+        if (!hasModel && ctx.testPassed) return 'start';
+        return null;
+    },
+    extraAction(view) {
+        const s = view.raw;
+        if (view.running || s.model_changed || !s.model) return null;
+        if ((s.pending || 0) > 0 || !s.complete) return null;
+        return (s.unreadable || 0) > 0 ? 'retry' : null;
+    },
+    rebuildVisible(view) {
+        const s = view.raw;
+        return Boolean(s.model_changed) || (s.indexed || 0) + (s.unreadable || 0) > 0;
+    },
+    rebuildConfirm(view) {
+        const s = view.raw;
+        return {
+            key: 'settings.ai.similar.rebuild_confirm',
+            params: { n: (s.indexed || 0) + (s.unreadable || 0) },
+        };
+    },
+};
