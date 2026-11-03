@@ -7,6 +7,8 @@ import io
 
 from PIL import Image, ImageOps
 
+from core.focal.detector import parse_focal
+
 EMBED_MAX_EDGE = 448
 FACES_MAX_EDGE = 650
 
@@ -108,3 +110,69 @@ def upright_focal_to_raw(
     if orientation == 8:
         return (1 - v, u)
     return (u, v)
+
+
+POSTER_CROP_RATIO = 0.71   # 與 theme.css --poster-crop-ratio 同值（測試從 CSS 檔對帳）
+FOCAL_X_DEADZONE = 0.62    # 同 web/static/js/shared/focal.js
+TAGS_MAX_EDGE = 800
+
+
+def _usable_focal(crop_mode, auto_focal):
+    if crop_mode not in ("manual", "auto"):
+        return None
+    focal = parse_focal(auto_focal)
+    if focal is None:
+        return None
+    if crop_mode == "auto" and focal[0] >= FOCAL_X_DEADZONE:
+        return None
+    return focal
+
+
+def poster_crop_box(w, h, crop_mode, auto_focal):
+    win_w = round(POSTER_CROP_RATIO * h)
+    if w <= win_w:  # 直式：全寬、上下置中；y0 夾到 >=0
+        y0 = max(round((h - w / POSTER_CROP_RATIO) / 2), 0)
+        return (0, y0, w, h - y0)
+    x0 = w - win_w
+    focal = _usable_focal(crop_mode, auto_focal)
+    if focal is not None:
+        x0 = max(min(int(w * focal[0]) - win_w // 2, w - win_w), 0)
+    return (x0, 0, x0 + win_w, h)
+
+
+def poster_to_jpeg_bytes(fs_path, crop_mode, auto_focal):
+    if not fs_path:
+        return None
+    try:
+        with Image.open(fs_path) as im:
+            upright = ImageOps.exif_transpose(im)
+            upright = upright.convert("RGB")
+            w, h = upright.size
+            if w <= 0 or h <= 0:
+                return None
+            box = poster_crop_box(w, h, crop_mode, auto_focal)
+            x0, y0, x1, y1 = box
+            if x1 <= x0 or y1 <= y0:
+                return None
+            cropped = upright.crop(box)
+            cw, ch = cropped.size
+            long_edge = max(cw, ch)
+            if long_edge > TAGS_MAX_EDGE:
+                scale = TAGS_MAX_EDGE / float(long_edge)
+                nw = max(1, int(round(cw * scale)))
+                nh = max(1, int(round(ch * scale)))
+                cropped = cropped.resize((nw, nh), Image.Resampling.LANCZOS)
+            buf = io.BytesIO()
+            cropped.save(buf, format="JPEG", quality=90)
+            return buf.getvalue()
+    except Exception:
+        return None
+
+
+def poster_to_data_uri(fs_path, crop_mode="default", auto_focal=""):
+    jpeg = poster_to_jpeg_bytes(fs_path, crop_mode, auto_focal)
+    if jpeg is None:
+        return None
+    b64 = base64.b64encode(jpeg).decode("ascii")
+    return f"data:image/jpeg;base64,{b64}"
+
