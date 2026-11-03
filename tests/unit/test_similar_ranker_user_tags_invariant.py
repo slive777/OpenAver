@@ -279,3 +279,21 @@ def test_user_tag_uses_alias_and_stopword_rules(tags, user_tags, expected):
 
     video = Video(number="V-001", tags=tags, user_tags=user_tags)
     assert canonical_video_tags(video) == expected
+
+
+def test_non_string_tag_elements_are_skipped_ranker_still_works():
+    """user_tags／tags 含 dict／None／int 時星空仍建得起來；字串標籤仍有效。"""
+    target = Video(
+        number="TGT-001",
+        tags=["tA", {"bad": True}, None, 7],
+        user_tags=[{"x": 1}, None, 42, "校服"],
+    )
+    x = Video(number="X-001", tags=["xq"], user_tags=["校服"])
+    pads = [
+        Video(number=f"PAD-{i:03d}", tags=[f"pad{i}"])
+        for i in range(40)
+    ]
+    corpus = [target, x, *pads]
+    ranker = SimilarRanker(corpus)
+    out = ranker.rank(target, top_k=1)
+    assert [v.number for v in out] == ["X-001"]
