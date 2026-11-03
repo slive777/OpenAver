@@ -614,10 +614,9 @@ def test_halt_interrupts_429_wait_without_user_stop(tmp_path, monkeypatch):
             start_b.wait(timeout=5)
         if path == A:
             raise TaggingFailure("unreachable", detail="rate_limited")
-        # B 等 A 進入 429 等待後才失敗，避免 B 先 halt 讓 A 根本走不到 wait
-        if attempt == 1:
-            assert spy.entered.wait(10)
-        raise TaggingFailure("unreachable", detail="connection_failed")
+        # B 等 A 進入 429 冷卻後立刻立停（不走 retry，否則會被共用冷卻擋住而無法 halt）
+        assert spy.entered.wait(10)
+        raise TaggingFailure("disabled")
 
     env.behave = behave
     t0 = time.monotonic()
@@ -629,7 +628,128 @@ def test_halt_interrupts_429_wait_without_user_stop(tmp_path, monkeypatch):
     assert spy.saw_waiting is True  # 進入 _STOP.wait 當下 waiting 已亮
     assert elapsed < 10  # 被 halt 喚醒，不得拖到 join 逾時／等滿 30 秒
     assert st["waiting"] is False
-    assert st["outcome"] == "unreachable"
-    assert st["stop_reason"] == "unreachable"
+    assert st["outcome"] == "disabled"
+    assert st["stop_reason"] == "disabled"
     assert env.path_counts.get(A, 0) == 1  # 429 等待被打斷後不重送
-    assert len(sink_calls) == 1
+    assert sink_calls == []  # disabled 不發通知
+
+
+def test_shared_cooldown_blocks_all_tagging_until_deadline(tmp_path, monkeypatch):
+    """I-COOLDOWN：撞 429 後整批進入共用冷卻；冷卻期間不得有任何 _tag_one（新片或重送）。"""
+    from core.ai_services import tags_backfill_policy
+    monkeypatch.setattr(tags_backfill_policy, "WAIT_429_S", 60)
+    clock = [1000.0]
+    monkeypatch.setattr(tags_backfill, "_monotonic", lambda: clock[0], raising=False)
+
+    hold = threading.Event()
+    entered = threading.Event()
+
+    class _ClockStop(threading.Event):
+        def wait(self, timeout=None):
+            entered.set()
+            while not hold.is_set() and not self.is_set():
+                if hold.wait(0.05):
+                    break
+            if self.is_set() and not hold.is_set():
+                return True
+            # 模擬等到截止：推進假時鐘後以 timeout 返回（非使用者停止）
+            clock[0] += float(timeout or 0)
+            return False
+
+    monkeypatch.setattr(tags_backfill, "_STOP", _ClockStop())
+    env = Env(tmp_path, monkeypatch)
+    A, B, C, D, E = [env.add_video() for _ in range(5)]
+    start_b = threading.Barrier(4)
+    post_cooldown = threading.Event()
+
+    def behave(path, nth):
+        with env._lock:
+            attempt = env.path_counts[path]
+        if path in (A, B, C, D) and attempt == 1:
+            start_b.wait(timeout=5)
+        if path == A and attempt == 1:
+            raise TaggingFailure("unreachable", detail="rate_limited")
+        if path == E or (path == A and attempt == 2):
+            post_cooldown.set()
+
+    env.behave = behave
+    assert tags_backfill.start_build()["status"] == "started"
+    try:
+        assert entered.wait(10)
+        assert tags_backfill.status()["waiting"] is True
+        # 冷卻中：B/C/D 可跑完首輪，但 A 重送與 E 不得開始
+        assert not post_cooldown.wait(0.4)
+        assert env.path_counts.get(E, 0) == 0
+        assert env.path_counts.get(A, 0) == 1
+    finally:
+        hold.set()
+    _join_workers()
+    st = tags_backfill.status()
+    assert st["outcome"] == "drained"
+    assert st["waiting"] is False
+    assert st["outcome"] != "quota"
+    assert env.path_counts.get(A, 0) == 2
+    assert env.path_counts.get(E, 0) == 1
+
+
+def test_shared_cooldown_survives_sliding_window_rate_limit(tmp_path, monkeypatch):
+    """I-COOLDOWN：每窗 15 次的限流下 ≥40 部不得以 quota 停下，應全部標完。
+
+    無共用冷卻時：降速後其他線在等待中繼續領片撞 429 → 連續三次 → quota。
+    """
+    from core.ai_services import tags_backfill_policy
+    WINDOW = 15
+    monkeypatch.setattr(tags_backfill_policy, "WAIT_429_S", 60)
+    clock = [0.0]
+    monkeypatch.setattr(tags_backfill, "_monotonic", lambda: clock[0], raising=False)
+    hold = threading.Event()
+    entered = threading.Event()
+    successes_left = [WINDOW]
+    post_degrade_429 = [0]
+    piled = threading.Event()
+    lock = threading.Lock()
+
+    class _ClockStop(threading.Event):
+        def wait(self, timeout=None):
+            entered.set()
+            # 可被 halt／stop（Event.set）或測試 hold 喚醒
+            while not hold.is_set() and not self.is_set():
+                if hold.wait(0.05):
+                    break
+            if self.is_set() and not hold.is_set():
+                return True
+            with lock:
+                successes_left[0] = WINDOW  # 冷卻結束＝新窗口
+            clock[0] += float(timeout or 0)
+            return False
+
+    monkeypatch.setattr(tags_backfill, "_STOP", _ClockStop())
+    env = Env(tmp_path, monkeypatch)
+    n = 40
+    for _ in range(n):
+        env.add_video()
+
+    def behave(path, nth):
+        with lock:
+            if successes_left[0] > 0:
+                successes_left[0] -= 1
+                return
+            if entered.is_set():
+                post_degrade_429[0] += 1
+                if post_degrade_429[0] >= 3:
+                    piled.set()
+        raise TaggingFailure("unreachable", detail="rate_limited")
+
+    env.behave = behave
+    assert tags_backfill.start_build()["status"] == "started"
+    assert entered.wait(10)
+    # 無冷卻時會在等待中繼續領片並堆積 429；有冷卻則 piled 不會亮
+    piled.wait(0.5)
+    hold.set()
+    _join_workers(timeout=30.0)
+    st = tags_backfill.status()
+    assert st["outcome"] == "drained"
+    assert st["outcome"] != "quota"
+    assert st["stop_reason"] is None
+    assert env.progress() == (n, 0, n)
+    assert st["done"] == n

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
+from time import monotonic as _monotonic_impl
 from typing import Optional
 
 from core.ai_services import tags_backfill_policy, tags_state
@@ -41,6 +42,9 @@ _STATE_LOCK = threading.Lock()
 _STOP = threading.Event()
 _rerun = False
 
+# 可注入假時鐘（測試）；`from time import monotonic` 避開 DoD 的 `import time` 字面
+_monotonic = _monotonic_impl
+
 
 @dataclass
 class _Ctx:
@@ -58,6 +62,7 @@ class _Ctx:
     n_waiting: int = 0
     halt_reason: Optional[str] = None
     suppress_notify: bool = False  # 第一次 halt 當下若使用者已停止 → 整批不通知
+    cooldown_until: Optional[float] = None  # I-COOLDOWN：共用冷卻截止（monotonic）
     gate: threading.Condition = field(init=False)
 
     def __post_init__(self) -> None:
@@ -308,19 +313,42 @@ def _gate_blocked(ctx: _Ctx) -> bool:
     return ctx.halt_reason is not None or _STOP.is_set()
 
 
+def _in_cooldown_locked(ctx: _Ctx) -> bool:
+    """呼叫端已持有 ``ctx.gate``。"""
+    return ctx.cooldown_until is not None and _monotonic() < ctx.cooldown_until
+
+
+def _refresh_waiting_locked(ctx: _Ctx) -> None:
+    """呼叫端已持有 ``ctx.gate``；冷卻中或仍有等待者 → waiting。"""
+    cooling = _in_cooldown_locked(ctx)
+    tags_state.job_set(waiting=cooling or ctx.n_waiting > 0)
+
+
 def _wait_for_slot(ctx: _Ctx) -> bool:
-    """呼叫端已持有 ``ctx.gate``；等到 ``inflight < limit`` 或被 stop／halt。回 False＝應退出。"""
-    while ctx.inflight >= ctx.policy.limit:
+    """呼叫端已持有 ``ctx.gate``；等到不在冷卻且 ``inflight < limit``，或被 stop／halt。回 False＝應退出。"""
+    while True:
         if _gate_blocked(ctx):
             return False
-        ctx.gate.wait(timeout=0.5)
-        if _gate_blocked(ctx):
-            return False
-    return True
+        while _in_cooldown_locked(ctx):
+            if _gate_blocked(ctx):
+                return False
+            remaining = ctx.cooldown_until - _monotonic()
+            ctx.gate.wait(timeout=min(0.5, max(remaining, 0.0)))
+            if _gate_blocked(ctx):
+                return False
+        while ctx.inflight >= ctx.policy.limit:
+            if _gate_blocked(ctx):
+                return False
+            ctx.gate.wait(timeout=0.5)
+            if _gate_blocked(ctx):
+                return False
+        if _in_cooldown_locked(ctx):
+            continue
+        return True
 
 
 def _claim(ctx: _Ctx, queue: list) -> Optional[tuple[str, bool]]:
-    """取得一個名額並領取下一部片；放行當下捕獲 ``started_degraded``。"""
+    """取得一個名額並領取下一部片；冷卻期間不領；放行當下捕獲 ``started_degraded``。"""
     with ctx.gate:
         while True:
             if _gate_blocked(ctx) or not queue:
@@ -336,7 +364,7 @@ def _claim(ctx: _Ctx, queue: list) -> Optional[tuple[str, bool]]:
 
 
 def _acquire_slot(ctx: _Ctx) -> Optional[bool]:
-    """429 等待後重送：再取一個名額並捕獲新的 ``started_degraded``。"""
+    """429 等待後重送：冷卻結束後再取名額並捕獲新的 ``started_degraded``。"""
     with ctx.gate:
         while True:
             if _gate_blocked(ctx):
@@ -374,19 +402,37 @@ def _halt(ctx: _Ctx, reason: str) -> None:
 
 
 def _wait_429(ctx: _Ctx, decision: tags_backfill_policy.Decision) -> bool:
-    """429 等待；回 True＝被停止或 halt。``wait_s == 0`` 也必須呼叫 ``_STOP.wait``。"""
+    """加入共用冷卻並等到截止；回 True＝被停止或 halt。``wait_s == 0`` 也必須呼叫 ``_STOP.wait``。
+
+    I-COOLDOWN：僅在「當下不在冷卻中」的第一次 429 設定截止＝now+wait_s；冷卻中回來的舊 429 不延長。
+    """
     with ctx.gate:
+        now = _monotonic()
+        if ctx.cooldown_until is None or now >= ctx.cooldown_until:
+            ctx.cooldown_until = now + decision.wait_s
+        deadline = ctx.cooldown_until
         ctx.n_waiting += 1
-        tags_state.job_set(waiting=True)
+        _refresh_waiting_locked(ctx)
+        ctx.gate.notify_all()
     try:
-        stopped = _STOP.wait(decision.wait_s)
+        while True:
+            if _gate_blocked(ctx):
+                return True
+            remaining = deadline - _monotonic()
+            if remaining <= 0:
+                # wait_s==0／已到期也必須呼叫縫，供 spy／mutation
+                stopped = _STOP.wait(0)
+                return bool(stopped) or _gate_blocked(ctx)
+            stopped = _STOP.wait(remaining)
+            if stopped or _gate_blocked(ctx):
+                return True
     finally:
         with ctx.gate:
             ctx.n_waiting -= 1
-            if ctx.n_waiting == 0:
-                tags_state.job_set(waiting=False)
+            if _gate_blocked(ctx) or not _in_cooldown_locked(ctx):
+                ctx.cooldown_until = None
+            _refresh_waiting_locked(ctx)
             ctx.gate.notify_all()
-    return bool(stopped) or ctx.halt_reason is not None
 
 
 def _reacquire_after_yield(ctx: _Ctx) -> Optional[bool]:
