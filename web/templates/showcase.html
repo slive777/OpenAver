@@ -1348,6 +1348,18 @@
                                         @click.stop="showAddLbTagInput()"
                                         :title="t('showcase.lightbox.add_tag')">+</button>
 
+                                <!-- AI 標籤鈕（188c-T11；設定頁開 AI 標籤且本片有封面才顯示） -->
+                                <button type="button" class="lb-tag-ai-btn"
+                                        x-show="lbAiVisible()"
+                                        @click.stop="lbAiTag()"
+                                        :disabled="lbAiIsBusy()"
+                                        :aria-busy="lbAiIsBusy()"
+                                        data-tooltip="{{ t('showcase.lightbox.ai_tags_tooltip') }}"
+                                        aria-label="{{ t('showcase.lightbox.ai_tags_tooltip') }}">
+                                    <i class="bi bi-stars" x-show="!lbAiIsBusy()"></i>
+                                    <i class="bi bi-arrow-repeat spin" x-show="lbAiIsBusy()"></i>
+                                </button>
+
                                 <!-- Inline 輸入框 -->
                                 <span class="lb-tag-input-wrapper" x-show="addingLbTag">
                                     <input class="lb-tag-input"
@@ -2088,6 +2100,7 @@
 <script>
 window.__SHOWCASE_CONFIG__ = {{ (config.gallery or {}) | tojson | safe }};
 window.__SHOWCASE_TRANSLATE__ = {{ {'enabled': ((config.translate or {}).get('enabled', False) is true)} | tojson | safe }};
+window.__SHOWCASE_AI_TAGS__ = {{ {'enabled': ((((config.ai_services or {}).get('tags') or {}).get('enabled', False) is true) and ((((config.ai_services or {}).get('tags') or {}).get('provider') or '') != '')), 'provider': (((((config.ai_services or {}).get('tags') or {}).get('provider') or '') if ((((config.ai_services or {}).get('tags') or {}).get('enabled', False) is true) and ((((config.ai_services or {}).get('tags') or {}).get('provider') or '') != '')) else ''))} | tojson | safe }};
 </script>
 <script src="/static/js/shared/grid-motion.js"></script>
 <!-- B5: animations.js 在 ESM main.js 之前載入（透過 extra_js defer） -->
