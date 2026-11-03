@@ -88,7 +88,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "scrape_single",
-        "description": "新片整理：搜尋 metadata → 下載封面 → 生成 NFO → 重命名搬移。帶 metadata 時直接採用你給的那份，不重查來源。不帶 metadata 時：number 是完整番號格式 → 問第一家有結果的來源、整包拿，不跨站合併（與搜尋頁整理、定時整理同一套規則）；number 不是完整番號格式（打錯、傳成標題或女優名）→ 退回逐站精確查詢並跨站合併欄位，也就是今天的既有行為（無碼模式開啟時例外：改問無碼來源白名單、命中第一家即回，與定時整理一致）。想要多來源聚合，自己對每個來源各查一次 /api/search、組好 metadata 再傳進來。所有來源都查不到這片時（/api/search 無結果、或本端點回查無），你可以自行決定要不要用自己的工具（例如網路搜尋）找到這片的資料，自己組好 metadata（番號、標題、演員、片商、發行日、封面圖網址 cover 等）再呼叫本端點補完；要不要這樣做由你判斷，資料正確性由你負責。這種自己查來的 metadata 請帶 manual_entry: true：資料夾、檔名、NFO 才會用你給的標題，不會被檔名裡殘留的中文字蓋掉；番號欄不檢查格式，沒有標準番號的片可給可辨識的字串。",
+        "description": "新片整理：搜尋 metadata → 下載封面 → 生成 NFO → 重命名搬移。帶 metadata 時直接採用你給的那份，不重查來源。不帶 metadata 時：number 是完整番號格式 → 問第一家有結果的來源、整包拿，不跨站合併（與搜尋頁整理、定時整理同一套規則）；number 不是完整番號格式（打錯、傳成標題或女優名）→ 退回逐站精確查詢並跨站合併欄位，也就是今天的既有行為（無碼模式開啟時例外：改問無碼來源白名單、命中第一家即回，與定時整理一致）。想要多來源聚合，自己對每個來源各查一次 /api/search、組好 metadata 再傳進來。所有來源都查不到這片時（/api/search 無結果、或本端點回查無），你可以自行決定要不要用自己的工具（例如網路搜尋）找到這片的資料，自己組好 metadata（番號、標題、演員、片商、發行日、封面圖網址 cover 等）再呼叫本端點補完；要不要這樣做由你判斷，資料正確性由你負責。這種自己查來的 metadata 請帶 manual_entry: true：資料夾、檔名、NFO 才會用你給的標題，不會被檔名裡殘留的中文字蓋掉；番號欄不檢查格式，沒有標準番號的片可給可辨識的字串。整理成功且該片進了片庫追蹤資料夾後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；不會拖慢本端點的回應；已排進背景的不必再叫 AI 標籤端點，背景沒跑成（見 debug.log 或該片仍無 AI 標籤）才單片補。三項全關則不發任何請求。",
         "method": "POST",
         "path": "/api/scrape-single",
         "input_schema": {
@@ -111,6 +111,7 @@ _TOOLS: list[dict] = [
         "confirmation_required": True,
         "idempotent": False,
         "retry_safe": False,
+        "cost_hint": "整理成功後，依設定頁開關在背景請 AI 服務（翻譯／圖片相似／AI 標籤，可能產生費用）；開關全關則不發",
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"/downloads/SONE-205.mp4\"}}' {base}/api/scrape-single",
     },
     {
@@ -183,7 +184,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "enrich_single",
-        "description": "舊片原地補完：補齊 NFO/封面/劇照，不搬移不改名。refresh_full 搭配 overwrite_existing=true 才覆蓋既有 NFO/封面；若只想更新 DB 不覆蓋檔案，用 overwrite_existing=false（預設）。overwrite_existing=true 時必須先讓用戶確認。劇照只補缺的：extrafanart 資料夾裡已經存在的圖一律不會被覆蓋，overwrite_existing 對劇照不適用。metadata 帶番號與 DB 既有值不符會被拒絕，除非帶 allow_number_change=true；分集片（-cd1/-cd2）要逐段各自呼叫本端點，一次只吃一個 file_path",
+        "description": "舊片原地補完：補齊 NFO/封面/劇照，不搬移不改名。refresh_full 搭配 overwrite_existing=true 才覆蓋既有 NFO/封面；若只想更新 DB 不覆蓋檔案，用 overwrite_existing=false（預設）。overwrite_existing=true 時必須先讓用戶確認。劇照只補缺的：extrafanart 資料夾裡已經存在的圖一律不會被覆蓋，overwrite_existing 對劇照不適用。metadata 帶番號與 DB 既有值不符會被拒絕，除非帶 allow_number_change=true；分集片（-cd1/-cd2）要逐段各自呼叫本端點，一次只吃一個 file_path。重刮（refresh_full 搭配 overwrite_existing=true；唯讀來源的片則是重刮：readonly_action=rescrape，或省略 readonly_action 但帶 metadata 時的預設，都不看 mode 與 overwrite_existing）成功後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；一般來源的 fill_missing 與 overwrite_existing=false 不會。",
         "method": "POST",
         "path": "/api/enrich-single",
         "input_schema": {
@@ -275,7 +276,7 @@ _TOOLS: list[dict] = [
         "confirmation_required": False,
         "idempotent": True,
         "retry_safe": True,
-        "cost_hint": "fill_missing/refresh_full 會打外部網站；db_to_sidecar 純本地",
+        "cost_hint": "fill_missing/refresh_full 會打外部網站；db_to_sidecar 純本地；重刮成功後依設定頁開關在背景請 AI 服務（可能產生費用）",
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"/library/SONE-205/SONE-205.mp4\",\"number\":\"SONE-205\",\"mode\":\"fill_missing\"}}' {base}/api/enrich-single",
     },
     {
@@ -286,6 +287,7 @@ _TOOLS: list[dict] = [
             "重刮覆蓋請設 overwrite_existing=true（refresh_full 配 overwrite_existing=false "
             "在不會寫出任何 sidecar 的設定下後端會擋下，只更新 DB 會造成磁碟分裂）。"
             "source 可為停用來源或 metatube:{provider}。"
+            "重刮（refresh_full 搭配 overwrite_existing=true；唯讀來源的片則是重刮：readonly_action=rescrape，或省略 readonly_action 但帶 metadata 時的預設，都不看 mode 與 overwrite_existing）成功後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；一般來源的 fill_missing 與 overwrite_existing=false 不會。"
         ),
         "method": "POST",
         "path": "/api/enrich-single",
@@ -333,7 +335,7 @@ _TOOLS: list[dict] = [
         "confirmation_required": True,
         "idempotent": False,
         "retry_safe": False,
-        "cost_hint": "refresh_full 會打外部網站重抓",
+        "cost_hint": "refresh_full 會打外部網站重抓；重刮成功後依設定頁開關在背景請 AI 服務（可能產生費用）",
         "_example_template": (
             "curl -X POST -H 'Content-Type: application/json' "
             "-d '{{\"file_path\":\"/library/SONE-205/SONE-205.mp4\",\"number\":\"SONE-205\","
@@ -1812,7 +1814,7 @@ _TOOLS: list[dict] = [
             "nfo_updated": "boolean — NFO 是否同步更新",
             "readonly_no_output": "boolean — 唯讀來源且尚無輸出夾時為 true（標籤已存進 DB，但沒有 NFO 被更新）",
             "nfo_write_blocked": "boolean — NFO 寫入被擋下時為 true",
-            "reason": "string — success=false 時才有：disabled／not_configured／unreachable／model_unsupported／bad_response／not_found／no_cover／write_failed",
+            "reason": "string — success=false 時才有：disabled／not_configured／unreachable／model_unsupported／bad_response／not_found／no_cover（有封面路徑但檔案不在時，這部片仍會記為跑過，不再留在設定頁「還有 N 部沒跑」裡）／write_failed",
             "detail": "string — success=false 時可能帶的補充說明",
         },
         "confirmation_required": True,  # 188b-T9b: 標一部片會花使用者的錢並寫標籤
