@@ -22,16 +22,17 @@ export function stateLightboxTags() {
 
         // 確認新增 tag — 呼叫 POST /api/user-tags
         async confirmAddLbTag() {
+            const video = this.currentLightboxVideo;
             const tag = (this.newLbTagValue || '').trim();
             if (!tag) {
                 this.addingLbTag = false;
                 return;
             }
-            if (!this.currentLightboxVideo?.path) {
+            if (!video?.path) {
                 this.addingLbTag = false;
                 return;
             }
-            const existingTags = this.currentLightboxVideo.user_tags || [];
+            const existingTags = video.user_tags || [];
             if (existingTags.includes(tag)) {
                 // 重複 tag，靜默忽略
                 this.addingLbTag = false;
@@ -43,15 +44,15 @@ export function stateLightboxTags() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        file_path: this.currentLightboxVideo.path,
+                        file_path: video.path,
                         add: [tag],
                     }),
                 });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
                 if (data.success) {
-                    this.currentLightboxVideo.user_tags = data.user_tags;
-                    _recomputeVideoBadges(this.currentLightboxVideo);
+                    video.user_tags = data.user_tags;
+                    _recomputeVideoBadges(video);
                     if (data.readonly_no_output) {
                         this.showToast(window.t('showcase.lightbox.tag_nfo_not_written'), 'info');
                     }
@@ -77,21 +78,22 @@ export function stateLightboxTags() {
 
         // 刪除 user tag — 呼叫 POST /api/user-tags {remove: [tag]}
         async removeLbUserTag(tag) {
-            if (!this.currentLightboxVideo?.path) return;
+            const video = this.currentLightboxVideo;
+            if (!video?.path) return;
             try {
                 const resp = await fetch('/api/user-tags', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        file_path: this.currentLightboxVideo.path,
+                        file_path: video.path,
                         remove: [tag],
                     }),
                 });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
                 if (data.success) {
-                    this.currentLightboxVideo.user_tags = data.user_tags;
-                    _recomputeVideoBadges(this.currentLightboxVideo);
+                    video.user_tags = data.user_tags;
+                    _recomputeVideoBadges(video);
                     if (data.readonly_no_output) {
                         this.showToast(window.t('showcase.lightbox.tag_nfo_not_written'), 'info');
                     }
