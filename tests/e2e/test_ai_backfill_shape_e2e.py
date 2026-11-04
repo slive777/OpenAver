@@ -117,7 +117,7 @@ class Harness:
 
     def load(self, base_url: str) -> None:
         p = self.page
-        p.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+        p.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
         p.wait_for_function("() => { const d = window.Alpine && Alpine.$data(document.getElementById("
                             "'settings-components')); return !!(d && d._configLoading === false && d.savedState); }")
         assert p.evaluate("() => Alpine.$data(document.getElementById('settings-components')).isDirty") is False

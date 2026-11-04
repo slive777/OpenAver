@@ -489,7 +489,6 @@
       "local_failed_server_failed": "服务器与这台电脑的设置都保存失败"
     },
     "header": {
-      "title": "设置",
       "font_size_prefix": "字体大小",
       "switch_dark": "切换至深色模式",
       "switch_light": "切换至浅色模式",
@@ -701,7 +700,6 @@
       "player_label": "视频播放器",
       "player_placeholder": "留空使用系统默认",
       "player_hint_prefix": "例如:",
-      "reset_label": "重置所有设置",
       "reset_hint": "删除所有自定义设置，恢复默认值",
       "close_action_label": "关闭窗口时",
       "close_action_ask": "每次询问",

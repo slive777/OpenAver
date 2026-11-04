@@ -375,11 +375,12 @@
     "page_title": "設定",
     "tabs": {
       "display": "顯示偏好",
-      "scraping": "刮削行為",
-      "sources": "掃描來源",
+      "scraping": "整理與命名",
+      "sources": "刮削來源",
       "organize": "整理規則",
       "translate": "AI 翻譯",
-      "advanced": "進階"
+      "advanced": "進階",
+      "gallery": "瀏覽顯示"
     },
     "display": {
       "font_size_label": "介面字級",
@@ -509,7 +510,6 @@
       "reset_failed": "重置失敗: {error}"
     },
     "header": {
-      "title": "設定",
       "font_size_prefix": "字體大小",
       "switch_dark": "切換至深色模式",
       "switch_light": "切換至淺色模式",
@@ -872,7 +872,6 @@
       "this_computer_unavailable": "暫時讀不到這台電腦的設定，這兩項先不能改",
       "player_placeholder": "留空使用系統預設",
       "player_hint_prefix": "例如:",
-      "reset_label": "重置所有設定",
       "reset_hint": "刪除所有自訂設定，恢復預設值",
       "close_action_label": "關閉視窗時",
       "close_action_ask": "每次詢問",
@@ -971,6 +970,16 @@
       "openai_official_missing_model": "請先選擇模型",
       "openai_official_missing_key": "認證失敗，請檢查 API Key",
       "openai_official_blocked": "這個測試片名被服務商的內容審查擋下了；換模型通常沒用，可改用其他翻譯服務"
+    },
+    "tab_desc": {
+      "sources": "選擇要去哪些網站查影片資料，並決定查詢的先後順序。",
+      "scraping": "整理影片時怎麼放、怎麼命名，以及要不要搭配其他媒體庫軟體。",
+      "gallery": "瀏覽頁打開時的預設、封面處理，以及哪些檔案會進片庫。",
+      "ai": "翻譯、圖片相似、人臉、AI 標籤的連線與補跑設定。",
+      "system": "預設頁、關閉視窗行為、播放器、恢復原廠設定。"
+    },
+    "save": {
+      "unsaved": "有未儲存變更"
     }
   },
   "scanner": {

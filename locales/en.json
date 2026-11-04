@@ -489,7 +489,6 @@
       "local_failed_server_failed": "Failed to save both the server's and this computer's settings"
     },
     "header": {
-      "title": "Settings",
       "font_size_prefix": "Font size",
       "switch_dark": "Switch to dark mode",
       "switch_light": "Switch to light mode",
@@ -701,7 +700,6 @@
       "player_label": "Video Player",
       "player_placeholder": "Leave blank for system default",
       "player_hint_prefix": "E.g.:",
-      "reset_label": "Reset All Settings",
       "reset_hint": "Delete all custom settings and restore defaults",
       "close_action_label": "When closing the window",
       "close_action_ask": "Ask every time",

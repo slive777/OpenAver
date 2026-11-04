@@ -38,11 +38,13 @@ PAGES = {
 #                                 <1024 退回 content-box（浮動只在 ≥1024 成立，Rule 13b）。
 # settings 內容側 = #settingsForm（#settings-components 的直接子、四張卡外層容器；
 # 不是 #settings-components 本身——那是 .page-layer，padding-inline 永遠 0）。
+# 190a-T1（路徑 B）：頁首桌機（≥1024）加 margin-inline:--layer-inset 縮到卡片寬，
+# 所以頁首量 border-box（盒緣 ＝ #settingsForm content-box ＝ 卡片盒緣）；<1024 仍貼齊、量 content-box。
 # scanner 工具列側 = .avlist-header，量法 "border-box"（CD-146b-21；鑑別力邊界見下方）。
 ALIGN_ANCHORS = {
     "search": ((".search-bar", "border-box-desktop-only"), (".result-area", "content-box")),
     "showcase": ((".showcase-toolbar", "border-box-desktop-only"), (".showcase-grid", "content-box")),
-    "settings": ((".settings-header", "content-box"), ("#settingsForm", "content-box")),
+    "settings": ((".settings-header", "border-box-desktop-only"), ("#settingsForm", "content-box")),
     "scanner": ((".avlist-header", "border-box"), (".avlist-container", "content-box")),
 }
 # "border-box" → 任何寬度都用 rect.left（無條件 border-box；CD-146b-21）。

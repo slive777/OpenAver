@@ -10,7 +10,7 @@ pytestmark = pytest.mark.e2e
 
 
 def test_ai_tab_similar_persists_after_reload(page: Page, base_url: str) -> None:
-    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+    page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
     page.locator("#aiTabSimilar").click()
@@ -36,7 +36,7 @@ def test_ai_tab_similar_persists_after_reload(page: Page, base_url: str) -> None
 
 def test_ai_tab_faces_persists_after_reload(page: Page, base_url: str) -> None:
     """第三分頁 settle 後可見＋localStorage 記憶（TASK-187a-T5）。"""
-    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+    page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
     page.locator("#aiTabFaces").click()
@@ -62,7 +62,7 @@ def test_ai_tab_faces_persists_after_reload(page: Page, base_url: str) -> None:
 
 def test_ai_tab_tags_persists_after_reload(page: Page, base_url: str) -> None:
     """第四分頁 settle 後可見＋localStorage 記憶（TASK-188c-T14）。"""
-    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+    page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
     page.locator("#aiTabTags").click()
@@ -106,7 +106,7 @@ def test_connection_area_shows_only_selected_provider(page: Page, base_url: str)
     with page.expect_response(
         lambda r: r.url.rstrip("/").endswith("/api/config") and r.request.method == "GET"
     ):
-        page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+        page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
     page.locator("#aiTabTranslate").click()
@@ -129,7 +129,7 @@ def _open_settings(page: Page, base_url: str) -> None:
     with page.expect_response(
         lambda r: r.url.rstrip("/").endswith("/api/config") and r.request.method == "GET"
     ):
-        page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+        page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
 

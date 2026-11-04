@@ -11,11 +11,6 @@
     padding-inline: var(--layer-inset);
 }
 
-.settings-header h4 {
-    margin: 0;
-    color: var(--text-primary);
-}
-
 /* Modern Card Styling（theme.css 未納入 #settings-components scope）*/
 #settings-components .card {
     border: 1px solid var(--stroke-default);
@@ -116,6 +111,112 @@
 
 /* 64b-5: .settings-tab-bar / .settings-tab CSS 已移除（HTML 於 64b-1 拆除）。
    64c-2: quick-jump nav（64b-2）整組回捲（CD-64-B12）。 */
+
+/* ========== 190a-T1: 五分頁外殼（底線式 Fluent TabList）==========
+   44px 是控制項高度（觸控目標），不是 gap／padding／margin；15px 字級與 2px 底線屬字級／stroke 例外。
+   不替 [data-settings-panel] 的 .card 設 display（x-show 管，FE-ALPINE-01）；不覆寫重設鈕顏色。 */
+#settings-components .settings-tabs-wrap {
+    min-width: 0;
+}
+
+#settings-components .settings-tabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin: 0 0 16px;
+    padding: 0;
+    border-bottom: 1px solid var(--stroke-subtle);
+}
+
+#settings-components .settings-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 16px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        background-color var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .settings-tab i {
+    font-size: 16px;
+}
+
+#settings-components .settings-tab:hover {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
+}
+
+#settings-components .settings-tab:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+#settings-components .settings-tab.is-active {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+#settings-components .settings-tab.is-active::after {
+    content: "";
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: var(--radius-xs);
+}
+
+/* 每張分頁卡頂端的一句說明 */
+#settings-components .settings-tab-desc {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin: 0 0 1rem;
+}
+
+/* 釘底動作列：頁首同材質，在文件流內（捲到底時在最後一個欄位下面，不遮欄位） */
+#settings-components .settings-save-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    margin: 8px 0 0;
+    background: var(--bg-header);
+    backdrop-filter: blur(var(--fluent-blur-light)) saturate(120%);
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light)) saturate(120%);
+    border-top: 1px solid var(--stroke-subtle);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+#settings-components .settings-save-dirty {
+    margin-right: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+#settings-components .settings-save-dirty::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+}
 
 /* ========== Responsive: 行動版（窄螢幕）RWD ========== */
 
@@ -287,6 +388,14 @@
     z-index: 31;
 }
 
+/* 190a-T1（路徑 B，CD-190a-3 補充 6）：桌機頁首縮到卡片寬，與分頁列／卡片／釘底列同欄寬。
+   只在 ≥1024（頁首浮起、Rule 47）；<1024 頁首仍貼齊，手機規則留 T4。 */
+@media (min-width: 1024px) {
+    .settings-header {
+        margin-inline: var(--layer-inset);
+    }
+}
+
 .settings-header-actions {
     display: flex;
     align-items: center;
@@ -397,14 +506,14 @@
         scroll-margin-top: 9rem;
     }
 
-    /* header 整體允許換行，h4 佔第一列全寬，actions 落第二列 */
+    /* header 整體允許換行，header-left 佔第一列全寬，actions 落第二列 */
     .settings-header {
         flex-wrap: wrap;
         justify-content: flex-start;
     }
 
-    /* 81b-T2: h4 已包進 .settings-header-left，不再是 .settings-header 直接 flex item。
-       換行接力改由 .settings-header-left 佔第一列全寬；h4 在 cluster 內仍可佔行（標題獨佔，膠囊/inline 落次行）。 */
+    /* 81b-T2: 連線膠囊等 inline 區塊包在 .settings-header-left，不是 .settings-header 直接 flex item。
+       換行接力由 .settings-header-left 佔第一列全寬；cluster 內的 inline 區塊依序換行。 */
     .settings-header-left {
         flex: 1 1 100%;
         min-width: 0;

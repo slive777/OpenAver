@@ -489,7 +489,6 @@
       "local_failed_server_failed": "サーバーとこのPCの設定、どちらも保存に失敗しました"
     },
     "header": {
-      "title": "設定",
       "font_size_prefix": "フォントサイズ",
       "switch_dark": "ダークモードに切替",
       "switch_light": "ライトモードに切替",
@@ -701,7 +700,6 @@
       "player_label": "動画プレイヤー",
       "player_placeholder": "空欄 = システムデフォルトを使用",
       "player_hint_prefix": "例：",
-      "reset_label": "すべての設定をリセット",
       "reset_hint": "すべてのカスタム設定を削除してデフォルトに戻す",
       "close_action_label": "ウィンドウを閉じるとき",
       "close_action_ask": "毎回確認",

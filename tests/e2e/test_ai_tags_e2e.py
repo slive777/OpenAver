@@ -52,7 +52,7 @@ def _fake_settings(page: Page, tags: dict, status: dict, forbidden: list) -> Non
     # 後註冊先匹配：GET status 走假回應，不受上列 POST abort 影響
     page.route("**/api/ai/tags/backfill/status", lambda r: r.fulfill(json=status))
 def _settle_settings(page: Page, base_url: str) -> None:
-    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+    page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_function(
         "() => { const d = window.Alpine && Alpine.$data("
         "document.getElementById('settings-components'));"

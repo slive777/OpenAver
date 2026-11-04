@@ -12,9 +12,6 @@
     <div class="settings-header">
         <!-- 81b-T1: 左 cluster 包標題 + 膠囊 + 連線 inline 區塊；flex 樣式由 T2 補 -->
         <div class="settings-header-left">
-            <h4 class="mb-0">
-                <i class="bi bi-gear"></i> {{ t('settings.header.title') }}
-            </h4>
             <!-- Server Mode Toggle (80a-T3) — 81b-T1: 從 actions 末尾搬到標題側 -->
             {% if not is_synology %}
             <div class="settings-server-mode">
@@ -245,13 +242,44 @@
 
         </div><!-- /settings-quick-toggle-row -->
 
+        <!-- 190a-T1: 五分頁外殼（獨立元件 settingsTabs；卡以 data-settings-panel 歸屬分頁） -->
+        <div class="settings-tabs-wrap" x-data="settingsTabs" @hashchange.window="syncFromHash()">
+        <div role="tablist" class="settings-tabs">
+            <button type="button" role="tab" class="settings-tab" id="settingsTabSources"
+                    aria-controls="settingsPanelSources"
+                    :class="{ 'is-active': settingsTab === 'sources' }"
+                    :aria-selected="settingsTab === 'sources'"
+                    @click="selectSettingsTab('sources')"><i class="bi bi-collection"></i> <span>{{ t('settings.tabs.sources') }}</span></button>
+            <button type="button" role="tab" class="settings-tab" id="settingsTabScraping"
+                    aria-controls="settingsPanelScraping"
+                    :class="{ 'is-active': settingsTab === 'scraping' }"
+                    :aria-selected="settingsTab === 'scraping'"
+                    @click="selectSettingsTab('scraping')"><i class="bi bi-gear"></i> <span>{{ t('settings.tabs.scraping') }}</span></button>
+            <button type="button" role="tab" class="settings-tab" id="settingsTabGallery"
+                    aria-controls="settingsPanelGallery"
+                    :class="{ 'is-active': settingsTab === 'gallery' }"
+                    :aria-selected="settingsTab === 'gallery'"
+                    @click="selectSettingsTab('gallery')"><i class="bi bi-grid"></i> <span>{{ t('settings.tabs.gallery') }}</span></button>
+            <button type="button" role="tab" class="settings-tab" id="settingsTabAi"
+                    aria-controls="aiServicesCard"
+                    :class="{ 'is-active': settingsTab === 'ai' }"
+                    :aria-selected="settingsTab === 'ai'"
+                    @click="selectSettingsTab('ai')"><i class="bi bi-stars"></i> <span>{{ t('settings.ai.title') }}</span></button>
+            <button type="button" role="tab" class="settings-tab" id="settingsTabSystem"
+                    aria-controls="settingsPanelSystem"
+                    :class="{ 'is-active': settingsTab === 'system' }"
+                    :aria-selected="settingsTab === 'system'"
+                    @click="selectSettingsTab('system')"><i class="bi bi-sliders"></i> <span>{{ t('settings.section.system') }}</span></button>
+        </div>
+
         <!-- ── Section 1: 搜尋與刮削（兩卡同包） ── -->
         <section id="sec-search" class="settings-section">
 
           <!-- Card ①：搜尋來源 -->
-          <div class="card mb-4">
-            <div class="settings-card-header"><i class="bi bi-collection"></i> {{ t('settings.tabs.sources') }}</div>
+          <div class="card mb-4" id="settingsPanelSources" role="tabpanel" aria-labelledby="settingsTabSources"
+               data-settings-panel="sources" x-show="settingsTab === 'sources'" x-cloak>
             <div class="card-body">
+                <p class="settings-tab-desc">{{ t('settings.tab_desc.sources') }}</p>
 
                     <!-- ===== Section 2 — Active Row (Zone A) — 61c-1 structure ===== -->
                     <!-- Batch bar: segmented 全開|無碼 control (64e-2) -->
@@ -635,9 +663,10 @@
           </div>
 
           <!-- Card ②：刮削與翻譯 -->
-          <div class="card mb-4">
-            <div class="settings-card-header"><i class="bi bi-gear"></i> {{ t('settings.tabs.scraping') }}</div>
+          <div class="card mb-4" id="settingsPanelScraping" role="tabpanel" aria-labelledby="settingsTabScraping"
+               data-settings-panel="scraping" x-show="settingsTab === 'scraping'" x-cloak>
             <div class="card-body">
+                <p class="settings-tab-desc">{{ t('settings.tab_desc.scraping') }}</p>
 
                     <!-- 我的最愛資料夾（scanner dropdown + favoriteScannerLink） -->
                     <div class="settings-form-row">
@@ -1023,9 +1052,10 @@
 
         <!-- ── Section 2: 列表生成 ── -->
         <section id="sec-gallery" class="settings-section">
-          <div class="card mb-4">
-            <div class="settings-card-header"><i class="bi bi-list-ul"></i> {{ t('nav.scanner') }}</div>
+          <div class="card mb-4" id="settingsPanelGallery" role="tabpanel" aria-labelledby="settingsTabGallery"
+               data-settings-panel="gallery" x-show="settingsTab === 'gallery'" x-cloak>
             <div class="card-body">
+                <p class="settings-tab-desc">{{ t('settings.tab_desc.gallery') }}</p>
 
                     <!-- ── 外層（常顯）：列表顯示預設 tier（G-B1/CD-95b-1）── -->
                     <p class="settings-tier-label">{{ t('settings.gallery.tier_display') }}</p>
@@ -1206,9 +1236,10 @@
 
         <!-- ── Section: AI 功能（TASK-186-T2）── -->
         <section id="sec-ai" class="settings-section">
-          <div class="card mb-4" id="aiServicesCard" x-data="aiServicesCard">
-            <div class="settings-card-header"><i class="bi bi-stars"></i> {{ t('settings.ai.title') }}</div>
+          <div class="card mb-4" id="aiServicesCard" x-data="aiServicesCard" role="tabpanel" aria-labelledby="settingsTabAi"
+               data-settings-panel="ai" x-show="settingsTab === 'ai'" x-cloak>
             <div class="card-body">
+                <p class="settings-tab-desc">{{ t('settings.tab_desc.ai') }}</p>
 
                     <div class="ai-tabs-row">
                         <div role="tablist" class="tabs tabs-border">
@@ -1838,9 +1869,10 @@
 
         <!-- ── Section 3: 系統設定 ── -->
         <section id="sec-system" class="settings-section">
-          <div class="card mb-4">
-            <div class="settings-card-header"><i class="bi bi-sliders"></i> {{ t('settings.section.system') }}</div>
+          <div class="card mb-4" id="settingsPanelSystem" role="tabpanel" aria-labelledby="settingsTabSystem"
+               data-settings-panel="system" x-show="settingsTab === 'system'" x-cloak>
             <div class="card-body">
+                <p class="settings-tab-desc">{{ t('settings.tab_desc.system') }}</p>
                     <div class="settings-form-row">
                         <label class="row-label">{{ t('settings.system.default_page_label') }}</label>
                         <select class="select select-bordered select-sm" id="defaultPage"
@@ -1871,25 +1903,19 @@
                             <small class="settings-hint">{{ t('settings.system.player_hint_prefix') }} C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
                         </div>
                     </div>
-                    <hr class="my-3">
-
-                    <!-- 重置按鈕 -->
-                    <div class="settings-form-row">
-                        <label class="row-label text-error">
-                            {{ t('settings.system.reset_label') }}
-                            <small class="settings-hint">{{ t('settings.system.reset_hint') }}</small>
-                        </label>
-                        <button type="button" class="btn btn-sm btn-outline btn-error"
-                            @click="resetConfig()">
-                            <i class="bi bi-arrow-counterclockwise"></i> {{ t('settings.action.reset') }}
-                        </button>
-                    </div>
             </div>
           </div>
         </section><!-- /sec-system -->
+        </div><!-- /settings-tabs-wrap -->
 
         <!-- 儲存按鈕 -->
-        <div class="save-btn-wrapper">
+        <div class="save-btn-wrapper settings-save-bar">
+            <span class="settings-save-dirty" x-show="isDirty" x-cloak><span>{{ t('settings.save.unsaved') }}</span></span>
+            <button type="button" class="btn btn-sm btn-outline btn-error"
+                    title="{{ t('settings.system.reset_hint') }}"
+                    @click="resetConfig()">
+                <i class="bi bi-arrow-counterclockwise"></i> {{ t('settings.action.reset') }}
+            </button>
             <button type="submit" class="btn btn-primary save-btn" id="saveBtn">
                 <i class="bi bi-save"></i> {{ t('settings.action.save') }}
             </button>
