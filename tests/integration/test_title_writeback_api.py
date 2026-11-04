@@ -186,6 +186,23 @@ def test_translate_writes_nfo_and_db_consistently(monkeypatch, tmp_db, tmp_path)
     assert row.nfo_mtime == nfo.stat().st_mtime
 
 
+def test_writeback_holds_shared_nfo_lock(monkeypatch, tmp_db, tmp_path):
+    """燈箱寫回期間持有背景翻譯寫回同一把 NFO 鎖（189a PR#265 review）。"""
+    import core.user_tags_write as utw
+    import web.routers.showcase as showcase
+    client, repo, uri, nfo = _plain_env(monkeypatch, tmp_db, tmp_path)
+    real, seen = showcase.apply_title_writeback, []
+
+    def spy(*a, **kw):
+        seen.append(utw._LOCK.locked())
+        return real(*a, **kw)
+
+    monkeypatch.setattr(showcase, "apply_title_writeback", spy)
+    assert _post(client, uri, ZH_TITLE).json()["success"] is True
+    assert seen == [True]
+    assert utw._LOCK.locked() is False
+
+
 def test_retranslate_keeps_original_title(monkeypatch, tmp_db, tmp_path):
     client, repo, uri, nfo = _plain_env(monkeypatch, tmp_db, tmp_path,
                                         title=ZH_TITLE, original_title=JP_TITLE)

@@ -30,6 +30,7 @@ from core.logger import get_logger
 from core.platform_info import DSM_PERMISSION_HINT, is_synology
 from core.config import load_config, get_gallery_source_paths, get_configured_gallery_dirs
 from core.title_writeback import apply_title_writeback
+from core.user_tags_write import hold_nfo_write
 from core.title_writeback import needs_translate as _needs_translate
 from core.video_nfo_locate import locate_readonly_nfo
 from core.focal import device_state, format_focal, parse_focal
@@ -510,6 +511,17 @@ def _apply_title_writeback(repo, video, req, config: dict, path_mappings: dict) 
     return _title_fail(result["error"])
 
 
+def _locked_title_writeback(repo, req) -> dict:
+    video = repo.get_by_path(req.file_path)
+    if video is None:
+        return _title_fail("not_found")
+    config = load_config()
+    configured_dir_uris, path_mappings = get_configured_gallery_dirs(config)
+    if not any(is_path_under_dir(video.path, uri) for uri in configured_dir_uris):
+        return _title_fail("not_found")
+    return _apply_title_writeback(repo, video, req, config, path_mappings)
+
+
 @router.post("/video/title")
 def write_video_title(req: TitleWritebackRequest):
     """燈箱翻譯／復原：NFO 標題與 DB 同步改寫（先 NFO、後 DB；沒有任何回滾）。
@@ -523,14 +535,9 @@ def write_video_title(req: TitleWritebackRequest):
             return _title_fail("not_found")
         init_db(db_path)
         repo = VideoRepository(db_path)
-        video = repo.get_by_path(req.file_path)
-        if video is None:
-            return _title_fail("not_found")
-        config = load_config()
-        configured_dir_uris, path_mappings = get_configured_gallery_dirs(config)
-        if not any(is_path_under_dir(video.path, uri) for uri in configured_dir_uris):
-            return _title_fail("not_found")
-        return _apply_title_writeback(repo, video, req, config, path_mappings)
+        # 與背景翻譯寫回（post_ingest）同一把 NFO 鎖：讀列到寫完之間不讓它插進來蓋片名
+        with hold_nfo_write():
+            return _locked_title_writeback(repo, req)
     except ValueError:
         return _title_fail("invalid_path")
     except Exception as e:
