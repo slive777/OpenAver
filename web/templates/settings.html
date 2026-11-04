@@ -1268,7 +1268,22 @@
           <div class="card mb-4" id="aiServicesCard" x-data="aiServicesCard" role="tabpanel" aria-labelledby="settingsTabAi"
                data-settings-panel="ai" x-show="settingsTab === 'ai'" x-cloak>
             <div class="card-body">
-                <p class="settings-tab-desc">{{ t('settings.tab_desc.ai') }}</p>
+                <div class="ai-card-intro">
+                    <p class="settings-tab-desc">{{ t('settings.tab_desc.ai') }}</p>
+                    <div class="popover-anchor" x-data="helpPopover">
+                        <button type="button" class="help-popover-btn"
+                                @click.prevent="toggle()"
+                                :aria-expanded="open">
+                            <i class="bi bi-question-circle"></i>
+                        </button>
+                        <div x-show="open" x-cloak x-transition
+                             @click.outside="close()"
+                             class="help-popover">
+                            <small class="help-popover__body">{{ t('settings.ai.help_body') }}</small>
+                            <p class="help-popover__body"><a href="https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md" target="_blank" rel="noopener noreferrer">{{ t('settings.ai.help_docs_link') }}</a></p>
+                        </div>
+                    </div>
+                </div>
 
                     <div class="ai-tabs-row">
                         <div role="tablist" class="tabs tabs-border">
@@ -1292,19 +1307,6 @@
                                 :aria-selected="aiTab === 'tags'"
                                 :class="{ 'tab-active': aiTab === 'tags' }"
                                 x-text="window.t('settings.ai.tab_tags')"></button>
-                        </div>
-                        <div class="popover-anchor" x-data="helpPopover">
-                            <button type="button" class="help-popover-btn"
-                                    @click.prevent="toggle()"
-                                    :aria-expanded="open">
-                                <i class="bi bi-question-circle"></i>
-                            </button>
-                            <div x-show="open" x-cloak x-transition
-                                 @click.outside="close()"
-                                 class="help-popover help-popover--left">
-                                <small class="help-popover__body">{{ t('settings.ai.help_body') }}</small>
-                                <p class="help-popover__body"><a href="https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md" target="_blank" rel="noopener noreferrer">{{ t('settings.ai.help_docs_link') }}</a></p>
-                            </div>
                         </div>
                     </div>
 

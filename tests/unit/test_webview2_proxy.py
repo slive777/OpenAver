@@ -364,6 +364,8 @@ def build_env(monkeypatch, tmp_path):
     env = types.SimpleNamespace(installs=[], records=[], webview=_FakeWebview(), logger=_Logger())
     monkeypatch.setattr(cf_windows, 'webview', env.webview)
     monkeypatch.setattr(cf_windows, 'get_data_root', lambda: tmp_path)
+    # 視窗標題跟語系走；固定成 zh-TW 才對得上 JL_TITLE，不吃本機 config 的語系
+    monkeypatch.setattr('core.client_settings.tray_locale', lambda: 'zh-TW')
     monkeypatch.setattr(cf_windows, 'record_cf_window_proxy_at_start', lambda spec: env.records.append(spec))
 
     def _no_register(t):
