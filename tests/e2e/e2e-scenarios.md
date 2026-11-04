@@ -733,7 +733,7 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
    - **驗**：關掉燈箱 → 牆上那張卡的番號前面立刻有星（不必重整）
    - **驗**：**手機寬度（≤480px）下星星點得到**——左箭頭不會蓋住它（0.14.4 改箭頭對齊封面就是為了這個；箭頭仍在視窗中央＝退版）
    - **還原**：再點一次取消精選
-3. **[MCP][寫設定] 封面屬性標籤是 opt-in**：`/settings` → 列表顯示預設 → 「封面屬性標籤」
+3. **[MCP][寫設定] 封面屬性標籤是 opt-in**：`/settings` → 瀏覽顯示 → 瀏覽頁預設 → 「封面屬性標籤」
    - **驗**：**預設全關**；打開之後回 `/showcase`，中字片的封面**左上角**出現標籤
    - **驗**：**最多 3 顆**（找一部同時中字 ＋ 4K ＋ 無碼破解 ＋ VR 的片，畫面上不會擠出第 4 顆）
    - **驗**：逐項關掉其中一種 → 那一種不再顯示，**但該片的標籤本身沒有被改掉**（燈箱標籤列仍讀得到「中文字幕」）
@@ -943,7 +943,7 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
    - **驗**：按鈕 icon 與 `title` 同步切換（`bi-person-badge` ↔ `bi-person-vcard`，`title` 讀出目前模式）
    - **驗**：切換是原地變形不是整面淡出淡入（`.av-card-preview` 在切換期間 `opacity` 全程 ≥ 0.95，複用 US9 的驗法）
    - 再點一次切回完整封面，**驗**牆面與按鈕 icon 都還原
-3. **[MCP] 設定頁開關（不儲存）**：`/settings` → 捲到「片庫管理」卡片 → 找到「顯示表格與清單」那一列的 checkbox（`x-model="form.showTableList"`）
+3. **[MCP] 設定頁開關（不儲存）**：`/settings` → 切到「瀏覽顯示」分頁 → 找到「顯示表格與清單」那一列的 checkbox（`x-model="form.showTableList"`）
    - **驗**：checkbox 目前狀態與 `GET /api/config` 的 `gallery.show_table_list` 一致（預設應為未勾）
    - `browser_click` 勾選 → **驗**：checkbox 變勾選（純前端 `x-model`，此時尚未送出）
    - 旁邊 `?` 說明鈕（`.help-popover-btn`）點開 → **驗**：`.help-popover` 顯示說明文字
@@ -981,7 +981,7 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
    - **驗**：`favoriteConfigured()` 為 false 時（本環境現況）顯示「待整理」未設定那一行（`search.empty.explain_favorite_unset`），**不**顯示已設定那一行
    - **驗**：🕘 定時整理那一行（`search.empty.explain_auto_organize`）恆顯示，不看設定狀態
    - **驗**：`namingPreviewReady()` 為 true 時，最後一行 `<code>` 內容是**真實算出來的檔名範例**（非空字串、非原樣未替換的 `{}` token），並帶「改規則 → 設定」連結（`href="/settings#filenameFormat"`）
-2. **[MCP] 命名範例與設定頁「同一份算法」**：記錄 step 1 的 `<code>` 文字 → `browser_navigate` `/settings#filenameFormat` → 找 `.folder-preview.naming-preview .preview-text`（設定頁「預覽」列）
+2. **[MCP] 命名範例與設定頁「同一份算法」**：記錄 step 1 的 `<code>` 文字 → `browser_navigate` `/settings#filenameFormat` → 找 `.folder-preview.naming-preview .preview-text`（設定頁「預覽」列；進入後自動切到「整理與命名」分頁）
    - ⚠️ **實測訂正**：兩處呼叫的是同一個 `buildNamingPreview()` 純函式（`shared/naming-preview.js`），但**代入的 token 值不同**——搜尋頁空狀態代入的是**變數名稱本身**（`window.t('settings.var.'+name)`，例如「女優」「番號」「片商」，實測輸出 `女優/[番號][片商] 女優-標題後綴.mp4`），設定頁代入的是**固定範例資料**（`SSNI-618`／`三上悠亞`／`SOD` 等，實測輸出 `三上悠亞/[SSNI-618][SOD] 三上悠亞-絕對領域-4k.mp4`）。**不是逐字相同**，「同一份程式碼」指的是算法／token 替換邏輯共用，不是輸出字串共用——原始草稿假設「兩邊文字逐字相同」是錯的，已依實測訂正。
    - **驗**：兩處的**結構**一致——資料夾層（`createFolder` 開時才有）＋ `[num][maker]` ＋ `actor-title` ＋ `suffix` ＋ `.mp4`，token 出現的相對順序與括號包法相同，只有代入值不同
    - **驗**：在設定頁把「建立資料夾」關掉 → 設定頁預覽的資料夾層消失；回搜尋頁空狀態（不重整，`appConfig` 需重新載入或觀察下次進頁）→ 命名範例前綴的資料夾層也應消失（同一份 `scraper.create_folder` 設定值）
@@ -1058,7 +1058,7 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
    () => document.querySelector('.main-content')?.getBoundingClientRect().left
    ```
    - **驗**：五個頁面回傳值**逐值相同**（同一個 `--page-gutter` token，`theme.css:66`；實測 sidebar 展開寬度下五頁皆為 `60`，`padding-left` 皆 `24px` ⇒ 內容實際起點 `84px` 逐頁相同，**PASS**）
-2. **[MCP] 內容起點對齊**：對 `/showcase`、`/settings`、`/scanner`、`/help` 四頁量測第一個內容區塊（`.showcase-grid` / 第一個 `.settings-section .card` / `.page-layer` 第一個子元素）的 `getBoundingClientRect().left`
+2. **[MCP] 內容起點對齊**：對 `/showcase`、`/settings`、`/scanner`、`/help` 四頁量測第一個內容區塊（`.showcase-grid` / 目前顯示分頁的 `.card[data-settings-panel]`（預設「刮削來源」） / `.page-layer` 第一個子元素）的 `getBoundingClientRect().left`
    - **驗**：與 step 1 的 `.main-content` 內容起點（`left + padding-left`，實測 `84`）**相等**（或差在 1px 內）——四頁**實測皆為 `84`，PASS**
    - ⚠️ **`/search` 不用這個方法測**：`.spotlight-search` 是**置中**的搜尋框（實測 `left ≈ 373`，視窗置中，非貼左），不是貼左的工具列，跟其他四頁的比較基準不同源，勉強比較會誤判成錯位；`#emptyState` 內容區本身仍走 `.main-content` 同一個 padding token（實測 `108` = `84 + 24`，那多出的 24 是 `#emptyState` 自己的置中/内距設計，不是本 US 要驗的目標）
    - ⚠️ **`.showcase-toolbar` 不能直接拿來跟 `.showcase-grid` 比**：桌面（≥1024px）下 `.showcase-toolbar` 走**既有的**「B floating」浮動玻璃卡設計（`fluent-materials.css` Rule 13b，`margin-inline: var(--layer-inset)`，兩側都內縮，實測 `left = 108 = 84 + 24`），這是**先於 0.15.15、獨立的既有設計**（浮動工具列離頁面邊緣有意留白），**不是**本版左邊緣對齊修復的目標、也不是 regression——別把這個 24px 誤判成沒對齊
