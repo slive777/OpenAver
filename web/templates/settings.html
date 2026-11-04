@@ -194,29 +194,8 @@
     <!-- 64b-1: form wraps all 3 sections (replaces 6-panel layout). -->
     <form id="settingsForm" @submit.prevent="saveConfig" inert :inert="_configLoading">
 
-        <!-- ── quick-toggle 列（CD-64-B8）：下載劇照 + 進階搜尋，header 下 section 上 ── -->
+        <!-- ── quick-toggle 列（CD-64-B8）：封面縮圖快取，header 下 section 上 ── -->
         <div class="settings-quick-toggle-row">
-
-            <!-- 下載劇照（extrafanart） -->
-            <div class="settings-form-group popover-anchor" x-data="helpPopover">
-                <label class="settings-label">
-                    <input type="checkbox" class="toggle toggle-primary"
-                           x-model="form.downloadSampleImages">
-                    <span class="label-text">{{ t('settings.scraper.download_sample_images_label') }}</span>
-                    <button type="button" class="help-popover-btn"
-                            @click.prevent="toggle()"
-                            :aria-expanded="open">
-                        <i class="bi bi-question-circle"></i>
-                    </button>
-                </label>
-                <div x-show="open" x-cloak x-transition
-                     @click.outside="close()"
-                     class="help-popover">
-                    <small class="help-popover__body">
-                        {{ t('settings.scraper.download_sample_images_hint') }}
-                    </small>
-                </div>
-            </div>
 
             <!-- 封面縮圖快取（71-T5） -->
             <div class="settings-form-group popover-anchor" x-data="helpPopover">
@@ -668,193 +647,218 @@
             <div class="card-body">
                 <p class="settings-tab-desc">{{ t('settings.tab_desc.scraping') }}</p>
 
-                    <!-- 我的最愛資料夾（scanner dropdown + favoriteScannerLink） -->
-                    <div class="settings-form-row">
-                        <label class="row-label">
-                            {{ t('settings.search.favorite_folder_label') }}
-                            <small class="settings-hint">{{ t('settings.search.favorite_folder_hint') }}</small>
-                        </label>
-                        <div class="flex-1 flex flex-col gap-1">
-                            <!-- input + dropdown 按鈕 -->
-                            <div class="variable-input-group" style="position:relative;">
-                                <input type="text" class="input input-bordered input-sm flex-1" id="searchFavoriteFolder"
-                                    x-model="form.searchFavoriteFolder"
-                                    placeholder="{{ t('settings.search.favorite_folder_placeholder') if is_desktop else t('settings.search.favorite_folder_placeholder_server') }}">
-                                <button type="button"
-                                    class="btn btn-sm btn-outline"
-                                    :title="t('settings.favorite_folder.pick_from_scanner')"
-                                    :aria-label="t('settings.favorite_folder.pick_from_scanner')"
-                                    @click.stop="showDirDropdown = !showDirDropdown">
-                                    <i class="bi bi-folder2-open"></i>
-                                </button>
-                                <!-- Scanner directories dropdown（token 對齊 design-system .toolbar-dropdown） -->
-                                <div x-show="showDirDropdown"
-                                     x-transition
-                                     class="scanner-dir-dropdown"
-                                     style="position:absolute;top:calc(100% + 0.25rem);right:0;z-index:50;min-width:16rem;background:var(--surface-2);border:1px solid var(--stroke-default);border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:0.375rem;"
-                                     @click.outside="showDirDropdown = false">
-                                    <template x-if="scannerDirectories.length === 0">
-                                        <div style="padding:0.5rem 1rem;color:var(--text-muted);font-size:0.8rem;"
-                                             x-text="t('settings.favorite_folder.no_directories')"></div>
-                                    </template>
-                                    <template x-for="dir in scannerDirectories" :key="dirPath(dir)">
-                                        <button type="button"
-                                            class="btn btn-ghost btn-sm"
-                                            style="width:100%;text-align:left;justify-content:flex-start;border-radius:0;font-size:0.8rem;padding:0.375rem 1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-                                            :title="dirPath(dir)"
-                                            @click="pickScannerDirectory(dirPath(dir))"
-                                            x-text="dirPath(dir)">
-                                        </button>
-                                    </template>
+                    <div class="settings-group">
+                        <!-- 外部媒體管理器模式（spec F1）— 沿用 .settings-sources-segmented 元件 -->
+                        <div class="settings-form-row settings-form-row--external-manager">
+                            <label class="row-label">{{ t('settings.scraper.external_manager_label') }}</label>
+                            <div class="flex-1 flex items-center gap-3 flex-wrap">
+                                <div class="settings-sources-segmented" role="group"
+                                     aria-label="{{ t('settings.scraper.external_manager_label') }}">
+                                    <button type="button"
+                                            :class="{ 'is-on': form.externalManager === 'off' }"
+                                            :aria-pressed="(form.externalManager === 'off') ? 'true' : 'false'"
+                                            @click="requestExternalManagerChange('off')">
+                                        {{ t('settings.scraper.external_manager_off') }}
+                                    </button>
+                                    <button type="button"
+                                            :class="{ 'is-on': form.externalManager === 'jellyfin' }"
+                                            :aria-pressed="(form.externalManager === 'jellyfin') ? 'true' : 'false'"
+                                            @click="requestExternalManagerChange('jellyfin')">
+                                        Jellyfin
+                                    </button>
+                                    <button type="button"
+                                            :class="{ 'is-on': form.externalManager === 'emby' }"
+                                            :aria-pressed="(form.externalManager === 'emby') ? 'true' : 'false'"
+                                            @click="requestExternalManagerChange('emby')">
+                                        Emby
+                                    </button>
+                                    <button type="button"
+                                            :class="{ 'is-on': form.externalManager === 'kodi' }"
+                                            :aria-pressed="(form.externalManager === 'kodi') ? 'true' : 'false'"
+                                            @click="requestExternalManagerChange('kodi')">
+                                        Kodi
+                                    </button>
                                 </div>
+                                <!-- hint trailing：segmented 右側同列；flex-1 min-w-0 讓窄視窗時 hint 可 wrap 到下一行 -->
+                                <small class="settings-hint flex-1 min-w-0" x-show="form.externalManager === 'off'">
+                                    {{ t('settings.scraper.external_manager_off_hint') }}
+                                </small>
+                                <small class="settings-hint flex-1 min-w-0" x-show="form.externalManager === 'jellyfin'">
+                                    {{ t('settings.scraper.external_manager_jellyfin_hint') }}
+                                </small>
+                                <small class="settings-hint flex-1 min-w-0" x-show="form.externalManager === 'emby'">
+                                    {{ t('settings.scraper.external_manager_emby_hint') }}
+                                </small>
+                                <small class="settings-hint flex-1 min-w-0" x-show="form.externalManager === 'kodi'">
+                                    {{ t('settings.scraper.external_manager_kodi_hint') }}
+                                </small>
                             </div>
-                            <!-- inline 連動狀態行 -->
-                            <small x-show="form.searchFavoriteFolder && favoriteScannerLink !== null"
-                                   :style="favoriteScannerLink && favoriteScannerLink.linked
-                                       ? 'color:var(--color-success)'
-                                       : 'color:var(--color-warning)'"
-                                   x-text="favoriteScannerLink && favoriteScannerLink.linked
-                                       ? t('settings.favorite_folder.linked_text')
-                                       : t('settings.favorite_folder.not_linked_text')">
-                            </small>
-                            <small class="settings-hint">{% if is_synology %}{{ t('settings.search.favorite_folder_example_prefix_synology') | safe }}{% else %}{{ t('settings.search.favorite_folder_example_prefix') | safe }}{% endif %}</small>
                         </div>
-                    </div>
 
-                    <!-- 外部媒體管理器模式（spec F1）— 沿用 .settings-sources-segmented 元件 -->
-                    <div class="settings-form-row settings-form-row--external-manager">
-                        <label class="row-label">{{ t('settings.scraper.external_manager_label') }}</label>
-                        <div class="flex-1 flex items-center gap-3 flex-wrap">
-                            <div class="settings-sources-segmented" role="group"
-                                 aria-label="{{ t('settings.scraper.external_manager_label') }}">
-                                <button type="button"
-                                        :class="{ 'is-on': form.externalManager === 'off' }"
-                                        :aria-pressed="(form.externalManager === 'off') ? 'true' : 'false'"
-                                        @click="requestExternalManagerChange('off')">
-                                    {{ t('settings.scraper.external_manager_off') }}
-                                </button>
-                                <button type="button"
-                                        :class="{ 'is-on': form.externalManager === 'jellyfin' }"
-                                        :aria-pressed="(form.externalManager === 'jellyfin') ? 'true' : 'false'"
-                                        @click="requestExternalManagerChange('jellyfin')">
-                                    Jellyfin
-                                </button>
-                                <button type="button"
-                                        :class="{ 'is-on': form.externalManager === 'emby' }"
-                                        :aria-pressed="(form.externalManager === 'emby') ? 'true' : 'false'"
-                                        @click="requestExternalManagerChange('emby')">
-                                    Emby
-                                </button>
-                                <button type="button"
-                                        :class="{ 'is-on': form.externalManager === 'kodi' }"
-                                        :aria-pressed="(form.externalManager === 'kodi') ? 'true' : 'false'"
-                                        @click="requestExternalManagerChange('kodi')">
-                                    Kodi
-                                </button>
-                            </div>
-                            <!-- hint trailing：segmented 右側同列；flex-1 min-w-0 讓窄視窗時 hint 可 wrap 到下一行 -->
-                            <small class="settings-hint flex-1 min-w-0" x-show="form.externalManager === 'off'">
-                                {{ t('settings.scraper.external_manager_off_hint') }}
-                            </small>
-                            <small class="settings-hint flex-1 min-w-0" x-show="form.externalManager === 'jellyfin'">
-                                {{ t('settings.scraper.external_manager_jellyfin_hint') }}
-                            </small>
-                            <small class="settings-hint flex-1 min-w-0" x-show="form.externalManager === 'emby'">
-                                {{ t('settings.scraper.external_manager_emby_hint') }}
-                            </small>
-                            <small class="settings-hint flex-1 min-w-0" x-show="form.externalManager === 'kodi'">
-                                {{ t('settings.scraper.external_manager_kodi_hint') }}
-                            </small>
-                        </div>
-                    </div>
-
-                    <!-- strm 路徑映射（spec 90a）— media-server 風味才顯示；與 external_manager 同層並列 -->
-                    <div class="settings-form-row"
-                         x-show="['jellyfin','emby','kodi'].includes(form.externalManager)">
-                        <label class="row-label">
-                            {{ t('settings.scraper.strm_mapping.title') }}
-                            <small class="settings-hint">{{ t('settings.scraper.strm_mapping.intro') }}</small>
-                        </label>
-                        <div class="flex-1 flex flex-col gap-2">
-                            <!-- 規則列：本機前綴 → 播放端前綴 + 刪除 -->
-                            <template x-for="(rule, idx) in form.strmRules" :key="idx">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <input type="text" class="input input-bordered input-sm flex-1 min-w-0"
-                                           x-model="rule.local"
-                                           :placeholder="window.t('settings.scraper.strm_mapping.local_placeholder')">
-                                    <span class="text-base-content/50" aria-hidden="true">→</span>
-                                    <input type="text" class="input input-bordered input-sm flex-1 min-w-0"
-                                           x-model="rule.remote"
-                                           :placeholder="window.t('settings.scraper.strm_mapping.remote_placeholder')">
-                                    <button class="btn btn-xs btn-outline" type="button"
-                                            @click="removeStrmRule(idx)"
-                                            :aria-label="window.t('settings.scraper.strm_mapping.remove')">&times;</button>
+                        <!-- strm 路徑映射（spec 90a）— media-server 風味才顯示；與 external_manager 同層並列 -->
+                        <div class="settings-form-row"
+                             x-show="['jellyfin','emby','kodi'].includes(form.externalManager)">
+                            <label class="row-label">
+                                {{ t('settings.scraper.strm_mapping.title') }}
+                                <small class="settings-hint">{{ t('settings.scraper.strm_mapping.intro') }}</small>
+                            </label>
+                            <div class="flex-1 flex flex-col gap-2">
+                                <!-- 規則列：本機前綴 → 播放端前綴 + 刪除 -->
+                                <template x-for="(rule, idx) in form.strmRules" :key="idx">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <input type="text" class="input input-bordered input-sm flex-1 min-w-0"
+                                               x-model="rule.local"
+                                               :placeholder="window.t('settings.scraper.strm_mapping.local_placeholder')">
+                                        <span class="text-base-content/50" aria-hidden="true">→</span>
+                                        <input type="text" class="input input-bordered input-sm flex-1 min-w-0"
+                                               x-model="rule.remote"
+                                               :placeholder="window.t('settings.scraper.strm_mapping.remote_placeholder')">
+                                        <button class="btn btn-xs btn-outline" type="button"
+                                                @click="removeStrmRule(idx)"
+                                                :aria-label="window.t('settings.scraper.strm_mapping.remove')">&times;</button>
+                                    </div>
+                                </template>
+                                <!-- 新增規則 -->
+                                <div>
+                                    <button class="btn btn-xs btn-outline" type="button" @click="addStrmRule()">
+                                        + <span x-text="window.t('settings.scraper.strm_mapping.add_rule')"></span>
+                                    </button>
                                 </div>
-                            </template>
-                            <!-- 新增規則 -->
-                            <div>
-                                <button class="btn btn-xs btn-outline" type="button" @click="addStrmRule()">
-                                    + <span x-text="window.t('settings.scraper.strm_mapping.add_rule')"></span>
-                                </button>
+                                <!-- 範本回顯：唯讀 media-server 來源的掃描路徑（顯示形，可預填左欄）-->
+                                <template x-if="strmTemplateDirs.length">
+                                    <div class="flex flex-col gap-1">
+                                        <small class="settings-hint">{{ t('settings.scraper.strm_mapping.template_hint') }}</small>
+                                        <template x-for="tpl in strmTemplateDirs" :key="tpl">
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <code class="text-xs flex-1 min-w-0 break-all" x-text="tpl"></code>
+                                                <button class="btn btn-xs btn-outline" type="button"
+                                                        @click="useTemplate(tpl)"
+                                                        x-text="window.t('settings.scraper.strm_mapping.template_use')"></button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
                             </div>
-                            <!-- 範本回顯：唯讀 media-server 來源的掃描路徑（顯示形，可預填左欄）-->
-                            <template x-if="strmTemplateDirs.length">
-                                <div class="flex flex-col gap-1">
-                                    <small class="settings-hint">{{ t('settings.scraper.strm_mapping.template_hint') }}</small>
-                                    <template x-for="tpl in strmTemplateDirs" :key="tpl">
-                                        <div class="flex items-center gap-2 flex-wrap">
-                                            <code class="text-xs flex-1 min-w-0 break-all" x-text="tpl"></code>
-                                            <button class="btn btn-xs btn-outline" type="button"
-                                                    @click="useTemplate(tpl)"
-                                                    x-text="window.t('settings.scraper.strm_mapping.template_use')"></button>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
                         </div>
-                    </div>
 
-                    <!-- 進階刮削摺疊（實填既有欄位）；x-collapse 需 @alpinejs/collapse plugin，已在 base.html 載入 -->
-                    <button class="collapsible-trigger" type="button" @click="scraperAdvanced = !scraperAdvanced"
-                            :aria-expanded="scraperAdvanced.toString()">
-                        <span class="collapsible-title"><i class="bi bi-sliders"></i> {{ t('settings.section.scraper_advanced') }}</span>
-                        <span class="btn-icon-collapse" aria-hidden="true"><i class="bi bi-chevron-down" :class="{ 'rotate-180': scraperAdvanced }"></i></span>
-                    </button>
-                    <div x-show="scraperAdvanced" x-collapse class="collapsible-content">
-
-                        <!-- suffix keywords -->
+                    </div><!-- /settings-group -->
+                    <div class="settings-group">
+                        <p class="settings-tier-label">{{ t('settings.group.organize_from') }}</p>
+                        <!-- 我的最愛資料夾（scanner dropdown + favoriteScannerLink） -->
                         <div class="settings-form-row">
                             <label class="row-label">
-                                {{ t('settings.scraper.suffix_keywords_label') }}
-                                <small class="settings-hint">{{ t('settings.scraper.suffix_keywords_hint') }}</small>
+                                {{ t('settings.search.favorite_folder_label') }}
+                                <span class="popover-anchor" x-data="helpPopover">
+                                    <button type="button" class="help-popover-btn"
+                                            @click.prevent="toggle()"
+                                            :aria-expanded="open">
+                                        <i class="bi bi-question-circle"></i>
+                                    </button>
+                                    <div x-show="open" x-cloak x-transition
+                                         @click.outside="close()"
+                                         class="help-popover">
+                                        <small class="help-popover__body">
+                                            {{ t('settings.search.favorite_folder_hint') }}<br>
+                                            {% if is_synology %}{{ t('settings.search.favorite_folder_example_prefix_synology') | safe }}{% else %}{{ t('settings.search.favorite_folder_example_prefix') | safe }}{% endif %}
+                                        </small>
+                                    </div>
+                                </span>
                             </label>
                             <div class="flex-1 flex flex-col gap-1">
-                                <div class="suffix-tags-container">
-                                    <template x-for="(kw, idx) in form.suffixKeywords" :key="idx">
-                                        <span class="badge badge-sm suffix-tag">
-                                            <span x-text="kw"></span>
-                                            <span class="suffix-tag-remove" @click="removeSuffix(idx)">&times;</span>
-                                        </span>
-                                    </template>
-                                    <div class="suffix-input-inline">
-                                        <input type="text" class="input input-bordered input-xs"
-                                            x-model="newSuffixInput"
-                                            placeholder="-4k"
-                                            @keydown.enter.prevent="addSuffix()"
-                                            style="width: 80px;">
-                                        <button class="btn btn-xs btn-outline" type="button"
-                                            @click="addSuffix()" :disabled="!newSuffixInput.trim()">+</button>
+                                <!-- input + dropdown 按鈕 -->
+                                <div class="variable-input-group" style="position:relative;">
+                                    <input type="text" class="input input-bordered input-sm flex-1" id="searchFavoriteFolder"
+                                        x-model="form.searchFavoriteFolder"
+                                        placeholder="{{ t('settings.search.favorite_folder_placeholder') if is_desktop else t('settings.search.favorite_folder_placeholder_server') }}">
+                                    <button type="button"
+                                        class="btn btn-sm btn-outline"
+                                        :title="t('settings.favorite_folder.pick_from_scanner')"
+                                        :aria-label="t('settings.favorite_folder.pick_from_scanner')"
+                                        @click.stop="showDirDropdown = !showDirDropdown">
+                                        <i class="bi bi-folder2-open"></i>
+                                    </button>
+                                    <!-- Scanner directories dropdown（token 對齊 design-system .toolbar-dropdown） -->
+                                    <div x-show="showDirDropdown"
+                                         x-transition
+                                         class="scanner-dir-dropdown"
+                                         style="position:absolute;top:calc(100% + 0.25rem);right:0;z-index:50;min-width:16rem;background:var(--surface-2);border:1px solid var(--stroke-default);border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:0.375rem;"
+                                         @click.outside="showDirDropdown = false">
+                                        <template x-if="scannerDirectories.length === 0">
+                                            <div style="padding:0.5rem 1rem;color:var(--text-muted);font-size:0.8rem;"
+                                                 x-text="t('settings.favorite_folder.no_directories')"></div>
+                                        </template>
+                                        <template x-for="dir in scannerDirectories" :key="dirPath(dir)">
+                                            <button type="button"
+                                                class="btn btn-ghost btn-sm"
+                                                style="width:100%;text-align:left;justify-content:flex-start;border-radius:0;font-size:0.8rem;padding:0.375rem 1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                                                :title="dirPath(dir)"
+                                                @click="pickScannerDirectory(dirPath(dir))"
+                                                x-text="dirPath(dir)">
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <!-- inline 連動狀態行 -->
+                                <small x-show="form.searchFavoriteFolder && favoriteScannerLink !== null"
+                                       :style="favoriteScannerLink && favoriteScannerLink.linked
+                                           ? 'color:var(--color-success)'
+                                           : 'color:var(--color-warning)'"
+                                       x-text="favoriteScannerLink && favoriteScannerLink.linked
+                                           ? t('settings.favorite_folder.linked_text')
+                                           : t('settings.favorite_folder.not_linked_text')">
+                                </small>
+                            </div>
+                        </div>
+
+                    </div><!-- /settings-group -->
+                    <div class="settings-group">
+                        <p class="settings-tier-label">{{ t('settings.group.organize_attach') }}</p>
+                        <div class="settings-inline-toggles">
+                            <div class="settings-form-group">
+                                <label class="settings-label">
+                                    <input type="checkbox" class="toggle toggle-primary" id="createFolder"
+                                        x-model="form.createFolder">
+                                    <span class="label-text">{{ t('settings.scraper.create_folder_label') }}</span>
+                                </label>
+                            </div>
+                            <div class="settings-form-group popover-anchor" x-data="helpPopover">
+                                <label class="settings-label">
+                                    <input type="checkbox" class="toggle toggle-primary"
+                                           x-model="form.downloadSampleImages"
+                                           :disabled="!form.createFolder">
+                                    <span class="label-text">{{ t('settings.scraper.download_sample_images_label') }}</span>
+                                    <button type="button" class="help-popover-btn"
+                                            @click.prevent="toggle()"
+                                            :aria-expanded="open">
+                                        <i class="bi bi-question-circle"></i>
+                                    </button>
+                                </label>
+                                <div x-show="open" x-cloak x-transition
+                                     @click.outside="close()"
+                                     class="help-popover">
+                                    <small class="help-popover__body">
+                                        {{ t('settings.scraper.download_sample_images_hint') }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div><!-- /settings-group -->
+                    <div class="settings-group">
+                        <p class="settings-tier-label">{{ t('settings.group.organize_naming') }}</p>
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.scraper.preview_label') }}</label>
+                            <div class="flex-1 flex flex-col gap-1 naming-block settings-preview-hero" :class="{ 'naming-disabled': !form.createFolder }">
+                                <div class="folder-preview naming-preview">
+                                    <div class="preview-line">
+                                        <i class="bi bi-file-earmark-play"></i>
+                                        <span class="preview-text"><span x-text="folderPreviewText"></span></span>
+                                    </div>
+                                    <div class="preview-line preview-line-empty">
+                                        <span class="preview-empty-tag">{{ t('settings.scraper.preview_empty_tag') }}</span>
+                                        <span class="preview-text" x-text="folderPreviewTextEmpty"></span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="settings-form-group">
-                            <label class="settings-label">
-                                <input type="checkbox" class="toggle toggle-primary" id="createFolder"
-                                    x-model="form.createFolder">
-                                <span class="label-text">{{ t('settings.scraper.create_folder_label') }}</span>
-                            </label>
                         </div>
 
                         <!-- 資料夾層級：可增減層數的動態清單（上到下＝外到內，CD-95a-3/7）。膠囊複用 .source-pill。 -->
@@ -890,16 +894,6 @@
                                     :disabled="form.folderLayerList.length >= 3 || !form.createFolder">
                                     <i class="bi bi-plus-lg"></i> {{ t('settings.scraper.add_layer') }}
                                 </button>
-                                <div class="folder-preview naming-preview">
-                                    <div class="preview-line">
-                                        <i class="bi bi-file-earmark-play"></i>
-                                        <span class="preview-text">{{ t('settings.scraper.preview_prefix') }}: <span x-text="folderPreviewText"></span></span>
-                                    </div>
-                                    <div class="preview-line preview-line-empty">
-                                        <span class="preview-empty-tag">{{ t('settings.scraper.preview_empty_tag') }}</span>
-                                        <span class="preview-text" x-text="folderPreviewTextEmpty"></span>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
@@ -1012,6 +1006,35 @@
                             </div>
                         </div>
 
+                        <p class="settings-hint">{{ t('settings.scraper.naming_default_hint') }}</p>
+
+                        <!-- suffix keywords -->
+                        <div class="settings-form-row">
+                            <label class="row-label">
+                                {{ t('settings.scraper.suffix_keywords_label') }}
+                                <small class="settings-hint">{{ t('settings.scraper.suffix_keywords_hint') }}</small>
+                            </label>
+                            <div class="flex-1 flex flex-col gap-1">
+                                <div class="suffix-tags-container">
+                                    <template x-for="(kw, idx) in form.suffixKeywords" :key="idx">
+                                        <span class="badge badge-sm suffix-tag">
+                                            <span x-text="kw"></span>
+                                            <span class="suffix-tag-remove" @click="removeSuffix(idx)">&times;</span>
+                                        </span>
+                                    </template>
+                                    <div class="suffix-input-inline">
+                                        <input type="text" class="input input-bordered input-xs"
+                                            x-model="newSuffixInput"
+                                            placeholder="-4k"
+                                            @keydown.enter.prevent="addSuffix()"
+                                            style="width: 80px;">
+                                        <button class="btn btn-xs btn-outline" type="button"
+                                            @click="addSuffix()" :disabled="!newSuffixInput.trim()">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="settings-form-row">
                             <label class="row-label">{{ t('settings.scraper.video_extensions_label') }}</label>
                             <div class="flex-1 flex flex-col gap-1">
@@ -1043,7 +1066,7 @@
                             </div>
                         </div>
 
-                    </div><!-- /collapsible-content scraperAdvanced -->
+                    </div><!-- /settings-group -->
 
             </div>
           </div>

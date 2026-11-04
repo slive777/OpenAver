@@ -4932,8 +4932,8 @@ const RULES = [
   // 拆掉其中一顆仍會過；count 讓「少一顆」直接紅）。131b branch review P3。
   {
     file: 'web/templates/settings.html', kind: 'structure-count',
-    pattern: 'x-data="helpPopover"', count: 10,
-    note: '[131b-T4] settings 的 10 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應（console ReferenceError，畫面無事發生）。133b-T1 新增第 7 顆（顯示表格與清單）時同步 +1；152c-T9 新增第 8 顆（人臉自動對焦狀態）時同步 +1；154b-T4 新增 NFO 標題格式說明浮層 +1；186-T2 新增 AI 功能卡說明 +1',
+    pattern: 'x-data="helpPopover"', count: 11,
+    note: '[131b-T4] settings 的 11 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應（console ReferenceError，畫面無事發生）。133b-T1 新增第 7 顆（顯示表格與清單）時同步 +1；152c-T9 新增第 8 顆（人臉自動對焦狀態）時同步 +1；154b-T4 新增 NFO 標題格式說明浮層 +1；186-T2 新增 AI 功能卡說明 +1；190a-T2a 新增待整理資料夾說明 +1',
   },
   {
     file: 'web/templates/scanner.html', kind: 'structure-count',
@@ -6359,8 +6359,15 @@ const RULES = [
   {
     file: 'web/templates/settings.html', kind: 'required-string',
     pattern: /(?<![\w:-])x-model="form\.downloadSampleImages"/,
-    scope: /(?<![\w:-])class="settings-quick-toggle-row"([\s\S]*?)(?<![\w:-])id="sec-search"/,
-    note: '[lint-guard 162c-test_download_sample_images_in_quick_toggle_row] 下載劇照開關須在 quick-toggle 列內 — 遷自 test_frontend_lint.py',
+    scope: /(?<![\w:-])data-settings-panel="scraping"([\s\S]*?)<!-- \/sec-search -->/,
+    note: '[lint-guard 162c-test_download_sample_images_in_quick_toggle_row] 下載劇照開關須在整理與命名分頁（scraping 卡）內（190a-T2a 自 quick-toggle 列搬入，scope 隨之搬動） — 遷自 test_frontend_lint.py',
+  },
+  // 190a-T2a: 下載劇照必須跟著「建立資料夾」停用（core/organizer.py 兩者都開才下載劇照）
+  {
+    file: 'web/templates/settings.html', kind: 'tag-scan', mode: 'class-tag',
+    tagPattern: /<input\b(?=[^>]*(?<![\w:-])x-model="form\.downloadSampleImages")[^>]*>/,
+    required: [/(?<![\w:-]):disabled="!form\.createFolder"/],
+    note: '[lint-guard 190a-T2a-sample-needs-folder] 下載劇照 <input> 必須綁 :disabled="!form.createFolder"（關著建立資料夾卻能開下載劇照 → 使用者以為會下載劇照，實際兩者都開才下載，沒有任何提示）',
   },
   {
     file: 'web/templates/settings.html', kind: 'forbidden-string',

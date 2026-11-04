@@ -567,7 +567,6 @@
     },
     "section": {
       "search": "搜尋與刮削",
-      "scraper_advanced": "進階刮削設定",
       "system": "系統設定"
     },
     "favorite_folder": {
@@ -777,6 +776,8 @@
       "chip_delete": "刪除",
       "preview_empty_tag": "空值範例",
       "preview_prefix": "預覽",
+      "preview_label": "預覽",
+      "naming_default_hint": "通常維持預設即可。",
       "filename_format_label": "檔案命名格式",
       "nfo_title_format_label": "NFO 標題格式",
       "nfo_title_format_help": "這一列只決定 NFO 裡的標題（Jellyfin／Emby／Kodi 海報牆上看到的名字），不影響檔名、資料夾，也不影響 OpenAver 自己畫面上顯示的片名。",
@@ -970,6 +971,11 @@
       "openai_official_missing_model": "請先選擇模型",
       "openai_official_missing_key": "認證失敗，請檢查 API Key",
       "openai_official_blocked": "這個測試片名被服務商的內容審查擋下了；換模型通常沒用，可改用其他翻譯服務"
+    },
+    "group": {
+      "organize_from": "從哪裡整理",
+      "organize_attach": "資料夾與附件",
+      "organize_naming": "怎麼命名"
     },
     "tab_desc": {
       "sources": "選擇要去哪些網站查影片資料，並決定查詢的先後順序。",

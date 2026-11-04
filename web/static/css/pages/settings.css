@@ -185,6 +185,50 @@
     margin: 0 0 1rem;
 }
 
+/* 190a-T2a: 分頁內的分組（以既有 .settings-tier-label 當小標；相鄰兩組之間一條細線） */
+#settings-components .settings-group + .settings-group {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+/* 190a-T2a: 同一列並排的開關（建立資料夾／下載劇照） */
+#settings-components .settings-inline-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 40px;
+}
+
+#settings-components .settings-inline-toggles .settings-form-group {
+    margin-bottom: 0;
+}
+
+/* 190a-T2a: 命名預覽放大成「主角」：框線、字級都比一般 hint 顯眼 */
+#settings-components .settings-preview-hero .folder-preview {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 0;
+    padding: 16px;
+    border: 1px solid var(--stroke-default);
+}
+
+#settings-components .settings-preview-hero .folder-preview .preview-text {
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+#settings-components .settings-preview-hero .folder-preview .preview-line-empty {
+    margin-top: 0;
+    opacity: 1;
+}
+
+#settings-components .settings-preview-hero .folder-preview .preview-line-empty .preview-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
 /* 釘底動作列：頁首同材質，在文件流內（捲到底時在最後一個欄位下面，不遮欄位） */
 #settings-components .settings-save-bar {
     position: sticky;
