@@ -281,7 +281,7 @@
                                 </button>
                                 <div x-show="open" x-cloak x-transition
                                      @click.outside="close()"
-                                     class="help-popover">
+                                     class="help-popover help-popover--left">
                                     <small class="help-popover__body">
                                         {{ t('settings.sources.counter_help') }}
                                     </small>
@@ -972,7 +972,7 @@
                                 </button>
                                 <div id="pathLengthHelp" x-show="open" x-cloak x-transition
                                      @click.outside="close()"
-                                     class="help-popover">
+                                     class="help-popover help-popover--up">
                                     <small class="help-popover__body">
                                         {{ t('settings.scraper.path_length_help_line1') }}<br>
                                         {{ t('settings.scraper.path_length_help_line2') | safe }}
@@ -1301,7 +1301,7 @@
                             </button>
                             <div x-show="open" x-cloak x-transition
                                  @click.outside="close()"
-                                 class="help-popover">
+                                 class="help-popover help-popover--left">
                                 <small class="help-popover__body">{{ t('settings.ai.help_body') }}</small>
                                 <p class="help-popover__body"><a href="https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md" target="_blank" rel="noopener noreferrer">{{ t('settings.ai.help_docs_link') }}</a></p>
                             </div>

@@ -178,6 +178,62 @@
     border-radius: var(--radius-xs);
 }
 
+/* 手機（<600）五等分、圖示在上文字在下、不橫滑、不縮字級。
+   gap 歸 0 讓五顆等寬；文字允許平衡斷行（「整理與命名」兩行），不用省略號截字；
+   頂端對齊讓各顆圖示在同一條水平線上，高度隨內容但保留 44px 以上觸控目標。 */
+@media (max-width: 599.98px) {
+    #settings-components .settings-tabs {
+        gap: 0;
+        align-items: stretch;
+    }
+
+    #settings-components .settings-tab {
+        flex: 1 1 0;
+        min-width: 0;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 2px;
+        height: auto;
+        min-height: 56px;
+        padding: 6px 2px;
+        text-align: center;
+    }
+
+    #settings-components .settings-tab span {
+        max-width: 100%;
+        white-space: normal;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+    }
+
+    #settings-components .settings-tab.is-active::after {
+        left: 8px;
+        right: 8px;
+    }
+}
+
+/* 手機（<600）卡片內的「?」浮層：錨點在卡片內的位置各異（有的貼右、有的在行中），
+   往右或往左展開都可能超出視窗。改以卡片（本身 position:relative）為定位基準，
+   左右各留 0.75rem，寬度跟著卡片走；垂直位置交給正常文流（top:auto），仍緊貼在「?」下方。
+   往上展開那顆（--up）的錨點整列滿寬，維持以錨點定位，只把寬度夾在錨點內。 */
+@media (max-width: 599.98px) {
+    #settings-components .card-body .popover-anchor:not(:has(> .help-popover--up)) {
+        position: static;
+    }
+
+    #settings-components .card-body .help-popover:not(.help-popover--up) {
+        top: auto;
+        left: 0.75rem;
+        right: 0.75rem;
+        width: auto;
+        max-width: none;
+    }
+
+    #settings-components .card-body .help-popover--up {
+        max-width: 100%;
+    }
+}
+
 /* 每張分頁卡頂端的一句說明 */
 #settings-components .settings-tab-desc {
     font-size: 0.8125rem;
@@ -423,6 +479,14 @@
     }
 }
 
+/* 手機頁首不釘頂，跟著頁面捲走。<768 與 Rule 51（<1024）有重疊帶 768–1023.98，
+   該帶仍釘頂並讓位頂欄，故條件用互斥小數，不寫裸 max-width:768px（FE-CSS-22）。 */
+@media (max-width: 767.98px) {
+    .settings-header {
+        position: static;
+    }
+}
+
 .settings-header-actions {
     display: flex;
     align-items: center;
@@ -542,11 +606,6 @@
     /* 81b-T2: 連線膠囊等 inline 區塊包在 .settings-header-left，不是 .settings-header 直接 flex item。
        換行接力由 .settings-header-left 佔第一列全寬；cluster 內的 inline 區塊依序換行。 */
     .settings-header-left {
-        flex: 1 1 100%;
-        min-width: 0;
-    }
-
-    .settings-header-left h4 {
         flex: 1 1 100%;
         min-width: 0;
     }

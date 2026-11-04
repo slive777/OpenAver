@@ -444,13 +444,12 @@ def test_sticky_toolbar_stops_below_mobile_topbar(
     )
 
 
-def test_settings_sticky_header_stops_below_mobile_topbar_at_390(
+def test_settings_header_scrolls_away_at_390_sticky_at_768(
     page: Page, base_url: str
 ) -> None:
-    """CD-146b-22：設定頁 ≤480 也必須讓位給手機頂欄。
+    """手機（<768）設定頁首 static、不釘頂；≥768 維持釘頂。
 
-    不得塞進 test_sticky_toolbar_stops_below_mobile_topbar 的 parametrize：
-    瀏覽頁在 ≤480 走滑出 overlay（預設收合、非 sticky），共用 oracle 會對 showcase 失效。
+    刻意改行為，非回歸：舊 CD-146b-22 的 ≤480 釘頂斷言作廢。
     """
     width = MOBILE
     selector = STICKY_PAGES["settings"]
@@ -466,10 +465,16 @@ def test_settings_sticky_header_stops_below_mobile_topbar_at_390(
     toolbar_box = page.locator(selector).first.bounding_box()
     assert topbar_box is not None and toolbar_box is not None
 
-    expected_top = topbar_box["y"] + topbar_box["height"]
-    assert toolbar_box["y"] == pytest.approx(expected_top, abs=1.0), (
-        f"settings@{width} 捲動後 {selector}.top={toolbar_box['y']} vs "
-        f"頂欄 bottom={expected_top}"
+    position = page.evaluate(
+        "getComputedStyle(document.querySelector('.settings-header')).position"
+    )
+    assert position == "static", (
+        f"settings@{width} 捲動後 .settings-header position={position!r}（應為 static）"
+    )
+    assert toolbar_box["y"] < topbar_box["y"] + topbar_box["height"], (
+        f"settings@{width} 捲動後 {selector}.top={toolbar_box['y']} "
+        f"（應已跟著捲走、不在頂欄下方，頂欄 bottom="
+        f"{topbar_box['y'] + topbar_box['height']}）"
     )
 
     menu_btn = page.locator(".top-navbar .btn-square").first
@@ -487,6 +492,15 @@ def test_settings_sticky_header_stops_below_mobile_topbar_at_390(
     )
     assert hit_is_btn, (
         f"settings@{width}: 選單鈕座標被頁首攔截（elementFromPoint 沒命中選單鈕）"
+    )
+
+    page.set_viewport_size({"width": 768, "height": 900})
+    assert page.evaluate("window.innerWidth") == 768
+    position = page.evaluate(
+        "getComputedStyle(document.querySelector('.settings-header')).position"
+    )
+    assert position == "sticky", (
+        f"settings@768 .settings-header position={position!r}（應仍為 sticky）"
     )
 
 

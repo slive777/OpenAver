@@ -1065,7 +1065,7 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 3. **[MCP] 平板寬度只出現一種導覽**：`browser_resize` 到 `992` 與 `1023` 兩個寬度分別檢查
    - **驗**：側欄（`#sidebar`）與手機頂欄（`.mobile-topbar` 或等效 class）**不同時出現**——過去 992~1023 這段兩者會同時出現
 4. **[MCP] 平板／手機上瀏覽頁工具列與設定頁頁首不被頂欄蓋住**：`browser_resize` 到 `390`（手機）與 `1023`（平板上緣）分別測 `/showcase` 與 `/settings`
-   - **驗**：`/settings` 在 390px 下 `.settings-header` 的 `getBoundingClientRect().top === 64`（`--mobile-topbar-height` 4rem，`position:sticky`）——**實測 PASS**，頁首緊貼頂欄下緣，沒有被蓋住
+   - **驗**：`/settings` 在 390px 下 `.settings-header` 的 `getComputedStyle().position === 'static'`，捲動後跟著頁面捲走、不再釘在頂欄下（190a 起刻意改行為）；768～1023px 仍 `position:sticky` 且 `top === 64`。
    - ⚠️ **`.showcase-toolbar` 在 ≤480px 預設是收合的**（`showcase.css` 註解「sticky→fixed 移出文件流」），390px 下 `top` 實測是負值（`-73`，捲出畫面外），**這不是 bug**——手機頂欄的搜尋圖示鈕（`.navbar-search-btn`）點開後才會展開，展開後（`.showcase-toolbar.mobile-toolbar-open`）實測 `top === 64`，同樣緊貼頂欄下緣，**PASS**。別在收合狀態下直接斷言 `top >= 64` 會誤判成蓋住
    - 1023px（平板上緣）下兩頁皆 `top === 64`，**PASS**
 
@@ -1078,7 +1078,7 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 - 五頁 `.main-content` 左邊界或 padding-left 不相等 → 某一頁還在用舊的內縮值（16／24／32px 三選一沒收斂）
 - `/showcase`／`/settings`／`/scanner`／`/help` 任一頁的內容起點與 `.main-content` 內容起點（`left+padding-left`）錯位 1px 以上 → 該頁沒有改吃同一個 `--page-gutter` token
 - 992~1023 寬度側欄與手機頂欄同時出現 → 平板寬度的斷點判斷沒收斂成互斥
-- 手機/平板上 `.showcase-toolbar` 或 `.settings-header` 的 `top` 小於頂欄高度 → 捲動後工具列/頁首被頂欄蓋住，點不到
+- 平板（768～1023px）上 `.showcase-toolbar` 或 `.settings-header` 的 `top` 小於頂欄高度 → 捲動後工具列/頁首被頂欄蓋住，點不到
 
 ---
 
