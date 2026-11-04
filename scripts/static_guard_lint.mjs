@@ -134,9 +134,10 @@ const RULES = [
 
   // ---- [lint-guard 152d-codex-fix] settings ? 浮層說明文案接線 ----
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: "t('settings.scraper.focal_help')", note: '[lint-guard 152d-codex-fix] ? 浮層的說明文案接線' },
-  // [lint-guard 152d-popover-up] 人臉自動對焦那一列是「刮削與翻譯」卡的最後一列，浮層往下展開
-  // 會溢出卡片底邊；而 .card 在 dim 主題有 backdrop-filter（fluent-materials.css Rule 14）自成
-  // stacking context，浮層的 z-index:50 逃不出那張卡 ⇒ 被下一張卡（列表生成）的背景蓋住後半段。
+  // [lint-guard 152d-popover-up] 封面自動對焦（原人臉自動對焦）最初是「刮削與翻譯」卡的最後一列，
+  // 浮層往下展開會溢出卡片底邊；190a-T2b 搬到「瀏覽顯示」的「封面」組後不再是最後一列，class 與規則照留
+  // （避免多一條要證明等價的變更）。而 .card 在 dim 主題有 backdrop-filter（fluent-materials.css Rule 14）自成
+  // stacking context，浮層的 z-index:50 逃不出那張卡 ⇒ 往下開會被相鄰卡片的背景蓋住後半段。
   // 兩條一組鎖住修法的兩半：class 掛在 HTML 上、規則存在於 CSS 裡。任一半沒了浮層就靜默被蓋住，
   // 而這是純視覺後果，前端測試不會紅（沒有 Alpine runtime、也不量佈局）。
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'class="help-popover help-popover--up"', note: '[lint-guard 152d-popover-up] focal ? 浮層往上展開的 class 接線（卡片最後一列，往下會被下一張卡蓋住）' },
@@ -6380,19 +6381,19 @@ const RULES = [
   {
     file: 'web/templates/settings.html', kind: 'required-string',
     pattern: /(?<![\w:-])x-model="form\.thumbnailCacheEnabled"/,
-    scope: /(?<![\w:-])class="settings-quick-toggle-row"([\s\S]*?)(?<![\w:-])id="sec-search"/,
-    note: '[lint-guard 162c-test_thumbnail_cache_enabled_in_quick_toggle_row] 縮圖快取開關須在 quick-toggle 列內 — 遷自 test_frontend_lint.py',
+    scope: /(?<![\w:-])data-settings-panel="gallery"([\s\S]*?)<!-- \/sec-gallery -->/,
+    note: '[lint-guard 162c-test_thumbnail_cache_enabled_in_quick_toggle_row] 縮圖快取開關須在瀏覽顯示分頁（gallery 卡）內（190a-T2b 自頁首快速開關列搬入，scope 隨之搬動） — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/settings.html', kind: 'required-string',
     pattern: ['x-data="helpPopover"', /(?<![\w:-])class="help-popover"/],
-    scope: /(<div class="settings-form-group popover-anchor"(?:(?!<div class="settings-form-group popover-anchor")[\s\S])*?(?<![\w:-])x-model="form\.thumbnailCacheEnabled"(?:(?!<div class="settings-form-group popover-anchor"|(?<![\w:-])id="sec-search")[\s\S])*)/,
+    scope: /(<div class="settings-form-group popover-anchor"(?:(?!<div class="settings-form-group popover-anchor")[\s\S])*?(?<![\w:-])x-model="form\.thumbnailCacheEnabled"(?:(?!<div class="settings-form-group popover-anchor"|<!-- \/sec-gallery -->)[\s\S])*)/,
     note: '[lint-guard 162c-test_thumbnail_cache_has_help_popover_state] 縮圖快取 wrapper 須自帶 helpPopover — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/settings.html', kind: 'required-string',
     pattern: /<input\b(?=[^>]*(?<![\w:-])@change="onThumbCacheToggleChange\(\)")(?=[^>]*(?<![\w:-])x-model="form\.thumbnailCacheEnabled")[^>]*>/,
-    scope: /(?<![\w:-])class="settings-quick-toggle-row"([\s\S]*?)(?<![\w:-])id="sec-search"/,
+    scope: /(?<![\w:-])data-settings-panel="gallery"([\s\S]*?)<!-- \/sec-gallery -->/,
     note: '[lint-guard 162c-test_thumbnail_cache_toggle_has_change_interceptor] 縮圖快取 toggle 同 input 須綁 @change=onThumbCacheToggleChange — 遷自 test_frontend_lint.py',
   },
   {
@@ -6432,6 +6433,14 @@ const RULES = [
     file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string',
     pattern: /prevThumbEnabled\b[\s\S]*thumbnailCacheEnabled\s*===\s*false/,
     note: '[lint-guard 162c-test_thumb_cache_disable_clear_gated_on_save_success] clear 須綁 prevThumbEnabled→false 條件 — 遷自 test_frontend_lint.py',
+  },
+
+  // 190a-T2b: 連上自架 Metatube 後 Provider 清單要自動展開（未連→已連那一刻）
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'structure-count',
+    pattern: /this\.partsBinExpanded\s*=\s*true/, min: 1,
+    stripLineComments: true,
+    note: '[lint-guard 190a-T2b-metatube-autoexpand] hydrateMetatubeStatus 須在「未連→已連」時把 Provider 清單展開（拿掉＝使用者連上自架 Metatube 後清單仍收著，看不到可挑的來源，以為沒連成功）',
   },
 
   // 162c: TestSettingsDmmProxyContract

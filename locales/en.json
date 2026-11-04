@@ -674,7 +674,6 @@
       "all": "All",
       "min_size_label": "Minimum Video Size",
       "min_size_hint": "0 = no filter",
-      "tier_display": "List display defaults",
       "also_showcase_note": "Also the default for your Showcase page",
       "cover_badges_label": "Cover attribute badges",
       "cover_badges_note": "Show badges such as Subtitled / Uncensored / 4K in the top-left corner of covers (display only — your tags are not changed)",

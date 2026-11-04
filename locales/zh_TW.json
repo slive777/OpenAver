@@ -793,9 +793,9 @@
       "path_length_help_line4": "macOS / Linux 的單一檔名或資料夾名上限是 255 位元組（一個中日文字約占 3 位元組），超過時 OpenAver 會自動截短；但從 macOS/Linux 產生的長檔名搬到未啟用 LongPathsEnabled 的 Windows 仍可能失敗。",
       "video_extensions_label": "影片副檔名",
       "video_extensions_hint": "以逗號分隔",
-      "focal_pill_label": "人臉自動對焦",
+      "focal_pill_label": "封面自動對焦",
       "focal_help": "無碼封面會自動找臉並留在裁切框裡；這一列可自行開關。關掉後掃描與燈箱的自動找臉都不跑，裁切框停在預設位置，自己拖一下就好。在你還沒動過這個開關之前，如果連續兩次偵測超過 5 秒沒算完，我們會先幫你關起來；你動過之後就一切以你的設定為準。",
-      "focal_toggle_failed": "人臉自動對焦的設定沒有存起來，開關已退回原本的狀態，請稍後再試。",
+      "focal_toggle_failed": "封面自動對焦的設定沒有存起來，開關已退回原本的狀態，請稍後再試。",
       "external_manager_label": "外部媒體管理器模式",
       "external_manager_off": "關閉（預設）",
       "external_manager_off_hint": "產生同名封面與 NFO（`{番號}.jpg`、`{番號}.nfo`），供 OpenAver 瀏覽頁使用。NFO 任何媒體庫都讀得到；同名封面僅 Emby 能直接辨識。",
@@ -845,7 +845,6 @@
       "all": "全部",
       "min_size_label": "最小影片尺寸",
       "min_size_hint": "掃描 / 入庫閾值 — 0 = 不過濾；小於此不入庫（決定你看得到哪些片）",
-      "tier_display": "列表顯示預設",
       "also_showcase_note": "也是你瀏覽頁的預設",
       "cover_badges_label": "封面屬性標籤",
       "cover_badges_note": "在封面左上角顯示中文字幕／無碼／4K 等標籤（只影響顯示，不改標籤本身）",
@@ -862,6 +861,7 @@
         "vr": "VR"
       },
       "export_section": "離線網頁匯出（Windows 本機檢視用）",
+      "export_optional": "（選用）",
       "export_notice": "此匯出檔為 Windows 本機雙擊檢視設計；macOS / Linux 請改用 app 瀏覽頁。（成因：封面以 <code>file://</code> 嵌入，Mac 瀏覽器會封鎖本機跨目錄檔）",
       "mode_export_only_note": "僅影響此匯出檔（不影響瀏覽頁）"
     },
@@ -975,7 +975,13 @@
     "group": {
       "organize_from": "從哪裡整理",
       "organize_attach": "資料夾與附件",
-      "organize_naming": "怎麼命名"
+      "organize_naming": "怎麼命名",
+      "sources_sites": "要查哪些網站",
+      "sources_proxy": "連線代理（選填）",
+      "sources_metatube": "自架 Metatube（進階）",
+      "gallery_defaults": "瀏覽頁預設",
+      "gallery_cover": "封面",
+      "gallery_gate": "入庫門檻"
     },
     "tab_desc": {
       "sources": "選擇要去哪些網站查影片資料，並決定查詢的先後順序。",

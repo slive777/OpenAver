@@ -674,7 +674,6 @@
       "all": "すべて",
       "min_size_label": "最小動画サイズ",
       "min_size_hint": "0 = フィルタなし",
-      "tier_display": "リスト表示のデフォルト",
       "also_showcase_note": "ブラウズのデフォルトにもなります",
       "cover_badges_label": "カバーの属性バッジ",
       "cover_badges_note": "カバーの左上に「字幕」「無修正」「4K」などのバッジを表示します（表示のみ。タグ自体は変更しません）",

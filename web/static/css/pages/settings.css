@@ -395,23 +395,6 @@
     scroll-margin-top: 5rem;   /* 與 .settings-header 高度對齊，實作後目視微調 */
 }
 
-/* ==================== Quick-toggle Row（64b-3, CD-64-B8）==================== */
-
-#settings-components .settings-quick-toggle-row {
-    display: flex;
-    flex-wrap: wrap;                   /* 窄畫面自動換行 */
-    align-items: flex-start;
-    gap: 0.75rem 2rem;                 /* row-gap 0.75rem，column-gap 2rem */
-    padding: 0.75rem 0;
-    margin-bottom: 1rem;               /* 與第一個 section 卡片分開 */
-    border-bottom: 1px solid var(--stroke-subtle);  /* 視覺分隔線 */
-}
-
-/* 內含的 settings-form-group 維持 flex-col，不需覆蓋 */
-#settings-components .settings-quick-toggle-row .settings-form-group {
-    flex-shrink: 0;                    /* 避免被 flex container 縮小 */
-}
-
 /* ==================== Settings Header + Actions (Font Size + Theme) ==================== */
 
 .settings-header {
@@ -573,12 +556,6 @@
         min-width: 0;
         flex-wrap: wrap;
         gap: 0.5rem;
-    }
-
-    /* quick-toggle-row 子 form-group：窄屏允許縮小（覆蓋 flex-shrink:0），避免橫向溢出 */
-    #settings-components .settings-quick-toggle-row .settings-form-group {
-        max-width: 100%;
-        min-width: 0;
     }
 }
 
