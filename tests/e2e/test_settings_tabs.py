@@ -94,3 +94,59 @@ def test_hash_wins_over_stored_tab(page: Page, base_url: str, hash_: str, tab: s
             "() => { const r = document.getElementById('filenameFormat').getBoundingClientRect();"
             " return r.top < innerHeight && r.bottom > 0; }"
         )
+
+
+def _stub_put(page: Page) -> list[str]:
+    """攔 PUT /api/config：計次並回成功，不寫真設定。"""
+    puts: list[str] = []
+
+    def handler(route):
+        if route.request.method == "PUT":
+            puts.append(route.request.url)
+            route.fulfill(json={"success": True})
+        else:
+            route.continue_()
+
+    page.route("**/api/config", handler)
+    return puts
+
+
+def _active_id(page: Page) -> str:
+    return page.evaluate("() => document.activeElement && document.activeElement.id")
+
+
+def test_save_blocked_by_invalid_field_in_hidden_tab_reveals_it(page: Page, base_url: str) -> None:
+    """在別的分頁按儲存被原生驗證擋下 → 切到第一個無效欄位所在分頁並聚焦（不是靜默無反應）。"""
+    puts = _stub_put(page)
+    _open(page, base_url, "", 5)
+
+    # 兩欄同時無效：scraping 的 maxTitleLength（DOM 序在前）與 gallery 的 avlistMinSize
+    page.locator("#settingsTabScraping").click()
+    _only_visible(page, "scraping")
+    page.locator("#maxTitleLength").fill("10")  # min=20
+    page.locator("#settingsTabGallery").click()
+    _only_visible(page, "gallery")
+    page.locator("#avlistMinSize").fill("-1")  # min=0
+    page.locator("#settingsTabSystem").click()
+    _only_visible(page, "system")
+
+    # 按儲存：只切一次、落在 DOM 序第一個無效欄位（scraping，不是被第二個 invalid 事件帶去 gallery）
+    page.locator("#saveBtn").click()
+    _only_visible(page, "scraping")
+    page.wait_for_function("() => document.activeElement && document.activeElement.id === 'maxTitleLength'")
+    assert page.evaluate("() => location.hash") == "#scraping"
+    assert page.evaluate("() => localStorage.getItem('settings_tab')") == "scraping"
+    assert puts == []
+
+    # 修好第一欄 → 再按儲存 → 換到第二欄所在分頁
+    page.locator("#maxTitleLength").fill("60")
+    page.locator("#saveBtn").click()
+    _only_visible(page, "gallery")
+    page.wait_for_function("() => document.activeElement && document.activeElement.id === 'avlistMinSize'")
+    assert puts == []
+
+    # 全部合法 → 真的送出一次 PUT
+    page.locator("#avlistMinSize").fill("0")
+    with page.expect_response(lambda r: r.request.method == "PUT" and r.url.endswith("/api/config")):
+        page.locator("#saveBtn").click()
+    assert len(puts) == 1

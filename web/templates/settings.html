@@ -195,7 +195,7 @@
     <form id="settingsForm" @submit.prevent="saveConfig" inert :inert="_configLoading">
 
         <!-- 190a-T1: 五分頁外殼（獨立元件 settingsTabs；卡以 data-settings-panel 歸屬分頁） -->
-        <div class="settings-tabs-wrap" x-data="settingsTabs" @hashchange.window="syncFromHash()">
+        <div class="settings-tabs-wrap" x-data="settingsTabs" @hashchange.window="syncFromHash()" @invalid.capture="revealInvalid($event)">
         <div role="tablist" class="settings-tabs">
             <button type="button" role="tab" class="settings-tab" id="settingsTabSources"
                     aria-controls="settingsPanelSources"

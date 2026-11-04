@@ -44,9 +44,11 @@ function currentHash() {
     return typeof location === 'undefined' ? '' : location.hash;
 }
 
+const tabOfEl = (el) => el?.closest?.('[data-settings-panel]')?.dataset.settingsPanel ?? null;
+
 function panelOf(id) {
     if (typeof document === 'undefined') return null;
-    return document.getElementById(id)?.closest('[data-settings-panel]')?.dataset.settingsPanel ?? null;
+    return tabOfEl(document.getElementById(id));
 }
 
 // I-2d：欄位 id 進入時，分頁顯示後（nextTick）再捲到該欄位
@@ -57,6 +59,7 @@ function scrollToHashTarget() {
 }
 
 export function settingsTabs() {
+    let batchSeen = false; // 一次 submit 會對每個無效欄位各發一次 invalid，只認 DOM 順序第一個
     return {
         settingsTab: resolveSettingsTab({ hash: currentHash(), stored: readStored(), panelOf }),
 
@@ -71,6 +74,22 @@ export function settingsTabs() {
             writeStored(name);
             // replaceState：不增歷史、不觸發 hashchange
             try { history.replaceState(history.state, '', '#' + name); } catch { /* 無 history 環境 */ }
+        },
+
+        // 按儲存時原生驗證擋下、而無效欄位在隱藏分頁 → 切過去再聚焦並顯示原生訊息
+        // （@invalid.capture：invalid 不冒泡；欄位 display:none 時瀏覽器聚焦不到、使用者什麼都看不到）
+        revealInvalid(ev) {
+            if (batchSeen) return;
+            batchSeen = true;
+            setTimeout(() => { batchSeen = false; }, 0); // 批次邊界，不是等顯示
+            const field = ev.target;
+            const tab = tabOfEl(field);
+            if (!isTab(tab) || tab === this.settingsTab) return; // 已在目前分頁：瀏覽器自己處理
+            this.selectSettingsTab(tab);
+            this.$nextTick(() => {
+                field.focus();
+                field.reportValidity();
+            });
         },
 
         syncFromHash() {
