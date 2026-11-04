@@ -982,7 +982,7 @@
       "scraping": "整理影片時怎麼放、怎麼命名，以及要不要搭配其他媒體庫軟體。",
       "gallery": "瀏覽頁打開時的預設、封面處理，以及哪些檔案會進片庫。",
       "ai": "翻譯、圖片相似、人臉、AI 標籤的連線與補跑設定。",
-      "system": "預設頁、關閉視窗行為、播放器、恢復原廠設定。"
+      "system": "預設頁、關閉視窗行為、播放器。"
     },
     "save": {
       "unsaved": "有未儲存變更"
@@ -1938,7 +1938,7 @@
       "h6_what": "metatube 是什麼",
       "what_desc": "metatube 是自架 HTTP server，連接後可一次解鎖 30+ 上游 provider（適合 power user / docker 環境）",
       "h6_enable": "啟用步驟",
-      "enable_gate": "設定 ›「搜尋與刮削」開啟 Metatube gate toggle → 連線區展開",
+      "enable_gate": "設定 ›「刮削來源」開啟 Metatube gate toggle → 連線區展開",
       "enable_url": "填入 Server URL（如 http://你的-metatube:8080）+ 可選 Bearer token → 點 [連線]",
       "h6_sources": "來源管理",
       "sources_promote": "30+ provider 落入 Parts Bin，手動 promote 想要的進主力集（上限 10 個）",

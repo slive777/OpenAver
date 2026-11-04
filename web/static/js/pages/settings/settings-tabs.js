@@ -51,11 +51,20 @@ function panelOf(id) {
     return tabOfEl(document.getElementById(id));
 }
 
-// I-2d：欄位 id 進入時，分頁顯示後（nextTick）再捲到該欄位
+// Alpine 的 x-show 把 display 還原排在 requestAnimationFrame、$nextTick 是 setTimeout，
+// 兩者都可能早於欄位真的有版面（WebKit 上 focus／scrollIntoView 會落在 display:none 的元素 → 無效）。
+// 逐幀等 getClientRects 非空再動作（有上限，不寫固定 sleep；等不到就照做，行為同隱藏元素本來的結果）。
+function whenRendered(el, fn, frames = 30) {
+    if (el.getClientRects().length > 0 || frames <= 0) { fn(); return; }
+    requestAnimationFrame(() => whenRendered(el, fn, frames - 1));
+}
+
+// I-2d：欄位 id 進入（或頁內改 hash）時，分頁顯示後再捲到該欄位
 function scrollToHashTarget() {
     const id = currentHash().replace(/^#/, '');
     if (!id || isTab(id) || Object.hasOwn(LEGACY_SEC, id)) return;
-    document.getElementById(id)?.scrollIntoView({ block: 'center' });
+    const el = document.getElementById(id);
+    if (el) whenRendered(el, () => el.scrollIntoView({ block: 'center' }));
 }
 
 export function settingsTabs() {
@@ -86,10 +95,10 @@ export function settingsTabs() {
             const tab = tabOfEl(field);
             if (!isTab(tab) || tab === this.settingsTab) return; // 已在目前分頁：瀏覽器自己處理
             this.selectSettingsTab(tab);
-            this.$nextTick(() => {
+            this.$nextTick(() => whenRendered(field, () => {
                 field.focus();
                 field.reportValidity();
-            });
+            }));
         },
 
         syncFromHash() {

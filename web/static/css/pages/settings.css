@@ -178,6 +178,27 @@
     border-radius: var(--radius-xs);
 }
 
+/* 平板窄幅（<768）：五顆照內容寬度分配剩餘空間、收小水平內距與間距，仍單列橫排、
+   圖示文字同排、不縮字級；否則 600～約 638px 之間第五顆會凸出頁面造成橫向捲動。
+   （<600 由下一段改成上下排。） */
+@media (max-width: 767.98px) {
+    #settings-components .settings-tabs {
+        gap: 0;
+    }
+
+    #settings-components .settings-tab {
+        flex: 1 1 auto;
+        min-width: 0;
+        justify-content: center;
+        padding-inline: 8px;
+    }
+
+    #settings-components .settings-tab.is-active::after {
+        left: 8px;
+        right: 8px;
+    }
+}
+
 /* 手機（<600）五等分、圖示在上文字在下、不橫滑、不縮字級。
    gap 歸 0 讓五顆等寬；文字允許平衡斷行（「整理與命名」兩行），不用省略號截字；
    頂端對齊讓各顆圖示在同一條水平線上，高度隨內容但保留 44px 以上觸控目標。 */
