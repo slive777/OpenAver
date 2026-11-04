@@ -534,7 +534,7 @@
                            outside 判定早就跑完了。詳見 gotchas-frontend.md 的 FE-ALPINE-16。 #}
                         <div class="auto-organize-panel__row auto-organize-panel__unset" x-show="!folderIsSet && !resolvedFolder">
                             <span x-text="window.t('search.auto_organize.folder_not_configured')">{{ t('search.auto_organize.folder_not_configured') }}</span>
-                            <a href="/settings" class="btn btn-sm btn-primary">{{ t('search.duplicate.go_settings') }}</a>
+                            <a href="/settings#scraping" class="btn btn-sm btn-primary">{{ t('search.duplicate.go_settings') }}</a>
                         </div>
                         <div class="auto-organize-panel__row" x-show="!folderIsSet && resolvedFolder">
                             <button type="button" class="btn btn-sm btn-outline"
@@ -615,7 +615,7 @@
             <i class="bi bi-exclamation-triangle state-page-icon"></i>
             <p class="state-page-text error-text" id="errorMessage" x-text="errorText || window.t('search.filelist.search_failed')">{{ t('search.filelist.search_failed') }}</p>
             <small class="state-page-hint" x-show="errorKind !== 'recent_region_empty' && errorKind !== 'recent_none'">{{ t('search.error.hint_retry') }}</small>
-            <a href="/settings" class="state-page-hint" x-show="errorKind === 'recent_region_empty'" x-cloak x-text="window.t('search.error.recent_region_link')">{{ t('search.error.recent_region_link') }}</a>
+            <a href="/settings#sources" class="state-page-hint" x-show="errorKind === 'recent_region_empty'" x-cloak x-text="window.t('search.error.recent_region_link')">{{ t('search.error.recent_region_link') }}</a>
             {{ source_pill(
                 name="t('search.error.advanced_search_cta')",
                 censored=true,
@@ -1452,7 +1452,7 @@
             <p class="py-2">{{ t('search.duplicate.instruction') | safe }}</p>
             <div class="modal-action">
                 <button class="btn btn-sm" @click="closeDuplicateModal()">{{ t('search.duplicate.acknowledge') }}</button>
-                <a href="/settings" class="btn btn-sm btn-primary">{{ t('search.duplicate.go_settings') }}</a>
+                <a href="/settings#scraping" class="btn btn-sm btn-primary">{{ t('search.duplicate.go_settings') }}</a>
             </div>
         </div>
     </dialog>

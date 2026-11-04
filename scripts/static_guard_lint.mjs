@@ -134,9 +134,10 @@ const RULES = [
 
   // ---- [lint-guard 152d-codex-fix] settings ? 浮層說明文案接線 ----
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: "t('settings.scraper.focal_help')", note: '[lint-guard 152d-codex-fix] ? 浮層的說明文案接線' },
-  // [lint-guard 152d-popover-up] 人臉自動對焦那一列是「刮削與翻譯」卡的最後一列，浮層往下展開
-  // 會溢出卡片底邊；而 .card 在 dim 主題有 backdrop-filter（fluent-materials.css Rule 14）自成
-  // stacking context，浮層的 z-index:50 逃不出那張卡 ⇒ 被下一張卡（列表生成）的背景蓋住後半段。
+  // [lint-guard 152d-popover-up] 封面自動對焦（原人臉自動對焦）最初是「刮削與翻譯」卡的最後一列，
+  // 浮層往下展開會溢出卡片底邊；190a-T2b 搬到「瀏覽顯示」的「封面」組後不再是最後一列，class 與規則照留
+  // （避免多一條要證明等價的變更）。而 .card 在 dim 主題有 backdrop-filter（fluent-materials.css Rule 14）自成
+  // stacking context，浮層的 z-index:50 逃不出那張卡 ⇒ 往下開會被相鄰卡片的背景蓋住後半段。
   // 兩條一組鎖住修法的兩半：class 掛在 HTML 上、規則存在於 CSS 裡。任一半沒了浮層就靜默被蓋住，
   // 而這是純視覺後果，前端測試不會紅（沒有 Alpine runtime、也不量佈局）。
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'class="help-popover help-popover--up"', note: '[lint-guard 152d-popover-up] focal ? 浮層往上展開的 class 接線（卡片最後一列，往下會被下一張卡蓋住）' },
@@ -1225,6 +1226,34 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'fetchOpenAIOfficialModels()', note: '[186-T2] 官方 OpenAI 連線測試必須接線' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'testOpenAIOfficialTranslation()', note: '[186-T2] 官方 OpenAI 翻譯測試必須接線' },
   { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('aiServicesCard'", note: '[186-T2] aiServicesCard 必須具名註冊於 main.js' },
+  // ---- [190a-T1] 設定頁五分頁接線釘 ----
+  { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('settingsTabs'", note: '[lint-guard 190a-T1-tabs-registered] settingsTabs 沒在 main.js 具名註冊 → 開設定頁分頁列與五張卡全部不動，使用者什麼都看不到' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-data="settingsTabs"/, note: '[lint-guard 190a-T1-tabs-xdata] 分頁容器沒掛 settingsTabs → 分頁鈕點了沒反應、卡片 x-show 讀不到 settingsTab' },
+  { file: 'web/templates/settings.html', kind: 'required-string',
+    pattern: [
+      /(?<![\w:-])x-show="settingsTab === 'sources'"/,
+      /(?<![\w:-])x-show="settingsTab === 'scraping'"/,
+      /(?<![\w:-])x-show="settingsTab === 'gallery'"/,
+      /(?<![\w:-])x-show="settingsTab === 'ai'"/,
+      /(?<![\w:-])x-show="settingsTab === 'system'"/,
+    ],
+    note: '[lint-guard 190a-T1-tabs-xshow] 五張分頁卡少接一張 x-show → 該分頁的設定永遠看不到或永遠疊在別的分頁下面' },
+  { file: 'web/templates/settings.html', kind: 'required-string',
+    pattern: [
+      /(?<![\w:-])@click="selectSettingsTab\('sources'\)"/,
+      /(?<![\w:-])@click="selectSettingsTab\('scraping'\)"/,
+      /(?<![\w:-])@click="selectSettingsTab\('gallery'\)"/,
+      /(?<![\w:-])@click="selectSettingsTab\('ai'\)"/,
+      /(?<![\w:-])@click="selectSettingsTab\('system'\)"/,
+    ],
+    note: '[lint-guard 190a-T1-tabs-click] 分頁鈕沒接 selectSettingsTab → 點了不切分頁' },
+  { file: 'web/templates/settings.html', kind: 'tag-scan', mode: 'class-tag',
+    tagName: 'div', className: 'settings-tabs-wrap',
+    required: [/(?<![\w:-])x-data="settingsTabs"/, /(?<![\w:-])@invalid\.capture="revealInvalid\(\$event\)"/],
+    note: '[lint-guard 190a-T1-tabs-invalid] 使用者在別的分頁按儲存、被隱藏分頁裡的無效欄位（如標題長度 10）擋下 → 若分頁容器沒接 @invalid.capture，欄位 display:none 聚焦不到，畫面沒反應、設定沒存、找不到錯在哪' },
+  { file: 'web/templates/settings.html', kind: 'structure-count',
+    pattern: /(?<![\w:-])data-settings-panel=/, count: 5,
+    note: '[lint-guard 190a-T1-tabs-panel-count] 分頁卡缺 data-settings-panel → 欄位連結（如 #filenameFormat）找不到所屬分頁，使用者點連結落在錯的區' },
   // ---- [186-T6] 圖片相似分頁接線釘 ----
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-data="aiSimilarPanel"/, note: '[186-T6] aiSimilarPanel 必須掛在 settings.html' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="runTest\(\)"/, note: '[186-T6] 測試鈕必須呼叫 runTest()' },
@@ -1242,9 +1271,12 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-model="form\.aiTagsEnabled"/, note: '[lint-guard 188c-T9-toggle-model] 開關綁錯變數存不進去，AI 標籤永遠開不起來' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="runTest\(\)"/, scope: /(id="aiPanelTags"[\s\S]*?)<div id="aiConnections"/, note: '[lint-guard 188c-T9-test-btn] AI 標籤測試鈕沒接上，使用者選好模型按測試沒反應' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-text="firstRunHint\(\)"/, note: '[lint-guard 188c-T9-first-run] 「開啟後下一次更新片庫會處理 N 部」被刪掉，使用者不知道會掃進全庫' },
-  { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /costLineText\('(?:backfill|rebuild)'\)/, count: 4, note: '[lint-guard 188c-T9-cost] 費用提示被刪掉，使用者在不知道會花多少錢的情況下開啟、一次掃進全庫' },
+  { file: 'web/static/js/pages/settings/ai-tags-panel.js', kind: 'required-string', pattern: /\bpendingSuffix\b[\s\S]*\brebuildConfirm\b/, note: '[lint-guard 188c-T9-cost] 費用提示被刪掉（「還有 N 部沒跑」後的金額或全部重建確認視窗的金額），使用者在不知道會花多少錢的情況下開啟、一次掃進全庫' },
+  { file: 'web/static/js/pages/settings/ai-backfill-controls.js', kind: 'required-string', pattern: /bfPendingText\(\) \{[^}]*callHook\(hooks, 'pendingSuffix', this/, note: '[lint-guard 188c-T9-cost-pending-hook] 補跑列的「還有 N 部沒跑」沒套用面板的費用尾巴，使用者在不知道會花多少錢的情況下按補完全庫' },
+  { file: 'web/static/js/pages/settings/ai-backfill-controls.js', kind: 'required-string', pattern: /async bfRebuild\(\) \{[\s\S]*hooks\.rebuildConfirm\(this, view\)[\s\S]*adapter\.rebuildConfirm\(view\)/, note: '[lint-guard 188c-T9-cost-rebuild-hook] 「全部重建」確認視窗沒套用面板的金額，使用者在不知道會花多少錢的情況下確認重建' },
   { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('aiTagsPanel'", note: '[lint-guard 188c-T9-register] aiTagsPanel 未註冊，分頁掛了 x-data 也是空殼' },
-  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="aiTab === 'translate' \|\| aiTab === 'tags'"/, note: '[lint-guard 188c-T9-conn-visible] 切到 AI 標籤時卡底連線區不出現，金鑰欄根本沒有' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="\[[^"\]]*\]\.some\(p => aiConnShown\(p, aiTab\)\)"/, note: '[lint-guard 188c-T9-conn-visible] 切到翻譯／AI 標籤分頁時卡底連線區不出現（或在相似／人臉分頁也冒出來），金鑰欄根本沒有或放錯地方' },
+  { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /(?<![\w:-])x-show="aiConnShown\('[a-z_]+', aiTab\)"/, count: 5, note: '[lint-guard 188c-T9-conn-visible] 五家連線區塊有一塊沒傳 aiTab，使用者在翻譯分頁看到標籤那家的金鑰欄，把金鑰貼錯家' },
   { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: /form\.translate(?:Enabled|Provider)\b/, scope: /(<div id="aiConnections"[\s\S]*?)<\/section><!-- \/sec-ai -->/, note: '[lint-guard 188c-T9-conn-no-translate-only] 翻譯關著、只開 AI 標籤選 Gemini，卡底看得到金鑰欄卻打不了字，測試鈕永遠 disabled' },
   // ---- [189a-T11a] 補跑 mixin 接線釘 ----
   { file: 'web/static/js/pages/settings/ai-tags-panel.js', kind: 'required-string', pattern: '...aiBackfillControls(', note: '[lint-guard 189a-T11a-tags-mixin] AI 標籤面板沒展開補跑 mixin，使用者按「補完全庫」「停止」「全部重建」全部沒反應' },
@@ -1263,6 +1295,7 @@ const RULES = [
   { file: 'web/templates/partials/ai_backfill_controls.html', kind: 'required-string', pattern: /(?<![\w:-]):disabled="bfAction\(\)\.disabled"/, note: '[lint-guard 189a-T12-run-disabled] 主鈕不再受未存變更／忙碌鎖住，使用者設定沒存就按「補完全庫」用舊設定花 AI 費用，或連點送兩次請求' },
   { file: 'web/templates/partials/ai_backfill_controls.html', kind: 'required-string', pattern: /(?<![\w:-])x-text="bfProgressText\(\)"/, note: '[lint-guard 189a-T12-progress-line] 跑時「已處理 X／Y 部」進度行消失，使用者看不出補跑有沒有在動' },
   { file: 'web/templates/partials/ai_backfill_controls.html', kind: 'required-string', pattern: /(?<![\w:-])x-text="bfPendingText\(\)"/, note: '[lint-guard 189a-T12-pending-line] 鈕旁「還有 N 部沒跑」消失，使用者不知道還剩多少沒補' },
+  { file: 'web/templates/partials/ai_backfill_controls.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="bfPendingText\(\)"/, note: '[lint-guard 188c-T9-cost-pending-show] 「還有 N 部沒跑」（含費用半句）整行被藏起來，使用者在不知道會花多少錢的情況下按補完全庫' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: /(?<![\w:-])class="lightbox-similar-plus"/, note: '[186-T6] 燈箱魔杖必須含 lightbox-similar-plus' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: /(?<![\w:-])boostedNumbers\.includes/, note: '[186-T6] 燈箱＋必須讀 boostedNumbers' },
   { file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', pattern: /(?<![\w:-])Array\.isArray\(data\.boosted_numbers\)/, note: '[186-T6] warmup 必須讀 boosted_numbers' },
@@ -4908,8 +4941,8 @@ const RULES = [
   // 拆掉其中一顆仍會過；count 讓「少一顆」直接紅）。131b branch review P3。
   {
     file: 'web/templates/settings.html', kind: 'structure-count',
-    pattern: 'x-data="helpPopover"', count: 10,
-    note: '[131b-T4] settings 的 10 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應（console ReferenceError，畫面無事發生）。133b-T1 新增第 7 顆（顯示表格與清單）時同步 +1；152c-T9 新增第 8 顆（人臉自動對焦狀態）時同步 +1；154b-T4 新增 NFO 標題格式說明浮層 +1；186-T2 新增 AI 功能卡說明 +1',
+    pattern: 'x-data="helpPopover"', count: 11,
+    note: '[131b-T4] settings 的 11 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應（console ReferenceError，畫面無事發生）。133b-T1 新增第 7 顆（顯示表格與清單）時同步 +1；152c-T9 新增第 8 顆（人臉自動對焦狀態）時同步 +1；154b-T4 新增 NFO 標題格式說明浮層 +1；186-T2 新增 AI 功能卡說明 +1；190a-T2a 新增待整理資料夾說明 +1',
   },
   {
     file: 'web/templates/scanner.html', kind: 'structure-count',
@@ -6335,8 +6368,15 @@ const RULES = [
   {
     file: 'web/templates/settings.html', kind: 'required-string',
     pattern: /(?<![\w:-])x-model="form\.downloadSampleImages"/,
-    scope: /(?<![\w:-])class="settings-quick-toggle-row"([\s\S]*?)(?<![\w:-])id="sec-search"/,
-    note: '[lint-guard 162c-test_download_sample_images_in_quick_toggle_row] 下載劇照開關須在 quick-toggle 列內 — 遷自 test_frontend_lint.py',
+    scope: /(?<![\w:-])data-settings-panel="scraping"([\s\S]*?)<!-- \/sec-search -->/,
+    note: '[lint-guard 162c-test_download_sample_images_in_quick_toggle_row] 下載劇照開關須在整理與命名分頁（scraping 卡）內（190a-T2a 自 quick-toggle 列搬入，scope 隨之搬動） — 遷自 test_frontend_lint.py',
+  },
+  // 190a-T2a: 下載劇照必須跟著「建立資料夾」停用（core/organizer.py 兩者都開才下載劇照）
+  {
+    file: 'web/templates/settings.html', kind: 'tag-scan', mode: 'class-tag',
+    tagPattern: /<input\b(?=[^>]*(?<![\w:-])x-model="form\.downloadSampleImages")[^>]*>/,
+    required: [/(?<![\w:-]):disabled="!form\.createFolder"/],
+    note: '[lint-guard 190a-T2a-sample-needs-folder] 下載劇照 <input> 必須綁 :disabled="!form.createFolder"（關著建立資料夾卻能開下載劇照 → 使用者以為會下載劇照，實際兩者都開才下載，沒有任何提示）',
   },
   {
     file: 'web/templates/settings.html', kind: 'forbidden-string',
@@ -6349,19 +6389,19 @@ const RULES = [
   {
     file: 'web/templates/settings.html', kind: 'required-string',
     pattern: /(?<![\w:-])x-model="form\.thumbnailCacheEnabled"/,
-    scope: /(?<![\w:-])class="settings-quick-toggle-row"([\s\S]*?)(?<![\w:-])id="sec-search"/,
-    note: '[lint-guard 162c-test_thumbnail_cache_enabled_in_quick_toggle_row] 縮圖快取開關須在 quick-toggle 列內 — 遷自 test_frontend_lint.py',
+    scope: /(?<![\w:-])data-settings-panel="gallery"([\s\S]*?)<!-- \/sec-gallery -->/,
+    note: '[lint-guard 162c-test_thumbnail_cache_enabled_in_quick_toggle_row] 縮圖快取開關須在瀏覽顯示分頁（gallery 卡）內（190a-T2b 自頁首快速開關列搬入，scope 隨之搬動） — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/settings.html', kind: 'required-string',
     pattern: ['x-data="helpPopover"', /(?<![\w:-])class="help-popover"/],
-    scope: /(<div class="settings-form-group popover-anchor"(?:(?!<div class="settings-form-group popover-anchor")[\s\S])*?(?<![\w:-])x-model="form\.thumbnailCacheEnabled"(?:(?!<div class="settings-form-group popover-anchor"|(?<![\w:-])id="sec-search")[\s\S])*)/,
+    scope: /(<div class="settings-form-group popover-anchor"(?:(?!<div class="settings-form-group popover-anchor")[\s\S])*?(?<![\w:-])x-model="form\.thumbnailCacheEnabled"(?:(?!<div class="settings-form-group popover-anchor"|<!-- \/sec-gallery -->)[\s\S])*)/,
     note: '[lint-guard 162c-test_thumbnail_cache_has_help_popover_state] 縮圖快取 wrapper 須自帶 helpPopover — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/settings.html', kind: 'required-string',
     pattern: /<input\b(?=[^>]*(?<![\w:-])@change="onThumbCacheToggleChange\(\)")(?=[^>]*(?<![\w:-])x-model="form\.thumbnailCacheEnabled")[^>]*>/,
-    scope: /(?<![\w:-])class="settings-quick-toggle-row"([\s\S]*?)(?<![\w:-])id="sec-search"/,
+    scope: /(?<![\w:-])data-settings-panel="gallery"([\s\S]*?)<!-- \/sec-gallery -->/,
     note: '[lint-guard 162c-test_thumbnail_cache_toggle_has_change_interceptor] 縮圖快取 toggle 同 input 須綁 @change=onThumbCacheToggleChange — 遷自 test_frontend_lint.py',
   },
   {
@@ -6401,6 +6441,14 @@ const RULES = [
     file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string',
     pattern: /prevThumbEnabled\b[\s\S]*thumbnailCacheEnabled\s*===\s*false/,
     note: '[lint-guard 162c-test_thumb_cache_disable_clear_gated_on_save_success] clear 須綁 prevThumbEnabled→false 條件 — 遷自 test_frontend_lint.py',
+  },
+
+  // 190a-T2b: 連上自架 Metatube 後 Provider 清單要自動展開（未連→已連那一刻）
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'structure-count',
+    pattern: /this\.partsBinExpanded\s*=\s*true/, min: 1,
+    stripLineComments: true,
+    note: '[lint-guard 190a-T2b-metatube-autoexpand] hydrateMetatubeStatus 須在「未連→已連」時把 Provider 清單展開（拿掉＝使用者連上自架 Metatube 後清單仍收著，看不到可挑的來源，以為沒連成功）',
   },
 
   // 162c: TestSettingsDmmProxyContract
@@ -7782,7 +7830,6 @@ const RULES = [
       /(?<![\w:-])@click="requestServerModeChange\(false\)"/,
       /(?<![\w:-])@click="requestServerModeChange\(true\)"/,
       /(?<![\w:-])class="settings-server-mode"/,
-      '<h4',
     ],
     scope: /<div class="settings-header-left">([\s\S]*?)<div class="settings-header-actions">/,
     note: '[lint-guard 162c-test_settings_server_mode_segmented_in_header] 使用者想切伺服器模式 → 單機|伺服器 膠囊的兩顆按鈕若沒接 requestServerModeChange(false/true)，點了沒反應，無法開關區網存取 — 遷自 test_contract_api_routes.py' },

@@ -117,7 +117,7 @@ class Harness:
 
     def load(self, base_url: str) -> None:
         p = self.page
-        p.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+        p.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
         p.wait_for_function("() => { const d = window.Alpine && Alpine.$data(document.getElementById("
                             "'settings-components')); return !!(d && d._configLoading === false && d.savedState); }")
         assert p.evaluate("() => Alpine.$data(document.getElementById('settings-components')).isDirty") is False
@@ -179,7 +179,7 @@ def test_backfill_row_same_shape_on_three_tabs(page: Page, base_url: str) -> Non
         expect(h.el(k, "ProgressLine")).to_be_hidden()
         expect(h.el(k, "RebuildBtn")).to_be_visible()
         expect(h.el(k, "PendingLine")).to_be_visible()
-        expect(h.el(k, "PendingLine")).to_have_text(h.t("settings.ai.backfill.pending_line", n=6))
+        expect(h.el(k, "PendingLine")).to_have_text(re.compile("^" + re.escape(h.t("settings.ai.backfill.pending_line", n=6))))
         expect(page.locator(".ai-similar-save-first:visible, .ai-tags-save-first:visible")).to_have_count(0)
         run_pos = page.evaluate(_REL_JS, f"{k}RunBtn")
         # 390 寬：主鈕與重建鈕右緣不被裁
@@ -225,7 +225,7 @@ def test_stop_then_continue_posts_start_not_rebuild(page: Page, base_url: str) -
         expect(h.el(k, "RunBtn")).to_be_visible()
         expect(h.el(k, "RunBtn")).to_have_attribute("data-action", tab["act"]["stopped"])
         expect(h.el(k, "PendingLine")).to_be_visible()
-        expect(h.el(k, "PendingLine")).to_have_text(h.t("settings.ai.backfill.pending_line", n=5))
+        expect(h.el(k, "PendingLine")).to_have_text(re.compile("^" + re.escape(h.t("settings.ai.backfill.pending_line", n=5))))
         h.el(k, "RunBtn").click()
         expect(h.el(k, "StopBtn")).to_be_visible()
         expect(prog).to_be_visible()
@@ -247,4 +247,56 @@ def test_stop_then_continue_posts_start_not_rebuild(page: Page, base_url: str) -
         expect(h.el(k, "RunBtn")).to_be_hidden()
         expect(h.el(k, "PendingLine")).to_be_hidden()
         expect(h.el(k, "RebuildBtn")).to_be_visible()
+    assert h.forbidden == [] and h.bad == [], (h.forbidden, h.bad)
+
+
+_LINE = {"aiSimilar": "aiSimilarStatusLine", "aiFaces": "aiFacesRecomputeLine", "aiTags": "aiTagsStatusLine"}
+
+
+def test_running_shows_one_progress_line_and_idle_one_pending(page: Page, base_url: str) -> None:
+    """補跑中「已處理」出現兩次（進度行＋舊狀態行）、閒置時待處理數字出現兩次，使用者看到重複的同一件事。"""
+    h = Harness(page)
+    h.load(base_url)
+    for k, tab in TABS.items():
+        h.st[k] = dict(tab["snap"]["running"])
+        h.visit(k, fresh=True)
+        expect(h.el(k, "ProgressLine")).to_be_visible()
+        expect(h.el(k, "ProgressLine")).to_contain_text(h.t("settings.ai.backfill.progress_running", n=5, m=10))
+        expect(page.locator(f"#{_LINE[k]}")).to_be_hidden()
+        assert page.locator("text=已處理 >> visible=true").count() == 1, k
+        assert page.locator("text=重新對焦中 >> visible=true").count() == 0, k
+    h.visit("aiFaces", fresh=True)
+    expect(page.locator("#aiFacesStatusLine")).to_be_visible()  # 「目前使用…」非重述，仍在
+    for k, tab in TABS.items():
+        h.st[k] = dict(tab["snap"]["idle"])
+        h.visit(k, fresh=True)
+        expect(h.el(k, "PendingLine")).to_be_visible()
+        expect(h.el(k, "PendingLine")).to_have_text(re.compile("^" + re.escape(h.t("settings.ai.backfill.pending_line", n=6))))
+        assert page.locator("text=待處理 >> visible=true").count() == 0, k
+    assert h.forbidden == [] and h.bad == [], (h.forbidden, h.bad)
+
+
+def test_non_restating_sentences_still_rendered(page: Page, base_url: str) -> None:
+    """標籤放慢／額度用完／連不上、相似封面讀不到、人臉端點停了，併入單行後畫面不說原因，使用者以為卡住。"""
+    h = Harness(page)
+    h.load(base_url)
+    idle = lambda k, **kw: {**TABS[k]["snap"]["idle"], **kw}  # noqa: E731
+    running = lambda k, **kw: {**TABS[k]["snap"]["running"], **kw}  # noqa: E731
+    cases = [
+        ("aiTags", running("aiTags", slow=True), "ProgressLine", "服務要求放慢"),
+        ("aiTags", running("aiTags", waiting=True), "ProgressLine", "等待中"),
+        ("aiTags", running("aiTags", skipped=2), "ProgressLine", "沒標成"),
+        ("aiTags", idle("aiTags", stop_reason="quota"), "StatusLine", "服務額度用完"),
+        ("aiTags", idle("aiTags", stop_reason="auth"), "StatusLine", "金鑰被拒"),
+        ("aiTags", idle("aiTags", unreachable=True), "StatusLine", "目前連不上"),
+        ("aiSimilar", idle("aiSimilar", unreadable=3), "StatusLine", "封面讀不到"),
+        ("aiFaces", idle("aiFaces", stopped_reason="unreachable"), "RecomputeLine", "重新對焦已停止：端點連不上"),
+        ("aiFaces", idle("aiFaces", stopped_reason="contract"), "RecomputeLine", "不符契約"),
+    ]
+    for k, snap, where, text in cases:
+        h.st[k] = snap
+        h.visit(k, fresh=True)
+        loc = h.el(k, where) if where == "ProgressLine" else page.locator(f"#{k}{where}")
+        expect(loc).to_be_visible()
+        expect(loc).to_contain_text(text)
     assert h.forbidden == [] and h.bad == [], (h.forbidden, h.bad)

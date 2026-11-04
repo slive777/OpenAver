@@ -7,7 +7,7 @@
  *
  * 對外名單（模板照名單綁）：
  *   面板獨有：aiTagsTestResult／aiTagsTestBusy；panelMode()、modelOptions()、onProviderChange()、
- *         testDisabled()、runTest()、statusLineText()、costLineText(kind)（kind ∈ 'backfill'|'rebuild'）、firstRunHint()
+ *         testDisabled()、runTest()、statusLineText()、firstRunHint()
  *   補跑（mixin）：bfStatus／bfBusy；bfAction()（回 {action, disabled, reason}）、bfStart()、bfStop()、
  *         bfRebuildVisible()、bfRebuildDisabled()、bfRebuild()
  */
@@ -17,6 +17,7 @@ import {
     adapter as TAGS_ADAPTER,
     panelMode,
     statusLine,
+    progressExtras,
     pickTagsModel,
     costHint,
     formatUsd,
@@ -26,9 +27,37 @@ import {
 
 const TEST_URL = '/api/ai/tags/test';
 
-/** 補跑 mixin 的面板端 hooks：開關、POST 後 toast（判定順序不變）。 */
+/** 該筆數的費用提示；筆數 ≤ 0 或連線家／模型不屬費用規則回 null。 */
+function tagsCost(vm, n) {
+    if (!(n > 0)) return null;
+    return costHint(vm.form.aiTagsProvider, vm.form.aiTagsModel, n);
+}
+
+/** 補跑 mixin 的面板端 hooks：開關、POST 後 toast（判定順序不變）、進度行／待處理行尾巴、重建確認金額。 */
 const TAGS_HOOKS = {
     enabled: (vm) => Boolean(vm.form.aiTagsEnabled),
+    /** 跑中的 slow／waiting／skipped 句併進進度行。 */
+    progressSuffix(vm) {
+        return progressExtras(vm.bfStatus)
+            .map((k) => window.t(k, { k: vm.bfStatus.skipped || 0 }))
+            .join('');
+    },
+    /** 「還有 N 部沒跑」後接費用半句（金額以 pending 算）。 */
+    pendingSuffix(vm) {
+        const n = vm.bfStatus ? vm.bfStatus.pending : 0;
+        const h = tagsCost(vm, n);
+        if (!h) return '';
+        return window.t('settings.ai.tags.cost_pending_tail', { total: formatUsd(h.total), label: h.label });
+    },
+    /** 全部重建確認：有費用規則時寫金額（以 total 算），否則回 null 沿用原文。 */
+    rebuildConfirm(vm, view) {
+        const h = tagsCost(vm, view.total);
+        if (!h) return null;
+        return {
+            key: 'settings.ai.tags.rebuild_confirm_cost',
+            params: { n: view.total, total: formatUsd(h.total), label: h.label },
+        };
+    },
     afterPost(vm, kind, { ok, data, failed }) {
         if (failed || !ok) {
             vm.showToast(window.t('settings.ai.tags.backfill_http_error'), 'error');
@@ -99,27 +128,13 @@ export function aiTagsPanel() {
             return this.aiTagsTestBusy || this.form.aiTagsProvider === '';
         },
 
+        /** 舊狀態行文字；key 為 null（跑中／閒置未完成）時只串 extra 並去掉前導「・」。 */
         statusLineText() {
             const desc = statusLine(this.bfStatus);
-            if (!desc || !desc.key) return '';
-            let text = window.t(desc.key, desc.params || {});
-            for (const extraKey of desc.extra || []) {
-                text += window.t(extraKey, desc.params || {});
-            }
-            return text;
-        },
-
-        /** kind：'backfill'（還沒跑的 pending 部）或 'rebuild'（全庫 total 部）。 */
-        costLineText(kind) {
-            const s = this.bfStatus;
-            const n = s ? (kind === 'rebuild' ? s.total : s.pending) : 0;
-            if (!(n > 0)) return '';
-            const h = costHint(this.form.aiTagsProvider, this.form.aiTagsModel, n);
-            if (!h) return '';
-            return window.t('settings.ai.tags.cost_per1000', { per1000: formatUsd(h.per1000) })
-                // eslint-disable-next-line local/no-cjk-literal -- [cjk-exempt: 兩句費用提示之間的中點分隔符，非 UI 文案]
-                + '・'
-                + window.t('settings.ai.tags.cost_total', { total: formatUsd(h.total), label: h.label });
+            if (!desc) return '';
+            const extras = (desc.extra || []).map((k) => window.t(k, desc.params || {}));
+            if (!desc.key) return extras.join('').replace(/^\u30FB/, '');
+            return window.t(desc.key, desc.params || {}) + extras.join('');
         },
 
         firstRunHint() {

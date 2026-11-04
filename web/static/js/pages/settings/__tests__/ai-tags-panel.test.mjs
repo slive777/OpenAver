@@ -68,9 +68,11 @@ test('tags_poll_stops_on_leave_tab', async () => {
         c.aiTab = 'tags';
         await c.bfRefresh();
         assert.notEqual(c.bfPollTimer, null);
-        const line = c.statusLineText();
+        // 跑中：slow／skipped 句併進進度行；舊狀態行不再重述
+        const line = c.bfProgressText();
         assert.ok(line.includes('settings.ai.tags.status_slow_extra'), line);
         assert.ok(line.includes('settings.ai.tags.status_skipped_extra'), line);
+        assert.equal(c.statusLineText(), '');
         c.aiTab = 'translate';
         watchers.aiTab('translate');
         assert.equal(c.bfPollTimer, null);
@@ -173,4 +175,51 @@ test('tags_first_enable_preselect', async () => {
     await settle();
     assert.equal(e.c.form.aiTagsProvider, '');
     assert.deepEqual(e.ensureCalls, []);
+});
+
+// 190a-T5：「還有 N 部沒跑」尾巴的金額以 pending 算、全部重建確認的金額以 total 算（兩者不同才分得出錯位）
+test('pending_cost_uses_pending_and_rebuild_confirm_uses_total', async () => {
+    const realConfirm = globalThis.confirm;
+    const asked = [];
+    globalThis.confirm = (msg) => { asked.push(msg); return false; };
+    try {
+        const { c } = makePanel({
+            form: { aiTagsEnabled: true, aiTagsProvider: 'gemini', aiTagsModel: 'gemini-flash-lite-latest' },
+        });
+        c.bfStatus = { running: false, pending: 83, total: 1200, tagged: 1117, skipped: 0 };
+        const pending = c.bfPendingText();
+        assert.ok(pending.startsWith('settings.ai.backfill.pending_line|{"n":83}'), pending);
+        assert.ok(pending.includes('settings.ai.tags.cost_pending_tail|{"total":"0.06"'), pending);
+        await c.bfRebuild();
+        assert.equal(asked.length, 1);
+        assert.ok(asked[0].startsWith('settings.ai.tags.rebuild_confirm_cost|{"n":1200,"total":"0.86"'), asked[0]);
+    } finally {
+        globalThis.confirm = realConfirm;
+    }
+});
+
+test('rebuild_confirm_falls_back_without_cost', async () => {
+    const realConfirm = globalThis.confirm;
+    const asked = [];
+    globalThis.confirm = (msg) => { asked.push(msg); return false; };
+    try {
+        // costHint 為 null（ollama）：只有「還有 N 部沒跑」、重建用原文，不得出現 NaN／USD
+        const ollama = makePanel({
+            form: { aiTagsEnabled: true, aiTagsProvider: 'ollama', aiTagsModel: 'llava' },
+        });
+        ollama.c.bfStatus = { running: false, pending: 5, total: 10, tagged: 5, skipped: 0 };
+        assert.equal(ollama.c.bfPendingText(), 'settings.ai.backfill.pending_line|{"n":5}');
+        await ollama.c.bfRebuild();
+        assert.equal(asked[0], 'settings.ai.tags.rebuild_confirm|{"n":10}');
+
+        // 有費用規則但 pending=0：整行不顯示（無費用半句）
+        const gem = makePanel({
+            form: { aiTagsEnabled: true, aiTagsProvider: 'gemini', aiTagsModel: 'gemini-flash-lite-latest' },
+        });
+        gem.c.bfStatus = { running: false, pending: 0, total: 10, tagged: 10, skipped: 0 };
+        assert.equal(gem.c.bfPendingText(), '');
+        for (const m of asked) assert.ok(!/NaN|USD/.test(m), m);
+    } finally {
+        globalThis.confirm = realConfirm;
+    }
 });

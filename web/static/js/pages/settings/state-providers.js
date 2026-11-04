@@ -553,8 +553,9 @@ export function stateProviders() {
             };
         },
 
-        aiConnShown(p) {
-            return connShown(this.form, p);
+        // tab 由模板傳入（aiTab 住在巢狀 aiServicesCard，root 讀不到）
+        aiConnShown(p, tab) {
+            return connShown(this.form, p, tab);
         },
 
         aiConnEnabled(p) {

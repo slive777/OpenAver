@@ -3,6 +3,7 @@ import { stateProviders }    from '@/settings/state-providers.js';
 import { stateUI }           from '@/settings/state-ui.js';
 import { stateSourceProbe }  from '@/settings/state-source-probe.js';
 import { customSources }     from '@/settings/state-custom-sources.js';
+import { settingsTabs }      from '@/settings/settings-tabs.js';
 import { aiServicesCard }    from '@/settings/ai-services-card.js';
 import { aiSimilarPanel }    from '@/settings/ai-similar-panel.js';
 import { aiFacesPanel }      from '@/settings/ai-faces-panel.js';
@@ -20,6 +21,8 @@ document.addEventListener('alpine:init', () => {
         browseDirState(),
         toastState(),
     ));
+    // 190a-T1: 設定頁五分頁外殼（不進 mergeState）
+    Alpine.data('settingsTabs', settingsTabs);
     // 165-T9: 自訂來源是獨立元件（不進 mergeState）
     Alpine.data('customSources', customSources);
     // 186-T2: AI 功能卡分頁殼（不進 mergeState）

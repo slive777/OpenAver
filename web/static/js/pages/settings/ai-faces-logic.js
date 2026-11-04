@@ -87,8 +87,9 @@ export function statusLine(status) {
 export function recomputeLine(status) {
     if (!status) return null;
     if (status.running) {
+        // 跑中：進度行已有「已處理 n／m」，這裡不重述（params 保留供對照）
         return {
-            key: 'settings.ai.faces.recompute_running',
+            key: null,
             params: { n: status.processed || 0, m: status.total || 0 },
             extra: null,
         };
@@ -112,8 +113,9 @@ export function recomputeLine(status) {
     }
     if ((status.pending || 0) > 0) {
         const unreadable = status.unreadable || 0;
+        // 閒置未完成：「還有 N 部沒跑」已表示待處理，這裡只留非重述的「封面讀不到」
         return {
-            key: 'settings.ai.faces.recompute_incomplete',
+            key: null,
             params: { n: status.pending || 0, k: unreadable },
             extra: unreadable > 0 ? 'settings.ai.faces.recompute_unreadable_extra' : null,
         };

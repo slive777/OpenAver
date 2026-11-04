@@ -489,7 +489,6 @@
       "local_failed_server_failed": "サーバーとこのPCの設定、どちらも保存に失敗しました"
     },
     "header": {
-      "title": "設定",
       "font_size_prefix": "フォントサイズ",
       "switch_dark": "ダークモードに切替",
       "switch_light": "ライトモードに切替",
@@ -547,7 +546,6 @@
     },
     "section": {
       "search": "検索・スクレイプ",
-      "scraper_advanced": "高度なスクレイプ設定",
       "system": "システム設定"
     },
     "favorite_folder": {
@@ -676,7 +674,6 @@
       "all": "すべて",
       "min_size_label": "最小動画サイズ",
       "min_size_hint": "0 = フィルタなし",
-      "tier_display": "リスト表示のデフォルト",
       "also_showcase_note": "ブラウズのデフォルトにもなります",
       "cover_badges_label": "カバーの属性バッジ",
       "cover_badges_note": "カバーの左上に「字幕」「無修正」「4K」などのバッジを表示します（表示のみ。タグ自体は変更しません）",
@@ -701,7 +698,6 @@
       "player_label": "動画プレイヤー",
       "player_placeholder": "空欄 = システムデフォルトを使用",
       "player_hint_prefix": "例：",
-      "reset_label": "すべての設定をリセット",
       "reset_hint": "すべてのカスタム設定を削除してデフォルトに戻す",
       "close_action_label": "ウィンドウを閉じるとき",
       "close_action_ask": "毎回確認",

@@ -134,7 +134,11 @@ export function aiFacesPanel() {
 
         recomputeLineText() {
             const desc = recomputeLine(this.bfStatus);
-            if (!desc || !desc.key) return '';
+            if (!desc) return '';
+            // key 為 null（跑中／閒置未完成）：只留 extra，去掉前導「・」
+            if (!desc.key) {
+                return desc.extra ? window.t(desc.extra, desc.params || {}).replace(/^\u30FB/, '') : '';
+            }
             let text = window.t(desc.key, desc.params || {});
             if (desc.extra) {
                 text = text + window.t(desc.extra, desc.params || {});

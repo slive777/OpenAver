@@ -6,8 +6,6 @@ export function stateUI() {
         // ===== UI State =====
         newSuffixInput: '',
 
-        // 64b-1: 進階摺疊開關（x-collapse 驅動）
-        scraperAdvanced: false,
         galleryExport: false,   // 95b-T2: 離線 HTML 匯出摺疊（預設收合，CD-95b-7）
 
         // Dirty Check Modal State

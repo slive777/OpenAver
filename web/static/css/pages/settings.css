@@ -11,11 +11,6 @@
     padding-inline: var(--layer-inset);
 }
 
-.settings-header h4 {
-    margin: 0;
-    color: var(--text-primary);
-}
-
 /* Modern Card Styling（theme.css 未納入 #settings-components scope）*/
 #settings-components .card {
     border: 1px solid var(--stroke-default);
@@ -116,6 +111,233 @@
 
 /* 64b-5: .settings-tab-bar / .settings-tab CSS 已移除（HTML 於 64b-1 拆除）。
    64c-2: quick-jump nav（64b-2）整組回捲（CD-64-B12）。 */
+
+/* ========== 190a-T1: 五分頁外殼（底線式 Fluent TabList）==========
+   44px 是控制項高度（觸控目標），不是 gap／padding／margin；15px 字級與 2px 底線屬字級／stroke 例外。
+   不替 [data-settings-panel] 的 .card 設 display（x-show 管，FE-ALPINE-01）；不覆寫重設鈕顏色。 */
+#settings-components .settings-tabs-wrap {
+    min-width: 0;
+}
+
+#settings-components .settings-tabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin: 0 0 16px;
+    padding: 0;
+    border-bottom: 1px solid var(--stroke-subtle);
+}
+
+#settings-components .settings-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 16px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        background-color var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .settings-tab i {
+    font-size: 16px;
+}
+
+#settings-components .settings-tab:hover {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
+}
+
+#settings-components .settings-tab:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+#settings-components .settings-tab.is-active {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+#settings-components .settings-tab.is-active::after {
+    content: "";
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: var(--radius-xs);
+}
+
+/* 平板窄幅（<768）：五顆照內容寬度分配剩餘空間、收小水平內距與間距，仍單列橫排、
+   圖示文字同排、不縮字級；否則 600～約 638px 之間第五顆會凸出頁面造成橫向捲動。
+   （<600 由下一段改成上下排。） */
+@media (max-width: 767.98px) {
+    #settings-components .settings-tabs {
+        gap: 0;
+    }
+
+    #settings-components .settings-tab {
+        flex: 1 1 auto;
+        min-width: 0;
+        justify-content: center;
+        padding-inline: 8px;
+    }
+
+    #settings-components .settings-tab.is-active::after {
+        left: 8px;
+        right: 8px;
+    }
+}
+
+/* 手機（<600）五等分、圖示在上文字在下、不橫滑、不縮字級。
+   gap 歸 0 讓五顆等寬；文字允許平衡斷行（「整理與命名」兩行），不用省略號截字；
+   頂端對齊讓各顆圖示在同一條水平線上，高度隨內容但保留 44px 以上觸控目標。 */
+@media (max-width: 599.98px) {
+    #settings-components .settings-tabs {
+        gap: 0;
+        align-items: stretch;
+    }
+
+    #settings-components .settings-tab {
+        flex: 1 1 0;
+        min-width: 0;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 2px;
+        height: auto;
+        min-height: 56px;
+        padding: 6px 2px;
+        text-align: center;
+    }
+
+    #settings-components .settings-tab span {
+        max-width: 100%;
+        white-space: normal;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+    }
+
+    #settings-components .settings-tab.is-active::after {
+        left: 8px;
+        right: 8px;
+    }
+}
+
+/* 手機（<600）卡片內的「?」浮層：錨點在卡片內的位置各異（有的貼右、有的在行中），
+   往右或往左展開都可能超出視窗。改以卡片（本身 position:relative）為定位基準，
+   左右各留 0.75rem，寬度跟著卡片走；垂直位置交給正常文流（top:auto），仍緊貼在「?」下方。
+   往上展開那顆（--up）的錨點整列滿寬，維持以錨點定位，只把寬度夾在錨點內。 */
+@media (max-width: 599.98px) {
+    #settings-components .card-body .popover-anchor:not(:has(> .help-popover--up)) {
+        position: static;
+    }
+
+    #settings-components .card-body .help-popover:not(.help-popover--up) {
+        top: auto;
+        left: 0.75rem;
+        right: 0.75rem;
+        width: auto;
+        max-width: none;
+    }
+
+    #settings-components .card-body .help-popover--up {
+        max-width: 100%;
+    }
+}
+
+/* 每張分頁卡頂端的一句說明 */
+#settings-components .settings-tab-desc {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin: 0 0 1rem;
+}
+
+/* 190a-T2a: 分頁內的分組（以既有 .settings-tier-label 當小標；相鄰兩組之間一條細線） */
+#settings-components .settings-group + .settings-group {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+/* 190a-T2a: 同一列並排的開關（建立資料夾／下載劇照） */
+#settings-components .settings-inline-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 40px;
+}
+
+#settings-components .settings-inline-toggles .settings-form-group {
+    margin-bottom: 0;
+}
+
+/* 190a-T2a: 命名預覽放大成「主角」：框線、字級都比一般 hint 顯眼 */
+#settings-components .settings-preview-hero .folder-preview {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 0;
+    padding: 16px;
+    border: 1px solid var(--stroke-default);
+}
+
+#settings-components .settings-preview-hero .folder-preview .preview-text {
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+#settings-components .settings-preview-hero .folder-preview .preview-line-empty {
+    margin-top: 0;
+    opacity: 1;
+}
+
+#settings-components .settings-preview-hero .folder-preview .preview-line-empty .preview-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* 釘底動作列：頁首同材質，在文件流內（捲到底時在最後一個欄位下面，不遮欄位） */
+#settings-components .settings-save-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    margin: 8px 0 0;
+    background: var(--bg-header);
+    backdrop-filter: blur(var(--fluent-blur-light)) saturate(120%);
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light)) saturate(120%);
+    border-top: 1px solid var(--stroke-subtle);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+#settings-components .settings-save-dirty {
+    margin-right: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+#settings-components .settings-save-dirty::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+}
 
 /* ========== Responsive: 行動版（窄螢幕）RWD ========== */
 
@@ -250,23 +472,6 @@
     scroll-margin-top: 5rem;   /* 與 .settings-header 高度對齊，實作後目視微調 */
 }
 
-/* ==================== Quick-toggle Row（64b-3, CD-64-B8）==================== */
-
-#settings-components .settings-quick-toggle-row {
-    display: flex;
-    flex-wrap: wrap;                   /* 窄畫面自動換行 */
-    align-items: flex-start;
-    gap: 0.75rem 2rem;                 /* row-gap 0.75rem，column-gap 2rem */
-    padding: 0.75rem 0;
-    margin-bottom: 1rem;               /* 與第一個 section 卡片分開 */
-    border-bottom: 1px solid var(--stroke-subtle);  /* 視覺分隔線 */
-}
-
-/* 內含的 settings-form-group 維持 flex-col，不需覆蓋 */
-#settings-components .settings-quick-toggle-row .settings-form-group {
-    flex-shrink: 0;                    /* 避免被 flex container 縮小 */
-}
-
 /* ==================== Settings Header + Actions (Font Size + Theme) ==================== */
 
 .settings-header {
@@ -285,6 +490,22 @@
     position: sticky;
     top: 0;
     z-index: 31;
+}
+
+/* 190a-T1（路徑 B，CD-190a-3 補充 6）：桌機頁首縮到卡片寬，與分頁列／卡片／釘底列同欄寬。
+   只在 ≥1024（頁首浮起、Rule 47）；<1024 頁首仍貼齊，手機規則留 T4。 */
+@media (min-width: 1024px) {
+    .settings-header {
+        margin-inline: var(--layer-inset);
+    }
+}
+
+/* 手機頁首不釘頂，跟著頁面捲走。<768 與 Rule 51（<1024）有重疊帶 768–1023.98，
+   該帶仍釘頂並讓位頂欄，故條件用互斥小數，不寫裸 max-width:768px（FE-CSS-22）。 */
+@media (max-width: 767.98px) {
+    .settings-header {
+        position: static;
+    }
 }
 
 .settings-header-actions {
@@ -397,20 +618,15 @@
         scroll-margin-top: 9rem;
     }
 
-    /* header 整體允許換行，h4 佔第一列全寬，actions 落第二列 */
+    /* header 整體允許換行，header-left 佔第一列全寬，actions 落第二列 */
     .settings-header {
         flex-wrap: wrap;
         justify-content: flex-start;
     }
 
-    /* 81b-T2: h4 已包進 .settings-header-left，不再是 .settings-header 直接 flex item。
-       換行接力改由 .settings-header-left 佔第一列全寬；h4 在 cluster 內仍可佔行（標題獨佔，膠囊/inline 落次行）。 */
+    /* 81b-T2: 連線膠囊等 inline 區塊包在 .settings-header-left，不是 .settings-header 直接 flex item。
+       換行接力由 .settings-header-left 佔第一列全寬；cluster 內的 inline 區塊依序換行。 */
     .settings-header-left {
-        flex: 1 1 100%;
-        min-width: 0;
-    }
-
-    .settings-header-left h4 {
         flex: 1 1 100%;
         min-width: 0;
     }
@@ -420,12 +636,6 @@
         min-width: 0;
         flex-wrap: wrap;
         gap: 0.5rem;
-    }
-
-    /* quick-toggle-row 子 form-group：窄屏允許縮小（覆蓋 flex-shrink:0），避免橫向溢出 */
-    #settings-components .settings-quick-toggle-row .settings-form-group {
-        max-width: 100%;
-        min-width: 0;
     }
 }
 
@@ -1841,6 +2051,7 @@ html.theme-transition-active::view-transition-new(root) {
     margin: 0.25rem 0 0;
 }
 
-#settings-components .ai-tags-cost {
-    margin: 0.25rem 0 0;
+/* 「還有 N 部沒跑」：settings-hint 的灰太淡（量測 3.35／3.46），改用次要文字色 */
+#settings-components .ai-backfill-pending {
+    color: var(--text-secondary);
 }

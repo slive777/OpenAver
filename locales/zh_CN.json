@@ -489,7 +489,6 @@
       "local_failed_server_failed": "服务器与这台电脑的设置都保存失败"
     },
     "header": {
-      "title": "设置",
       "font_size_prefix": "字体大小",
       "switch_dark": "切换至深色模式",
       "switch_light": "切换至浅色模式",
@@ -547,7 +546,6 @@
     },
     "section": {
       "search": "搜索与刮削",
-      "scraper_advanced": "高级刮削设置",
       "system": "系统设置"
     },
     "favorite_folder": {
@@ -676,7 +674,6 @@
       "all": "全部",
       "min_size_label": "最小视频尺寸",
       "min_size_hint": "0 = 不过滤",
-      "tier_display": "列表显示默认",
       "also_showcase_note": "也是你浏览页的默认",
       "cover_badges_label": "封面属性标签",
       "cover_badges_note": "在封面左上角显示中文字幕／无码／4K 等标签（只影响显示，不改标签本身）",
@@ -701,7 +698,6 @@
       "player_label": "视频播放器",
       "player_placeholder": "留空使用系统默认",
       "player_hint_prefix": "例如:",
-      "reset_label": "重置所有设置",
       "reset_hint": "删除所有自定义设置，恢复默认值",
       "close_action_label": "关闭窗口时",
       "close_action_ask": "每次询问",

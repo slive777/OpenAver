@@ -1,7 +1,7 @@
 /**
  * ai-tags-logic.js — AI tags panel pure functions (TASK-188c-T7)
  *
- * panelMode / backfillAction / statusLine / connShown / connEnabled /
+ * panelMode / backfillAction / statusLine / progressExtras / connShown / connEnabled /
  * pickTagsModel / costHint / formatUsd / buildTagsTestBody / testResultLine.
  * No DOM, no component bindings, no i18n lookup.
  */
@@ -46,10 +46,15 @@ export function backfillAction(status, { dirty = false, enabled = true } = {}) {
     return { action, disabled: false, reason: null };
 }
 
-/** Connection block visibility (translate selection; ignores translateEnabled). */
-export function connShown(form, p) {
-    return form.translateProvider === p
-        || Boolean(form.aiTagsEnabled && form.aiTagsProvider === p);
+/**
+ * Connection block visibility, per AI tab (190a-T5): translate tab lists only the translate
+ * provider (even when translate is off), tags tab lists only the tags provider (only when
+ * tags is on), every other tab lists nothing.
+ */
+export function connShown(form, p, tab) {
+    if (tab === 'translate') return form.translateProvider === p;
+    if (tab === 'tags') return Boolean(form.aiTagsEnabled && form.aiTagsProvider === p);
+    return false;
 }
 
 /** Connection block editable (translate on+selected, or tags on+selected). */
@@ -200,16 +205,9 @@ export function statusLine(status) {
 
     const baseParams = { n: tagged, m: total, k: skipped, time };
 
+    // 跑中：進度行已有「已處理 n／m」，這裡不重述（slow／waiting／skipped 句改走 progressExtras）
     if (status.running) {
-        const extra = [];
-        if (status.slow) extra.push('settings.ai.tags.status_slow_extra');
-        if (status.waiting) extra.push('settings.ai.tags.status_waiting_extra');
-        if (skipped > 0) extra.push('settings.ai.tags.status_skipped_extra');
-        return {
-            key: 'settings.ai.tags.status_running',
-            params: baseParams,
-            extra,
-        };
+        return { key: null, params: baseParams, extra: [] };
     }
 
     if (status.stop_reason && STOP_KEYS[status.stop_reason]) {
@@ -234,8 +232,9 @@ export function statusLine(status) {
 
     if (status.resumable) {
         const extra = skipped > 0 ? ['settings.ai.tags.status_skipped_extra'] : [];
+        // 閒置未完成：「還有 N 部沒跑」已表示待處理，這裡不重述，只留非重述 extra
         return {
-            key: 'settings.ai.tags.status_incomplete',
+            key: null,
             params: { n: pending, m: total, k: skipped, time },
             extra,
         };
@@ -249,6 +248,16 @@ export function statusLine(status) {
         params: baseParams,
         extra,
     };
+}
+
+/** Running-state extras merged into the progress line: slow / waiting / skipped sentences (key array). */
+export function progressExtras(status) {
+    if (!status || !status.running) return [];
+    const extra = [];
+    if (status.slow) extra.push('settings.ai.tags.status_slow_extra');
+    if (status.waiting) extra.push('settings.ai.tags.status_waiting_extra');
+    if ((status.skipped || 0) > 0) extra.push('settings.ai.tags.status_skipped_extra');
+    return extra;
 }
 
 /** Shared backfill adapter (TASK-189a-T10): feature-specific half only. */

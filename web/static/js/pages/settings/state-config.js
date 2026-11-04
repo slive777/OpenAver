@@ -178,11 +178,11 @@ export function stateConfig() {
         // 三狀態由兩布林推導：
         //   disabled  = !metatubeEnabled                          → Section 3 整段不渲染
         //   idle      = metatubeEnabled && !metatubeConnected     → 連線表單
-        //   connected = metatubeEnabled && metatubeConnected      → 連線狀態列 + 摺疊 Parts Bin
+        //   connected = metatubeEnabled && metatubeConnected      → 連線狀態列 + Parts Bin（連線後預設展開）
         // B1：metatubeEnabled 維持 hardcoded false（production 不渲染 Section 3）；B3 接實際連線翻 true。
         metatubeEnabled: false,    // hydrated from config.metatube.enabled (CD-63b-3)
         metatubeConnected: false,
-        partsBinExpanded: false,   // §2.8 Parts Bin 預設摺疊
+        partsBinExpanded: false,   // §2.8 Parts Bin 連線後預設展開（見 hydrateMetatubeStatus）
         metatubeServerUrl: '',     // idle 連線表單 Server URL
         metatubeToken: '',         // idle 連線表單 Bearer Token
         metatubeConnecting: false, // true while POST /connect is in-flight (CD-63b-3)
@@ -1773,7 +1773,9 @@ export function stateConfig() {
             try {
                 const r = await fetch('/api/settings/metatube/status');
                 const s = await r.json();
+                const was = this.metatubeConnected;
                 this.metatubeConnected = !!s.connected;
+                if (!was && this.metatubeConnected) this.partsBinExpanded = true;
                 if (s.providers) {
                     s.providers.forEach(p => {
                         const src = this.sources.find(x => x.id === p.id);

@@ -10,7 +10,7 @@ pytestmark = pytest.mark.e2e
 
 
 def test_ai_tab_similar_persists_after_reload(page: Page, base_url: str) -> None:
-    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+    page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
     page.locator("#aiTabSimilar").click()
@@ -36,7 +36,7 @@ def test_ai_tab_similar_persists_after_reload(page: Page, base_url: str) -> None
 
 def test_ai_tab_faces_persists_after_reload(page: Page, base_url: str) -> None:
     """第三分頁 settle 後可見＋localStorage 記憶（TASK-187a-T5）。"""
-    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+    page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
     page.locator("#aiTabFaces").click()
@@ -62,7 +62,7 @@ def test_ai_tab_faces_persists_after_reload(page: Page, base_url: str) -> None:
 
 def test_ai_tab_tags_persists_after_reload(page: Page, base_url: str) -> None:
     """第四分頁 settle 後可見＋localStorage 記憶（TASK-188c-T14）。"""
-    page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+    page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
     page.locator("#aiTabTags").click()
@@ -100,13 +100,34 @@ def _force_tags_off(page: Page) -> None:
     page.route(re.compile(r"/api/config$"), handler)
 
 
+def _force_tags_on(page: Page, provider: str) -> None:
+    """GET /api/config 時把 ai_services.tags 設成開啟＋指定連線家（190a-T5）。只改回應，不儲存。"""
+    def handler(route):
+        if route.request.method == "GET":
+            envelope = route.fetch().json()
+            cfg = envelope["data"] if isinstance(envelope, dict) and "data" in envelope else envelope
+            cfg.setdefault("ai_services", {})["tags"] = {"enabled": True, "provider": provider, "model": "m"}
+            route.fulfill(json=envelope)
+        else:
+            route.continue_()
+
+    page.route(re.compile(r"/api/config$"), handler)
+
+
+def _only_conn(page: Page, provider: str) -> None:
+    """目前分頁恰有一格連線區塊且就是 provider。"""
+    visible = page.locator("[data-ai-conn]:visible")
+    expect(visible).to_have_count(1)
+    expect(visible).to_have_attribute("data-ai-conn", provider)
+
+
 def test_connection_area_shows_only_selected_provider(page: Page, base_url: str) -> None:
-    """連線區只顯示目前翻譯服務那一家（TASK-186-T9）。不儲存。"""
-    _force_tags_off(page)
+    """連線區跟著分頁走：翻譯分頁只有翻譯選的那家、AI 標籤分頁只有標籤選的那家（TASK-186-T9／190a-T5）。不儲存。"""
+    _force_tags_on(page, "claude")
     with page.expect_response(
         lambda r: r.url.rstrip("/").endswith("/api/config") and r.request.method == "GET"
     ):
-        page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+        page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
     page.locator("#aiTabTranslate").click()
@@ -114,22 +135,33 @@ def test_connection_area_shows_only_selected_provider(page: Page, base_url: str)
 
     providers = ("ollama", "gemini", "claude", "openai_official", "openai")
     alert_providers = {"gemini", "claude", "openai_official"}
-    for provider in providers:
+    for provider in providers:  # 標籤固定選 claude：翻譯分頁仍只列翻譯選的那一家
         page.locator("#translateProvider").select_option(provider)
-        visible = page.locator("[data-ai-conn]:visible")
-        expect(visible).to_have_count(1)
-        expect(visible).to_have_attribute("data-ai-conn", provider)
+        _only_conn(page, provider)
         expect(page.locator("[data-ai-conn]")).to_have_count(5)
         expect(page.locator("#aiConnections .api-key-alert:visible")).to_have_count(
             1 if provider in alert_providers else 0
         )
+
+    page.locator("#translateProvider").select_option("openai_official")
+    expect(page.locator("#aiConnections .api-key-alert:visible")).to_have_count(1)
+    page.locator("#aiTabTags").click()
+    _only_conn(page, "claude")
+    page.locator("#aiTagsProvider").select_option("openai_official")  # 兩邊同一家：每個分頁各一格
+    _only_conn(page, "openai_official")
+    page.locator("#aiTabTranslate").click()
+    _only_conn(page, "openai_official")
+
+    page.locator("#aiTabTags").click()
+    page.locator("#aiTagsEnabled").uncheck()  # 標籤關：標籤分頁一格都不列，整區隱藏
+    expect(page.locator("#aiConnections")).to_be_hidden()
 
 
 def _open_settings(page: Page, base_url: str) -> None:
     with page.expect_response(
         lambda r: r.url.rstrip("/").endswith("/api/config") and r.request.method == "GET"
     ):
-        page.goto(f"{base_url}/settings", wait_until="domcontentloaded")
+        page.goto(f"{base_url}/settings#ai", wait_until="domcontentloaded")
     page.wait_for_selector("#aiServicesCard")
 
 
@@ -153,11 +185,13 @@ def test_connection_inputs_locked_when_translate_off(page: Page, base_url: str) 
 
 
 def test_connection_area_hidden_on_similar_tab(page: Page, base_url: str) -> None:
-    """切到圖片相似分頁後，翻譯的連線區（含金鑰欄）整個不出現（TASK-186-T9）。不儲存。"""
+    """切到圖片相似分頁後，連線區（含金鑰欄）整個不出現；翻譯＝A、標籤＝B 時翻譯分頁只有 A（TASK-186-T9／190a-T5）。不儲存。"""
+    _force_tags_on(page, "claude")
     _open_settings(page, base_url)
     page.locator("#aiTabTranslate").click()
     page.locator("#translateEnabled").check()
     page.locator("#translateProvider").select_option("gemini")
+    _only_conn(page, "gemini")
     expect(page.locator("#geminiApiKey")).to_be_visible()
 
     page.locator("#aiTabSimilar").click()
