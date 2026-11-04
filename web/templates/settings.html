@@ -1547,7 +1547,7 @@
 
                             <p class="settings-hint ai-similar-status"
                                id="aiSimilarStatusLine"
-                               x-show="bfStatus !== null"
+                               x-show="bfStatus !== null && statusLineText()"
                                x-text="statusLineText()"></p>
 
                             {{ ai_backfill_controls('aiSimilar', 'ai-similar', retry=true) }}
@@ -1704,19 +1704,10 @@
 
                             <p class="settings-hint ai-tags-status"
                                id="aiTagsStatusLine"
-                               x-show="bfStatus !== null"
+                               x-show="bfStatus !== null && statusLineText()"
                                x-text="statusLineText()"></p>
 
                             {{ ai_backfill_controls('aiTags', 'ai-tags') }}
-
-                            <p class="settings-hint ai-tags-cost"
-                               id="aiTagsCostLine"
-                               x-show="(bfAction().action === 'start' || bfAction().action === 'continue') && costLineText('backfill')"
-                               x-text="costLineText('backfill')"></p>
-                            <p class="settings-hint ai-tags-cost"
-                               id="aiTagsRebuildCostLine"
-                               x-show="bfRebuildVisible() && costLineText('rebuild')"
-                               x-text="costLineText('rebuild')"></p>
 
                             <pre class="ai-tags-test-result"
                                  id="aiTagsTestResult"
@@ -1725,11 +1716,11 @@
                         </div>
                     </div>
 
-                    <!-- 連線區（翻譯與 AI 標籤分頁共用；未啟用任一家時變淡並鎖住） -->
-                    <div id="aiConnections" class="ai-connections" :class="{ 'opacity-50': !aiConnEnabled('ollama') && !aiConnEnabled('gemini') && !aiConnEnabled('claude') && !aiConnEnabled('openai_official') && !aiConnEnabled('openai') }" x-show="aiTab === 'translate' || aiTab === 'tags'" x-cloak>
+                    <!-- 連線區（跟著分頁走：翻譯分頁只列翻譯選的那家、AI 標籤分頁只列標籤選的那家，其餘分頁整區隱藏；未啟用任一家時變淡並鎖住） -->
+                    <div id="aiConnections" class="ai-connections" :class="{ 'opacity-50': !aiConnEnabled('ollama') && !aiConnEnabled('gemini') && !aiConnEnabled('claude') && !aiConnEnabled('openai_official') && !aiConnEnabled('openai') }" x-show="['ollama','gemini','claude','openai_official','openai'].some(p => aiConnShown(p, aiTab))" x-cloak>
                         <p class="settings-tier-label">{{ t('settings.ai.connections_title') }}</p>
 
-                        <div data-ai-conn="ollama" x-show="aiConnShown('ollama')">
+                        <div data-ai-conn="ollama" x-show="aiConnShown('ollama', aiTab)">
                             <div class="settings-form-row">
                                 <label class="row-label">Ollama URL</label>
                                 <div class="flex-1 flex flex-col gap-1">
@@ -1751,7 +1742,7 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="gemini" x-show="aiConnShown('gemini')">
+                        <div data-ai-conn="gemini" x-show="aiConnShown('gemini', aiTab)">
                             <div class="settings-form-row">
                                 <label class="row-label">Gemini API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
@@ -1789,7 +1780,7 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="claude" x-show="aiConnShown('claude')" x-cloak>
+                        <div data-ai-conn="claude" x-show="aiConnShown('claude', aiTab)" x-cloak>
                             <div class="settings-form-row">
                                 <label class="row-label">Claude API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
@@ -1824,7 +1815,7 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="openai_official" x-show="aiConnShown('openai_official')">
+                        <div data-ai-conn="openai_official" x-show="aiConnShown('openai_official', aiTab)">
                             <div class="settings-form-row">
                                 <label class="row-label">OpenAI API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
@@ -1857,7 +1848,7 @@
                             </div>
                         </div>
 
-                        <div data-ai-conn="openai" x-show="aiConnShown('openai')" x-cloak>
+                        <div data-ai-conn="openai" x-show="aiConnShown('openai', aiTab)" x-cloak>
                             <div class="settings-form-row">
                                 <label class="row-label" x-text="'Base URL'"></label>
                                 <div class="flex-1 flex flex-col gap-1">

@@ -75,7 +75,9 @@ test('statusLine_table', () => {
     const rr1 = recomputeLine({
         ...base, running: true, processed: 3, total: 10, pending: 7,
     });
-    assert.equal(rr1.key, 'settings.ai.faces.recompute_running');
+    // 跑中：重述主句交給進度行（key null），params 仍帶 n／m
+    assert.equal(rr1.key, null);
+    assert.equal(rr1.extra, null);
     assert.equal(rr1.params.n, 3);
     assert.equal(rr1.params.m, 10);
 
@@ -94,7 +96,7 @@ test('statusLine_table', () => {
     const rr2c = recomputeLine({
         ...base, pending: 5, stopped_reason: 'disabled', target_model: 'm',
     });
-    assert.equal(rr2c.key, 'settings.ai.faces.recompute_incomplete');
+    assert.equal(rr2c.key, null);
     assert.equal(rr2c.params.n, 5);
 
     // 無 target_model（開關剛開未存）→ 即使 pending>0 也不顯示未完成
@@ -103,7 +105,8 @@ test('statusLine_table', () => {
 
     // 未完成＋封面讀不到
     const rr4 = recomputeLine({ ...base, pending: 4, unreadable: 2, target_model: 'm' });
-    assert.equal(rr4.key, 'settings.ai.faces.recompute_incomplete');
+    // 閒置未完成：重述主句由「還有 N 部沒跑」取代，只留非重述的「封面讀不到」
+    assert.equal(rr4.key, null);
     assert.equal(rr4.extra, 'settings.ai.faces.recompute_unreadable_extra');
     assert.equal(rr4.params.k, 2);
 

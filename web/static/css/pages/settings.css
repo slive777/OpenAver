@@ -1971,6 +1971,7 @@ html.theme-transition-active::view-transition-new(root) {
     margin: 0.25rem 0 0;
 }
 
-#settings-components .ai-tags-cost {
-    margin: 0.25rem 0 0;
+/* 「還有 N 部沒跑」：settings-hint 的灰太淡（量測 3.35／3.46），改用次要文字色 */
+#settings-components .ai-backfill-pending {
+    color: var(--text-secondary);
 }

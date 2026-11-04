@@ -7,7 +7,8 @@
      2. 按鈕列（index-row）：停止（跑時）／主鈕（補完全庫或繼續，同一位置依狀態切文字）／重試（選用）／全部重建。
      3. 還有 N 部（PendingLine）：鈕旁一行；189b 改說明只改這個元素與 settings.ai.backfill.pending_line。
      4. 先儲存（save-first）：有未存變更時提示，主鈕與重建鈕此時同時被鎖住。
-   不放在這裡的（留在 settings.html 原位）：連線欄位、測試鈕、各分頁狀態行、人臉重算行、標籤費用行。 #}
+   不放在這裡的（留在 settings.html 原位）：連線欄位、測試鈕、各分頁狀態行、人臉重算行。
+   尾巴由面板 hook 接（標籤的費用半句、slow／waiting／skipped 句），macro 本身不認得它們。 #}
 {% macro ai_backfill_controls(idp, css, retry=false) %}
 <p class="settings-hint {{ css }}-status" id="{{ idp }}ProgressLine"
    x-show="bfProgressText()"
@@ -47,7 +48,7 @@
             :disabled="bfRebuildDisabled()">
         <span x-text="window.t('settings.ai.backfill.btn_rebuild')"></span>
     </button>
-    <span class="settings-hint" id="{{ idp }}PendingLine"
+    <span class="settings-hint ai-backfill-pending" id="{{ idp }}PendingLine"
           x-show="bfPendingText()"
           x-text="bfPendingText()"></span>
     <span class="settings-hint {{ css }}-save-first"

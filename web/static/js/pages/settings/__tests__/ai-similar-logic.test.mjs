@@ -86,7 +86,9 @@ test('statusLine_table', () => {
     const r2 = statusLine({
         ...base, running: true, indexed: 5, unreadable: 2, total: 20, model: 'm',
     }, 0);
-    assert.equal(r2.key, 'settings.ai.similar.status_running');
+    // 跑中：重述主句交給進度行（key null），params 仍帶 n／m
+    assert.equal(r2.key, null);
+    assert.equal(r2.extra, null);
     assert.equal(r2.params.n, 7);
     assert.equal(r2.params.m, 20);
 
@@ -118,8 +120,16 @@ test('statusLine_table', () => {
     const r4 = statusLine({
         ...base, model: 'm', pending: 4, complete: false, indexed: 6, total: 10,
     }, 0);
-    assert.equal(r4.key, 'settings.ai.similar.status_incomplete');
+    // 閒置未完成：重述主句由「還有 N 部沒跑」取代，只留非重述的「封面讀不到」
+    assert.equal(r4.key, null);
+    assert.equal(r4.extra, null);
     assert.equal(r4.params.n, 4);
+    const r4b = statusLine({
+        ...base, model: 'm', pending: 4, complete: false, indexed: 6, unreadable: 3, total: 10,
+    }, 0);
+    assert.equal(r4b.key, null);
+    assert.equal(r4b.extra, 'settings.ai.similar.status_unreadable_extra');
+    assert.equal(r4b.params.k, 3);
 
     // ⑤ model 已設且完成
     const r5 = statusLine({

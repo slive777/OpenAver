@@ -9,6 +9,9 @@
  * 外求（面板 this 上由父層提供）只有 aiTab、isDirty；功能獨有的讀取（開關、表單、toast）經 hooks 傳 vm。
  * hooks（皆收 vm＝面板 this）：enabled(vm)（缺省 true）、testPassed(vm)（缺省 false）、
  *   blocked(vm)（缺省 null）、afterPost(vm, kind, {ok, data, failed})（缺省不做事；kind ∈ 'start'|'rebuild'）。
+ * 可選尾巴 hooks（缺省＝無尾巴／沿用 adapter，行為逐字不變）：progressSuffix(vm)（接在進度行尾，僅進度行非空時）、
+ *   pendingSuffix(vm)（接在「還有 N 部沒跑」尾，僅該行非空時）、rebuildConfirm(vm, view)（回 {key, params} 覆寫
+ *   adapter.rebuildConfirm；回 null 沿用 adapter）。
  *
  * 輪詢世代守衛：每次 bfRefresh 先 ++bfGen，await 後世代不符或已銷毀就丟棄回應（用計數，不比物件身分）。
  */
@@ -80,11 +83,13 @@ export function aiBackfillControls(adapter, hooks = {}) {
         },
 
         bfProgressText() {
-            return descText(progressLine(this.bfView()));
+            const text = descText(progressLine(this.bfView()));
+            return text ? text + (callHook(hooks, 'progressSuffix', this, '') || '') : '';
         },
 
         bfPendingText() {
-            return descText(pendingLine(this.bfView()));
+            const text = descText(pendingLine(this.bfView()));
+            return text ? text + (callHook(hooks, 'pendingSuffix', this, '') || '') : '';
         },
 
         bfOnInit() {
@@ -209,7 +214,9 @@ export function aiBackfillControls(adapter, hooks = {}) {
             if (this.bfRebuildDisabled()) return;
             const view = this.bfView();
             if (!view) return;
-            const desc = adapter.rebuildConfirm(view);
+            const over = hooks && typeof hooks.rebuildConfirm === 'function'
+                ? hooks.rebuildConfirm(this, view) : null;
+            const desc = over || adapter.rebuildConfirm(view);
             // eslint-disable-next-line no-alert -- 全庫重建費用確認，與 rebuildIndex 的 confirm 同形
             if (!confirm(window.t(desc.key, desc.params))) return;
             await this._bfPost('rebuild');

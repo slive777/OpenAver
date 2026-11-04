@@ -6,6 +6,7 @@ const {
     connShown,
     connEnabled,
     statusLine,
+    progressExtras,
 } = await import('../ai-tags-logic.js');
 
 import { test } from 'node:test';
@@ -92,47 +93,40 @@ test('backfillAction_table', () => {
 });
 
 test('conn_shown_enabled_table', () => {
-    // 翻譯關＋AI 標籤開選 gemini＋翻譯選 ollama → 兩區顯示；gemini 可編輯、ollama 不可
-    const onlyTagsGemini = {
-        translateEnabled: false,
+    const mk = (over) => ({
+        translateEnabled: true,
         translateProvider: 'ollama',
         aiTagsEnabled: true,
         aiTagsProvider: 'gemini',
-    };
-    assert.equal(connShown(onlyTagsGemini, 'gemini'), true);
-    assert.equal(connShown(onlyTagsGemini, 'ollama'), true);
-    assert.equal(connEnabled(onlyTagsGemini, 'gemini'), true);
-    assert.equal(connEnabled(onlyTagsGemini, 'ollama'), false);
+        ...over,
+    });
+    const SAME = mk({ translateProvider: 'gemini' });
+    const DIFF = mk({});
 
-    // AI 標籤關 → 不因它顯示／可編輯
-    const tagsOff = {
-        translateEnabled: false,
-        translateProvider: 'ollama',
-        aiTagsEnabled: false,
-        aiTagsProvider: 'gemini',
-    };
-    assert.equal(connShown(tagsOff, 'gemini'), false);
-    assert.equal(connEnabled(tagsOff, 'gemini'), false);
+    // 翻譯分頁：恆只列翻譯選的那家（不管標籤選誰；翻譯關著也列）
+    assert.equal(connShown(DIFF, 'ollama', 'translate'), true);
+    assert.equal(connShown(DIFF, 'gemini', 'translate'), false);
+    assert.equal(connShown(SAME, 'gemini', 'translate'), true);
+    assert.equal(connShown(mk({ translateEnabled: false }), 'ollama', 'translate'), true);
 
-    // 翻譯開選 gemini → 可編輯
-    const translateOnGemini = {
-        translateEnabled: true,
-        translateProvider: 'gemini',
-        aiTagsEnabled: false,
-        aiTagsProvider: '',
-    };
-    assert.equal(connShown(translateOnGemini, 'gemini'), true);
-    assert.equal(connEnabled(translateOnGemini, 'gemini'), true);
+    // 標籤分頁：恆只列標籤選的那家（不管翻譯選誰）；標籤關著一家都不列
+    assert.equal(connShown(DIFF, 'gemini', 'tags'), true);
+    assert.equal(connShown(DIFF, 'ollama', 'tags'), false);
+    assert.equal(connShown(SAME, 'gemini', 'tags'), true);
+    assert.equal(connShown(mk({ aiTagsEnabled: false }), 'gemini', 'tags'), false);
 
-    // 翻譯關但仍選 gemini → 顯示但不可編輯
-    const translateOffStillGemini = {
-        translateEnabled: false,
-        translateProvider: 'gemini',
-        aiTagsEnabled: false,
-        aiTagsProvider: '',
-    };
-    assert.equal(connShown(translateOffStillGemini, 'gemini'), true);
-    assert.equal(connEnabled(translateOffStillGemini, 'gemini'), false);
+    // 相似／人臉（及未知）分頁：整區不列
+    for (const tab of ['similar', 'faces', undefined]) {
+        assert.equal(connShown(DIFF, 'ollama', tab), false);
+        assert.equal(connShown(SAME, 'gemini', tab), false);
+    }
+
+    // 可編輯規則不變：翻譯開且選中、或標籤開且選中
+    assert.equal(connEnabled(mk({ translateEnabled: false }), 'gemini'), true);
+    assert.equal(connEnabled(mk({ translateEnabled: false }), 'ollama'), false);
+    assert.equal(connEnabled(mk({ aiTagsEnabled: false }), 'gemini'), false);
+    assert.equal(connEnabled(mk({ translateProvider: 'gemini', aiTagsEnabled: false }), 'gemini'), true);
+    assert.equal(connEnabled(mk({ translateEnabled: false, translateProvider: 'gemini', aiTagsEnabled: false }), 'gemini'), false);
 });
 
 test('statusLine_stop_reason_routing', () => {
@@ -172,7 +166,8 @@ test('statusLine_stop_reason_routing', () => {
     const running = statusLine({
         ...base, running: true, stop_reason: 'quota', tagged: 2, total: 10, skipped: 0,
     });
-    assert.equal(running.key, 'settings.ai.tags.status_running');
+    // 跑中：重述主句交給進度行，舊狀態行 key 為 null（params 仍帶 n／m 供對照）
+    assert.equal(running.key, null);
     assert.equal(running.params.n, 2);
     assert.equal(running.params.m, 10);
     assert.deepEqual(running.extra, []);
@@ -181,13 +176,17 @@ test('statusLine_stop_reason_routing', () => {
     const slowWaitSkip = statusLine({
         ...base, running: true, slow: true, waiting: true, skipped: 2, tagged: 1, total: 5,
     });
-    assert.equal(slowWaitSkip.key, 'settings.ai.tags.status_running');
-    assert.deepEqual(slowWaitSkip.extra, [
+    assert.equal(slowWaitSkip.key, null);
+    assert.deepEqual(slowWaitSkip.extra, []);
+    assert.equal(slowWaitSkip.params.k, 2);
+    // slow／waiting／skipped 三句改由 progressExtras 提供（併進進度行）
+    assert.deepEqual(progressExtras({ running: true, slow: true, waiting: true, skipped: 2 }), [
         'settings.ai.tags.status_slow_extra',
         'settings.ai.tags.status_waiting_extra',
         'settings.ai.tags.status_skipped_extra',
     ]);
-    assert.equal(slowWaitSkip.params.k, 2);
+    assert.deepEqual(progressExtras({ running: true }), []);
+    assert.deepEqual(progressExtras(null), []);
 
     // unreachable 旗標＋_no_time
     const unreachNoTime = statusLine({ ...base, unreachable: true, last_success_at: null });
@@ -203,10 +202,14 @@ test('statusLine_stop_reason_routing', () => {
     const incomplete = statusLine({
         ...base, resumable: true, pending: 6, tagged: 3, total: 9,
     });
-    assert.equal(incomplete.key, 'settings.ai.tags.status_incomplete');
+    // 閒置未完成：重述主句由「還有 N 部沒跑」取代，只留非重述 extra
+    assert.equal(incomplete.key, null);
     assert.equal(incomplete.params.n, 6);
     assert.equal(incomplete.params.m, 9);
     assert.deepEqual(incomplete.extra, []);
+    const incompleteSkipped = statusLine({ ...base, resumable: true, skipped: 3 });
+    assert.equal(incompleteSkipped.key, null);
+    assert.deepEqual(incompleteSkipped.extra, ['settings.ai.tags.status_skipped_extra']);
 
     // ready，n 取 tagged；有 time／無 time
     const ready = statusLine({
