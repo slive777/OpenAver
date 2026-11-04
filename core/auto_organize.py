@@ -9,12 +9,13 @@ import asyncio
 import os
 from typing import Callable, Optional
 
+from core.ai_services import post_ingest
 from core.database import organize_failures
 from core.db_inflow import try_inflow_upsert
 from core.favorite_scan import detect_nfo, list_favorite_video_files, resolve_favorite_folder
 from core.logger import get_logger
 from core.organizer import extract_chinese_title, organize_file
-from core.path_utils import coerce_to_file_uri
+from core.path_utils import coerce_to_file_uri, to_file_uri
 from core.readonly_source import is_path_readonly, readonly_source_prefixes, writable_source_prefixes
 from core.scraper import smart_search, search_jav, is_number_format
 from core.scrapers.utils import extract_number, has_japanese
@@ -60,6 +61,21 @@ def _remember_failure(reason: str, key: str, number: str, **kwargs) -> bool:
             "[auto_organize] 記錄「%s」失敗（%s），本輪繼續", reason, number, exc_info=True,
         )
         return False
+
+
+def _post_ingest_after_organize(sync_status, target_file, path_mappings) -> None:
+    """入庫成功後排 AI 後處理（189a-T5）：定時整理要跑人臉對焦、連不上才發通知；失敗不影響本輪。"""
+    if sync_status != "synced":
+        return
+    try:
+        post_ingest.run_after_ingest(
+            to_file_uri(target_file, path_mappings),
+            route="auto_organize",
+            skip_faces=False,
+            notify=True,
+        )
+    except Exception:
+        logger.warning("[auto_organize] 入庫後 AI 掛勾排程失敗（不影響本輪）", exc_info=True)
 
 
 def run_one_round(
@@ -140,6 +156,7 @@ def run_one_round(
             )
             translate_service = None
 
+    post_ingest.begin_round()
     completed = 0
     for path in files:
         # ① should_abort → ② extract_number → ③ on_file_start，順序不可顛倒（DoD-5）
@@ -221,7 +238,8 @@ def run_one_round(
             # 不在 Scanner 追蹤夾內時靜默回 "not_linked"。
             target_file = organize_result.get('new_filename')
             if target_file:
-                try_inflow_upsert(target_file, old_file_path=path)
+                sync_status = try_inflow_upsert(target_file, old_file_path=path)
+                _post_ingest_after_organize(sync_status, target_file, path_mappings)
             if organize_result.get('cover_path'):
                 added.append(number)
             else:

@@ -618,6 +618,8 @@ There are two ways to use it.
 - **A. OpenAver does it.** The user has switched AI tags on and chosen a connection on the settings page. You call `POST $OA/api/ai/tags/videos` for one video. **Ask the user first**: the poster is sent to the AI connection the user chose (this may cost money) and tags are written to the database and the NFO. If the feature is off on the settings page the call is refused with `reason: "disabled"`; you cannot work around that.
 - **B. You do it yourself.** This costs nothing on the OpenAver side. Steps: get the vocabulary, get the poster, judge it yourself, then write the tags back with `POST $OA/api/user-tags` and `"ai_tagged": true`.
 
+Videos that arrive through organizing are queued for automatic tagging in the background when the user has AI tags switched on: a video that entered the tracked library through `/api/scrape-single`, a rescrape through `/api/enrich-single` (`mode=refresh_full` with `overwrite_existing=true`; for a read-only source, any rescrape: `readonly_action=rescrape`, or `readonly_action` omitted with `metadata` given, which defaults to a rescrape; `mode` and `overwrite_existing` do not matter there), or scheduled organizing. Once a video is queued you do **not** need to call way A for it; calling it again only spends money twice on the same poster. The background run is best effort: if the video has no cover path, the connection cannot be reached, or the settings are incomplete, the tags are not added. Remove the cause first (add the cover, fix the connection or the settings), then fill that one video in with way A, and do not call it for a video that is still running in the background. On a writable source, `fill_missing` and `overwrite_existing=false` do not queue it, and neither does `/api/batch-enrich`. Library refresh does not queue it either, but when a refresh finishes it separately queues tagging for every video that has not been done yet (this may cost money too). When a rescrape swaps in a new cover, the video is looked at again (only tags are added, never removed).
+
 #### Get the vocabulary
 
 ```bash
@@ -690,7 +692,7 @@ curl -s -X POST "$OA/api/ai/tags/videos" -H "Content-Type: application/json" -d 
 ```
 
 - About one request to the user's AI connection per video.
-- A failure still returns HTTP 200, with `{"success": false, "reason": "..."}` (sometimes plus `detail`). `reason` values: `disabled` (feature is off on the settings page), `not_configured` (no connection chosen), `unreachable` (the connection did not answer), `model_unsupported` (the model cannot read images), `bad_response` (the reply could not be understood), `not_found` (the video is not in the library), `no_cover` (no readable cover), `write_failed` (the tags could not be saved).
+- A failure still returns HTTP 200, with `{"success": false, "reason": "..."}` (sometimes plus `detail`). `reason` values: `disabled` (feature is off on the settings page), `not_configured` (no connection chosen), `unreachable` (the connection did not answer), `model_unsupported` (the model cannot read images), `bad_response` (the reply could not be understood), `not_found` (the video is not in the library), `no_cover` (no readable cover; if the video has a cover path but the file is missing, it is still recorded as done and stops counting as "not yet done"), `write_failed` (the tags could not be saved).
 - `refused: true` means the model declined to judge the poster; nothing was added but the video counts as done.
 
 #### Get the sample poster

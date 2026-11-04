@@ -32,11 +32,15 @@ def _reset_fusion_module_state(monkeypatch):
     from core.ai_services import embedding_cache, similar_state
     monkeypatch.setattr(embedding_cache.EmbeddingMatrixCache, "_instance", None)
     for name, val in (
-        ("observed_model", None), ("observed_dim", None), ("unreachable", False),
+        ("observed_model", None), ("observed_dim", None),
         ("last_error_kind", None), ("last_error_check", None),
-        ("job", {"kind": None, "done": 0, "outcome": None}),
     ):
         monkeypatch.setattr(similar_state, name, val)
+    for name, val in (
+        ("unreachable", False),
+        ("job", {"kind": None, "done": 0, "outcome": None}),
+    ):
+        monkeypatch.setattr(similar_state._STATE, name, val)
     yield
     monkeypatch.setattr(embedding_cache.EmbeddingMatrixCache, "_instance", None)
 

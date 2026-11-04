@@ -71,3 +71,9 @@ type = "forbidden"
 source_modules = ["core.readonly_producer", "core.readonly_paths", "core.readonly_assets"]
 forbidden_modules = ["core.maker_mapping"]
 allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "job_shell must stay free of feature modules"
+type = "forbidden"
+source_modules = ["core.ai_services.job_shell"]
+forbidden_modules = ["core.ai_services.tags_backfill", "core.ai_services.tags_state", "core.ai_services.similar_index", "core.ai_services.similar_state", "core.ai_services.faces_recompute", "core.ai_services.faces_state", "core.ai_services.backfill_state"]

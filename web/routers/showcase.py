@@ -8,7 +8,6 @@ Showcase API 路由 - 影片展示資料端點
 
 import os
 import uuid
-from pathlib import Path
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
@@ -30,13 +29,10 @@ from core.path_utils import (
 from core.logger import get_logger
 from core.platform_info import DSM_PERMISSION_HINT, is_synology
 from core.config import load_config, get_gallery_source_paths, get_configured_gallery_dirs
-from core.scrapers.utils import has_japanese
-from core.nfo_stat import nfo_mtime_or_none
-from core.nfo_title_format import build_display_title
-from core.title_writeback import (
-    NfoNotFoundError, NfoParseError, rewrite_nfo_titles, strip_illegal_xml_chars,
-)
-from core.video_nfo_locate import locate_readonly_nfo, locate_video_nfo
+from core.title_writeback import apply_title_writeback
+from core.user_tags_write import hold_nfo_write
+from core.title_writeback import needs_translate as _needs_translate
+from core.video_nfo_locate import locate_readonly_nfo
 from core.focal import device_state, format_focal, parse_focal
 from core.focal.subprocess_runner import run_detection
 from core import thumbnail_cache
@@ -68,11 +64,6 @@ class TitleWritebackRequest(BaseModel):
     file_path: str
     title: str
     original_title: Optional[str] = None
-
-
-def _needs_translate(title, original_title, nfo_mtime) -> bool:
-    """標題是假名、沒有原文、且有 NFO（nfo_mtime > 0）才算待翻譯（列表與寫回回應共用）。"""
-    return bool((not original_title) and has_japanese(title or '') and (nfo_mtime or 0) > 0)
 
 
 def _serialize_video(v, path_mappings: dict, enabled: bool = False) -> dict:
@@ -507,70 +498,28 @@ def _title_fail(code: str) -> dict:
     return {"success": False, "error": code, "message": _TITLE_ERROR_MESSAGES[code]}
 
 
-def _new_original_title(req, video) -> str:
-    """original_title 三態：None＝沿用（現值也空就搬目前標題本體）；""＝清空；非空＝設定。"""
-    if req.original_title is not None:
-        return req.original_title
-    return video.original_title or video.title
-
-
 def _locate_readonly_nfo(video, path_mappings: dict, output_uri: str):
     return locate_readonly_nfo(video, path_mappings, output_uri)
 
 
-def _locate_title_nfo(video, config: dict, path_mappings: dict):
-    return locate_video_nfo(video, config, path_mappings)
-
-
-def _write_title_nfo(nfo_path: str, video, body: str, new_original: str, fmt: str) -> Optional[str]:
-    """改寫 NFO 標題元素；成功回 None，失敗回錯誤碼（NFO 先、DB 後，無回滾）。"""
-    try:
-        rewrite_nfo_titles(
-            nfo_path, number=video.number or '', title_body=body, original_title=new_original,
-            actors=video.actresses, maker=video.maker, date=video.release_date,
-            nfo_title_format=fmt,
-        )
-    except NfoNotFoundError:
-        return "no_nfo"
-    except NfoParseError:
-        return "nfo_unreadable"
-    except Exception as e:
-        logger.error("[title-writeback] NFO 寫入失敗: %s", e)
-        return "nfo_write_failed"
-    return None
-
-
 def _apply_title_writeback(repo, video, req, config: dict, path_mappings: dict) -> dict:
-    fmt = config.get("scraper", {}).get("nfo_title_format", '[{num}]{title}')
-    _display, body = build_display_title(
-        video.number or '', strip_illegal_xml_chars(req.title).strip(), '',
-        video.actresses, video.maker, video.release_date, fmt,
+    result = apply_title_writeback(
+        repo, video, req.title, req.original_title, config, path_mappings,
     )
-    if not body:
-        return _title_fail("title_empty")
-    new_original = strip_illegal_xml_chars(_new_original_title(req, video))
+    if result["success"]:
+        return result
+    return _title_fail(result["error"])
 
-    nfo_path, loc_err = _locate_title_nfo(video, config, path_mappings)
-    if nfo_path is None:
-        return _title_fail(loc_err)
-    nfo_err = _write_title_nfo(nfo_path, video, body, new_original, fmt)
-    if nfo_err is not None:
-        return _title_fail(nfo_err)
 
-    # 取實際寫入那份 NFO 的 mtime；取不到沿用舊值（下次掃描最多多讀一次）
-    new_mtime = nfo_mtime_or_none(Path(nfo_path))
-    if new_mtime is None:
-        new_mtime = video.nfo_mtime
-    try:
-        written = repo.update_titles(video.path, body, new_original, new_mtime)
-    except Exception as e:
-        logger.error("[title-writeback] DB 寫入失敗: %s", e)
-        return _title_fail("db_write_failed")
-    if not written:
+def _locked_title_writeback(repo, req) -> dict:
+    video = repo.get_by_path(req.file_path)
+    if video is None:
         return _title_fail("not_found")
-    return {"success": True, "title": body, "original_title": new_original,
-            "needs_translate": _needs_translate(body, new_original, new_mtime),
-            "nfo_updated": True}
+    config = load_config()
+    configured_dir_uris, path_mappings = get_configured_gallery_dirs(config)
+    if not any(is_path_under_dir(video.path, uri) for uri in configured_dir_uris):
+        return _title_fail("not_found")
+    return _apply_title_writeback(repo, video, req, config, path_mappings)
 
 
 @router.post("/video/title")
@@ -586,14 +535,9 @@ def write_video_title(req: TitleWritebackRequest):
             return _title_fail("not_found")
         init_db(db_path)
         repo = VideoRepository(db_path)
-        video = repo.get_by_path(req.file_path)
-        if video is None:
-            return _title_fail("not_found")
-        config = load_config()
-        configured_dir_uris, path_mappings = get_configured_gallery_dirs(config)
-        if not any(is_path_under_dir(video.path, uri) for uri in configured_dir_uris):
-            return _title_fail("not_found")
-        return _apply_title_writeback(repo, video, req, config, path_mappings)
+        # 與背景翻譯寫回（post_ingest）同一把 NFO 鎖：讀列到寫完之間不讓它插進來蓋片名
+        with hold_nfo_write():
+            return _locked_title_writeback(repo, req)
     except ValueError:
         return _title_fail("invalid_path")
     except Exception as e:

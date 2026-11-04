@@ -1,5 +1,5 @@
 // TASK-188c-T8b: aiTagsPanel 獨立元件 — 輪詢世代守衛／離開分頁停輪詢／測試鈕 body 與結果／首次開啟預選連線。
-// 驅動真的 refreshStatus／runTest／onProviderChange／init／statusLineText，只假 fetch、$watch、root 外求、window.t。
+// 驅動真的 bfRefresh／runTest／onProviderChange／init／statusLineText，只假 fetch、$watch、root 外求、window.t。
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -46,12 +46,12 @@ test('tags_poll_stale_response_ignored', async () => {
     let n = 0;
     globalThis.fetch = () => (++n === 1 ? first.promise : Promise.resolve(resp(RUNNING)));
     try {
-        const p1 = c.refreshStatus();
-        await c.refreshStatus();
-        assert.equal(c.aiTagsStatus.pending, 5);
+        const p1 = c.bfRefresh();
+        await c.bfRefresh();
+        assert.equal(c.bfStatus.pending, 5);
         first.resolve(resp({ ...RUNNING, pending: 99 }));
         await p1;
-        assert.equal(c.aiTagsStatus.pending, 5);
+        assert.equal(c.bfStatus.pending, 5);
     } finally {
         c.destroy();
         globalThis.fetch = realFetch;
@@ -66,25 +66,25 @@ test('tags_poll_stops_on_leave_tab', async () => {
     try {
         c.init();
         c.aiTab = 'tags';
-        await c.refreshStatus();
-        assert.notEqual(c.aiTagsPollTimer, null);
+        await c.bfRefresh();
+        assert.notEqual(c.bfPollTimer, null);
         const line = c.statusLineText();
         assert.ok(line.includes('settings.ai.tags.status_slow_extra'), line);
         assert.ok(line.includes('settings.ai.tags.status_skipped_extra'), line);
         c.aiTab = 'translate';
         watchers.aiTab('translate');
-        assert.equal(c.aiTagsPollTimer, null);
+        assert.equal(c.bfPollTimer, null);
 
         // 請求在途時離開分頁：回來的 running:true 不得再排輪詢
         c.aiTab = 'tags';
         const d = deferred();
         globalThis.fetch = () => d.promise;
-        const p = c.refreshStatus();
+        const p = c.bfRefresh();
         c.aiTab = 'translate';
         watchers.aiTab('translate');
         d.resolve(resp(busy));
         await p;
-        assert.equal(c.aiTagsPollTimer, null);
+        assert.equal(c.bfPollTimer, null);
     } finally {
         c.destroy();
         globalThis.fetch = realFetch;

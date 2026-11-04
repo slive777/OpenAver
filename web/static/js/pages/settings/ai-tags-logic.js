@@ -250,3 +250,42 @@ export function statusLine(status) {
         extra,
     };
 }
+
+/** Shared backfill adapter (TASK-189a-T10): feature-specific half only. */
+export const adapter = {
+    tab: 'tags',
+    urls: {
+        status: '/api/ai/tags/backfill/status',
+        start: '/api/ai/tags/backfill',
+        rebuild: '/api/ai/tags/backfill/rebuild',
+        stop: '/api/ai/tags/backfill/stop',
+    },
+    normalize(raw) {
+        return {
+            running: Boolean(raw.running),
+            processed: raw.tagged || 0,
+            total: raw.total || 0,
+            pending: raw.pending || 0,
+            resumable: Boolean(raw.resumable),
+            lastSuccessAt: raw.last_success_at ?? null,
+            unreachable: Boolean(raw.unreachable),
+            stopReason: raw.stop_reason ?? null,
+            raw,
+        };
+    },
+    actionOf(view) {
+        if (view.running) return 'stop';
+        if (view.resumable) return 'continue';
+        if (view.pending > 0) return 'start';
+        return null;
+    },
+    extraAction() {
+        return null;
+    },
+    rebuildVisible(view) {
+        return view.total > 0;
+    },
+    rebuildConfirm(view) {
+        return { key: 'settings.ai.tags.rebuild_confirm', params: { n: view.total } };
+    },
+};

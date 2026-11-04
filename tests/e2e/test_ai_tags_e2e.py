@@ -136,8 +136,8 @@ def test_tags_settings_loaded_not_dirty(page: Page, base_url: str) -> None:
     _settle_settings(page, base_url)
     with page.expect_response("**/api/ai/tags/backfill/status"):
         page.locator("#aiTabTags").click()
-    expect(page.locator("#aiTagsBackfillBtn")).to_be_visible()
-    expect(page.locator("#aiTagsBackfillBtn")).to_be_enabled()
+    expect(page.locator("#aiTagsRunBtn")).to_be_visible()
+    expect(page.locator("#aiTagsRunBtn")).to_be_enabled()
     expect(page.locator(".ai-tags-save-first")).to_be_hidden()
     assert page.evaluate(
         "() => Alpine.$data(document.getElementById('settings-components')).isDirty"
@@ -158,8 +158,8 @@ def test_tags_status_line_and_first_run_hint_share_pending(page: Page, base_url:
     expect(page.locator("#aiTagsStopBtn")).to_be_visible()
     st["running"] = False
     expect(page.locator("#aiTagsPendingLine")).to_contain_text("83")
-    expect(page.locator("#aiTagsBackfillBtn")).to_be_visible()
-    expect(page.locator("#aiTagsBackfillBtn")).to_be_enabled()
+    expect(page.locator("#aiTagsRunBtn")).to_be_visible()
+    expect(page.locator("#aiTagsRunBtn")).to_be_enabled()
     expect(page.locator("#aiTagsCostLine")).to_be_visible()
     h = re.search(r"\d+", page.locator("#aiTagsFirstRunHint").inner_text())
     p = re.search(r"\d+", page.locator("#aiTagsPendingLine").inner_text())

@@ -133,14 +133,16 @@ class Env:
 
 def _reset_state(monkeypatch) -> None:
     """模組級狀態歸零（BE-TEST-38）；也用來模擬「程序重啟」（丟棄記憶體、不起 thread）。"""
-    for name, val in (("_JOB_LOCK", threading.Lock()), ("_STATE_LOCK", threading.Lock()),
-                      ("_STOP", threading.Event()), ("_rerun", False),
-                      ("_notification_sink", None)):
-        monkeypatch.setattr(similar_index, name, val)
-    for name, val in (("observed_model", None), ("observed_dim", None), ("unreachable", False),
-                      ("last_error_kind", None), ("last_error_check", None),
-                      ("job", {"kind": None, "done": 0, "outcome": None})):
+    for name, val in (("job_lock", threading.Lock()), ("state_lock", threading.Lock()),
+                      ("stop", threading.Event()), ("rerun", False)):
+        monkeypatch.setattr(similar_index._SHELL, name, val)
+    monkeypatch.setattr(similar_index, "_notification_sink", None)
+    for name, val in (("observed_model", None), ("observed_dim", None),
+                      ("last_error_kind", None), ("last_error_check", None)):
         monkeypatch.setattr(similar_state, name, val)
+    for name, val in (("unreachable", False),
+                      ("job", {"kind": None, "done": 0, "outcome": None})):
+        monkeypatch.setattr(similar_state._STATE, name, val)
 
 
 def _workers() -> list:

@@ -228,10 +228,10 @@ def _isolate_tags_state(monkeypatch):
 
     monkeypatch.setattr(tags_state, "meta_set", lambda key, value: None)
     for name, val in (
-        ("unreachable", False), ("last_success_at", None), ("_last_persist_mono", None),
-        ("notified", False), ("_notification_sink", None),
+        ("unreachable", False), ("last_success_at", None), ("last_persist_mono", None),
+        ("notified", False), ("notification_sink", None),
     ):
-        monkeypatch.setattr(tags_state, name, val)
+        monkeypatch.setattr(tags_state._STATE, name, val)
 
 
 def _make_tag_env(
@@ -436,6 +436,43 @@ def test_ran_or_not_decision_table(
     assert (repo.get_ai_tagged_at(file_uri) is not None) is ran
 
 
+def test_missing_cover_file_counts_as_ran(tmp_path, monkeypatch):
+    """封面路徑有值但檔案不在磁碟 → 仍拋 no_cover、但記跑過且不動使用者標籤。"""
+    from core.ai_services.tagging import tag_video
+
+    repo, file_uri, mp4, nfo, config = _make_tag_env(tmp_path, monkeypatch)
+    assert repo.count_ai_tag_progress() == (1, 1)
+    (tmp_path / "AI-001-poster.jpg").unlink()
+    assert repo.get_by_path(file_uri).cover_path != ""
+    stub, calls = _make_vision_stub(_OK_JSON)
+
+    with pytest.raises(TaggingFailure) as ei:
+        asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
+    assert ei.value.reason == "no_cover"
+
+    assert len(calls) == 0
+    assert repo.get_ai_tagged_at(file_uri) is not None
+    assert repo.count_ai_tag_progress() == (1, 0)
+    assert repo.get_by_path(file_uri).user_tags == ["★4"]
+
+
+def test_unreachable_cover_folder_not_counted_as_ran(tmp_path, monkeypatch):
+    from core.ai_services.tagging import tag_video
+    repo, file_uri, mp4, nfo, config = _make_tag_env(tmp_path, monkeypatch)
+    missing = tmp_path / "nas-off" / "AI-001-poster.jpg"
+    video = repo.get_by_path(file_uri)
+    video.cover_path = to_file_uri(str(missing))
+    repo.upsert(video)
+    stub, calls = _make_vision_stub(_OK_JSON)
+    with pytest.raises(TaggingFailure) as ei:
+        asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
+    assert ei.value.reason == "no_cover"
+    assert len(calls) == 0
+    assert repo.get_ai_tagged_at(file_uri) is None
+    assert repo.count_ai_tag_progress() == (1, 1)
+    assert repo.get_by_path(file_uri).user_tags == ["★4"]
+
+
 def test_observation_runs_off_loop_and_never_changes_tag_video_result(
     tmp_path, monkeypatch
 ):
@@ -479,7 +516,7 @@ def test_observation_runs_off_loop_and_never_changes_tag_video_result(
     # (3) 真 observe_*：旗標轉移（rate_limited 不設旗標；連不上設旗標；成功清旗標）
     monkeypatch.setattr(tags_state, "observe_success", real_success)
     monkeypatch.setattr(tags_state, "observe_failure", real_failure)
-    assert tags_state.unreachable is False
+    assert tags_state._STATE.unreachable is False
 
     def fail_with(kind, status):
         stub, _ = _make_vision_stub(TranslateError(kind, status, "", "x"))
@@ -487,8 +524,8 @@ def test_observation_runs_off_loop_and_never_changes_tag_video_result(
             asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
 
     fail_with("rate_limited", 429)
-    assert tags_state.unreachable is False
+    assert tags_state._STATE.unreachable is False
     fail_with("connection_failed", None)
-    assert tags_state.unreachable is True
+    assert tags_state._STATE.unreachable is True
     asyncio.run(tag_video(file_uri, config=config, vision_fn=ok_stub))
-    assert tags_state.unreachable is False and tags_state.last_success_at is not None
+    assert tags_state._STATE.unreachable is False and tags_state._STATE.last_success_at is not None

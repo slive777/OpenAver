@@ -204,9 +204,12 @@ def _reset_state(monkeypatch) -> None:
     from core.ai_services import faces_recompute
 
     for name, val in (
-        ("_JOB_LOCK", threading.Lock()),
-        ("_STATE_LOCK", threading.Lock()),
-        ("_STOP", threading.Event()),
+        ("job_lock", threading.Lock()),
+        ("state_lock", threading.Lock()),
+        ("stop", threading.Event()),
+    ):
+        monkeypatch.setattr(faces_recompute._SHELL, name, val)
+    for name, val in (
         ("_unreadable", 0),
         ("_stopped_reason", None),
         ("_stopped_kind", None),
@@ -218,13 +221,16 @@ def _reset_state(monkeypatch) -> None:
         ("degraded", False),
         ("last_error_kind", None),
         ("last_error_check", None),
+    ):
+        monkeypatch.setattr(faces_state, name, val)
+    for name, val in (
         ("notified", False),
         ("last_success_at", None),
         ("job", {"kind": None, "done": 0, "outcome": None}),
-        ("_last_persist_mono", None),
-        ("_notification_sink", None),
+        ("last_persist_mono", None),
+        ("notification_sink", None),
     ):
-        monkeypatch.setattr(faces_state, name, val)
+        monkeypatch.setattr(faces_state._STATE, name, val)
 
 
 def _workers() -> list:

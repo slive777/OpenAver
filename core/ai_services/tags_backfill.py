@@ -7,16 +7,16 @@
 
 併發模型（不變式 J1～J5 的承載）：
 
-- ``_JOB_LOCK`` 以 ``acquire(blocking=False)`` 取得，build／rebuild／incremental 共用，最多一份。
-- ``_STATE_LOCK`` 是短暫的互斥：「取得／釋放工作鎖」與承接旗標 ``_rerun`` 只在它裡面動。
+- ``_SHELL.job_lock`` 以 ``acquire(blocking=False)`` 取得，build／rebuild／incremental 共用，最多一份。
+- ``_SHELL.state_lock`` 是短暫的互斥：「取得／釋放工作鎖」與承接旗標 ``_SHELL.rerun`` 只在它裡面動。
   工作結束前的最後檢查（待處理＝0、沒有被停止、沒有排隊中的承接、清「未完成」旗標）與釋放
-  工作鎖在**同一個** ``_STATE_LOCK`` 區段內完成；掃描端「嘗試取得，失敗就排隊承接」也在同一把
+  工作鎖在**同一個** ``_SHELL.state_lock`` 區段內完成；掃描端「嘗試取得，失敗就排隊承接」也在同一把
   鎖內 ⇒ 掃描要嘛看到鎖已釋放（自己開新 job）、要嘛把旗標留給仍在跑的那份 job 消化。
 - ``request_stop()`` 在同一把鎖內設停止旗標並清掉承接；停止後 job 不會自行重開（J2）。
 - 本次 job 內失敗的片進 ``ctx.abandoned``，不再被撈（J4）；每部結果在 ``tag_video`` 內已落盤（J5）。
 - 重啟不起任何背景執行緒（I-STATUS）：模組載入不做事，``status()`` 只讀 DB。
 - T4b：``_process_batch`` 內開 ``MAX_CONCURRENCY`` 條 pool thread＋名額 gate；政策由
-  ``tags_backfill_policy.RunPolicy`` 驅動；429 等待用 ``_STOP.wait``。
+  ``tags_backfill_policy.RunPolicy`` 驅動；429 等待用 ``_SHELL.stop.wait``。
 """
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from time import monotonic as _monotonic_impl
 from typing import Optional
 
 from core.ai_services import tags_backfill_policy, tags_state
+from core.ai_services.job_shell import JobShell
 from core.ai_services.tagging import tag_video_sync
 from core.config import load_config
 from core.database import VideoRepository
@@ -37,10 +38,7 @@ THREAD_NAME = "tags-backfill"
 _NOTIF_INCREMENTAL = "notif.ai_tags_unreachable"
 _NOTIF_BACKFILL = "notif.ai_tags_backfill_stopped"
 
-_JOB_LOCK = threading.Lock()
-_STATE_LOCK = threading.Lock()
-_STOP = threading.Event()
-_rerun = False
+_SHELL = JobShell()
 
 # 可注入假時鐘（測試）；`from time import monotonic` 避開 DoD 的 `import time` 字面
 _monotonic = _monotonic_impl
@@ -69,52 +67,35 @@ class _Ctx:
         self.gate = threading.Condition(self.lock)
 
 
-# ── 鎖與承接旗標（只在 _STATE_LOCK 內動） ──────────────────────────────────────
-
-def _try_acquire_job() -> bool:
-    if not _JOB_LOCK.acquire(blocking=False):
-        return False
-    return True
-
+# ── 鎖與承接旗標（只在 _SHELL.state_lock 內動） ────────────────────────────────
 
 def _begin_job_locked(kind: str) -> None:
-    global _rerun
-    _STOP.clear()
-    _rerun = False
+    _SHELL.begin_locked()
     tags_state.job_begin(kind)
     if kind != "incremental":  # CD-188c-8：手動 job 開始時記「有未完成的補完」
         tags_state.meta_set(tags_state.META_BACKFILL_OPEN, "1")
 
 
 def _release_job_locked(ctx: Optional[_Ctx], outcome: str) -> None:
-    global _rerun
-    _rerun = False
-    tags_state.job_end(outcome)
-    if ctx is not None:
-        ctx.released = True
-    _JOB_LOCK.release()
+    def _before_release() -> None:
+        tags_state.job_end(outcome)
+        if ctx is not None:
+            ctx.released = True
+
+    _SHELL.release_locked(before_release=_before_release)
 
 
 def _release_unlaunched(outcome: str) -> None:
-    with _STATE_LOCK:
-        _release_job_locked(None, outcome)
+    def _before_release() -> None:
+        tags_state.job_end(outcome)
 
-
-def _consume_handoff_locked() -> bool:
-    global _rerun
-    if _rerun:
-        _rerun = False
-        return True
-    return False
+    _SHELL.release_unlaunched(before_release=_before_release)
 
 
 def _start_thread(ctx: _Ctx) -> None:
-    t = threading.Thread(target=_worker_main, args=(ctx,), name=THREAD_NAME, daemon=True)
-    try:
-        t.start()
-    except BaseException:
-        _release_unlaunched("error")
-        raise
+    _SHELL.start_thread(
+        _worker_main, (ctx,), name=THREAD_NAME,
+        on_failure=lambda: _release_unlaunched("error"))
 
 
 # ── 公開介面 ──────────────────────────────────────────────────────────────────
@@ -132,8 +113,8 @@ def start_rebuild() -> dict:
 
 def _start(rebuild: bool) -> dict:
     kind = "rebuild" if rebuild else "build"
-    with _STATE_LOCK:
-        if not _try_acquire_job():
+    with _SHELL.state_lock:
+        if not _SHELL.try_acquire():
             return {"ok": False, "status": "already_running"}
         try:
             repo = VideoRepository()
@@ -141,7 +122,7 @@ def _start(rebuild: bool) -> dict:
                 repo.reset_all_ai_tagged()
             _begin_job_locked(kind)
         except BaseException:
-            _JOB_LOCK.release()  # 取得鎖之後任何例外都必須放掉，否則卡在「執行中」
+            _SHELL.abort_acquire()  # 取得鎖之後任何例外都必須放掉，否則卡在「執行中」
             raise
         ctx = _Ctx(kind, repo)
     _start_thread(ctx)
@@ -150,11 +131,8 @@ def _start(rebuild: bool) -> dict:
 
 def request_stop() -> dict:
     """停止：已在飛的跑完，之後不再開始新請求；同時中止排隊中的承接。"""
-    global _rerun
-    with _STATE_LOCK:
-        _STOP.set()
-        _rerun = False
-    return {"ok": True, "running": _JOB_LOCK.locked()}
+    _SHELL.request_stop()
+    return {"ok": True, "running": _SHELL.is_running()}
 
 
 def schedule_incremental() -> None:
@@ -172,18 +150,16 @@ def _tags_enabled(config: dict) -> bool:
 
 
 def _schedule_incremental() -> None:
-    global _rerun
     if not _tags_enabled(load_config()):
         return
     repo = VideoRepository()
-    with _STATE_LOCK:
-        if not _try_acquire_job():
-            _rerun = True
+    with _SHELL.state_lock:
+        if not _SHELL.schedule_handoff():
             return
         try:
             _begin_job_locked("incremental")
         except BaseException:
-            _JOB_LOCK.release()
+            _SHELL.abort_acquire()
             raise
         ctx = _Ctx("incremental", repo)
     _start_thread(ctx)
@@ -204,7 +180,7 @@ def status() -> dict:
     total, pending = VideoRepository().count_ai_tag_progress()
     snap = tags_state.snapshot()
     job = snap["job"]
-    running = _JOB_LOCK.locked()
+    running = _SHELL.is_running()
     is_open = tags_state.meta_get(tags_state.META_BACKFILL_OPEN) == "1"
     return {
         "running": running,
@@ -234,7 +210,7 @@ def _worker_main(ctx: _Ctx) -> None:
         logger.exception("[tags_backfill] worker crashed")
     finally:
         if not ctx.released:
-            with _STATE_LOCK:
+            with _SHELL.state_lock:
                 _release_job_locked(ctx, outcome)
 
 
@@ -259,11 +235,11 @@ def _work_loop(ctx: _Ctx) -> str:
 def _finish_if_drained(ctx: _Ctx) -> Optional[str]:
     """待處理＝0 的邊界：被停止 → 結束；有承接 → 回 None 再跑一輪；否則清「未完成」旗標
     並在同一區段釋放工作鎖（J3）。"""
-    with _STATE_LOCK:
-        if _STOP.is_set():
+    with _SHELL.state_lock:
+        if _SHELL.stop.is_set():
             _release_job_locked(ctx, "stopped")
             return "stopped"
-        if _consume_handoff_locked():
+        if _SHELL.consume_handoff_locked():
             return None
         tags_state.meta_delete(tags_state.META_BACKFILL_OPEN)
         _release_job_locked(ctx, "drained")
@@ -289,7 +265,7 @@ def _process_batch(ctx: _Ctx, pending: list) -> str:
         t.join()
     if ctx.halt_reason is not None:
         return ctx.halt_reason
-    if _STOP.is_set():
+    if _SHELL.stop.is_set():
         return "stopped"
     return "ok"
 
@@ -310,7 +286,7 @@ def _pool_worker(ctx: _Ctx, queue: list) -> None:
 
 
 def _gate_blocked(ctx: _Ctx) -> bool:
-    return ctx.halt_reason is not None or _STOP.is_set()
+    return ctx.halt_reason is not None or _SHELL.stop.is_set()
 
 
 def _in_cooldown_locked(ctx: _Ctx) -> bool:
@@ -386,23 +362,23 @@ def _halt(ctx: _Ctx, reason: str) -> None:
     first = False
     with ctx.gate:
         if ctx.halt_reason is None:
-            # 鎖定「halt 當下使用者是否已停止」；之後 _STOP.set 只為喚醒 429，不改此判斷
-            ctx.suppress_notify = _STOP.is_set()
+            # 鎖定「halt 當下使用者是否已停止」；之後 _SHELL.stop.set 只為喚醒 429，不改此判斷
+            ctx.suppress_notify = _SHELL.stop.is_set()
             ctx.halt_reason = reason
             first = True
         ctx.gate.notify_all()
     if first:
         tags_state.job_set(stop_reason=reason)
-    # 每位做出 halt 決策的 worker 都走到這裡；去重由 note_failure。再 set _STOP 喚醒 429。
+    # 每位做出 halt 決策的 worker 都走到這裡；去重由 note_failure。再 set _SHELL.stop 喚醒 429。
     if reason != "disabled" and not ctx.suppress_notify:
         if tags_state.note_failure():
             key = _NOTIF_INCREMENTAL if ctx.kind == "incremental" else _NOTIF_BACKFILL
             tags_state.emit(key)
-    _STOP.set()  # 喚醒 _wait_429；halt 優先於 stopped（_process_batch 先看 halt_reason）
+    _SHELL.stop.set()  # 喚醒 _wait_429；halt 優先於 stopped（_process_batch 先看 halt_reason）
 
 
 def _wait_429(ctx: _Ctx, decision: tags_backfill_policy.Decision) -> bool:
-    """加入共用冷卻並等到截止；回 True＝被停止或 halt。``wait_s == 0`` 也必須呼叫 ``_STOP.wait``。
+    """加入共用冷卻並等到截止；回 True＝被停止或 halt。``wait_s == 0`` 也必須呼叫 ``_SHELL.stop.wait``。
 
     I-COOLDOWN：僅在「當下不在冷卻中」的第一次 429 設定截止＝now+wait_s；冷卻中回來的舊 429 不延長。
     """
@@ -421,9 +397,9 @@ def _wait_429(ctx: _Ctx, decision: tags_backfill_policy.Decision) -> bool:
             remaining = deadline - _monotonic()
             if remaining <= 0:
                 # wait_s==0／已到期也必須呼叫縫，供 spy／mutation
-                stopped = _STOP.wait(0)
+                stopped = _SHELL.stop.wait(0)
                 return bool(stopped) or _gate_blocked(ctx)
-            stopped = _STOP.wait(remaining)
+            stopped = _SHELL.stop.wait(remaining)
             if stopped or _gate_blocked(ctx):
                 return True
     finally:
@@ -437,7 +413,7 @@ def _wait_429(ctx: _Ctx, decision: tags_backfill_policy.Decision) -> bool:
 
 def _reacquire_after_yield(ctx: _Ctx) -> Optional[bool]:
     """降速／429 後重取名額；回 None＝應退出，否則為新的 started_degraded。"""
-    if ctx.halt_reason is not None or _STOP.is_set():
+    if ctx.halt_reason is not None or _SHELL.stop.is_set():
         return None
     return _acquire_slot(ctx)
 
@@ -448,13 +424,13 @@ def _process_one(ctx: _Ctx, path: str, started_degraded: bool) -> None:
     holding = True
     try:
         while True:
-            if ctx.halt_reason is not None or _STOP.is_set():
+            if ctx.halt_reason is not None or _SHELL.stop.is_set():
                 return
             try:
                 _tag_one(path)
             except Exception as exc:
                 # 決策⑤：使用者停止之後才回來的失敗 → 不重試、不 skip、不 _halt
-                if _STOP.is_set() and ctx.halt_reason is None:
+                if _SHELL.stop.is_set() and ctx.halt_reason is None:
                     return
                 verdict = tags_backfill_policy.classify_failure(exc)
                 with ctx.lock:
@@ -467,7 +443,7 @@ def _process_one(ctx: _Ctx, path: str, started_degraded: bool) -> None:
                     # 每位 halt 決策者都進 _halt（通知靠 note_failure 去重；stop_reason 只寫第一次）
                     _halt(ctx, decision.stop_reason or "unreachable")
                     return
-                if ctx.halt_reason is not None or _STOP.is_set():
+                if ctx.halt_reason is not None or _SHELL.stop.is_set():
                     return  # 已 halt／停止：不 skip、不重試
                 if decision.action == "skip":
                     logger.exception(

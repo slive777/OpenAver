@@ -18,7 +18,7 @@ from core.database import connection as db_connection
 from core.path_utils import to_file_uri
 
 _REAL_FETCH = tags_backfill._fetch_pending
-_REAL_CONSUME = tags_backfill._consume_handoff_locked
+_REAL_CONSUME = tags_backfill._SHELL.consume_handoff_locked
 _STATUS_KEYS = {
     "running", "job_kind", "done", "skipped", "slow", "waiting", "stop_reason", "outcome",
     "pending", "total", "tagged", "resumable", "unreachable", "last_success_at",
@@ -84,16 +84,16 @@ class Env:
 
 def _reset_state(monkeypatch) -> None:
     """模組級狀態歸零（BE-TEST-38）；也用來模擬「程序重啟」（丟棄記憶體、不起 thread）。"""
-    for name, val in (("_JOB_LOCK", threading.Lock()), ("_STATE_LOCK", threading.Lock()),
-                      ("_STOP", threading.Event()), ("_rerun", False)):
-        monkeypatch.setattr(tags_backfill, name, val)
+    for name, val in (("job_lock", threading.Lock()), ("state_lock", threading.Lock()),
+                      ("stop", threading.Event()), ("rerun", False)):
+        monkeypatch.setattr(tags_backfill._SHELL, name, val)
     for name, val in (
-        ("unreachable", False), ("last_success_at", None), ("_last_persist_mono", None),
-        ("notified", False), ("_notification_sink", None),
+        ("unreachable", False), ("last_success_at", None), ("last_persist_mono", None),
+        ("notified", False), ("notification_sink", None),
         ("job", {"kind": None, "done": 0, "skipped": 0, "slow": False, "waiting": False,
                  "stop_reason": None, "outcome": None}),
     ):
-        monkeypatch.setattr(tags_state, name, val)
+        monkeypatch.setattr(tags_state._STATE, name, val)
 
 
 def _workers() -> list:
@@ -197,7 +197,7 @@ def test_scan_handoff_at_boundary_runs_new_video_once_by_same_thread(tmp_path, m
     assert sorted(env.calls) == sorted(paths)  # 4 部各恰一次，含承接進來的新片
     assert len(env.idents) == 1 and env.peak == 1
     assert env.progress() == (4, 0, 4)
-    assert not tags_backfill._JOB_LOCK.locked()
+    assert not tags_backfill._SHELL.job_lock.locked()
 
 
 def test_stop_halts_requests_and_restart_shows_resume_without_thread(tmp_path, monkeypatch, serial_pool):
@@ -267,8 +267,8 @@ def test_scan_arriving_inside_final_check_is_not_lost(tmp_path, monkeypatch, ser
     reached, release = threading.Event(), threading.Event()
     sched_tried, first = threading.Event(), [True]
     lock = _RecordingLock(
-        tags_backfill._STATE_LOCK, on_attempt=lambda n: sched_tried.set() if n == "sched" else None)
-    monkeypatch.setattr(tags_backfill, "_STATE_LOCK", lock)
+        tags_backfill._SHELL.state_lock, on_attempt=lambda n: sched_tried.set() if n == "sched" else None)
+    monkeypatch.setattr(tags_backfill._SHELL, "state_lock", lock)
 
     def hook():  # worker 停在 _STATE_LOCK 區段內部（最後檢查）
         if first[0]:
@@ -277,7 +277,7 @@ def test_scan_arriving_inside_final_check_is_not_lost(tmp_path, monkeypatch, ser
             release.wait(10)
         return _REAL_CONSUME()
 
-    monkeypatch.setattr(tags_backfill, "_consume_handoff_locked", hook)
+    monkeypatch.setattr(tags_backfill._SHELL, "consume_handoff_locked", hook)
     sched = threading.Thread(target=tags_backfill.schedule_incremental, name="sched")
     assert tags_backfill.start_build()["status"] == "started"
     try:
@@ -294,7 +294,7 @@ def test_scan_arriving_inside_final_check_is_not_lost(tmp_path, monkeypatch, ser
     assert ("sched", True) in lock.records  # 掃描端取鎖當下被擋（鎖正被收尾區段持有）
     assert sorted(env.calls) == sorted(paths)  # 新片恰好一次
     assert env.peak == 1  # 任何時刻最多一份 job 在 _tag_one 內
-    assert env.progress() == (3, 0, 3) and not tags_backfill._JOB_LOCK.locked()
+    assert env.progress() == (3, 0, 3) and not tags_backfill._SHELL.job_lock.locked()
 
 
 # ── T4b：並行／降速／429 等待／halt 通知 ──────────────────────────────────────
@@ -330,7 +330,7 @@ def test_concurrency_caps_at_four_and_degrades_to_one_after_429(tmp_path, monkey
     started_post = threading.Event()
     start_b = threading.Barrier(4)
     spy = _SpyStop()
-    monkeypatch.setattr(tags_backfill, "_STOP", spy)
+    monkeypatch.setattr(tags_backfill._SHELL, "stop", spy)
 
     def behave_b(path, nth):
         with env_b._lock:
@@ -442,7 +442,7 @@ def test_stop_interrupts_429_wait_and_never_resends(tmp_path, monkeypatch):
     tags_state.set_notification_sink(lambda *a, **k: sink_calls.append((a, k)))
 
     spy = _SpyStop()
-    monkeypatch.setattr(tags_backfill, "_STOP", spy)
+    monkeypatch.setattr(tags_backfill._SHELL, "stop", spy)
 
     def behave(p, nth):
         raise TaggingFailure("unreachable", detail="rate_limited")
@@ -603,7 +603,7 @@ def test_halt_interrupts_429_wait_without_user_stop(tmp_path, monkeypatch):
     env.add_video()  # B：兩次 connection_failed → halt
     start_b = threading.Barrier(2)
     spy = _SpyStop()
-    monkeypatch.setattr(tags_backfill, "_STOP", spy)
+    monkeypatch.setattr(tags_backfill._SHELL, "stop", spy)
     sink_calls: list = []
     tags_state.set_notification_sink(lambda *a, **k: sink_calls.append((a, k)))
 
@@ -656,7 +656,7 @@ def test_shared_cooldown_blocks_all_tagging_until_deadline(tmp_path, monkeypatch
             clock[0] += float(timeout or 0)
             return False
 
-    monkeypatch.setattr(tags_backfill, "_STOP", _ClockStop())
+    monkeypatch.setattr(tags_backfill._SHELL, "stop", _ClockStop())
     env = Env(tmp_path, monkeypatch)
     A, B, C, D, E = [env.add_video() for _ in range(5)]
     start_b = threading.Barrier(4)
@@ -723,7 +723,7 @@ def test_shared_cooldown_survives_sliding_window_rate_limit(tmp_path, monkeypatc
             clock[0] += float(timeout or 0)
             return False
 
-    monkeypatch.setattr(tags_backfill, "_STOP", _ClockStop())
+    monkeypatch.setattr(tags_backfill._SHELL, "stop", _ClockStop())
     env = Env(tmp_path, monkeypatch)
     n = 40
     for _ in range(n):

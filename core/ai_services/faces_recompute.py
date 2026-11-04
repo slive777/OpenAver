@@ -12,6 +12,7 @@ from typing import Optional
 
 from core.ai_services import faces_detect, faces_state, samples
 from core.ai_services.faces_config import active_in
+from core.ai_services.job_shell import JobShell
 from core.config import load_config
 from core.database import VideoRepository
 from core.focal.detector import format_focal
@@ -25,9 +26,7 @@ THREAD_NAME = "faces-recompute"
 META_TARGET = "ai.faces.target_model"
 _DETECT_RATIO = 0.71
 
-_JOB_LOCK = threading.Lock()
-_STATE_LOCK = threading.Lock()
-_STOP = threading.Event()
+_SHELL = JobShell()
 _unreadable: int = 0
 _stopped_reason: Optional[str] = None
 _stopped_kind: Optional[str] = None
@@ -36,13 +35,9 @@ _stopped_check: Optional[str] = None
 
 # ── 鎖 ───────────────────────────────────────────────────────────────────────
 
-def _try_acquire_job() -> bool:
-    return _JOB_LOCK.acquire(blocking=False)
-
-
 def _begin_job(kind: str) -> None:
     global _unreadable, _stopped_reason, _stopped_kind, _stopped_check
-    _STOP.clear()
+    _SHELL.begin_locked()
     _unreadable = 0
     _stopped_reason = _stopped_kind = _stopped_check = None
     faces_state.job_begin(kind)
@@ -50,12 +45,12 @@ def _begin_job(kind: str) -> None:
 
 def _release_job(outcome: str) -> None:
     faces_state.job_end(outcome)
-    if _JOB_LOCK.locked():
-        _JOB_LOCK.release()
+    if _SHELL.is_running():
+        _SHELL.release_locked()
 
 
 def _release_unlaunched(outcome: str) -> None:
-    with _STATE_LOCK:
+    with _SHELL.state_lock:
         _release_job(outcome)
 
 
@@ -127,8 +122,8 @@ def ensure(model: str, kind: str = "model_change") -> bool:
     counts = _counts(repo, model)
     if counts["pending"] == 0:
         return False
-    with _STATE_LOCK:
-        if not _try_acquire_job():
+    with _SHELL.state_lock:
+        if not _SHELL.try_acquire():
             return False  # 已在跑：target 已更新，迴圈每張重讀
         _begin_job(kind)
     _start_thread(kind)
@@ -143,8 +138,8 @@ def resume() -> dict:
     repo = VideoRepository()
     if _counts(repo, target)["pending"] == 0:
         return {"started": False, "reason": "nothing_pending"}
-    with _STATE_LOCK:
-        if not _try_acquire_job():
+    with _SHELL.state_lock:
+        if not _SHELL.try_acquire():
             return {"started": False, "reason": "already_running"}
         _begin_job("resume")
     _start_thread("resume")
@@ -153,8 +148,8 @@ def resume() -> dict:
 
 def start_rebuild() -> dict:
     """「刪除並重新對焦」：先測後清（CD-187a-14）。"""
-    with _STATE_LOCK:
-        if not _try_acquire_job():
+    with _SHELL.state_lock:
+        if not _SHELL.try_acquire():
             return {"ok": False, "reason": "already_running"}
         _begin_job("rebuild")
     try:
@@ -219,9 +214,8 @@ def _clear_for_rebuild(model: str) -> None:
 
 
 def request_stop() -> dict:
-    with _STATE_LOCK:
-        _STOP.set()
-    return {"ok": True, "running": _JOB_LOCK.locked()}
+    _SHELL.request_stop()
+    return {"ok": True, "running": _SHELL.is_running()}
 
 
 def status() -> dict:
@@ -230,7 +224,7 @@ def status() -> dict:
     target = faces_state.meta_get(META_TARGET)
     counts = _counts(repo, target)
     snap = faces_state.snapshot()
-    running = _JOB_LOCK.locked()
+    running = _SHELL.is_running()
     return {
         "running": running,
         "job_kind": snap["job"]["kind"] if running else None,
@@ -247,12 +241,9 @@ def status() -> dict:
 
 
 def _start_thread(kind: str) -> None:
-    t = threading.Thread(target=_worker_main, args=(kind,), name=THREAD_NAME, daemon=True)
-    try:
-        t.start()
-    except BaseException:
-        _release_unlaunched("error")
-        raise
+    _SHELL.start_thread(
+        _worker_main, (kind,), name=THREAD_NAME,
+        on_failure=lambda: _release_unlaunched("error"))
 
 
 # ── 工作 thread ───────────────────────────────────────────────────────────────
@@ -264,8 +255,8 @@ def _worker_main(kind: str) -> None:
     except Exception:
         logger.exception("[faces_recompute] worker crashed")
     finally:
-        with _STATE_LOCK:
-            if _JOB_LOCK.locked():
+        with _SHELL.state_lock:
+            if _SHELL.is_running():
                 _release_job(outcome)
 
 
@@ -283,7 +274,7 @@ def _work_loop() -> str:
         config = load_config()
         mappings = _path_mappings(config)
         for row in pending:
-            if _STOP.is_set():
+            if _SHELL.stop.is_set():
                 return "stopped"
             stop_reason = _process_one(repo, row, mappings)
             if stop_reason is not None:
@@ -345,7 +336,7 @@ def _remember_target(model: str) -> None:
 def observe_model(model: str) -> None:
     """外部偵測成功時回報模型：與 target 相同＝零成本；不同才 ``ensure``。
 
-    只呼叫 ``ensure``（對 ``_JOB_LOCK`` 為 non-blocking），重算 thread 內呼叫不會死鎖。
+    只呼叫 ``ensure``（對 ``_SHELL.job_lock`` 為 non-blocking），重算 thread 內呼叫不會死鎖。
     ``ensure`` 回 False（已在跑／待處理＝0）不重試。
     """
     with _TARGET_CACHE_LOCK:

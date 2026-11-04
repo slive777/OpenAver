@@ -121,7 +121,7 @@ def _ext(tmp_path, monkeypatch):
     _patch_config_paths(tmp_path, monkeypatch)
     sink: list = []
     monkeypatch.setattr(device_state, "_notification_sink", lambda *a, **k: sink.append(a))
-    monkeypatch.setattr(faces_state, "_notification_sink", lambda *a, **k: sink.append(a))
+    monkeypatch.setattr(faces_state._STATE, "notification_sink", lambda *a, **k: sink.append(a))
     monkeypatch.setattr(subprocess_runner, "_local_disabled_probe", device_state.local_is_disabled)
 
     def set_ext(result, seen=None):

@@ -10,25 +10,20 @@
 
 from __future__ import annotations
 
-import threading
 import time
-from contextlib import closing
 from typing import Callable, Optional
 
-from core.database import connection
+from core.ai_services import backfill_state
 from core.logger import get_logger
 
 logger = get_logger(__name__)
 
 META_LAST_SUCCESS = "ai.tags.last_success_at"
 META_BACKFILL_OPEN = "ai.tags.backfill_open"
-_PERSIST_INTERVAL_S = 60.0
 _JOB_SET_FIELDS = frozenset({"slow", "waiting", "stop_reason"})
 
 # monkeypatch seam for observe_success throttle tests (same as faces_state)
 _monotonic = time.monotonic
-
-_lock = threading.Lock()
 
 
 def _new_job(kind: Optional[str] = None) -> dict:
@@ -38,36 +33,26 @@ def _new_job(kind: Optional[str] = None) -> dict:
     }
 
 
-unreachable: bool = False
-last_success_at: Optional[float] = None
-job: dict = _new_job()
-notified: bool = False
-
-_last_persist_mono: Optional[float] = None
-_notification_sink: Optional[Callable[..., None]] = None
+# 共用欄位（unreachable／last_success_at／job／notified／hook_notified／鎖／sink／節流）
+# 都在 ``_STATE``（189a-T8）；``hook_notified`` 與補完全庫的 ``notified`` 互不影響。
+_STATE = backfill_state.BackfillState(name="tags_state", task_type="ai_tags", new_job=_new_job)
 
 
 # ── app_meta ─────────────────────────────────────────────────────────────────
 
 def meta_get(key: str) -> Optional[str]:
     """Read one ``app_meta`` value (None if absent)."""
-    with closing(connection.get_connection()) as conn:
-        row = conn.execute("SELECT value FROM app_meta WHERE key = ?", (key,)).fetchone()
-    return row[0] if row else None
+    return backfill_state.meta_get(key)
 
 
 def meta_set(key: str, value: str) -> None:
     """Upsert one ``app_meta`` value."""
-    with closing(connection.get_connection()) as conn:
-        conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)", (key, value))
-        conn.commit()
+    backfill_state.meta_set(key, value)
 
 
 def meta_delete(key: str) -> None:
     """Delete one ``app_meta`` value (no-op if absent)."""
-    with closing(connection.get_connection()) as conn:
-        conn.execute("DELETE FROM app_meta WHERE key = ?", (key,))
-        conn.commit()
+    backfill_state.meta_delete(key)
 
 
 # ── 觀察值 ───────────────────────────────────────────────────────────────────
@@ -78,16 +63,13 @@ def observe_success() -> None:
     ``app_meta['ai.tags.last_success_at']`` 至多每 60 秒寫一次（第一次立即寫）。
     含同步 sqlite 寫入 → 呼叫端須 ``asyncio.to_thread``。
     """
-    global unreachable, last_success_at, _last_persist_mono
     now = time.time()
     now_mono = _monotonic()
     persist = False
-    with _lock:
-        unreachable = False
-        last_success_at = now
-        if _last_persist_mono is None or (now_mono - _last_persist_mono) >= _PERSIST_INTERVAL_S:
-            _last_persist_mono = now_mono
-            persist = True
+    with _STATE.lock:
+        _STATE.unreachable = False
+        _STATE.last_success_at = now
+        persist = _STATE.persist_due(now_mono)
     if persist:
         try:
             meta_set(META_LAST_SUCCESS, repr(now))
@@ -98,59 +80,52 @@ def observe_success() -> None:
 def observe_failure(reason: str, detail: Optional[str]) -> None:
     """只動記憶體旗標：``bad_response`` 清旗標（模型有回應）；``unreachable``（非 429）與
     ``model_unsupported`` 設旗標；其餘（含 429）不動。"""
-    global unreachable
-    with _lock:
+    with _STATE.lock:
         if reason == "bad_response":
-            unreachable = False
+            _STATE.unreachable = False
         elif reason == "model_unsupported" or (reason == "unreachable" and detail != "rate_limited"):
-            unreachable = True
+            _STATE.unreachable = True
 
 
 # ── 通知（T4b 使用；sink 由 web 註冊，core 不 import web，BE-LINT-09）───────────
 
 def set_notification_sink(fn: Callable[..., None]) -> None:
-    global _notification_sink
-    _notification_sink = fn
+    _STATE.set_sink(fn)
 
 
 def note_failure() -> bool:
     """每個 job 第一次回 True（``job_begin`` 重置）。"""
-    global notified
-    with _lock:
-        if notified:
-            return False
-        notified = True
-        return True
+    return _STATE.note_failure()
+
+
+def note_hook_failure() -> bool:
+    """入庫後掛勾每輪第一次回 True（``new_round`` 重置）；不碰補完全庫的 ``notified``。"""
+    return _STATE.note_hook_failure()
+
+
+def new_round() -> None:
+    """新一輪掛勾通知：只清 ``hook_notified``（189a）。"""
+    _STATE.new_hook_round()
 
 
 def emit(key: str) -> None:
     """透過已註冊的 sink 發側欄通知（sink 為 None 時 no-op；sink 例外只記 log）。"""
-    sink = _notification_sink
-    if sink is None:
-        return
-    try:
-        sink("warn", key, task_type="ai_tags")
-    except Exception:
-        logger.exception("[tags_state] notification sink failed")
+    _STATE.emit(key)
 
 
 # ── job 進度 ─────────────────────────────────────────────────────────────────
 
 def job_begin(kind: str) -> None:
-    global job, notified
-    with _lock:
-        job = _new_job(kind)
-        notified = False
+    _STATE.job_begin(kind, reset_notified=True)
 
 
 def job_progress() -> None:
-    with _lock:
-        job["done"] += 1
+    _STATE.job_progress()
 
 
 def job_skip() -> None:
-    with _lock:
-        job["skipped"] += 1
+    with _STATE.lock:
+        _STATE.job["skipped"] += 1
 
 
 def job_set(**fields) -> None:
@@ -158,20 +133,19 @@ def job_set(**fields) -> None:
     bad = set(fields) - _JOB_SET_FIELDS
     if bad:
         raise ValueError(f"job_set: unsupported fields {sorted(bad)}")
-    with _lock:
-        job.update(fields)
+    with _STATE.lock:
+        _STATE.job.update(fields)
 
 
 def job_end(outcome: str) -> None:
-    with _lock:
-        job["outcome"] = outcome
+    _STATE.job_end(outcome)
 
 
 def snapshot() -> dict:
-    with _lock:
+    with _STATE.lock:
         return {
-            "unreachable": unreachable,
-            "last_success_at": last_success_at,
-            "notified": notified,
-            "job": dict(job),
+            "unreachable": _STATE.unreachable,
+            "last_success_at": _STATE.last_success_at,
+            "notified": _STATE.notified,
+            "job": dict(_STATE.job),
         }

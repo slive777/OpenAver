@@ -1,100 +1,70 @@
 /**
- * ai-similar-panel.js — 圖片相似分頁獨立 Alpine 元件（TASK-186-T6）
+ * ai-similar-panel.js — 圖片相似分頁獨立 Alpine 元件（TASK-186-T6；補跑邏輯 189a-T11b 起改走共用 mixin）
  *
- * Alpine.data('aiSimilarPanel')；自有 key 一律 aiSim 前綴。
- * 外求：form／isDirty／serverUrl()／showToast／aiTab（不複製父層 key）。
+ * Alpine.data('aiSimilarPanel')；面板獨有 key 一律 aiSim 前綴、補跑 key 一律 bf 前綴（展開自 ai-backfill-controls.js）；
+ * 不進 mergeState。外求：form／isDirty／serverUrl()／showToast／aiTab（不複製父層 key）。
  */
 
 import { copyText } from '@/shared/clipboard.js';
+import { aiBackfillControls } from './ai-backfill-controls.js';
 import {
+    adapter as SIMILAR_ADAPTER,
     panelMode,
-    indexAction,
     statusLine,
-    rebuildVisible,
     rebuildOutcome,
     CHECK_KEYS,
 } from './ai-similar-logic.js';
 
-const STATUS_URL = '/api/ai/similar/status';
 const TEST_URL = '/api/ai/similar/test';
-const INDEX_URL = '/api/ai/similar/index';
-const REBUILD_URL = '/api/ai/similar/index/rebuild';
-const STOP_URL = '/api/ai/similar/index/stop';
-const POLL_MS = 1000;
-/** 建索引中 status 連續失敗上限（約 30 秒）後才停輪詢。 */
-const POLL_FAIL_MAX = 30;
+
+/** 補跑 mixin 的面板端 hooks：開關、網址空擋、本次測試通過、POST 後 toast／回填。 */
+const SIMILAR_HOOKS = {
+    enabled: (vm) => Boolean(vm.form && vm.form.aiSimilarEnabled),
+    testPassed: (vm) => vm.aiSimTestPassed,
+    blocked: (vm) => (String((vm.form && vm.form.aiSimilarUrl) || '').trim() ? null : 'no_url'),
+    afterPost(vm, kind, { ok, data, failed }) {
+        if (kind === 'start') {
+            if (failed || !ok) {
+                vm.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
+            } else if (data && (data.status === 'started' || data.status === 'already_running')) {
+                /* 結束後統一 bfRefresh */
+            } else if (data && data.status === 'test_failed') {
+                vm.aiSimTestPassed = false;
+                vm.aiSimTestResultHtml = vm._formatTestResult(data);
+            } else {
+                vm.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
+            }
+            return;
+        }
+        if (kind === 'rebuild') {
+            const outcome = rebuildOutcome(ok, data);
+            if (outcome === 'error') {
+                vm.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
+            } else if (outcome === 'test_failed') {
+                vm.aiSimTestPassed = false;
+                vm.aiSimTestResultHtml = vm._formatTestResult(data);
+            }
+        }
+    },
+};
 
 export function aiSimilarPanel() {
     return {
-        aiSimStatus: null,
+        ...aiBackfillControls(SIMILAR_ADAPTER, SIMILAR_HOOKS),
         aiSimTestPassed: false,
         aiSimTestResultHtml: '',
         aiSimTestBusy: false,
-        aiSimIndexBusy: false,
-        aiSimPollTimer: null,
-        aiSimGen: 0,
-        aiSimFailCount: 0,
-        aiSimDestroyed: false,
 
         init() {
-            this.$watch('aiTab', (val) => {
-                if (this.aiSimDestroyed) return;
-                if (val === 'similar') {
-                    this.refreshStatus();
-                } else {
-                    this._aiSimStopPoll();
-                }
-            });
-            if (this.aiTab === 'similar') {
-                this.refreshStatus();
-            }
+            this.bfOnInit();
         },
 
         destroy() {
-            this._aiSimStopPoll();
-            this.aiSimDestroyed = true;
-            this.aiSimGen++;
-        },
-
-        _aiSimStopPoll() {
-            if (this.aiSimPollTimer !== null) {
-                clearTimeout(this.aiSimPollTimer);
-                this.aiSimPollTimer = null;
-            }
-        },
-
-        /** 鏈式 setTimeout：上一次 status 處理完才排下一次（間隔 POLL_MS）。 */
-        _aiSimEnsurePoll() {
-            if (this.aiSimPollTimer !== null) return;
-            this.aiSimPollTimer = setTimeout(() => {
-                this.aiSimPollTimer = null;
-                if (this.aiSimDestroyed || this.aiTab !== 'similar') {
-                    this._aiSimStopPoll();
-                    return;
-                }
-                this.refreshStatus();
-            }, POLL_MS);
+            this.bfOnDestroy();
         },
 
         panelMode() {
             return panelMode(this.form || {});
-        },
-
-        indexAction() {
-            return indexAction(this.aiSimStatus, this.aiSimTestPassed);
-        },
-
-        rebuildVisible() {
-            return rebuildVisible(this.aiSimStatus, Boolean(this.form && this.form.aiSimilarEnabled));
-        },
-
-        /** 索引類按鈕是否停用。 */
-        indexDisabled() {
-            if (this.aiSimIndexBusy) return true;
-            if (this.isDirty) return true;
-            const url = (this.form && this.form.aiSimilarUrl) || '';
-            if (!String(url).trim()) return true;
-            return false;
         },
 
         testDisabled() {
@@ -104,7 +74,7 @@ export function aiSimilarPanel() {
         },
 
         statusLineText() {
-            const desc = statusLine(this.aiSimStatus, Date.now());
+            const desc = statusLine(this.bfStatus, Date.now());
             if (!desc || !desc.key) return '';
             let text = window.t(desc.key, desc.params || {});
             if (desc.key === 'settings.ai.similar.status_unreachable' && !(desc.params && desc.params.time)) {
@@ -135,42 +105,6 @@ export function aiSimilarPanel() {
                 return window.t('settings.ai.similar.test_contract') + '\n' + checkText;
             }
             return window.t('settings.ai.similar.test_failed_generic');
-        },
-
-        async refreshStatus() {
-            if (this.aiSimDestroyed) return;
-            if (this.aiTab !== 'similar') {
-                this._aiSimStopPoll();
-                return;
-            }
-            const gen = ++this.aiSimGen;
-            let data = null;
-            try {
-                const res = await fetch(STATUS_URL);
-                data = res.ok ? await res.json() : null;
-            } catch {
-                data = null;
-            }
-            if (gen !== this.aiSimGen || this.aiSimDestroyed) return;
-            if (!data) {
-                // 建索引中短暫斷線：保留舊狀態，繼續排下一次；連續失敗滿 POLL_FAIL_MAX 才停
-                if (this.aiSimStatus?.running && this.aiTab === 'similar') {
-                    this.aiSimFailCount += 1;
-                    if (this.aiSimFailCount < POLL_FAIL_MAX) {
-                        this._aiSimEnsurePoll();
-                        return;
-                    }
-                }
-                this._aiSimStopPoll();
-                return;
-            }
-            this.aiSimFailCount = 0;
-            this.aiSimStatus = data;
-            if (data.running) {
-                this._aiSimEnsurePoll();
-            } else {
-                this._aiSimStopPoll();
-            }
         },
 
         async runTest() {
@@ -204,71 +138,7 @@ export function aiSimilarPanel() {
             } finally {
                 this.aiSimTestBusy = false;
             }
-            await this.refreshStatus();
-        },
-
-        async startIndex() {
-            if (this.indexDisabled()) return;
-            const action = this.indexAction();
-            if (action !== 'build' && action !== 'rebuild' && action !== 'continue' && action !== 'retry') return;
-            this.aiSimIndexBusy = true;
-            try {
-                const res = await fetch(INDEX_URL, { method: 'POST' });
-                let data = null;
-                try { data = await res.json(); } catch { data = null; }
-                if (!res.ok) {
-                    this.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
-                } else if (data && (data.status === 'started' || data.status === 'already_running')) {
-                    /* 結束後統一 refreshStatus */
-                } else if (data && data.status === 'test_failed') {
-                    this.aiSimTestPassed = false;
-                    this.aiSimTestResultHtml = this._formatTestResult(data);
-                } else {
-                    this.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
-                }
-            } catch {
-                this.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
-            } finally {
-                this.aiSimIndexBusy = false;
-            }
-            // started／test_failed／HTTP 錯誤皆刷新，讓狀態列吃到後端觀察值
-            await this.refreshStatus();
-        },
-
-        /** 刪除並重建：確認後後端先測試、通過才刪光向量並從 0 重算。 */
-        async rebuildIndex() {
-            if (this.indexDisabled()) return;
-            const n = (this.aiSimStatus?.indexed || 0) + (this.aiSimStatus?.unreadable || 0);
-            // eslint-disable-next-line no-alert -- rebuildIndex destructive confirm, same shape as cycleLocale dirty-check confirm
-            if (!confirm(window.t('settings.ai.similar.rebuild_confirm', { n }))) return;
-            this.aiSimIndexBusy = true;
-            try {
-                const res = await fetch(REBUILD_URL, { method: 'POST' });
-                let data = null;
-                try { data = await res.json(); } catch { data = null; }
-                const outcome = rebuildOutcome(res.ok, data);
-                if (outcome === 'test_failed') {
-                    this.aiSimTestPassed = false;
-                    this.aiSimTestResultHtml = this._formatTestResult(data);
-                } else if (outcome === 'error') {
-                    this.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
-                }
-            } catch {
-                this.showToast(window.t('settings.ai.similar.index_http_error'), 'error');
-            } finally {
-                this.aiSimIndexBusy = false;
-            }
-            // started／busy／test_failed／錯誤皆刷新（與 startIndex 同）
-            await this.refreshStatus();
-        },
-
-        async stopIndex() {
-            try {
-                await fetch(STOP_URL, { method: 'POST' });
-            } catch {
-                /* 靜默；接著 refresh */
-            }
-            await this.refreshStatus();
+            await this.bfRefresh();
         },
 
         copyAssistantPrompt() {

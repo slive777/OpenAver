@@ -1,0 +1,57 @@
+{# AI 補跑列 macro — 圖片相似／人臉／AI 標籤三個設定分頁共用（189a-T12，spec §3.6）。
+   純結構：所有綁定名來自補跑 mixin（web/static/js/pages/settings/ai-backfill-controls.js），
+   父層鍵只讀 isDirty。參數：idp＝元素 id 前綴；css＝class 前綴（沿用既有 ai-similar／ai-tags 樣式，不新增 CSS）；
+   retry＝是否多渲染「重試讀不到的封面」鈕（只有圖片相似傳 true）。
+   區段（由上而下）：
+     1. 進度行（ProgressLine）：跑時一行「已處理 X／Y 部・上次成功 HH:MM」。
+     2. 按鈕列（index-row）：停止（跑時）／主鈕（補完全庫或繼續，同一位置依狀態切文字）／重試（選用）／全部重建。
+     3. 還有 N 部（PendingLine）：鈕旁一行；189b 改說明只改這個元素與 settings.ai.backfill.pending_line。
+     4. 先儲存（save-first）：有未存變更時提示，主鈕與重建鈕此時同時被鎖住。
+   不放在這裡的（留在 settings.html 原位）：連線欄位、測試鈕、各分頁狀態行、人臉重算行、標籤費用行。 #}
+{% macro ai_backfill_controls(idp, css, retry=false) %}
+<p class="settings-hint {{ css }}-status" id="{{ idp }}ProgressLine"
+   x-show="bfProgressText()"
+   x-text="bfProgressText()"></p>
+<div class="{{ css }}-index-row">
+    <button type="button" class="btn btn-sm btn-outline"
+            id="{{ idp }}StopBtn"
+            x-show="bfAction().action === 'stop'"
+            @click="bfStop()">
+        <span x-text="window.t('settings.ai.backfill.btn_stop')"></span>
+    </button>
+    <button type="button" class="btn btn-sm btn-primary"
+            id="{{ idp }}RunBtn"
+            x-show="bfAction().action === 'start' || bfAction().action === 'continue'"
+            :data-action="bfAction().action"
+            @click="bfStart()"
+            :disabled="bfAction().disabled">
+        <span x-show="bfBusy" class="loading loading-spinner loading-sm"></span>
+        <span x-show="!bfBusy && bfAction().action === 'start'"
+              x-text="window.t('settings.ai.backfill.btn_start')"></span>
+        <span x-show="!bfBusy && bfAction().action === 'continue'"
+              x-text="window.t('settings.ai.backfill.btn_continue')"></span>
+    </button>
+    {% if retry %}
+    <button type="button" class="btn btn-sm btn-outline"
+            id="{{ idp }}RetryBtn"
+            x-show="bfExtraAction().action === 'retry'"
+            @click="bfRetry()"
+            :disabled="bfExtraAction().disabled">
+        <span x-text="window.t('settings.ai.similar.btn_retry_unreadable', { n: bfStatus?.unreadable || 0 })"></span>
+    </button>
+    {% endif %}
+    <button type="button" class="btn btn-sm btn-ghost"
+            id="{{ idp }}RebuildBtn"
+            x-show="bfRebuildVisible()"
+            @click="bfRebuild()"
+            :disabled="bfRebuildDisabled()">
+        <span x-text="window.t('settings.ai.backfill.btn_rebuild')"></span>
+    </button>
+    <span class="settings-hint" id="{{ idp }}PendingLine"
+          x-show="bfPendingText()"
+          x-text="bfPendingText()"></span>
+    <span class="settings-hint {{ css }}-save-first"
+          x-show="isDirty && (bfAction().action === 'start' || bfAction().action === 'continue' || bfExtraAction().action === 'retry' || bfRebuildVisible())"
+          x-text="window.t('settings.ai.backfill.save_first')"></span>
+</div>
+{% endmacro %}

@@ -120,3 +120,46 @@ export function recomputeLine(status) {
     }
     return null;
 }
+
+/** 補跑共用層 adapter（TASK-189a-T10）：只放功能獨有的那一半。 */
+export const adapter = {
+    tab: 'faces',
+    urls: {
+        status: '/api/ai/faces/status',
+        start: '/api/ai/faces/recompute',
+        rebuild: '/api/ai/faces/rebuild',
+        stop: '/api/ai/faces/recompute/stop',
+    },
+    normalize(raw) {
+        const pending = raw.target_model ? (raw.pending || 0) : 0;
+        return {
+            running: Boolean(raw.running),
+            processed: raw.processed || 0,
+            total: raw.total || 0,
+            pending,
+            // 上一輪因失敗／被關閉而停下（stopped_reason 在下一輪開工前一直保留）且還有待處理
+            resumable: pending > 0 && Boolean(raw.target_model) && Boolean(raw.stopped_reason),
+            lastSuccessAt: raw.last_success_at ?? null,
+            unreachable: Boolean(raw.unreachable),
+            stopReason: raw.stopped_reason ?? null,
+            raw,
+        };
+    },
+    actionOf(view) {
+        if (view.running) return 'stop';
+        if (view.pending > 0) return view.resumable ? 'continue' : 'start';
+        return null;
+    },
+    extraAction() {
+        return null;
+    },
+    rebuildVisible(view) {
+        return (view.raw.rebuild_count || 0) > 0;
+    },
+    rebuildConfirm(view) {
+        return {
+            key: 'settings.ai.faces.rebuild_confirm',
+            params: { n: view.raw.rebuild_count || 0 },
+        };
+    },
+};
