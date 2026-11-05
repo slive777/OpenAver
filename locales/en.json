@@ -1965,7 +1965,6 @@
       "recover_mac": "macOS recovery: System Settings → Network → Firewall → Options, find this app and set it to \"Allow incoming connections\"."
     },
     "troubleshooting": {
-      "title": "Troubleshooting",
       "h6_crash": "App Won't Start / Crashes (Windows)",
       "h6_display": "UI Display Issues / Blank Screen",
       "h6_report": "Reporting a Problem",

@@ -207,6 +207,86 @@
     }
 }
 
+/* ========== 191a-T2: 使用手冊（原生 <details> 列）==========
+   一張外殼卡內：常見問題 5 列＋章節 12 列。收合預設、點一列展開；底線分隔、44px 以上點擊高度。
+   scroll-margin-top：章節錨點 scrollIntoView 後，列標題不被固定頂欄蓋住
+   （≥1024 是黏頂的 .help-tabs 44px＋1px 底線；<1024 是手機頂欄 --mobile-topbar-height）。 */
+.help-manual-row {
+    border-bottom: 1px solid var(--stroke-subtle);
+    scroll-margin-top: calc(var(--mobile-topbar-height) + 12px);
+}
+
+@media (min-width: 1024px) {
+    .help-manual-row {
+        scroll-margin-top: 60px;
+    }
+}
+
+.help-manual .card-title + .help-manual-row {
+    margin-top: 8px;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+.help-manual-row + .card-title {
+    margin-top: 24px;
+}
+
+.help-manual-row > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
+    padding: 8px 8px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    list-style: none;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.help-manual-row > summary::-webkit-details-marker {
+    display: none;
+}
+
+.help-manual-row > summary:hover {
+    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
+}
+
+.help-manual-row > summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.help-manual-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.help-manual-chevron {
+    flex: none;
+    font-size: 14px;
+    color: var(--text-muted);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.help-manual-row[open] > summary .help-manual-chevron {
+    transform: rotate(180deg);
+}
+
+.help-manual-body {
+    padding: 4px 8px 16px;
+}
+
+/* 手機：長 <code>（如 Scraper 來源說明的路徑／網址）不撐寬整頁 */
+.help-manual code {
+    overflow-wrap: anywhere;
+}
+
 /* ========== Agent Token 面板（T4，功能性最小值，視覺未定稿）========== */
 
 .help-agent-token-row {

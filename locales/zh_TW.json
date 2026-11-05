@@ -1666,6 +1666,10 @@
       "organize": "整理與改名",
       "manual": "使用手冊"
     },
+    "manual": {
+      "faq_title": "常見問題",
+      "chapters_title": "章節"
+    },
     "tag_alias": {
       "title": "Tag 別名管理",
       "intro": "中日英同義詞集中管理，讓搜尋框、chip 篩選、模糊探索全部說同一種語言。",
@@ -1970,7 +1974,6 @@
       "recover_mac": "macOS 救回：系統設定 → 網路 → 防火牆 → 選項，找到本程式改成「允許傳入連線」。"
     },
     "troubleshooting": {
-      "title": "疑難排解",
       "h6_crash": "程式無法啟動 / 閃退 (Windows)",
       "h6_display": "介面顯示異常 / 空白",
       "h6_report": "需要回報問題",

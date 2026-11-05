@@ -1965,7 +1965,6 @@
       "recover_mac": "macOS 恢复：系统设置 → 网络 → 防火墙 → 选项，找到本程序改成「允许传入连接」。"
     },
     "troubleshooting": {
-      "title": "疑难排解",
       "h6_crash": "程序无法启动 / 闪退 (Windows)",
       "h6_display": "界面显示异常 / 空白",
       "h6_report": "需要回报问题",
