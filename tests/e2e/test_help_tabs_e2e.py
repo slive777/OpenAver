@@ -9,7 +9,7 @@ import json
 import urllib.request
 
 import pytest
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
 
 pytestmark = pytest.mark.e2e
 
@@ -259,3 +259,29 @@ def test_mobile_no_horizontal_overflow(page: Page, base_url: str, width: int) ->
             return { l: r.left, r: r.right, w: r.width, W: innerWidth }; }"""
     )
     assert bell["w"] > 0 and bell["l"] >= 0 and bell["r"] <= bell["W"], bell
+
+
+def test_tutorial_four_steps_link_marks_done_first(page: Page, base_url: str, set_flag) -> None:
+    """引導四步；最後一步點「到說明頁看…」→ 落在整理與改名，且旗標已寫（回片庫管理不再被打擾）。"""
+    set_flag(False)
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.bring_to_front()
+    page.goto(f"{base_url}/scanner?r=191", wait_until="domcontentloaded")
+    page.wait_for_selector("#tutorialOverlay.active", timeout=10000)
+    progress = page.locator("#tutorialProgress")
+    for n in (1, 2, 3, 4):
+        expect(progress).to_have_text(f"{n} / 4")
+        if n < 4:
+            page.click("#tutorialNext")
+    link = page.locator("#tutorialContent a[data-tutorial-go]")
+    assert link.count() == 1
+    assert link.get_attribute("href") == "/help#organize"
+    link.click()
+    page.wait_for_url("**/help#organize")
+    page.wait_for_function(_READY)
+    _only_active(page, "organize")
+    assert _api(base_url, "GET", "/api/tutorial-status")["completed"] is True
+    with page.expect_response("**/api/tutorial-status"):
+        page.goto(f"{base_url}/scanner?r=192", wait_until="domcontentloaded")
+    page.wait_for_timeout(1500)
+    assert page.locator("#tutorialOverlay").count() == 0

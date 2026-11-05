@@ -2014,21 +2014,7 @@
     "close": "Close",
     "skip": "Skip",
     "next": "Next →",
-    "done": "Done 🎉",
-    "step1_title": "📂 Add Your Library Folder",
-    "step1_content": "Add the folder path where your AV videos are stored<br>OpenAver will scan all videos and build a browsable page",
-    "step2_title": "▶ Update Library",
-    "step2_content": "Click this button to scan and build your private collection page<br>Takes just a few seconds",
-    "step3_title": "🌐 NFO Fill Entry Point",
-    "step3_content": "After scanning, return to the Library Manager page<br>The NFO fill button appears automatically — fetch missing covers or metadata from the web in one click",
-    "step4_title": "🎬 Browse Your Collection",
-    "step4_content": "Open Showcase when done<br>The lightbox has a wand button to fuzzy-explore similar videos",
-    "step5_title": "🔍 Advanced — Per-title Scraping",
-    "step5_content": "Want precise control over each title's metadata?<br>The Search page lets you handle them one by one manually",
-    "step6_title": "⚙️ Advanced — Custom Rules",
-    "step6_content": "Naming format, AI translation, and visual strategy are all in the Settings page<br>Come back when you're ready to dig deeper",
-    "step7_title": "📖 Help Manual",
-    "step7_content": "Come back any time to replay this<br>The Help page also has full feature docs and AI agent commands"
+    "done": "Done 🎉"
   },
   "updater": {
     "page_title": "Updater",

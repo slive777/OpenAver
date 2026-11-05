@@ -3,57 +3,45 @@
  */
 import { buildStep3MockCard } from './tutorial-step3-card.js';
 
+// 第 4 步連結目的地（說明頁「整理與改名」分頁）；字面只在這一處
+const HELP_ORGANIZE_HREF = '/help#organize';
+
 class SpotlightTutorial {
     constructor() {
         this.currentStep = 0;
+        const generateName = window.t('scanner.stats.generate_idle');
+        const enrichName = window.t('scanner.stats.missing_enrich_idle');
         this.steps = [
             {
                 id: 'folder',
                 target: '#btnSelectFolder',
-                title: window.t('tutorial.step1_title'),
-                content: window.t('tutorial.step1_content'),
+                title: window.t('tutorial.flow.s1_title'),
+                content: window.t('tutorial.flow.s1_content'),
                 position: 'bottom'
             },
             {
                 id: 'generate',
                 target: '#btnGenerate',
-                title: window.t('tutorial.step2_title'),
-                content: window.t('tutorial.step2_content'),
+                title: window.t('tutorial.flow.s2_title', { action: generateName }),
+                content: window.t('tutorial.flow.s2_content'),
                 position: 'bottom'
             },
             {
                 id: 'scanner',
                 target: '#btnGenerate',
-                title: window.t('tutorial.step3_title'),
-                content: window.t('tutorial.step3_content') + buildStep3MockCard(window.t),
+                title: window.t('tutorial.flow.s3_title', { action: enrichName }),
+                content: window.t('tutorial.flow.s3_content', { action: enrichName }) + buildStep3MockCard(window.t),
                 position: 'bottom'
             },
             {
                 id: 'showcase',
                 target: '#sidebar a[href="/showcase"]',
-                title: window.t('tutorial.step4_title'),
-                content: window.t('tutorial.step4_content'),
-                position: 'right'
-            },
-            {
-                id: 'search',
-                target: '#sidebar a[href="/search"]',
-                title: window.t('tutorial.step5_title'),
-                content: window.t('tutorial.step5_content'),
-                position: 'right'
-            },
-            {
-                id: 'settings',
-                target: '#sidebar a[href="/settings"]',
-                title: window.t('tutorial.step6_title'),
-                content: window.t('tutorial.step6_content'),
-                position: 'right'
-            },
-            {
-                id: 'help',
-                target: '#sidebar a[href="/help"]',
-                title: window.t('tutorial.step7_title'),
-                content: window.t('tutorial.step7_content'),
+                title: window.t('tutorial.flow.s4_title'),
+                content: window.t('tutorial.flow.s4_content', { page: window.t('nav.showcase'), action: generateName })
+                    + '<br>' + window.t('tutorial.flow.s4_more')
+                    + '<a href="' + HELP_ORGANIZE_HREF + '" data-tutorial-go>'
+                    + window.t('tutorial.flow.s4_more_link', { page: window.t('nav.help'), tab: window.t('help.tabs.organize') })
+                    + '</a>',
                 position: 'right'
             }
         ];
@@ -118,7 +106,15 @@ class SpotlightTutorial {
         document.getElementById('tutorialNext').addEventListener('click', () => this.nextStep());
         document.getElementById('tutorialSkip').addEventListener('click', () => this.skip());
         document.getElementById('tutorialClose').addEventListener('click', () => this.skip());
-        overlay.addEventListener('click', (e) => {
+        overlay.addEventListener('click', async (e) => {
+            const go = e.target.closest && e.target.closest('[data-tutorial-go]');
+            if (go) {
+                // 先寫完成旗標、再換頁（preventDefault 必須在 await 之前）
+                e.preventDefault();
+                await this.complete(true);
+                window.location.href = go.getAttribute('href');
+                return;
+            }
             if (e.target.id === 'tutorialOverlay') this.skip();
         });
     }
