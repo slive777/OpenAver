@@ -1672,6 +1672,10 @@
     },
     "stage": {
       "common": {
+        "prev": "上一步",
+        "next": "下一步",
+        "dot_label": "第 {n} 步",
+        "scroll_hint": "往下捲",
         "you": "你",
         "background": "背後"
       },

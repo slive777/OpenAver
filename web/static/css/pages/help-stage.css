@@ -1,6 +1,6 @@
 /* ========== 191a-T3: 說明頁兩條教學線的文字版（四步「你／背後」）==========
    選擇器一律 .hs- 開頭（help stage），不借用 App 元件 class；顏色、圓角只走 token。
-   此刻只有文字版；T5 起在同檔加舞台模式（媒體查詢切換、track／pin／canvas）。
+   文字版是預設；T5 起在同檔下半加舞台模式（媒體查詢切換、track／pin／canvas／caption 導覽）。
    分頁 panel 的顯示由 Alpine 的 x-show 管，本檔不碰（FE-ALPINE-01）。 */
 .hs-root {
     min-width: 0;
@@ -44,8 +44,13 @@
     min-width: 0;
 }
 
+/* 標籤（你／背後）一欄、說明文字一欄：換行時文字停在自己那欄，不會掉到標籤下面 */
 .hs-you,
 .hs-bg {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: baseline;
     max-width: 75ch;
     margin: 0;
     line-height: 1.6;
@@ -65,10 +70,202 @@
 }
 
 .hs-k {
-    display: inline-block;
-    min-width: 3em;
-    margin-right: 8px;
     font-size: 12px;
     font-weight: 600;
     color: var(--text-muted);
+}
+
+/* ========== 191a-T5: 舞台模式 ==========
+   模式切換的單一真相在這裡（CD-191a-7）：桌機（≥1024）且沒開「減少動態效果」才是舞台，其餘維持上面的文字版。
+   引擎 JS 不重複判斷這個條件，只看畫布有沒有版面（stage-engine.js 的 matchMedia 字串須與這行逐字相同）。
+   sticky 需要祖先鏈沒有 overflow：.hs-root／.hs-track 不設；.hs-stage 的 overflow 在 pin 的子層，安全。
+   捲動長度只在 .hs-track 定義一處，單位 svh；JS 由 track 實際高度反推步長，不讀它。 */
+.hs-stage,
+.hs-nav {
+    display: none;
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+    .hs-track {
+        --hs-step-len: 100;
+        position: relative;
+        height: calc(100svh - var(--help-tabs-h) + 4 * var(--hs-step-len) * 1svh);
+    }
+
+    .hs-pin {
+        position: sticky;
+        top: var(--help-tabs-h);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        height: calc(100svh - var(--help-tabs-h));
+        padding: 8px 0 10px;
+        box-sizing: border-box;
+    }
+
+    .hs-pin > .hs-subtitle {
+        flex: none;
+        margin: 0;
+        padding: 0 4px;
+    }
+
+    .hs-stage {
+        position: relative;
+        display: block;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--surface-1);
+        border: 1px solid var(--stroke-subtle);
+        border-radius: var(--radius-md);
+    }
+
+    /* 設計寬 1100，高度與縮放由引擎的 fit() 寫入 */
+    .hs-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1100px;
+        transform-origin: 0 0;
+    }
+
+    /* T6／T8 換成各自的畫面；此刻只有步驟號與佔位方塊 */
+    .hs-stub {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+    }
+
+    .hs-stub-num {
+        display: grid;
+        place-items: center;
+        width: 240px;
+        height: 240px;
+        font-size: 96px;
+        font-weight: 600;
+        color: var(--accent);
+        border: 2px dashed var(--stroke-default);
+        border-radius: var(--radius-md);
+    }
+
+    .hs-hint {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        z-index: 6;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 13px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        transform: translateX(-50%);
+    }
+
+    .hs-caption {
+        flex: none;
+        width: 100%;
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 2px;
+    }
+
+    .hs-nav {
+        display: flex;
+        align-items: center;
+        margin: -4px 0 0 -8px;
+    }
+
+    .hs-arr {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        font-size: 14px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        background: transparent;
+        border: 0;
+        border-radius: var(--radius-sm);
+    }
+
+    .hs-arr:hover:not(:disabled) {
+        color: var(--text-primary);
+    }
+
+    .hs-arr:disabled {
+        cursor: default;
+        opacity: 0.3;
+    }
+
+    .hs-dots {
+        display: flex;
+    }
+
+    .hs-dot {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 36px;
+        padding: 0;
+        cursor: pointer;
+        background: transparent;
+        border: 0;
+    }
+
+    .hs-dot::before {
+        width: 9px;
+        height: 9px;
+        content: "";
+        background: var(--stroke-default);
+        border-radius: 50%;
+    }
+
+    .hs-dot[aria-current="step"]::before {
+        background: var(--accent);
+        transform: scale(1.2);
+    }
+
+    .hs-arr:focus-visible,
+    .hs-dot:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
+    .hs-count {
+        margin-left: 8px;
+        font-size: 13px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* 同一份 <ol> 兼 caption：四個 li 疊在同一格，只有目前一步可見 */
+    .hs-steps {
+        gap: 0;
+    }
+
+    .hs-step {
+        grid-area: 1 / 1;
+        grid-template-columns: minmax(0, 1fr);
+        padding: 0;
+        visibility: hidden;
+        background: none;
+        border: 0;
+        border-radius: 0;
+        opacity: 0;
+        transition:
+            opacity var(--fluent-duration-fast) var(--fluent-ease-standard),
+            visibility var(--fluent-duration-fast) var(--fluent-ease-standard);
+    }
+
+    .hs-step.is-on {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .hs-step-num {
+        display: none;
+    }
 }

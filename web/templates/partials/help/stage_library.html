@@ -1,34 +1,57 @@
-{# 191a-T3: 文字版四步；T5 起桌機加舞台，同一份 <ol> 兼 caption。App 名稱以參數插入既有 key（CD-191a-4）。 #}
+{# 191a-T5: 桌機（≥1024、未開減少動態）是舞台（track／pin／canvas／caption），其餘是 T3 的四步文字版；同一份 <ol>，顯示由 help-stage.css 的媒體查詢決定；舞台 markup 不帶 Alpine 指令（CD-191a-2）；App 名稱以參數插入既有 key（CD-191a-4）。 #}
 <div class="hs-root" data-hs-stage="library">
-    <p class="hs-subtitle">{{ t('help.stage.library.subtitle') }}</p>
-    <ol class="hs-steps">
-        <li class="hs-step">
-            <span class="hs-step-num" aria-hidden="true">1</span>
-            <div class="hs-step-body">
-                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s1_you', page=t('nav.scanner')) }}</p>
-                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s1_bg') }}</p>
+    <div class="hs-track">
+        <div class="hs-pin">
+            <p class="hs-subtitle">{{ t('help.stage.library.subtitle') }}</p>
+            <div class="hs-stage">
+                <div class="hs-canvas" aria-hidden="true">
+                    <div class="hs-stub"><span class="hs-stub-num">1</span></div>
+                </div>
+                <div class="hs-hint" aria-hidden="true"><i class="bi bi-chevron-down"></i><span>{{ t('help.stage.common.scroll_hint') }}</span></div>
             </div>
-        </li>
-        <li class="hs-step">
-            <span class="hs-step-num" aria-hidden="true">2</span>
-            <div class="hs-step-body">
-                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s2_you', action=t('scanner.stats.generate_idle')) }}</p>
-                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s2_bg') }}</p>
+            <div class="hs-caption">
+                <div class="hs-nav">
+                    <button type="button" class="hs-arr" data-hs-prev aria-label="{{ t('help.stage.common.prev') }}" disabled><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+                    <div class="hs-dots">
+                        <button type="button" class="hs-dot" data-hs-dot="1" aria-label="{{ t('help.stage.common.dot_label', n=1) }}" aria-current="step"></button>
+                        <button type="button" class="hs-dot" data-hs-dot="2" aria-label="{{ t('help.stage.common.dot_label', n=2) }}"></button>
+                        <button type="button" class="hs-dot" data-hs-dot="3" aria-label="{{ t('help.stage.common.dot_label', n=3) }}"></button>
+                        <button type="button" class="hs-dot" data-hs-dot="4" aria-label="{{ t('help.stage.common.dot_label', n=4) }}"></button>
+                    </div>
+                    <button type="button" class="hs-arr" data-hs-next aria-label="{{ t('help.stage.common.next') }}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                    <span class="hs-count">1 / 4</span>
+                </div>
+                <ol class="hs-steps">
+                    <li class="hs-step is-on">
+                        <span class="hs-step-num" aria-hidden="true">1</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s1_you', page=t('nav.scanner')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s1_bg') }}</p>
+                        </div>
+                    </li>
+                    <li class="hs-step">
+                        <span class="hs-step-num" aria-hidden="true">2</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s2_you', action=t('scanner.stats.generate_idle')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s2_bg') }}</p>
+                        </div>
+                    </li>
+                    <li class="hs-step">
+                        <span class="hs-step-num" aria-hidden="true">3</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s3_you', action=t('scanner.stats.missing_enrich_idle')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s3_bg') }}</p>
+                        </div>
+                    </li>
+                    <li class="hs-step">
+                        <span class="hs-step-num" aria-hidden="true">4</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s4_you', page=t('nav.showcase')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s4_bg', action=t('scanner.stats.generate_idle')) }}</p>
+                        </div>
+                    </li>
+                </ol>
             </div>
-        </li>
-        <li class="hs-step">
-            <span class="hs-step-num" aria-hidden="true">3</span>
-            <div class="hs-step-body">
-                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s3_you', action=t('scanner.stats.missing_enrich_idle')) }}</p>
-                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s3_bg') }}</p>
-            </div>
-        </li>
-        <li class="hs-step">
-            <span class="hs-step-num" aria-hidden="true">4</span>
-            <div class="hs-step-body">
-                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s4_you', page=t('nav.showcase')) }}</p>
-                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s4_bg', action=t('scanner.stats.generate_idle')) }}</p>
-            </div>
-        </li>
-    </ol>
+        </div>
+    </div>
 </div>

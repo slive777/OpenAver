@@ -285,3 +285,212 @@ def test_tutorial_four_steps_link_marks_done_first(page: Page, base_url: str, se
         page.goto(f"{base_url}/scanner?r=192", wait_until="domcontentloaded")
     page.wait_for_timeout(1500)
     assert page.locator("#tutorialOverlay").count() == 0
+
+
+# ───────────────────────── TASK-191a-T5：舞台引擎＋桌機／文字版切換（stub scene）─────────────────────────
+# 只驗結束狀態。每個零值斷言（零 DOM 變動、零請求）前都有「舞台真的在跑」的前置斷言，防空轉假綠。
+# v 的換算全由 DOM 量（track／pin rect、pin 的 computed top），不寫死像素。
+
+_LIB = """
+const root = (n) => document.querySelector('.hs-root[data-hs-stage="' + n + '"]');
+const metr = (n) => { const r = root(n), t = r.querySelector('.hs-track'), p = r.querySelector('.hs-pin');
+    const tr = t.getBoundingClientRect(), ph = p.getBoundingClientRect().height;
+    const gap = parseFloat(getComputedStyle(p).top) || 0;
+    return { trackTop: tr.top, h: tr.height, pinH: ph, gap, stepPx: (tr.height - ph) / 4 }; };
+const goalV = (n) => { const m = metr(n); return Math.min(4, Math.max(0, (m.gap - m.trackTop) / m.stepPx)); };
+const vAttr = (n) => root(n).querySelector('.hs-stub').style.getPropertyValue('--hs-v');
+"""
+_ARMED = "(n) => {" + _LIB + " return vAttr(n) !== ''; }"
+_SETTLED = "(n) => {" + _LIB + " return vAttr(n) === goalV(n).toFixed(3); }"
+_TO_V = """([n, v]) => {""" + _LIB + """
+    const m = metr(n), max = document.documentElement.scrollHeight - innerHeight;
+    window.scrollTo({ top: Math.max(0, Math.min(max, Math.round(scrollY + m.trackTop - m.gap + v * m.stepPx + 1))), behavior: 'instant' }); }"""
+_READ = """(n) => {""" + _LIB + """
+    const r = root(n), q = (s) => [...r.querySelectorAll(s)];
+    return { count: r.querySelector('.hs-count').textContent,
+             dots: q('.hs-dot').flatMap((d, i) => d.hasAttribute('aria-current') ? [i + 1] : []),
+             on: q('.hs-step').flatMap((s, i) => s.classList.contains('is-on') ? [i + 1] : []),
+             num: r.querySelector('.hs-stub-num').textContent, v: vAttr(n) }; }"""
+_OBSERVE_SCROLL = """async (sels) => {
+    let n = 0;
+    const obs = sels.map(s => { const o = new MutationObserver(m => { n += m.length; });
+        o.observe(document.querySelector(s), { subtree: true, attributes: true, childList: true, characterData: true }); return o; });
+    let lo = scrollY, hi = scrollY, dir = 1;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 2200) {
+        window.scrollBy({ top: dir * 120, behavior: 'instant' }); dir = -dir;
+        lo = Math.min(lo, scrollY); hi = Math.max(hi, scrollY);
+        await new Promise(r => setTimeout(r, 40));
+        window.scrollBy({ top: dir * 120, behavior: 'instant' });
+        lo = Math.min(lo, scrollY); hi = Math.max(hi, scrollY);
+        await new Promise(r => requestAnimationFrame(r));
+    }
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    obs.forEach(o => o.disconnect());
+    return { records: n, lo, hi }; }"""
+
+
+def _stage_open(page: Page, base_url: str, name: str, n: int) -> None:
+    page.bring_to_front()  # FE-MOTION-04：背景分頁的鍵盤／真 click 靜默無效
+    _open_at(page, base_url, f"#{name}", n)
+    _stage_wait_armed(page, name)
+
+
+def _stage_wait_armed(page: Page, name: str) -> None:
+    page.wait_for_function(_ARMED, arg=name)
+
+
+def _stage_goto_v(page: Page, name: str, v: float) -> dict:
+    page.evaluate(_TO_V, [name, v])
+    page.wait_for_function(_SETTLED, arg=name)
+    return page.evaluate(_READ, name)
+
+
+def test_stage_progress_is_pure_function_of_scroll_and_pin_releases(page: Page, base_url: str) -> None:
+    _stage_open(page, base_url, "library", 200)
+    page.evaluate("() => scrollTo({ top: 0, behavior: 'instant' })")
+    from_top = _stage_goto_v(page, "library", 2.5)
+    page.evaluate(_TO_V, ["library", 4])
+    page.wait_for_function(_SETTLED, arg="library")
+    bottom = page.evaluate(_READ, "library")
+    assert bottom["count"] == "4 / 4" and bottom["num"] == "4", bottom  # 兩端真的不同，下面的相等才有意義
+    from_bottom = _stage_goto_v(page, "library", 2.5)
+    assert from_top == from_bottom, (from_top, from_bottom)
+    assert from_top["count"] == "3 / 4" and from_top["dots"] == [3] and from_top["on"] == [3] and from_top["num"] == "3", from_top
+    assert 2.4 < float(from_top["v"]) < 2.6, from_top
+    # I-5b：v=3.5 時 pin 黏著；track 之後有內容（注入 spacer）捲過去 pin 就釋放
+    _stage_goto_v(page, "library", 3.5)
+    pin_top = page.evaluate("() => document.querySelector('.hs-root[data-hs-stage=\"library\"] .hs-pin').getBoundingClientRect().top")
+    gap = page.evaluate("() => parseFloat(getComputedStyle(document.querySelector('.hs-root[data-hs-stage=\"library\"] .hs-pin')).top)")
+    assert abs(pin_top - gap) <= 1, (pin_top, gap)
+    released = page.evaluate(
+        """() => { const r = document.querySelector('.hs-root[data-hs-stage="library"]');
+            const sp = document.createElement('div'); sp.style.height = '2000px'; r.after(sp);
+            const t = r.querySelector('.hs-track').getBoundingClientRect(), p = r.querySelector('.hs-pin');
+            const gap = parseFloat(getComputedStyle(p).top), ph = p.getBoundingClientRect().height;
+            window.scrollTo({ top: Math.round(scrollY + t.bottom - gap - ph + 300), behavior: 'instant' });
+            return new Promise(res => requestAnimationFrame(() => requestAnimationFrame(() =>
+                res(p.getBoundingClientRect().top)))); }"""
+    )
+    assert released < 0, released
+
+
+def test_stage_keyboard_walks_four_steps(page: Page, base_url: str) -> None:
+    _stage_open(page, base_url, "library", 201)
+    count = page.locator('.hs-root[data-hs-stage="library"] .hs-count')
+    _stage_goto_v(page, "library", 0.02)
+    page.evaluate("() => { window.__kd = []; addEventListener('keydown', e => window.__kd.push({ key: e.key, dp: e.defaultPrevented })); }")
+    for _ in range(4):
+        page.keyboard.press("PageDown")
+    expect(count).to_have_text("4 / 4", timeout=6000)
+    page.wait_for_function("(n) => {" + _LIB + " return Math.abs(parseFloat(vAttr(n)) - 3.86) < 0.02; }", arg="library")
+    page.keyboard.press("PageUp")
+    expect(count).to_have_text("3 / 4", timeout=6000)
+    kd = page.evaluate("() => window.__kd")
+    assert [k["key"] for k in kd] == ["PageDown"] * 4 + ["PageUp"] and all(k["dp"] for k in kd), kd  # 釘住時全攔截
+    # 圓點與上一步箭頭
+    page.locator('.hs-root[data-hs-stage="library"] .hs-dot[data-hs-dot="2"]').click()
+    expect(count).to_have_text("2 / 4", timeout=6000)
+    page.locator('.hs-root[data-hs-stage="library"] [data-hs-prev]').click()
+    expect(count).to_have_text("1 / 4", timeout=6000)
+    # 未釘住：PageDown 是瀏覽器原生行為（引擎不攔）。先等上一步的 glide 滑完，否則它會把 scrollTo(0) 蓋回去
+    page.wait_for_function("(n) => {" + _LIB + " return Math.abs(parseFloat(vAttr(n)) - 0.86) < 0.01; }", arg="library")
+    page.evaluate("() => { scrollTo({ top: 0, behavior: 'instant' }); window.__kd = []; }")
+    page.wait_for_function("() => scrollY === 0")
+    page.keyboard.press("PageDown")
+    page.wait_for_function("() => scrollY > 0")
+    kd = page.evaluate("() => window.__kd")
+    assert kd == [{"key": "PageDown", "dp": False}], kd
+
+
+@pytest.mark.parametrize("src,dst", [("library", "organize"), ("organize", "library")])
+def test_switching_tab_resets_stage_to_first_step(page: Page, base_url: str, src: str, dst: str) -> None:
+    _stage_open(page, base_url, src, 202 if src == "library" else 203)
+    assert _stage_goto_v(page, src, 2.5)["count"] == "3 / 4"
+    tab = {"library": "#helpTabLibrary", "organize": "#helpTabOrganize"}
+    for a, b in ((src, dst), (dst, src)):  # 去程：目標第一次啟動；回程：已跑過的舞台重新啟動
+        page.locator(tab[b]).click()  # 真滑鼠
+        _only_active(page, b)
+        _stage_wait_armed(page, b)
+        page.wait_for_function(_SETTLED, arg=b)
+        res = page.evaluate(
+            """([a, b]) => {""" + _LIB + """
+            const q = (s) => root(b).querySelector(s), tr = document.querySelector('.help-tabs').getBoundingClientRect();
+            const cv = q('.hs-canvas').getBoundingClientRect();
+            const anchor = document.querySelector('.help-tabs-panels').getBoundingClientRect().top + scrollY;
+            return { count: q('.hs-count').textContent, num: q('.hs-stub-num').textContent, v: vAttr(b),
+                     tabsIn: tr.top >= 0 && tr.bottom <= innerHeight, cw: cv.width, ch: cv.height,
+                     vis: getComputedStyle(q('.hs-canvas')).visibility, dy: Math.abs(scrollY - (anchor - tr.height)),
+                     srcDisplay: getComputedStyle(document.querySelector('[data-help-panel="' + a + '"]')).display }; }""",
+            [a, b],
+        )
+        assert res["count"] == "1 / 4" and res["num"] == "1" and res["v"] == "0.000", res
+        assert res["tabsIn"] and res["cw"] > 0 and res["ch"] > 0 and res["vis"] != "hidden", res
+        assert res["dy"] <= 2 and res["srcDisplay"] == "none", res
+        if a == src:
+            assert _stage_goto_v(page, b, 2.5)["count"] == "3 / 4"
+
+
+def test_hidden_stage_has_no_dom_mutations(page: Page, base_url: str) -> None:
+    _stage_open(page, base_url, "library", 204)
+    assert _stage_goto_v(page, "library", 1.5)["count"] == "2 / 4"  # 舞台真的在跑，下面的 0 才不是空轉
+    page.locator("#helpTabManual").click()
+    _only_active(page, "manual")
+    page.evaluate("() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
+    page.wait_for_timeout(300)
+    res = page.evaluate(_OBSERVE_SCROLL, ['.hs-root[data-hs-stage="library"]', '.hs-root[data-hs-stage="organize"]'])
+    assert res["hi"] > res["lo"], res  # 真的有捲動
+    assert res["records"] == 0, res
+
+
+def test_stage_walk_makes_no_requests_or_page_errors(page: Page, base_url: str) -> None:
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.bring_to_front()
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(f"{base_url}/help?r=205#library", wait_until="networkidle")
+    page.wait_for_function(_READY)
+    _stage_wait_armed(page, "library")
+    seen: list[str] = []
+    page.on("request", lambda r: seen.append(r.url.split(base_url, 1)[-1].split("?", 1)[0] if r.url.startswith(base_url) else r.url))
+    for name in ("library", "organize"):
+        if name == "organize":
+            page.locator("#helpTabOrganize").click()
+            _only_active(page, "organize")
+            _stage_wait_armed(page, "organize")
+        for v, want in ((0.02, "1 / 4"), (1.2, "2 / 4"), (2.2, "3 / 4"), (3.2, "4 / 4"), (4, "4 / 4")):
+            assert _stage_goto_v(page, name, v)["count"] == want, (name, v)
+    polling = [u for u in seen if u == "/api/notifications"]
+    others = [u for u in seen if u != "/api/notifications"]
+    print(f"excluded notification polls: {len(polling)}")
+    assert others == [], others
+    assert errors == [], errors
+    assert page.evaluate("() => [...document.querySelectorAll('.hs-root')].map(r => [r.querySelectorAll('img').length, r.querySelectorAll('[style*=\"url(\"]').length])") == [[0, 0], [0, 0]]
+
+
+@pytest.mark.parametrize("width,reduced", [(390, False), (360, False), (1280, True)])
+def test_narrow_and_reduced_motion_show_text_steps(page: Page, base_url: str, width: int, reduced: bool) -> None:
+    page.bring_to_front()
+    if reduced:
+        page.emulate_media(reduced_motion="reduce")  # 要在 goto 之前
+    for i, name in enumerate(("library", "organize")):
+        _open_at(page, base_url, f"#{name}", 210 + i + 2 * [390, 360, 1280].index(width), width)
+        _only_active(page, name)
+        # 文字版的頁面可能短到不能捲；補一段在 .hs-root 之外的高度，確保「捲動」真的發生
+        page.evaluate("(n) => { const s = document.createElement('div'); s.style.height = '2000px'; document.querySelector('.hs-root[data-hs-stage=\"' + n + '\"]').after(s); }", name)
+        res = page.evaluate(
+            """(name) => { const r = document.querySelector('.hs-root[data-hs-stage="' + name + '"]');
+                const steps = [...r.querySelectorAll('.hs-step')], vis = (e) => e.getClientRects().length > 0;
+                return { iw: innerWidth, n: steps.length,
+                    shown: steps.every(s => { const c = getComputedStyle(s), b = s.getBoundingClientRect();
+                        return c.display !== 'none' && c.visibility === 'visible' && b.height > 0; }),
+                    text: steps.every(s => s.querySelector('.hs-you').textContent.trim() && s.querySelector('.hs-bg').textContent.trim()),
+                    canvasN: r.querySelectorAll('.hs-canvas').length, canvasRects: r.querySelector('.hs-canvas').getClientRects().length,
+                    nav: vis(r.querySelector('.hs-nav')), hint: vis(r.querySelector('.hs-hint')) }; }""",
+            name,
+        )
+        assert res["iw"] == width and res["n"] == 4 and res["shown"] and res["text"], res
+        assert res["canvasN"] == 1 and res["canvasRects"] == 0 and not res["nav"] and not res["hint"], res
+        obs = page.evaluate(_OBSERVE_SCROLL, [f'.hs-root[data-hs-stage="{name}"]'])
+        assert obs["hi"] > obs["lo"], obs
+        assert obs["records"] == 0, obs

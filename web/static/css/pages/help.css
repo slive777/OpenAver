@@ -95,6 +95,7 @@
 }
 
 @media (min-width: 1024px) {
+    .help-tabs-wrap { --help-tabs-h: 45px; } /* 191a-T5: 黏頂分頁列高度（44px＋1px 底線），舞台 pin 的 top 與 track 高度引用 */
     .help-tabs {
         position: sticky;
         top: 0;
