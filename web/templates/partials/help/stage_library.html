@@ -1,0 +1,34 @@
+{# 191a-T3: 文字版四步；T5 起桌機加舞台，同一份 <ol> 兼 caption。App 名稱以參數插入既有 key（CD-191a-4）。 #}
+<div class="hs-root" data-hs-stage="library">
+    <p class="hs-subtitle">{{ t('help.stage.library.subtitle') }}</p>
+    <ol class="hs-steps">
+        <li class="hs-step">
+            <span class="hs-step-num" aria-hidden="true">1</span>
+            <div class="hs-step-body">
+                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s1_you', page=t('nav.scanner')) }}</p>
+                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s1_bg') }}</p>
+            </div>
+        </li>
+        <li class="hs-step">
+            <span class="hs-step-num" aria-hidden="true">2</span>
+            <div class="hs-step-body">
+                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s2_you', action=t('scanner.stats.generate_idle')) }}</p>
+                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s2_bg') }}</p>
+            </div>
+        </li>
+        <li class="hs-step">
+            <span class="hs-step-num" aria-hidden="true">3</span>
+            <div class="hs-step-body">
+                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s3_you', action=t('scanner.stats.missing_enrich_idle')) }}</p>
+                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s3_bg') }}</p>
+            </div>
+        </li>
+        <li class="hs-step">
+            <span class="hs-step-num" aria-hidden="true">4</span>
+            <div class="hs-step-body">
+                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s4_you', page=t('nav.showcase')) }}</p>
+                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s4_bg', action=t('scanner.stats.generate_idle')) }}</p>
+            </div>
+        </li>
+    </ol>
+</div>

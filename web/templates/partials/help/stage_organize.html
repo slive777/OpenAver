@@ -1,0 +1,34 @@
+{# 191a-T3: 文字版四步；T5 起桌機加舞台，同一份 <ol> 兼 caption。App 名稱以參數插入既有 key（CD-191a-4）。 #}
+<div class="hs-root" data-hs-stage="organize">
+    <p class="hs-subtitle">{{ t('help.stage.organize.subtitle') }}</p>
+    <ol class="hs-steps">
+        <li class="hs-step">
+            <span class="hs-step-num" aria-hidden="true">1</span>
+            <div class="hs-step-body">
+                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.organize.s1_you', page=t('nav.settings'), action=t('settings.action.save')) }}</p>
+                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.organize.s1_bg') }}</p>
+            </div>
+        </li>
+        <li class="hs-step">
+            <span class="hs-step-num" aria-hidden="true">2</span>
+            <div class="hs-step-body">
+                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.organize.s2_you', page=t('nav.settings')) }}</p>
+                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.organize.s2_bg') }}</p>
+            </div>
+        </li>
+        <li class="hs-step">
+            <span class="hs-step-num" aria-hidden="true">3</span>
+            <div class="hs-step-body">
+                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.organize.s3_you', page=t('nav.search')) }}</p>
+                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.organize.s3_bg') }}</p>
+            </div>
+        </li>
+        <li class="hs-step">
+            <span class="hs-step-num" aria-hidden="true">4</span>
+            <div class="hs-step-body">
+                <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.organize.s4_you', single=t('search.filelist.scrape_nfo'), batch=t('search.filelist.scrape_all')) }}</p>
+                <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.organize.s4_bg') }}</p>
+            </div>
+        </li>
+    </ol>
+</div>

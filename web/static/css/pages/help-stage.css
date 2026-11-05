@@ -1,0 +1,74 @@
+/* ========== 191a-T3: 說明頁兩條教學線的文字版（四步「你／背後」）==========
+   選擇器一律 .hs- 開頭（help stage），不借用 App 元件 class；顏色、圓角只走 token。
+   此刻只有文字版；T5 起在同檔加舞台模式（媒體查詢切換、track／pin／canvas）。
+   分頁 panel 的顯示由 Alpine 的 x-show 管，本檔不碰（FE-ALPINE-01）。 */
+.hs-root {
+    min-width: 0;
+    margin: 0 0 24px;
+}
+
+.hs-subtitle {
+    margin: 0 0 16px;
+    font-size: 15px;
+    color: var(--text-secondary);
+}
+
+.hs-steps {
+    display: grid;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.hs-step {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+    padding: 16px;
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-subtle);
+    border-radius: var(--radius-md);
+}
+
+.hs-step-num {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 32px;
+    text-align: center;
+    color: var(--accent);
+}
+
+.hs-step-body {
+    min-width: 0;
+}
+
+.hs-you,
+.hs-bg {
+    max-width: 75ch;
+    margin: 0;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.hs-you {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.hs-bg {
+    margin-top: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.hs-k {
+    display: inline-block;
+    min-width: 3em;
+    margin-right: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}

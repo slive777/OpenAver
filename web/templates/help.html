@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link href="/static/css/pages/help.css" rel="stylesheet">
+<link href="/static/css/pages/help-stage.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -179,10 +180,10 @@
     </div>
     <div class="help-tabs-panels">
     <div role="tabpanel" id="helpPanelLibrary" aria-labelledby="helpTabLibrary" data-help-panel="library" x-show="helpTab === 'library'" x-cloak>
-        <!-- 建立片庫舞台：T3 填 -->
+        {% include 'partials/help/stage_library.html' %}
     </div>
     <div role="tabpanel" id="helpPanelOrganize" aria-labelledby="helpTabOrganize" data-help-panel="organize" x-show="helpTab === 'organize'" x-cloak>
-        <!-- 整理與改名舞台：T3 填 -->
+        {% include 'partials/help/stage_organize.html' %}
     </div>
     <div role="tabpanel" id="helpPanelManual" aria-labelledby="helpTabManual" data-help-panel="manual" x-show="helpTab === 'manual'" x-cloak>
     <div class="card help-card fluent-rounded-xl mb-4 help-manual">
