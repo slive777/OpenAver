@@ -170,7 +170,7 @@
             <div class="settings-locale-toggle">
                 <button class="locale-toggle-btn"
                         type="button"
-                        x-text="{'zh-TW':'繁','zh-CN':'简','ja':'あ','en':'EN'}[locale] || '繁'" {# cjk-exempt(繁|简|あ|繁): 語言切換器原生字形（繁/简/あ/EN），全球化 UI 慣例不隨介面語言翻譯 — TASK-103-T7 §F.2 #}
+                        x-text="{'zh-TW':'繁','zh-CN':'简','ja':'あ','en':'EN','ko':'KO'}[locale] || '繁'" {# cjk-exempt(繁|简|あ|繁): 語言切換器原生字形（繁/简/あ/EN/KO），全球化 UI 慣例不隨介面語言翻譯 — TASK-103-T7 §F.2 #}
                         @click="cycleLocale()"
                         :title="window.t('settings.header.locale_prefix') + ': ' + locale">
                 </button>
