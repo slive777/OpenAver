@@ -269,3 +269,1311 @@
         display: none;
     }
 }
+
+/* ========== 191a-T6: 「建立片庫」舞台畫布（手刻 App 定格畫面）==========
+   數值來源：feature/191-help-stages/measure-library.md（L01–L49）與 T6 補量（X01–X17），逐列對 POC 量測表；
+   CD-191a-1：class 全 hs- 前綴、不借 App 元件 class、顏色圓角陰影只走 token、封面為 CSS 漸層（無圖）。
+   預設（不分支）＝light 的表值；dim 才有的玻璃材質集中在檔尾「theme 分支」專區，每條標 measure-library L##。
+   畫布是 aria-hidden 的示範圖：零可聚焦元素、零 pointer-events（看起來像按鈕的都是 span／div）。 */
+.hs-app {
+    --hs-cover-l: 0.62;
+    --hs-cover-c: 0.09;
+
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--color-base-content);
+    text-align: left;
+    pointer-events: none;
+    user-select: none;
+    background-color: var(--bg-body);
+}
+
+/* X17：App 視窗底（body 的背景；light 是兩道光暈疊 --bg-body，dim 在分支專區換成 mica） */
+.hs-app-bg {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.1), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, color-mix(in oklch, var(--color-warning) 8%, transparent), transparent),
+        var(--bg-body);
+}
+
+/* ----- 共用外殼 hs-app-*（T8 重用）----- */
+.hs-app-side {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: 200px;
+    background-color: color-mix(in oklch, var(--color-base-200) 75%, transparent);
+    border-right: 1px solid var(--stroke-subtle);
+}
+
+.hs-app-sidehead {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid var(--stroke-subtle);
+}
+
+.hs-app-toggle {
+    display: block;
+    padding: 4px 8px;
+    font-size: 20px;
+    line-height: 30px;
+    color: var(--text-secondary);
+}
+
+.hs-app-brand {
+    display: flex;
+    margin-left: 8px;
+    color: var(--text-primary);
+}
+
+.hs-app-brand svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+.hs-app-brand circle {
+    fill: color-mix(in srgb, var(--gradient-indigo) 22%, black);
+}
+
+.hs-app-brand path {
+    fill: none;
+    stroke: color-mix(in srgb, var(--accent-secondary) 50%, var(--gradient-purple));
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.hs-app-nav {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.hs-app-navitem {
+    display: flex;
+}
+
+.hs-app-navitem--end {
+    margin-top: auto;
+}
+
+.hs-app-navlink {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 48px;
+    padding: 12px;
+    margin: 4px 8px;
+    color: var(--text-secondary);
+    border-radius: var(--fluent-radius-md);
+}
+
+.hs-app-navlink > .bi,
+.hs-app-navsvg {
+    display: block;
+    flex: none;
+    width: 24px;
+    font-size: 16px;
+    line-height: 24px;
+    text-align: center;
+}
+
+.hs-app-navsvg {
+    height: 1em;
+}
+
+.hs-app-navtext {
+    margin-left: 8px;
+}
+
+.hs-app-navlink.is-active {
+    color: var(--color-primary-content);
+    background: var(--accent);
+}
+
+/* 步 4 的「瀏覽」亮起時 App 的旋轉外框（動畫不仿製，這裡是定格的一段弧） */
+.hs-app-navlink.is-spot.is-active::before {
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    pointer-events: none;
+    content: "";
+    background: conic-gradient(
+        from 180deg at 50% 50%,
+        transparent 0deg,
+        rgba(var(--ds-glow-rgb), 0.7) 30deg,
+        rgba(var(--ds-glow-rgb), 0.4) 60deg,
+        transparent 90deg
+    );
+    border-radius: inherit;
+    mask:
+        linear-gradient(white 0 0) content-box,
+        linear-gradient(white 0 0);
+    mask-composite: exclude;
+}
+
+.hs-app-main {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    box-sizing: border-box;
+    width: 900px;
+    padding: 24px;
+    margin-left: 200px;
+    overflow: hidden;
+}
+
+.hs-app-scroll {
+    position: relative;
+    will-change: transform;
+}
+
+.hs-app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    margin: 0 0 8px;
+    background: var(--glass-shell-gradient), var(--glass-shell-fill);
+    border: 1px solid var(--glass-shell-border);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow:
+        inset 0 1px 0 var(--glass-shell-edge-top),
+        inset 0 -1px 0 var(--glass-shell-edge-bottom),
+        var(--fluent-shadow-8);
+}
+
+.hs-app-h4 {
+    color: var(--text-primary);
+}
+
+.hs-app-card,
+.hs-app-alias {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
+}
+
+.hs-app-card {
+    margin: 0 0 16px;
+}
+
+.hs-app-alias {
+    margin: 16px 0 0;
+}
+
+.hs-app-cardhead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.hs-app-cardtitle {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.hs-app-cardtitle .bi {
+    color: var(--accent);
+}
+
+.hs-app-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.hs-app-iconbtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    border-radius: var(--fluent-radius-lg);
+}
+
+/* 女優別名／Tag 別名收合卡（X08） */
+.hs-app-aliashead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
+    border-bottom: 1px solid var(--stroke-subtle);
+}
+
+.hs-app-aliastitle {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 21px;
+    color: var(--text-primary);
+}
+
+.hs-app-aliastitle .bi {
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--accent-pink);
+}
+
+.hs-app-aliashint {
+    display: flex;
+    margin: 0 auto 0 4px;
+}
+
+.hs-app-qbtn {
+    display: flex;
+    margin-left: 6px;
+    font-size: 16px;
+    line-height: 16px;
+    color: var(--text-muted);
+}
+
+.hs-app-collapse {
+    box-sizing: border-box;
+    display: block;
+    width: 24px;
+    height: 32px;
+    padding: 4px;
+    color: var(--text-secondary);
+}
+
+/* 拖曳覆蓋層（L13；預設隱藏，T7 驅動） */
+.hs-app-drag {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    visibility: hidden;
+    background: color-mix(in oklch, var(--color-base-100) 60%, transparent);
+    opacity: 0;
+}
+
+.hs-app-dragbox {
+    padding: 32px;
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--color-base-content);
+    text-align: center;
+}
+
+.hs-app-dragbox .bi {
+    display: block;
+    margin-bottom: 16px;
+    font-size: 64px;
+    line-height: 1.5;
+}
+
+/* ----- 建立片庫專用 hs-lib-* ----- */
+.hs-lib-scan {
+    position: relative;
+}
+
+.hs-lib-container {
+    box-sizing: border-box;
+    max-width: 800px;
+    padding: 16px 24px;
+    margin: 0 auto;
+}
+
+.hs-lib-folderlist {
+    position: relative;
+}
+
+/* 空狀態（L09–L12）：絕對定位疊在資料夾列上，預設隱藏 */
+.hs-lib-empty {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    padding: 48px 32px;
+    color: var(--text-secondary);
+    text-align: center;
+    visibility: hidden;
+    opacity: 0;
+}
+
+.hs-lib-empty .bi {
+    display: block;
+    margin-bottom: 16px;
+    font-size: 56px;
+    line-height: 84px;
+}
+
+.hs-lib-empty-l1,
+.hs-lib-empty-l2 {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 21px;
+}
+
+.hs-lib-folder {
+    box-sizing: border-box;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.hs-lib-ro {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+/* 唯讀開關（DaisyUI toggle 的外觀手刻；開關圓角兩主題都是完整半圓） */
+.hs-lib-toggle {
+    box-sizing: border-box;
+    display: grid;
+    width: 33px;
+    height: 20px;
+    padding: 2.5px;
+    color: var(--text-muted);
+    border: 1px solid var(--text-muted);
+    border-radius: var(--radius-pill);
+}
+
+.hs-lib-toggle::before {
+    width: 13px;
+    height: 13px;
+    content: "";
+    background: var(--text-muted);
+    border-radius: 50%;
+}
+
+.hs-lib-foldericon {
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--accent);
+}
+
+.hs-lib-path {
+    flex: 1;
+    font-family: "SF Mono", "Fira Code", consolas, monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+.hs-lib-rm {
+    flex: none;
+    width: 30px;
+    height: 32px;
+}
+
+.hs-lib-output {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    background: var(--bg-body);
+    border-top: 1px solid var(--border-light);
+}
+
+.hs-lib-outpath {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-family: "SF Mono", "Fira Code", consolas, monospace;
+    color: var(--text-secondary);
+}
+
+.hs-lib-outpath code {
+    padding: 0.15rem 0.4rem;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    background: var(--border-light);
+    border-radius: var(--fluent-radius-md);
+}
+
+.hs-lib-setlink {
+    font-size: 0.75rem;
+    color: var(--accent);
+}
+
+.hs-lib-action {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.hs-lib-btnhero {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 32px;
+    font-weight: 600;
+    color: var(--color-primary-content);
+    background: var(--accent);
+    border-radius: var(--radius-pill);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        0 4px 12px var(--glow-primary);
+}
+
+/* 進度區（L20–L30）：步 1 不佔版面，步 2／3 由 scene 加 is-shown */
+.hs-lib-term {
+    display: none;
+    margin: 16px;
+    overflow: hidden;
+    background: color-mix(in oklch, var(--color-base-200) 80%, transparent);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
+}
+
+.hs-lib-term.is-shown {
+    display: block;
+}
+
+.hs-lib-termhead {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
+}
+
+.hs-lib-termtitle {
+    font-size: 0.8rem;
+    color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
+}
+
+.hs-lib-tt {
+    display: none;
+}
+
+.hs-lib-tt.is-on {
+    display: inline;
+}
+
+.hs-lib-filters,
+.hs-lib-logacts {
+    display: flex;
+    gap: 4px;
+}
+
+.hs-lib-fbtn {
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    border-radius: var(--fluent-radius-md);
+}
+
+.hs-lib-fbtn.is-on {
+    color: var(--color-primary-content);
+    background: var(--color-primary);
+}
+
+.hs-lib-logact {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    border-radius: var(--fluent-radius-sm);
+}
+
+.hs-lib-logact .bi {
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.hs-lib-progress {
+    height: 3px;
+    margin: 8px 12px 12px;
+    background: color-mix(in oklch, var(--color-base-100) 50%, transparent);
+    border-radius: var(--fluent-radius-sm);
+}
+
+.hs-lib-bar {
+    width: 100%;
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: var(--fluent-radius-sm);
+}
+
+.hs-lib-strip {
+    position: relative;
+    height: 84px;
+    margin: 0 12px;
+}
+
+.hs-lib-strip > * {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+}
+
+.hs-lib-log {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 84px;
+    padding: 6px 10px;
+    overflow: hidden;
+    font: 12px/1.65 var(--font-mono);
+    color: var(--text-primary);
+}
+
+.hs-lib-logline {
+    color: var(--color-secondary);
+    white-space: nowrap;
+}
+
+.hs-lib-note {
+    top: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--color-success);
+    visibility: hidden;
+    opacity: 0;
+}
+
+/* 補完進度卡（L28–L30；預設隱藏，T7 驅動） */
+.hs-lib-enrich {
+    box-sizing: border-box;
+    display: flex;
+    gap: 10px;
+    padding: 8px 10px;
+    visibility: hidden;
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-subtle);
+    border-radius: var(--fluent-radius-md);
+    opacity: 0;
+}
+
+.hs-lib-ondeck {
+    box-sizing: border-box;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 56px;
+    background: color-mix(in oklch, var(--color-base-content) 6%, transparent);
+    border: 1px dashed var(--stroke-subtle);
+    border-radius: var(--fluent-radius-sm);
+}
+
+.hs-lib-enrichinfo {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.hs-lib-enrich-num {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.hs-lib-enrich-src {
+    align-self: flex-start;
+    padding: 1px 6px;
+    font-size: 0.65rem;
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    border-radius: var(--fluent-radius-sm);
+}
+
+.hs-lib-enrich-status {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 0.75rem;
+    color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
+}
+
+.hs-lib-spin {
+    flex: none;
+    width: 16px;
+    height: 16px;
+}
+
+.hs-lib-pills {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 6px;
+    margin: 8px 12px 0;
+    visibility: hidden;
+    opacity: 0;
+}
+
+.hs-lib-pill {
+    box-sizing: border-box;
+    display: grid;
+    place-items: center;
+    height: 26px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    color: var(--text-secondary);
+    background: color-mix(in oklch, var(--color-primary) calc(var(--hs-lit, 0) * 100%), transparent);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-pill);
+}
+
+.hs-lib-grid {
+    height: 186px;
+    margin: 8px 12px 12px;
+}
+
+/* 統計卡（L31–L37） */
+.hs-lib-stats {
+    display: none;
+    padding: 12px 16px;
+    margin: 16px 0 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+.hs-lib-stats.is-shown {
+    display: block;
+}
+
+.hs-lib-statsrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.hs-lib-statitem {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.hs-lib-statitem > .bi {
+    color: var(--accent);
+}
+
+.hs-lib-statval {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.hs-lib-trash {
+    box-sizing: border-box;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+    border: 1px solid transparent;
+    border-radius: var(--fluent-radius-md);
+}
+
+.hs-lib-trash .bi {
+    color: var(--accent);
+}
+
+.hs-lib-miss {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    margin-top: 12px;
+    border-top: 1px solid var(--border-light);
+}
+
+.hs-lib-miss.is-shown {
+    display: flex;
+}
+
+.hs-lib-missbadge {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    font-weight: 500;
+    color: var(--color-warning);
+}
+
+.hs-lib-missbadge .bi {
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.hs-lib-missanchor {
+    display: inline-flex;
+}
+
+.hs-lib-missnum {
+    display: inline-block;
+    padding: 0 2px;
+    font-weight: 600;
+    color: var(--color-primary);
+    border-radius: var(--fluent-radius-sm);
+}
+
+.hs-lib-enrichbtn {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-inverse);
+    background: linear-gradient(135deg, var(--color-warning), var(--color-warning-dark));
+    border-radius: var(--radius-pill);
+    box-shadow: 0 2px 8px color-mix(in oklch, var(--color-warning) 30%, transparent);
+}
+
+/* 12 張 tile 覆蓋層（在 .hs-app-scroll 內、隨頁面捲動；位置由 scene.layout() 量 .hs-lib-grid 後寫入） */
+.hs-lib-tiles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.hs-lib-tile {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    visibility: hidden;
+    border-radius: calc(var(--fluent-radius-md) * 1.5);
+    opacity: 0;
+}
+
+.hs-lib-tcard {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-base-200);
+    border: 1px solid var(--stroke-default);
+    border-radius: inherit;
+}
+
+.hs-lib-tile.is-miss .hs-lib-tcard {
+    border-style: dashed;
+}
+
+.hs-lib-tcover {
+    position: relative;
+    display: grid;
+    flex: 1;
+    place-items: center;
+    min-height: 0;
+    background: color-mix(in oklch, var(--color-base-content) 6%, transparent);
+}
+
+.hs-lib-tph {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.hs-lib-tcv,
+.hs-lib-wimg {
+    background:
+        linear-gradient(90deg, transparent 51.62%, color-mix(in oklch, white 20%, transparent) 51.62% 52%, transparent 52%),
+        linear-gradient(
+            to bottom right,
+            oklch(var(--hs-cover-l) var(--hs-cover-c) var(--hs-h)),
+            oklch(calc(var(--hs-cover-l) - 0.14) var(--hs-cover-c) calc(var(--hs-h) + 42))
+        );
+}
+
+.hs-lib-tcv {
+    position: absolute;
+    inset: 0;
+}
+
+.hs-lib-ttag {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: white;
+    background: color-mix(in oklch, black 60%, transparent);
+    border-radius: calc(var(--fluent-radius-sm) * 1.5);
+}
+
+.hs-lib-tfoot {
+    display: flex;
+    flex: none;
+    gap: 6px;
+    justify-content: space-between;
+    padding: 3px 7px;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+/* ----- 步 4：瀏覽頁（L38–L49） ----- */
+.hs-lib-show {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    box-sizing: border-box;
+    width: 852px;
+    padding-bottom: 48px;
+    visibility: hidden;
+    background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(var(--ds-glow-rgb), 0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, color-mix(in oklch, var(--accent-secondary) 8%, transparent), transparent),
+        var(--bg-body);
+    opacity: 0;
+}
+
+.hs-lib-toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+    padding: 12px 24px;
+    margin: 0 24px;
+    background: var(--glass-shell-gradient), var(--glass-shell-fill);
+    border: 1px solid var(--glass-shell-border);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow:
+        inset 0 1px 0 var(--glass-shell-edge-top),
+        inset 0 -1px 0 var(--glass-shell-edge-bottom),
+        var(--fluent-shadow-8);
+}
+
+.hs-lib-search {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    grid-column: 2;
+    width: 274px;
+    height: 56px;
+}
+
+.hs-lib-searchbox {
+    box-sizing: border-box;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    width: 274px;
+    height: 56px;
+    padding: 0 136px 0 88px;
+    background: var(--surface-1);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-pill);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 10%, transparent),
+        var(--shadow-sm);
+}
+
+.hs-lib-input {
+    display: block;
+    flex: none;
+    width: 128px;
+    overflow: hidden;
+    font-size: 17.6px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.hs-lib-ph {
+    color: var(--text-muted);
+}
+
+.hs-lib-mode {
+    position: absolute;
+    top: 10px;
+    left: 8px;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: color-mix(in oklch, white 8%, transparent);
+    border-radius: var(--radius-pill);
+}
+
+.hs-lib-modebtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    border-radius: 50%;
+}
+
+.hs-lib-modebtn.is-on {
+    color: var(--text-primary);
+    background: color-mix(in oklch, white 15%, transparent);
+    box-shadow: var(--fluent-shadow-2);
+}
+
+.hs-lib-go {
+    position: absolute;
+    top: 8px;
+    left: 138px;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    justify-content: flex-end;
+    width: 128px;
+    height: 40px;
+}
+
+.hs-lib-gobtn {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--color-primary-content);
+    background: var(--accent);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 30%, transparent);
+    border-radius: 50%;
+    box-shadow: 0 2px 8px color-mix(in oklch, var(--accent) 40%, transparent);
+}
+
+.hs-lib-gobtn .bi {
+    font-size: 1.2rem;
+}
+
+.hs-lib-controls {
+    display: flex;
+    gap: 12px;
+    grid-column: 3;
+    justify-self: end;
+}
+
+.hs-lib-cgroup {
+    display: flex;
+    gap: 8px;
+}
+
+.hs-lib-mirror {
+    display: block;
+    transform: scaleX(-1);
+}
+
+.hs-lib-wall {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+    padding: 24px;
+}
+
+.hs-lib-wcard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
+}
+
+.hs-lib-wcover {
+    overflow: hidden;
+    border-radius: var(--fluent-radius-xl) var(--fluent-radius-xl) 0 0;
+    aspect-ratio: 3 / 2;
+}
+
+.hs-lib-wimg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.hs-lib-wfoot {
+    box-sizing: border-box;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    height: 40px;
+    padding: 8px 12px;
+}
+
+.hs-lib-wdef {
+    display: flex;
+    flex: 1;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.hs-lib-wgrp {
+    display: flex;
+}
+
+.hs-lib-wnum {
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--accent);
+}
+
+.hs-lib-wactor {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.hs-lib-showfoot {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 16px;
+    visibility: hidden;
+    background: var(--bg-header);
+    border-top: 1px solid var(--stroke-subtle);
+    opacity: 0;
+}
+
+.hs-lib-fcount {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    justify-self: start;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.hs-lib-fcount .bi {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.hs-lib-fcount span {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.hs-lib-fcount b {
+    padding: 0 2px;
+    font-family: var(--font-mono);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+}
+
+.hs-lib-hint {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-self: center;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.hs-lib-hint kbd {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    padding: 2px 6px;
+    font: 600 12px/1 var(--font-mono);
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--fluent-radius-lg);
+    box-shadow: var(--fluent-shadow-2);
+}
+
+.hs-lib-fright {
+    display: flex;
+    justify-self: end;
+}
+
+.hs-lib-pager {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.hs-lib-pbtn {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    line-height: 16px;
+    color: var(--text-secondary);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--fluent-radius-lg);
+}
+
+.hs-lib-pcur {
+    padding: 0 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.hs-lib-pcur b {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+/* ========== theme 分支專區（只准 CSS 表達；JS 不判主題，CD-191a-1 第 5 點／card「主題差異」）==========
+   App 自己只在 dim 套用的玻璃材質（fluent-materials.css 的 [data-theme="dim"] 整段）；預設（上面）＝light 表值。
+   祖先前綴 [data-theme="dim"] 只當條件，每條規則的目標仍是 .hs-*，不會漏到 App。 */
+[data-theme="dim"] .hs-app {
+    --hs-cover-l: 0.5; /* stage.js:23：dim 封面亮度 .5、light .62 */
+}
+
+/* X17：App 視窗底（mica 畫布） */
+[data-theme="dim"] .hs-app-bg {
+    background: var(--mica-canvas);
+}
+
+/* measure-library L01：側欄（玻璃殼） */
+[data-theme="dim"] .hs-app-side {
+    background: var(--glass-shell-gradient), var(--glass-shell-fill);
+    border-right-color: var(--glass-shell-border);
+    box-shadow:
+        inset 1px 0 0 var(--glass-shell-edge-left),
+        inset -1px 0 0 var(--glass-shell-edge-left),
+        var(--fluent-shadow-16);
+}
+
+/* measure-library L06、X08：掃描資料夾卡與兩張別名卡（玻璃面板） */
+[data-theme="dim"] .hs-app-card,
+[data-theme="dim"] .hs-app-alias {
+    background: var(--glass-panel-gradient), var(--glass-panel-fill);
+    border-color: var(--glass-panel-border);
+    box-shadow:
+        inset 0 1px 0 var(--glass-panel-edge-top),
+        inset 1px 0 0 var(--glass-panel-edge-left),
+        inset 0 -1px 0 var(--glass-panel-edge-bottom),
+        var(--fluent-shadow-16);
+}
+
+/* measure-library L20：進度區底色 dim 55%（light 80%） */
+[data-theme="dim"] .hs-lib-term {
+    background: color-mix(in oklch, var(--color-base-200) 55%, transparent);
+}
+
+/* measure-library L31：統計卡（玻璃面板） */
+[data-theme="dim"] .hs-lib-stats {
+    background: var(--glass-panel-gradient), var(--glass-panel-fill);
+    border-color: var(--glass-panel-border);
+    box-shadow:
+        inset 0 1px 0 var(--glass-panel-edge-top),
+        inset 1px 0 0 var(--glass-panel-edge-left),
+        inset 0 -1px 0 var(--glass-panel-edge-bottom),
+        var(--fluent-shadow-16);
+}
+
+/* X12e：清快取小鈕圓角 dim 8／light 4 */
+[data-theme="dim"] .hs-lib-trash {
+    border-radius: var(--fluent-radius-lg);
+}
+
+/* measure-library L38：瀏覽頁容器 dim 透明（讓 mica 透出），light 是不透明＋兩道光暈 */
+[data-theme="dim"] .hs-lib-show {
+    background: transparent;
+}
+
+/* measure-library L42：封面卡（玻璃 caption 的外框） */
+[data-theme="dim"] .hs-lib-wcard {
+    background: transparent;
+    border-color: var(--glass-edge-highlight-strong);
+    box-shadow:
+        inset 0 1px 0 var(--glass-caption-edge-top),
+        0 0 0 1px var(--glass-edge-lowlight-strong),
+        var(--fluent-shadow-16);
+}
+
+/* measure-library L45：封面卡頁腳（dim 有玻璃底與 1px 頂線，light 無） */
+[data-theme="dim"] .hs-lib-wfoot {
+    background: var(--glass-caption-gradient), var(--glass-caption-fill);
+    border-top: 1px solid var(--glass-caption-border-top);
+    box-shadow:
+        inset 0 1px 0 var(--glass-caption-edge-top),
+        inset 0 -1px 0 var(--glass-caption-edge-bottom);
+}
+
+/* measure-library L48：瀏覽頁底列（玻璃殼） */
+[data-theme="dim"] .hs-lib-showfoot {
+    background: var(--glass-shell-gradient), var(--glass-shell-fill);
+    border-top-color: var(--glass-shell-border);
+    box-shadow:
+        inset 0 1px 0 var(--glass-shell-edge-top),
+        inset 0 -1px 0 var(--glass-shell-edge-bottom),
+        var(--fluent-shadow-8);
+}

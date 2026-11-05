@@ -106,6 +106,7 @@ export function createStage(root, scene) {
 
     function draw(v) {
         scene.render(v);
+        css(canvas, '--hs-v', v.toFixed(3)); // e2e 的「一組畫面量」探針（引擎統一寫，scene 不用寫）
         op(hint, 1 - seg(v, 0, 0.05));
         const n = stepOf(v);
         if (n === shown) return;

@@ -298,7 +298,7 @@ const metr = (n) => { const r = root(n), t = r.querySelector('.hs-track'), p = r
     const gap = parseFloat(getComputedStyle(p).top) || 0;
     return { trackTop: tr.top, h: tr.height, pinH: ph, gap, stepPx: (tr.height - ph) / 4 }; };
 const goalV = (n) => { const m = metr(n); return Math.min(4, Math.max(0, (m.gap - m.trackTop) / m.stepPx)); };
-const vAttr = (n) => root(n).querySelector('.hs-stub').style.getPropertyValue('--hs-v');
+const vAttr = (n) => root(n).querySelector('.hs-canvas').style.getPropertyValue('--hs-v');
 """
 _ARMED = "(n) => {" + _LIB + " return vAttr(n) !== ''; }"
 _SETTLED = "(n) => {" + _LIB + " return vAttr(n) === goalV(n).toFixed(3); }"
@@ -310,7 +310,9 @@ _READ = """(n) => {""" + _LIB + """
     return { count: r.querySelector('.hs-count').textContent,
              dots: q('.hs-dot').flatMap((d, i) => d.hasAttribute('aria-current') ? [i + 1] : []),
              on: q('.hs-step').flatMap((s, i) => s.classList.contains('is-on') ? [i + 1] : []),
-             num: r.querySelector('.hs-stub-num').textContent, v: vAttr(n) }; }"""
+             term: (q('.hs-lib-term')[0] || {}).classList?.contains('is-shown') ?? null,
+             navShow: (q('.hs-app-navlink')[2] || {}).classList?.contains('is-active') ?? null,
+             v: vAttr(n) }; }"""
 _OBSERVE_SCROLL = """async (sels) => {
     let n = 0;
     const obs = sels.map(s => { const o = new MutationObserver(m => { n += m.length; });
@@ -353,10 +355,13 @@ def test_stage_progress_is_pure_function_of_scroll_and_pin_releases(page: Page, 
     page.evaluate(_TO_V, ["library", 4])
     page.wait_for_function(_SETTLED, arg="library")
     bottom = page.evaluate(_READ, "library")
-    assert bottom["count"] == "4 / 4" and bottom["num"] == "4", bottom  # 兩端真的不同，下面的相等才有意義
+    assert bottom["count"] == "4 / 4" and bottom["dots"] == [4], bottom  # 兩端真的不同，下面的相等才有意義
+    # scene 真的有畫：步 4 是瀏覽頁（進度區收起、側欄「瀏覽」亮起），步 3 是進度區展開（讀 scene 自己寫的 DOM，不是引擎探針）
+    assert bottom["term"] is False and bottom["navShow"] is True, bottom
     from_bottom = _stage_goto_v(page, "library", 2.5)
     assert from_top == from_bottom, (from_top, from_bottom)
-    assert from_top["count"] == "3 / 4" and from_top["dots"] == [3] and from_top["on"] == [3] and from_top["num"] == "3", from_top
+    assert from_top["count"] == "3 / 4" and from_top["dots"] == [3] and from_top["on"] == [3], from_top
+    assert from_top["term"] is True and from_top["navShow"] is False, from_top
     assert 2.4 < float(from_top["v"]) < 2.6, from_top
     # I-5b：v=3.5 時 pin 黏著；track 之後有內容（注入 spacer）捲過去 pin 就釋放
     _stage_goto_v(page, "library", 3.5)
@@ -418,13 +423,13 @@ def test_switching_tab_resets_stage_to_first_step(page: Page, base_url: str, src
             const q = (s) => root(b).querySelector(s), tr = document.querySelector('.help-tabs').getBoundingClientRect();
             const cv = q('.hs-canvas').getBoundingClientRect();
             const anchor = document.querySelector('.help-tabs-panels').getBoundingClientRect().top + scrollY;
-            return { count: q('.hs-count').textContent, num: q('.hs-stub-num').textContent, v: vAttr(b),
+            return { count: q('.hs-count').textContent, v: vAttr(b),
                      tabsIn: tr.top >= 0 && tr.bottom <= innerHeight, cw: cv.width, ch: cv.height,
                      vis: getComputedStyle(q('.hs-canvas')).visibility, dy: Math.abs(scrollY - (anchor - tr.height)),
                      srcDisplay: getComputedStyle(document.querySelector('[data-help-panel="' + a + '"]')).display }; }""",
             [a, b],
         )
-        assert res["count"] == "1 / 4" and res["num"] == "1" and res["v"] == "0.000", res
+        assert res["count"] == "1 / 4" and res["v"] == "0.000", res
         assert res["tabsIn"] and res["cw"] > 0 and res["ch"] > 0 and res["vis"] != "hidden", res
         assert res["dy"] <= 2 and res["srcDisplay"] == "none", res
         if a == src:
