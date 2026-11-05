@@ -156,55 +156,35 @@
         </div>
     </div>
 
-    <!-- 工作流程 — 3步卡片 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body py-3 px-5">
-            <h3 class="text-sm font-bold mb-3">{{ t('help.workflow.title') }} <span class="font-normal opacity-50">— {{ t('help.workflow.subtitle') }}</span></h3>
-            <div class="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
-                <!-- Step 1 -->
-                <div class="flex-1 rounded-xl bg-base-200 p-6 text-center">
-                    <i class="bi bi-folder-plus workflow-step-icon"></i>
-                    <div class="font-bold text-lg mt-1"><span class="workflow-step-num">1</span> {{ t('help.workflow.step1_title') }}</div>
-                    <div class="text-base opacity-50 mt-0.5">{{ t('help.workflow.step1_desc') }}</div>
-                </div>
-                <!-- Arrow -->
-                <div class="workflow-arrow text-xl leading-none">▶</div>
-                <!-- Step 2 -->
-                <div class="flex-1 rounded-xl bg-base-200 p-6 text-center">
-                    <i class="bi bi-file-earmark-play workflow-step-icon"></i>
-                    <div class="font-bold text-lg mt-1"><span class="workflow-step-num">2</span> {{ t('help.workflow.step2_title') }}</div>
-                    <div class="text-base opacity-50 mt-0.5">{{ t('help.workflow.step2_desc') }}</div>
-                </div>
-                <!-- Arrow -->
-                <div class="workflow-arrow text-xl leading-none">▶</div>
-                <!-- Step 3 -->
-                <div class="flex-1 rounded-xl bg-base-200 p-6 text-center">
-                    <i class="bi bi-magic workflow-step-icon"></i>
-                    <div class="font-bold text-lg mt-1"><span class="workflow-step-num">3</span> {{ t('help.workflow.step3_title') }}</div>
-                    <div class="text-base opacity-50 mt-0.5">{{ t('help.workflow.step3_desc') }}</div>
-                </div>
-            </div>
-
-            <!-- Next Steps mini-list -->
-            <div class="mt-4">
-                <h6 class="text-sm font-bold mb-2">{{ t('help.workflow.next_steps_title') }}</h6>
-                <ul class="text-sm opacity-80">
-                    <li>{{ t('help.workflow.next_steps_similar') }}</li>
-                    <li>{{ t('help.workflow.next_steps_favorite') }}</li>
-                    <li>{{ t('help.workflow.next_steps_tag_alias') }}</li>
-                </ul>
-            </div>
-        </div>
+    <!-- 191a-T1: 三分頁外殼（獨立元件 helpTabs；panel 以 data-help-panel 歸屬分頁）。tutorial_completed 由 SSR 寫入 dataset。 -->
+    <div class="help-tabs-wrap" x-data="helpTabs"
+         data-tutorial-completed="{{ 'true' if config.get('general', {}).get('tutorial_completed', False) else 'false' }}"
+         @hashchange.window="syncHelpTabFromHash()">
+    <div role="tablist" class="help-tabs">
+        <button type="button" role="tab" class="help-tab" id="helpTabLibrary"
+                aria-controls="helpPanelLibrary"
+                :class="{ 'is-active': helpTab === 'library' }"
+                :aria-selected="helpTab === 'library'"
+                @click="selectHelpTab('library')"><i class="bi bi-folder-plus"></i> <span>{{ t('help.tabs.library') }}</span></button>
+        <button type="button" role="tab" class="help-tab" id="helpTabOrganize"
+                aria-controls="helpPanelOrganize"
+                :class="{ 'is-active': helpTab === 'organize' }"
+                :aria-selected="helpTab === 'organize'"
+                @click="selectHelpTab('organize')"><i class="bi bi-magic"></i> <span>{{ t('help.tabs.organize') }}</span></button>
+        <button type="button" role="tab" class="help-tab" id="helpTabManual"
+                aria-controls="helpPanelManual"
+                :class="{ 'is-active': helpTab === 'manual' }"
+                :aria-selected="helpTab === 'manual'"
+                @click="selectHelpTab('manual')"><i class="bi bi-book"></i> <span>{{ t('help.tabs.manual') }}</span></button>
     </div>
-
-    <!-- 想要更多控制？分流段 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body py-3 px-5">
-            <h3 class="text-base font-bold mb-2">{{ t('help.power_user.title') }}</h3>
-            <p class="text-sm opacity-80 mb-0">{{ t('help.power_user.intro') }}</p>
-        </div>
+    <div class="help-tabs-panels">
+    <div role="tabpanel" id="helpPanelLibrary" aria-labelledby="helpTabLibrary" data-help-panel="library" x-show="helpTab === 'library'" x-cloak>
+        <!-- 建立片庫舞台：T3 填 -->
     </div>
-
+    <div role="tabpanel" id="helpPanelOrganize" aria-labelledby="helpTabOrganize" data-help-panel="organize" x-show="helpTab === 'organize'" x-cloak>
+        <!-- 整理與改名舞台：T3 填 -->
+    </div>
+    <div role="tabpanel" id="helpPanelManual" aria-labelledby="helpTabManual" data-help-panel="manual" x-show="helpTab === 'manual'" x-cloak>
     <!-- 影片列表生成 -->
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
@@ -845,6 +825,9 @@
                 <li>{{ t('help.troubleshooting.translate_manual_model') | safe }}</li>
             </ul>
         </div>
+    </div>
+    </div>
+    </div>
     </div>
     </div>
     {% if is_desktop %}

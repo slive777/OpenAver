@@ -1661,24 +1661,6 @@
       "rotate_hint": "要换掉这组 token：到设置页重新保存密码即可（所有设备都需要重新输入密码）。",
       "sse_limitation": "浏览器内置的实时进度推送（SSE）无法夹带此 token；若 agent 需要订阅扫描进度，改用 curl / httpx 等程序直接读取流不受影响。"
     },
-    "workflow": {
-      "title": "第一次使用？先看这 3 步",
-      "subtitle": "从加入文件夹到补全资料，三步上手",
-      "step1_title": "加入片库文件夹",
-      "step1_desc": "在片库管理追踪你的 AV 视频文件夹",
-      "step2_title": "更新片库",
-      "step2_desc": "一键扫描并建立可浏览的收藏页",
-      "step3_title": "NFO 补全",
-      "step3_desc": "缺封面或资料？点一下从网络自动补齐",
-      "next_steps_title": "✅ 完成！接下来试试",
-      "next_steps_similar": "灯箱魔杖按钮：模糊探索类似片",
-      "next_steps_favorite": "把喜欢的女优加最爱",
-      "next_steps_tag_alias": "Tag chip 点一下展开同义词（中日英自动 cross-language）"
-    },
-    "power_user": {
-      "title": "想要更多控制？",
-      "intro": "想要更细的控制？OpenAver 提供完整入口 — 一片一片刮削、自定义命名规则、管理跨语言别名，详见下方搜索页、设置页、Tag 别名管理段落。"
-    },
     "tag_alias": {
       "title": "Tag 别名管理",
       "intro": "中日英同义词集中管理，让搜索框、chip 筛选、模糊探索全部说同一种语言。",

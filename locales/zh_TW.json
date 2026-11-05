@@ -1661,23 +1661,10 @@
       "rotate_hint": "要換掉這組 token：到設定頁重新儲存密碼即可（所有裝置都需要重新輸入密碼）。",
       "sse_limitation": "瀏覽器內建的即時進度推送（SSE）無法夾帶此 token；若 agent 需要訂閱掃描進度，改用 curl / httpx 等程式直接讀取串流不受影響。"
     },
-    "workflow": {
-      "title": "第一次使用？先看這 3 步",
-      "subtitle": "從加入資料夾到補全資料，三步上手",
-      "step1_title": "加入片庫資料夾",
-      "step1_desc": "在片庫管理追蹤你的 AV 影片資料夾",
-      "step2_title": "更新片庫",
-      "step2_desc": "一鍵掃描並建立可瀏覽的收藏頁",
-      "step3_title": "NFO 補全",
-      "step3_desc": "缺封面或資料？點一下從網路自動補齊",
-      "next_steps_title": "✅ 完成！接下來試試",
-      "next_steps_similar": "燈箱魔杖按鈕：模糊探索類似片",
-      "next_steps_favorite": "把喜歡的女優加最愛",
-      "next_steps_tag_alias": "Tag chip 點一下展開同義詞（中日英自動 cross-language）"
-    },
-    "power_user": {
-      "title": "想要更多控制？",
-      "intro": "想要更細的控制？OpenAver 提供完整入口 — 一片一片刮削、自訂命名規則、管理跨語言別名，詳見下方搜尋頁、設定頁、Tag 別名管理段落。"
+    "tabs": {
+      "library": "建立片庫",
+      "organize": "整理與改名",
+      "manual": "使用手冊"
     },
     "tag_alias": {
       "title": "Tag 別名管理",
