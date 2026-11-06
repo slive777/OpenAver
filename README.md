@@ -204,6 +204,8 @@ curl http://localhost:<port>/api/capabilities
 <details>
 <summary>支援的 AI 工具 · 進階用法 · 玩家彩蛋</summary>
 
+想請 AI 幫你安裝和做第一次設定：把 [`docs/ai-install.md`](docs/ai-install.md) 給它。
+
 支援任何 function-calling AI 工具：
 
 | 使用方式 | 工具 | 說明 |

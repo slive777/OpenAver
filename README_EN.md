@@ -204,6 +204,8 @@ curl http://localhost:<port>/api/capabilities
 <details>
 <summary>Supported AI tools · Advanced usage · Power-user easter egg</summary>
 
+Want an AI to install OpenAver and do the first setup for you? Give it [`docs/ai-install.md`](docs/ai-install.md).
+
 Works with any function-calling AI tool:
 
 | Method | Tool | Notes |
