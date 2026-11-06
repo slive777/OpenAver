@@ -1337,9 +1337,9 @@ const RULES = [
   },
   {
     file: 'web/templates/search.html', kind: 'tag-scan', mode: 'class-tag',
-    tagName: 'div', className: 'state-page', multi: true, expectedCount: 2,
+    tagName: 'div', className: 'state-page', multi: true, expectedCount: 3,
     required: ['x-cloak'],
-    note: '[TestStatePageCloakGuard] test_search_state_pages_cloaked — search.html 2 個 div.state-page 皆 x-cloak',
+    note: '[TestStatePageCloakGuard] test_search_state_pages_cloaked — search.html 3 個 div.state-page 皆 x-cloak（193-T10 新增 _notFound 面板，2→3；不變式不變：每一個都要 x-cloak）',
   },
   {
     file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
@@ -5287,8 +5287,8 @@ const RULES = [
   {
     file: 'web/templates/search.html',
     kind: 'required-string',
-    pattern: `x-show="listMode === 'search' && pageState === 'result' && (searchResults.length > 1 || actressProfile) && !isComposing()"`,
-    note: '[lint-guard 141a-T7] 格牆／大卡切換鈕顯示條件必須為「結果模式＋(結果數>1 或有女優 hero 卡)＋非組合輸入」（CD-9，spec F4 驗收 2/2b/3；`|| actressProfile` 是 branch review P2 補的，見 search.html 該行上方註解）',
+    pattern: `x-show="listMode === 'search' && pageState === 'result' && (searchResults.length > 1 || actressProfile || imgSearchShown) && !isComposing()"`,
+    note: '[lint-guard 141a-T7] 格牆／大卡切換鈕顯示條件必須為「結果模式＋(結果數>1 或有女優 hero 卡或圖片搜尋第一格)＋非組合輸入」（CD-9，spec F4 驗收 2/2b/3；`|| actressProfile` 是 branch review P2 補的，見 search.html 該行上方註解；193-T10 加 `|| imgSearchShown`）',
   },
   {
     file: 'web/static/js/pages/search/wishlist-aging.js',
