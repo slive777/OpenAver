@@ -9573,6 +9573,27 @@ const RULES = [
     pattern: /^import\s*\{[^}]*\bstateLightboxAiTags\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-ai-tags\.js'/m,
     note: '[lint-guard 188c-T11-main-import] main.js 漏掉 AI 標籤分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
   },
+
+  // ---- [193-T12] 圖片搜尋兩個單一出口 ----
+  // 邊界：只掃「帶 scheme 的站台網址」（core／web 的 .py）與「送圖端點字面」（前端 js／模板）。
+  // 不帶 scheme 的站台名（capabilities／locales／docs／模板外連文字）是說明文字，不掃——粗顆粒即可；
+  // __tests__ 的 .mjs 與 web/routers 的 .py 端點宣告不在掃描範圍。
+  {
+    file: { dir: 'core', ext: ['.py'], recursive: true, exclude: ['avscan/client.py'] }, kind: 'forbidden-string', pattern: /https?:\/\/avscan\.cc/, id: '193-T12-avscan-origin-single-source',
+    note: '[193-T12-avscan-origin-single-source] core 內另有程式碼自己寫死站台網址 → 使用者的截圖可能繞過送圖把關（間隔、大小、代理範圍）直接傳到第三方，使用者不知道',
+  },
+  {
+    file: { dir: 'web', ext: ['.py'], recursive: true }, kind: 'forbidden-string', pattern: /https?:\/\/avscan\.cc/, id: '193-T12-avscan-origin-single-source',
+    note: '[193-T12-avscan-origin-single-source] web 內另有程式碼自己寫死站台網址 → 使用者的截圖可能繞過送圖把關（間隔、大小、代理範圍）直接傳到第三方，使用者不知道',
+  },
+  {
+    file: { dir: 'web/static/js', ext: ['.js'], recursive: true, exclude: ['pages/search/state/image-search.js'] }, kind: 'forbidden-string', pattern: '/api/image-search', id: '193-T12-image-search-endpoint-single-caller',
+    note: '[193-T12-image-search-endpoint-single-caller] 別處另寫送圖呼叫 → 使用者沒按任何入口就可能送出圖片，或繞過 imgSearchStart 的撤銷／URL 回收／不落地規則',
+  },
+  {
+    file: { dir: 'web/templates', ext: ['.html'], recursive: true }, kind: 'forbidden-string', pattern: '/api/image-search', id: '193-T12-image-search-endpoint-single-caller',
+    note: '[193-T12-image-search-endpoint-single-caller] 模板裡另寫送圖呼叫 → 使用者沒按任何入口就可能送出圖片，或繞過 imgSearchStart 的撤銷／URL 回收／不落地規則',
+  },
 ];
 
 // ---- helpers ----
