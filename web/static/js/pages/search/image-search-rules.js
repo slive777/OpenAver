@@ -73,7 +73,7 @@ export function pasteIntent(items) {
  */
 export function shouldSkipPaste(target, searchEl, flags) {
     const f = flags || {};
-    if (f.rescrapeOpen || f.browseDirOpen || f.sampleGalleryOpen || f.lightboxOpen || f.duplicateModalOpen) return true;
+    if (f.rescrapeOpen || f.browseDirOpen || f.sampleGalleryOpen || f.lightboxOpen || f.duplicateModalOpen || f.wishlistLightboxOpen) return true;
     if (!target) return false;
     const tag = target.tagName || '';
     const editable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!target.isContentEditable;

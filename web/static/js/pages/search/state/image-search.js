@@ -6,7 +6,10 @@
  * 身分比較（FE-ALPINE-14）：只有「陣列」身分走 rawOf + isSessionFor；
  * 查詢／session／迴圈一律比原始型別（url 字串、loop 正整數）。
  */
-import { validateImageFile, isSessionFor, isPristine } from '../image-search-rules.js';
+import {
+    validateImageFile, isSessionFor, isPristine,
+    classifyDrop, pasteIntent, firstImageItem, shouldSkipPaste,
+} from '../image-search-rules.js';
 
 let _loopSeq = 0;
 
@@ -34,6 +37,7 @@ export function searchStateImageSearch() {
     imgSearchPending: null,      // null | { url }：進行中查詢的 object URL
     imgSearchSession: null,      // null | { url, bound, matches, clearHit, lead, loop }
     imgThumbVisible: false,
+    imgSearchDragHint: false,    // 拖曳中且第一項是圖片：覆蓋層改顯示圖片提示
 
     // ===== Getters =====
     get imgSearchActive() {
@@ -154,6 +158,48 @@ export function searchStateImageSearch() {
             const cardEl = document.querySelector(`.search-grid [data-slot="${idx}"]`);
             if (cardEl) window.SearchAnimations?.playMiniBurst?.([cardEl], null);
         });
+    },
+
+    // ===== 入口（T8）：change／drop／paste 三個使用者事件才會送出 =====
+    imgSearchPickFile() {
+        this.$refs.imgSearchFile?.click();
+    },
+
+    imgSearchOnFilePicked(e) {
+        const file = e?.target?.files?.[0];
+        if (e?.target) e.target.value = '';
+        if (file) this.imgSearchStart(file);
+    },
+
+    imgSearchOnPaste(e) {
+        const items = e?.clipboardData?.items;
+        if (pasteIntent(items) !== 'image') return;
+        if (shouldSkipPaste(e.target, this.$refs?.searchQuery, {
+            rescrapeOpen: this.rescrapeOpen,
+            browseDirOpen: this.browseDirOpen,
+            sampleGalleryOpen: this.sampleGalleryOpen,
+            lightboxOpen: this.lightboxOpen,
+            duplicateModalOpen: this.duplicateModalOpen,
+            wishlistLightboxOpen: this.wishlistLightboxOpen,
+        })) return;
+        const file = firstImageItem(items)?.getAsFile?.();
+        if (!file) return;
+        e.preventDefault();
+        this.imgSearchStart(file);
+    },
+
+    imgSearchOnDropFiles(files) {
+        const r = classifyDrop(files);
+        if (r.kind === 'image') {
+            if (r.multiple) this.showToast(window.t('search.image.one_at_a_time'), 'info');
+            this.imgSearchStart(r.file);
+            return true;
+        }
+        if (r.kind === 'unsupported') {
+            this.showToast(window.t('search.image.unsupported'), 'error');
+            return true;
+        }
+        return false;
     },
 
     async imgSearchStart(file) {

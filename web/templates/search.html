@@ -9,12 +9,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="search-container ds-page page-layer" x-data="searchPage" @keydown.window="handleKeydown($event)" @wheel="handleWheel($event)">
+<div class="search-container ds-page page-layer" x-data="searchPage" @keydown.window="handleKeydown($event)" @paste.window="imgSearchOnPaste($event)" @wheel="handleWheel($event)">
     <!-- 拖拽覆蓋層（必須在 x-data scope 內） -->
     <div class="drag-overlay" id="dragOverlay" :class="{ active: dragActive }">
         <div class="drag-overlay-content">
-            <i class="bi bi-file-earmark-play"></i>
-            <p>{{ t('search.drag_overlay.hint') }}</p>
+            <i class="bi" :class="imgSearchDragHint ? 'bi-image' : 'bi-file-earmark-play'"></i>
+            <p x-show="!imgSearchDragHint">{{ t('search.drag_overlay.hint') }}</p>
+            <p x-show="imgSearchDragHint">{{ t('search.image.drag_hint') }}</p>
         </div>
     </div>
 
@@ -475,6 +476,7 @@
                 </div>
             </div>
         </form>
+        <input type="file" id="imgSearchFileInput" accept="image/jpeg,image/png,image/webp" x-ref="imgSearchFile" hidden @change="imgSearchOnFilePicked($event)">
     </div>
 
     <!-- 結果區域 -->

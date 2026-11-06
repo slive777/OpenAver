@@ -74,6 +74,7 @@ test('should_skip_paste_table', () => {
         ['sample gallery open', { tagName: 'DIV' }, { sampleGalleryOpen: true }, true],
         ['lightbox open', { tagName: 'DIV' }, { lightboxOpen: true }, true],
         ['duplicate modal open', { tagName: 'DIV' }, { duplicateModalOpen: true }, true],
+        ['wishlist lightbox open', { tagName: 'DIV' }, { wishlistLightboxOpen: true }, true],
         ['lightbox open over search box', S, { lightboxOpen: true }, true],
         ['flags missing', { tagName: 'DIV' }, undefined, false],
     ];

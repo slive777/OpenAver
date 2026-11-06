@@ -367,7 +367,9 @@
       "too_large": "圖片太大（上限 8MB）",
       "unsupported": "只支援 JPG、PNG、WEBP",
       "unreachable": "avscan 目前連不上",
-      "rate_limited": "avscan 要求稍等幾秒，約 {seconds} 秒後可再試"
+      "rate_limited": "avscan 要求稍等幾秒，約 {seconds} 秒後可再試",
+      "drag_hint": "用影片截圖或封面查番號（avscan.cc）",
+      "one_at_a_time": "一次只查一張"
     },
     "duplicate": {
       "title": "檔案重複",

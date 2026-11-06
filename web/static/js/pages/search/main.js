@@ -16,6 +16,7 @@ import { searchStateMakerLatest }    from '@/search/state/maker-latest.js';
 import { searchStateBlankCard }      from '@/search/state/blank-card.js';
 import { searchStateImageSearch }    from '@/search/state/image-search.js';
 import { mergeState }              from '@/shared/merge-state.js';
+import { dragKindOf }              from '@/search/image-search-rules.js';
 
 let _dragTimeoutHandle = null;
 
@@ -48,12 +49,15 @@ export function searchPage() {
             _armDragHeartbeat(e) {
                 if (!e.dataTransfer.types.includes('Files')) return;
                 if (!this.dragActive) this.dragActive = true;   // CD-A4：值沒變就不寫
+                const hint = typeof window.pywebview === 'undefined' && dragKindOf(e.dataTransfer.items) === 'image';
+                if (this.imgSearchDragHint !== hint) this.imgSearchDragHint = hint;
                 clearTimeout(_dragTimeoutHandle);
                 _dragTimeoutHandle = setTimeout(() => this._onDragTimeout(), DRAG_OVERLAY_TIMEOUT_MS);
             },
 
             _onDragTimeout() {
                 if (this.dragActive) this.dragActive = false;   // CD-A4
+                if (this.imgSearchDragHint) this.imgSearchDragHint = false;
                 _dragTimeoutHandle = null;
             },
 
@@ -61,6 +65,9 @@ export function searchPage() {
                 clearTimeout(_dragTimeoutHandle);
                 _dragTimeoutHandle = null;
                 if (this.dragActive) this.dragActive = false;
+                if (this.imgSearchDragHint) this.imgSearchDragHint = false;
+                // 圖片分流在 pywebview 判斷之前；非圖片回 false 落入原流程
+                if (this.imgSearchOnDropFiles(e.dataTransfer?.files)) return;
                 if (typeof window.pywebview === 'undefined') {
                     this.handleFileDrop(e.dataTransfer.files);
                 }
