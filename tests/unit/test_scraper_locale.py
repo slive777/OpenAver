@@ -18,6 +18,11 @@ class TestGetJavbusLang:
         with patch('core.scraper.load_config', return_value={'general': {'locale': 'zh-CN'}}):
             assert get_javbus_lang() == "zh-tw"
 
+    def test_ko_uses_ja_javbus(self):
+        """ko 無韓文版 JavBus，應使用日文 ja（標題含假名才會被翻成韓文）"""
+        with patch('core.scraper.load_config', return_value={'general': {'locale': 'ko'}}):
+            assert get_javbus_lang() == "ja"
+
 
 class TestSearchPrefixLangParam:
     """search_prefix 建立的 JavBusScraper 應傳入正確 lang"""

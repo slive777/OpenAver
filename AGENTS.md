@@ -115,7 +115,7 @@ line what category — do not expand them.
 ### i18n
 
 - Strategy: **source locale only + milestone sync**. During development PRs, only `locales/zh_TW.json` is required to be updated.
-- Missing keys or entire subtrees in `zh_CN.json`, `ja.json`, or `en.json` during development **are not findings**.
+- Missing keys or entire subtrees in `zh_CN.json`, `ja.json`, `en.json`, or `ko.json` during development **are not findings**.
 - **Flag these**:
   - hardcoded Chinese UI text in HTML/JS that should use `t()` / `window.t()`
   - `t()` / `window.t()` referencing keys missing from `zh_TW.json`
@@ -127,9 +127,9 @@ line what category — do not expand them.
   - technical terms such as NFO, API Key, Jellyfin, Proxy
   - browser/platform built-in text
   - **`design-system` and `motion-lab` page demo content** — these are internal dev-reference pages (not in main nav, not user-facing), and demo labels often contain Fluent design tokens (`fluent-decel`, `Acrylic 30px`, `--surface-1` etc.) that should not be translated. Page chrome (nav / page title) still goes through i18n; only demo body text is exempt.
-- At milestone/release, all 4 locales must have identical key sets.
-  - **"Milestone/release" means the milestone sync on `main` (`🎯 milestone:` commit) or the release step (tagging `vX.Y.Z`) — never a feature-branch PR.** A feature PR that bumps `core/version.py` and adds a CHANGELOG entry is still a development PR; the version bump does **not** turn it into a release, and the 4-locale parity rule does **not** apply to it.
-  - In a feature PR, these are expected and **not findings**: new keys present only in `zh_TW.json`; obsolete keys removed from all 4 locales without replacements in `zh_CN.json` / `ja.json` / `en.json`; users of those locales seeing the `zh_TW` fallback text until the milestone sync. (Locales are overlaid on `zh_TW`, so nothing breaks — the text is just untranslated.)
+- At milestone/release, all 5 locales must have identical key sets.
+  - **"Milestone/release" means the milestone sync on `main` (`🎯 milestone:` commit) or the release step (tagging `vX.Y.Z`) — never a feature-branch PR.** A feature PR that bumps `core/version.py` and adds a CHANGELOG entry is still a development PR; the version bump does **not** turn it into a release, and the 5-locale parity rule does **not** apply to it.
+  - In a feature PR, these are expected and **not findings**: new keys present only in `zh_TW.json`; obsolete keys removed from all 5 locales without replacements in `zh_CN.json` / `ja.json` / `en.json` / `ko.json`; users of those locales seeing the `zh_TW` fallback text until the milestone sync. (Locales are overlaid on `zh_TW`, so nothing breaks — the text is just untranslated.)
 
 ### General code quality
 
@@ -193,7 +193,7 @@ of truth:
   migrated here.
 - **`scripts/css-guard.mjs`** — CSS-block rules (Fluent token families, poster-crop,
   z-index cross-file ordering, vt-anchor, selector scoping, whole-text property scans).
-- **`scripts/i18n_lint.mjs`** — used-but-missing i18n keys (RED), 4-locale parity (warn),
+- **`scripts/i18n_lint.mjs`** — used-but-missing i18n keys (RED), 5-locale parity (warn),
   orphan keys (warn), forbidden words in translations (「推薦」「風味」, RED).
 - **`scripts/lint-settings-ia.mjs`** — settings.html IA layering (DOM-ancestry lock).
 - **ESLint** (`eslint.config.mjs`, flat config; `no-restricted-syntax` groups + `SEL_*`

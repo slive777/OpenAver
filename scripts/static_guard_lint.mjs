@@ -2752,7 +2752,7 @@ const RULES = [
 
   // ---- [163a-T7] AC-12：說明頁／AI 描述／locale 不得再教人把 direct 填進 Proxy 欄；舊 help key 名不得回流 ----
   ...[
-    'locales/zh_TW.json', 'locales/zh_CN.json', 'locales/ja.json', 'locales/en.json',
+    'locales/zh_TW.json', 'locales/zh_CN.json', 'locales/ja.json', 'locales/en.json', 'locales/ko.json',
     'web/templates/settings.html', 'web/templates/help.html', 'web/routers/capabilities.py',
   ].flatMap((f) => [
     {

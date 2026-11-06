@@ -413,7 +413,7 @@ export function stateConfig() {
                 // eslint-disable-next-line no-alert -- cycleLocale dirty-check confirm, backlog migration to fluent-modal, reviewed 2026-05-03
                 if (!confirm(window.t('settings.dirty_modal.locale_switch_confirm'))) return;
             }
-            const order = ['zh-TW', 'zh-CN', 'ja', 'en'];
+            const order = ['zh-TW', 'zh-CN', 'ja', 'en', 'ko'];
             const idx = order.indexOf(this.locale);
             const next = order[(idx + 1) % order.length];
             try {

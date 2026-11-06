@@ -347,7 +347,7 @@ def _render_player_html(
 def video_player(path: str = Query(..., description="影片路徑（file:/// URI 或 FS 路徑）")):
     """影片播放頁面 — 用 HTML5 <video> 標籤在新分頁播放"""
     from html import escape as html_escape
-    from core.i18n import t as i18n_t
+    from core.i18n import SUPPORTED_LOCALES, t as i18n_t
 
     video_url = f"/api/gallery/video?path={quote(path, safe='')}"
 
@@ -362,9 +362,8 @@ def video_player(path: str = Query(..., description="影片路徑（file:/// URI
 
     config = load_config()
     locale = (config.get('general') or {}).get('locale') or ''
-    allowed_langs = {"zh-TW", "zh-CN", "ja", "en"}
     # 本端點唯一的 locale 正規化點，lang 屬性與提示文字都吃它
-    html_lang = locale if isinstance(locale, str) and locale in allowed_langs else "zh-TW"
+    html_lang = locale if isinstance(locale, str) and locale in SUPPORTED_LOCALES else "zh-TW"
     html_lang_safe = html_escape(html_lang)
     hint_text_network = html_escape(i18n_t('showcase.video.player_unavailable', locale=html_lang))
     hint_text_format = html_escape(i18n_t('showcase.video.player_unavailable_format', locale=html_lang))

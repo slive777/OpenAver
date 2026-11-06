@@ -57,6 +57,13 @@ LANGUAGE_PROMPTS = {
         "gemini_instruction": "Translate the following title to English",
         "gemini_rules": "1. This is a database translation task, do not generate new content\n2. Use natural English\n3. Keep it concise, under 80 characters\n4. Output only the translation, no explanations",
     },
+    "ko": {
+        "name": "한국어",
+        "ollama_system": "일본어 영상 제목을 자연스러운 한국어로 번역하세요. 인명, 브랜드명, 작품 고유명사는 원문을 유지하세요. 간결하게 번역하고 번역문만 출력하세요.",
+        "ollama_example": "義父の隣で夫に電話させながら人妻を寝取る → 시아버지 옆에서 남편과 통화하게 하며 유부녀를 빼앗다",
+        "gemini_instruction": "다음 제목을 한국어로 번역하세요",
+        "gemini_rules": "1. 기존 데이터베이스 문장의 번역이며 새로운 내용을 만들지 않습니다\n2. 자연스러운 한국어를 사용합니다\n3. 간결하게 번역하고 80자 이내로 작성합니다\n4. 번역 결과만 출력하고 설명은 덧붙이지 않습니다\n5. 인명, 브랜드명, 작품 고유명사는 원문을 유지합니다",
+    },
 }
 
 
@@ -115,7 +122,7 @@ class OllamaTranslateService(TranslateService):
                     "url": "http://localhost:11434",
                     "model": "qwen3:8b"  # 所有翻譯都用此模型
                 }
-            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko）
         """
         self.ollama_url = (config.get("url") or "http://localhost:11434").rstrip("/")
         self.model = config.get("model") or "qwen3:8b"
@@ -210,8 +217,10 @@ class OllamaTranslateService(TranslateService):
     def _clean_output(self, text: str) -> str:
         """清理翻譯輸出"""
         text = text.strip().strip('"').strip("'")
-        text = re.sub(r'^翻譯[：:]\\s*', '', text)
-        text = re.sub(r'^中文[：:]\\s*', '', text)
+        text = re.sub(r'^翻譯[：:]\s*', '', text)
+        text = re.sub(r'^中文[：:]\s*', '', text)
+        text = re.sub(r'^번역[：:]\s*', '', text)
+        text = re.sub(r'^한국어[：:]\s*', '', text)
         text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
         return text.strip()
 
@@ -246,7 +255,7 @@ class GeminiTranslateService(TranslateService):
                     "api_key": "AIza...",
                     "model": "gemini-flash-lite-latest"
                 }
-            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko）
         """
         self.api_key = config.get("api_key", "")
         self.model = config.get("model", "gemini-flash-lite-latest")
@@ -321,7 +330,7 @@ class OpenAICompatibleTranslateService(TranslateService):
                     "api_key": "sk-xxx",  # 可為空（本地 LLM 不需要）
                     "model": "gpt-4o-mini"
                 }
-            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko）
         """
         self.base_url = (config.get("base_url") or "").rstrip("/")
         self.api_key = config.get("api_key", "")
@@ -400,7 +409,7 @@ class ClaudeTranslateService(TranslateService):
                     "api_key": "sk-ant-...",
                     "model": "claude-haiku-5-5"
                 }
-            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko）
         """
         self.api_key = config.get("api_key", "")
         self.model = config.get("model") or DEFAULT_CLAUDE_MODEL
@@ -465,7 +474,7 @@ def create_translate_service(config: Dict, target_language: str = "zh-TW") -> Tr
                 "openai": {...},
                 "openai_official": {...}
             }
-        target_language: 目標語言代碼（zh-TW / zh-CN / en / ja），預設 zh-TW
+        target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko），預設 zh-TW
 
     Returns:
         TranslateService 實例

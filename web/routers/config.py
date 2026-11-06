@@ -26,6 +26,7 @@ import httpx
 import threading
 
 from core.logger import get_logger
+from core.i18n import SUPPORTED_LOCALES
 from core.config import (
     AppConfig,
     FocalDeviceState,
@@ -378,7 +379,7 @@ def update_general_field(field: str, request: GeneralFieldRequest, raw_request: 
                     return {"success": True, "lan_port": None}
 
         # locale 驗證在 mutate 前（保留既有順序：驗證 → 寫入 → translate reset）
-        if field == "locale" and request.value not in ("zh-TW", "zh-CN", "ja", "en"):
+        if field == "locale" and request.value not in SUPPORTED_LOCALES:
             logger.warning("嘗試設定不支援的語系: %s", request.value)
             return {"success": False, "error": "不支援的語系"}
 

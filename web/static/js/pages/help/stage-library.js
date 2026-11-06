@@ -18,6 +18,7 @@ const SLOT = 0.1; // 補完每張佔的 v 長度
 const GRID_COLS = 6;
 const GRID_GAP = 8;
 const STATS_PEEK = 14; // 統計卡下緣要露出的餘量（POC G.S 公式）
+const NOTE_PEEK = 12; // step 3: headroom above the unchanged-note mark = mark outset 4px (--hs-mark-pad in help-stage.css) + 8px
 const PRESS = [1.18, 2.16, 3.16]; // 游標按下的三個時間點（POC press）
 const N_LINES = 14; // 紀錄：找到 1 行＋進度 12 行＋完成 1 行
 // mark hosts, same order as the mk array of stateOf (= DOM order: note inside the log area, missing row inside the stats card)
@@ -123,6 +124,7 @@ function stateOf(v) {
         enriching,
         cardO: seg(v, 2.18, 2.22) * (1 - seg(v, 2.68, 2.72)),
         noteO: seg(v, 2.74, 2.82),
+        noteS: ease(seg(v, 2.72, 2.8)), // page scroll eases from S to Snote while the note fades in
         mk: [ // marks: the unchanged note (step 3), the missing-data row (step 2)
             seg(v, 2.78, 2.83) * (1 - seg(v, 3.08, 3.14)),
             seg(v, 1.8, 1.84) * (1 - seg(v, 2.06, 2.12)),
@@ -230,7 +232,7 @@ function paint(s) {
     op(E.showFoot, s.showO);
     cls(E.navScan, 'is-active', !s.navShow);
     cls(E.navShow, 'is-active', s.navShow);
-    css(E.scroll, 'transform', 'matrix(1, 0, 0, 1, 0, ' + (-geo.S * s.scroll).toFixed(1) + ')'); // 純垂直平移
+    css(E.scroll, 'transform', 'matrix(1, 0, 0, 1, 0, ' + (-lerp(geo.S, geo.Snote, s.noteS) * s.scroll).toFixed(1) + ')'); // 純垂直平移
 
     // 第 1 步
     cls(E.folderlist, 'is-empty', s.empty);
@@ -365,6 +367,7 @@ export const scene = {
         const g = relS(E.grid);
         const contentH = padTop + E.scroll.offsetHeight + padBottom;
         const S = clamp(padTop + st.y + st.h + STATS_PEEK - FH, 0, Math.max(0, contentH - FH));
+        const Snote = clamp(padTop + relS(E.marks[0]).y - NOTE_PEEK, 0, S); // short canvas: scroll back up so the note mark stays on screen
 
         // 12 張 tile 的三組格位與牆卡位
         const tw = (g.w - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
@@ -423,7 +426,7 @@ export const scene = {
             [1.94, mx, my, 0], [2.0, mx, my, 1], [2.14, ex, ey, 1], [2.22, ex, ey, 1], [2.3, ex, ey, 0],
             [2.94, mx, my, 0], [3.0, mx, my, 1], [3.14, nx, ny, 1], [3.24, nx, ny, 1], [3.32, nx, ny, 0], [4, nx, ny, 0],
         ];
-        geo = { ready: true, S, G, R, W, c: { x: g.x + g.w / 2, y: g.y + g.h / 2 }, chip0: { x: cx, y: cy }, chip1: { x: ix, y: iy } };
+        geo = { ready: true, S, Snote, G, R, W, c: { x: g.x + g.w / 2, y: g.y + g.h / 2 }, chip0: { x: cx, y: cy }, chip1: { x: ix, y: iy } };
 
         // 還原（同一輪內，不留暫時狀態）
         shown.forEach((el, k) => { if (hidden[k]) el.classList.remove('is-shown'); });

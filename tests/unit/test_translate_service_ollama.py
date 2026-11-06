@@ -44,6 +44,17 @@ async def test_ollama_translate_or_raise_success():
 
 
 @pytest.mark.asyncio
+async def test_ollama_korean_locale_sends_korean_translation_prompt():
+    cm, inst = _cm(content="한국어 번역")
+    with patch("core.cloud_translate.httpx.AsyncClient", return_value=cm):
+        assert await _svc("ko").translate_or_raise("日本語タイトル") == "한국어 번역"
+
+    messages = inst.post.await_args.kwargs["json"]["messages"]
+    assert "한국어" in messages[0]["content"]
+    assert "日本語タイトル" in messages[1]["content"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("kind,kw", FAILURES, ids=[k for k, _ in FAILURES])
 async def test_ollama_translate_or_raise_kinds(kind, kw):
     cm, _ = _cm(**kw)

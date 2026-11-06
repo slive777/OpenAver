@@ -37,7 +37,7 @@ source venv/bin/activate && uvicorn web.app:app --host 127.0.0.1 --port 8000
 
 - Dev server 已啟動於 `http://localhost:8000`
 - DB 已有至少 10 部影片（US3–US7 需要）
-- 4 locale 翻譯檔齊全（US6 需要）
+- 5 locale 翻譯檔齊全（US6 需要）
 
 每個 US 在 Setup 段列獨立重置指令；US 之間 state 殘留處置見 plan-59c §7 Risk-3。
 
@@ -370,12 +370,12 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
 
 ## US6: i18n 完整切換
 
-**故事**：用戶在 Settings 頁依序切換 4 個 locale（繁 → 简 → あ → EN → 繁）→ 每次切換後驗多頁面 UI 文字在當前語系正確顯示無 raw i18n key → 驗 Dark/Light mode 切換並重載保留 → 驗 tutorial 文案在當前語系正確。
+**故事**：用戶在 Settings 頁依序切換 5 個 locale（繁 → 简 → あ → EN → 한 → 繁）→ 每次切換後驗多頁面 UI 文字在當前語系正確顯示無 raw i18n key → 驗 Dark/Light mode 切換並重載保留 → 驗 tutorial 文案在當前語系正確。
 
 ### Setup
 
 - Dev server 已啟動於 `http://localhost:8000`
-- 4 locale 翻譯檔齊全（`locales/zh_TW.json`、`locales/zh_CN.json`、`locales/ja.json`、`locales/en.json`）
+- 5 locale 翻譯檔齊全（`locales/zh_TW.json`、`locales/zh_CN.json`、`locales/ja.json`、`locales/en.json`、`locales/ko.json`）
 - 重置 locale 為 `zh-TW`（可直接點 `.locale-toggle-btn` 循環或直接呼 API）：
   ```bash
   curl -X PUT http://localhost:8000/api/config/general/locale \
@@ -406,7 +406,11 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
    - `browser_wait_for` 頁面 reload 完成 timeout=5s
    - **驗**：`.locale-toggle-btn` innerText 為 `EN`
    - **驗**：`#saveBtn`（settings.html:762）文字不含 `settings.action.` 字串
-5. **切換 en → zh-TW（回到繁體）**：`browser_click` → `.locale-toggle-btn`
+4b. **切換 en → ko**：`browser_click` → `.locale-toggle-btn`
+   - `browser_wait_for` 頁面 reload 完成 timeout=5s
+   - **驗**：`.locale-toggle-btn` innerText 為 `한`
+   - **驗**：sidebar 任一 `a[href]` innerText **不含** `sidebar.` 字串（無 raw key）
+5. **切換 ko → zh-TW（回到繁體）**：`browser_click` → `.locale-toggle-btn`
    - `browser_wait_for` 頁面 reload timeout=5s
    - **驗**：`.locale-toggle-btn` innerText 回到 `繁`
 6. **Dark/Light mode 切換**：

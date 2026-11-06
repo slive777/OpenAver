@@ -8,11 +8,11 @@
  *
  * 五檢：
  *   1. used-but-missing（RED）：每個靜態 t('key') 必須 ∈ zh_TW leaf-key 集，否則 exit 1。
- *   2. parity（warn，--strict 才 fail）：zh_TW 每個 leaf key 於 zh_CN/en/ja 存在
+ *   2. parity（warn，--strict 才 fail）：zh_TW 每個 leaf key 於 zh_CN/en/ja/ko 存在
  *      （開發期 warn、milestone 同步；沿用 test_i18n.py::TestAllLocalesKeyCompleteness 政策）。
  *   3. orphan（warn）：zh_TW 有但全 codebase 無「靜態」t() 引用的 key（動態/後端 core.i18n
  *      組的 key 靜態掃不到 → 只 warn，不誤殺）。
- *   4. forbidden-word（RED）：四語 leaf 值不得含「推薦」（PRD wording）/「風味」（scanner tone,
+ *   4. forbidden-word（RED）：五語 leaf 值不得含「推薦」（PRD wording）/「風味」（scanner tone,
  *      CD-96-11）。另有 focal 語氣規則的 key-scoped 禁詞（見 SCOPED_FORBIDDEN_*）。
  *   5. backend-title-key（RED）：web/routers/*.py 傳給通知中心的 notif.* title_key 必須 ∈ zh_TW leaf-key 集。
  *
@@ -40,12 +40,12 @@ const STRICT = argv.includes('--strict');
 const localeArg = argv.find((a) => !a.startsWith('--'));
 const LOCALES_DIR = localeArg ? resolve(localeArg) : join(REPO_ROOT, 'locales');
 
-const LOCALE_FILES = { zh_TW: 'zh_TW.json', zh_CN: 'zh_CN.json', en: 'en.json', ja: 'ja.json' };
-// FORBIDDEN_WORDS = 全產品詞彙禁令（PRD 拒絕清單）：掃四語全部 leaf value。
+const LOCALE_FILES = { zh_TW: 'zh_TW.json', zh_CN: 'zh_CN.json', en: 'en.json', ja: 'ja.json', ko: 'ko.json' };
+// FORBIDDEN_WORDS = 全產品詞彙禁令（PRD 拒絕清單）：掃五語全部 leaf value。
 // SCOPED_FORBIDDEN_WORDS = focal 這組文案的語氣規則（CD-152d-4b），只掃 SCOPED_FORBIDDEN_KEYS。
 // 兩套不可以合併——合併就會擋下「尋找燦爛的演出片段」這類合法用詞（「爛」是「燦爛」子字串）。
 // spec-180：舊頁名／舊詞回流守衛（CD-180-14）；不禁單獨的「最愛」「Favorite」（女優收藏要用）
-const FORBIDDEN_WORDS = ['推薦', '熱門', '熱度', '風味', '列表生成', '產生網頁', '生成网页', '产生网页', 'リスト生成', 'ページ生成', '最愛資料夾', '最爱文件夹', 'お気に入りフォルダ', 'Favorite Folder', 'Favorite folder', 'favorite folder', 'Scanner']; // 未來擴充只改此陣列（CD-96a-4 / CD-96-11）
+const FORBIDDEN_WORDS = ['推薦', '熱門', '熱度', '風味', '列表生成', '產生網頁', '生成网页', '产生网页', 'リスト生成', 'ページ生成', '最愛資料夾', '最爱文件夹', 'お気に入りフォルダ', 'Favorite Folder', 'Favorite folder', 'favorite folder', 'Scanner', '추천', '인기']; // 未來擴充只改此陣列（CD-96a-4 / CD-96-11）
 const SCOPED_FORBIDDEN_WORDS = ['太慢', '爛', '跑不動', '效能不足'];
 const SCOPED_FORBIDDEN_KEYS = [
   'settings.scraper.focal_help',
@@ -281,13 +281,13 @@ function scanBackendTitleKeys() {
 }
 
 // ---- main ----
-// 每個 locale 檔只讀一次（zh_TW 主 + 三 secondary），避免重複 I/O 與重複錯誤訊息
+// 每個 locale 檔只讀一次（zh_TW 主 + 四 secondary），避免重複 I/O 與重複錯誤訊息
 const zhTW = loadLocale('zh_TW');
 if (!zhTW) {
   err(`無法讀取主 locale zh_TW.json：${loadErrors.get('zh_TW')}`);
   process.exit(1); // 無法讀主 locale = 硬失敗
 }
-const SECONDARY = ['zh_CN', 'en', 'ja'];
+const SECONDARY = ['zh_CN', 'en', 'ja', 'ko'];
 const localeData = { zh_TW: zhTW };
 for (const name of SECONDARY) localeData[name] = loadLocale(name);
 // secondary 讀取失敗 = warn（--strict 升 fail），與 parity 同政策（缺 key 只 warn）
@@ -335,7 +335,7 @@ if (backendMissing.length) {
   }
 }
 
-// 檢 4：forbidden-word（RED）— 掃四語全 leaf 值（全產品詞彙禁令）
+// 檢 4：forbidden-word（RED）— 掃五語全 leaf 值（全產品詞彙禁令）
 for (const name of Object.keys(LOCALE_FILES)) {
   const data = localeData[name];
   if (!data) continue; // 讀取失敗已於上方回報；forbidden 只在讀得到時掃

@@ -118,6 +118,9 @@ class TestOllamaCleanOutput:
         """<think>...</think> 標籤應被移除，保留後面的翻譯"""
         assert self.service._clean_output('<think>思考過程</think>翻譯結果') == '翻譯結果'
 
+    def test_strip_korean_translation_prefix(self):
+        assert self.service._clean_output('번역: 한국어 결과') == '한국어 결과'
+
 
 # ============ OllamaTranslateService._parse_batch_output 純字串測試 ============
 
@@ -182,7 +185,14 @@ class TestProperNounRule:
     def test_zh_tw_gemini_rules_keep_proper_nouns(self):
         self._check_cloud("zh-TW", "4. 只輸出翻譯結果，不要額外說明")
 
+    def test_korean_prompt_targets_korean(self):
+        from core.translate_service import LANGUAGE_PROMPTS, build_cloud_translate_prompt
+
+        assert "한국어" in LANGUAGE_PROMPTS["ko"]["ollama_system"]
+        prompt = build_cloud_translate_prompt("新人女優デビュー", "ko")
+        assert "한국어" in prompt
+        assert "인명" in prompt
+
 
     def test_zh_tw_ollama_system_keep_proper_nouns(self):
         self._check_ollama("zh-TW", "繁體中文")
-

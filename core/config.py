@@ -227,7 +227,7 @@ class GeneralConfig(BaseModel):
     sidebar_collapsed: bool = False  # 側邊欄預設收合 (僅影響 Desktop)
     tutorial_completed: bool = False  # 新手引導是否已完成
     font_size: str = "md"  # 全站字體大小: xs, sm, md, lg, xl
-    locale: Literal["zh-TW", "zh-CN", "ja", "en"] = "zh-TW"  # 介面語系
+    locale: Literal["zh-TW", "zh-CN", "ja", "en", "ko"] = "zh-TW"  # 介面語系
     server_mode: bool = False  # LAN 伺服器模式開關（feature/80）
     close_action: Literal["ask", "tray", "exit"] = "ask"  # 視窗關閉行為（feature/82）
     auto_check_update: bool = True  # 啟動時檢查更新（feature/107）

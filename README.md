@@ -325,7 +325,7 @@ OpenAver/
 │   ├── path_utils.py   # 跨平台路徑處理 (file:// URI)
 │   ├── i18n.py         # 多語系翻譯核心 (t() / fallback chain)
 │   └── translate_service.py  # AI 翻譯 (Ollama/Gemini/Claude/OpenAI Compatible)
-├── locales/            # 四語系 JSON (zh_TW/zh_CN/ja/en)
+├── locales/            # 五語系 JSON (zh_TW/zh_CN/ja/en/ko)
 ├── tests/              # 測試代碼 (Pytest)
 └── windows/            # Windows 啟動器 (PyWebView)
 ```

@@ -105,3 +105,6 @@ class TestDetectLocaleFromAcceptLanguage:
         """zh-TW 出現時，即使也有 zh-CN，以 zh-TW 優先（任何含 zh-TW 的 header）"""
         result = detect_locale_from_accept_language("zh-TW;q=0.9,zh-CN;q=0.8,en;q=0.7")
         assert result == "zh-TW"
+
+    def test_korean_header_selects_korean(self):
+        assert detect_locale_from_accept_language("en-US;q=0.8,ko-KR;q=1.0") == "ko"
