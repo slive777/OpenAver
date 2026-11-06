@@ -372,6 +372,14 @@ def test_stage_progress_is_pure_function_of_scroll_and_pin_releases(page: Page, 
     # T11：每步停下來（v＝n−1＋.86）恰有一個橘框亮（建立片庫的順序＝提示、缺資料列）
     for v, want in ((1.86, [0, 1]), (2.86, [1, 0])):
         assert [round(m, 2) for m in _stage_goto_v(page, "library", v)["marks"]] == want, v
+    # 192-T4：筆電高度（1366×650）第 3 步停下時，「檔名和位置都沒變」的框頂（宿主 top − 4px 外擴）仍在畫布內
+    vp = page.viewport_size
+    page.set_viewport_size({"width": 1366, "height": 650})
+    _stage_goto_v(page, "library", 2.86)
+    top = page.evaluate("""() => { const c = document.querySelector('.hs-root[data-hs-stage="library"] .hs-canvas'), n = document.querySelector('.hs-root[data-hs-stage="library"] .hs-lib-notefit');
+        return (n.getBoundingClientRect().top - c.getBoundingClientRect().top) / (c.getBoundingClientRect().width / c.offsetWidth) - 4; }""")
+    assert top >= 0, top
+    page.set_viewport_size(vp)
     # I-5b：v=3.5 時 pin 黏著；track 之後有內容（注入 spacer）捲過去 pin 就釋放
     _stage_goto_v(page, "library", 3.5)
     pin_top = page.evaluate("() => document.querySelector('.hs-root[data-hs-stage=\"library\"] .hs-pin').getBoundingClientRect().top")
