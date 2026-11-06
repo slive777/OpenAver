@@ -84,6 +84,11 @@ class TestLocaleChangeResetsTranslateService:
         assert resp.json()["success"] is True
         assert len(reset_called) == 1, "locale 變更後應呼叫一次 _reset_translate_service()"
 
+    def test_korean_locale_is_accepted(self, client, mock_config_path):
+        resp = client.put("/api/config/general/locale", json={"value": "ko"})
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+
 
 class TestServerModeEndpoint:
     """PUT /api/config/general/server_mode 端點測試（TASK-80a-T1）"""

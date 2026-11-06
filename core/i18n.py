@@ -18,7 +18,7 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 LOCALES_DIR = Path(__file__).parent.parent / "locales"
-SUPPORTED_LOCALES = ("zh-TW", "zh-CN", "ja", "en")
+SUPPORTED_LOCALES = ("zh-TW", "zh-CN", "ja", "en", "ko")
 FALLBACK_LOCALE = "zh-TW"
 
 
@@ -162,6 +162,8 @@ def detect_locale_from_accept_language(accept_language: str) -> str:
             return "zh-CN"
         if lang == "ja" or lang.startswith("ja-"):
             return "ja"
+        if lang == "ko" or lang.startswith("ko-"):
+            return "ko"
         if lang == "en" or lang.startswith("en-"):
             return "en"
 
