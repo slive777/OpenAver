@@ -370,7 +370,7 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
 
 ## US6: i18n 完整切換
 
-**故事**：用戶在 Settings 頁依序切換 5 個 locale（繁 → 简 → あ → EN → KO → 繁）→ 每次切換後驗多頁面 UI 文字在當前語系正確顯示無 raw i18n key → 驗 Dark/Light mode 切換並重載保留 → 驗 tutorial 文案在當前語系正確。
+**故事**：用戶在 Settings 頁依序切換 5 個 locale（繁 → 简 → あ → EN → 한 → 繁）→ 每次切換後驗多頁面 UI 文字在當前語系正確顯示無 raw i18n key → 驗 Dark/Light mode 切換並重載保留 → 驗 tutorial 文案在當前語系正確。
 
 ### Setup
 
@@ -408,7 +408,7 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
    - **驗**：`#saveBtn`（settings.html:762）文字不含 `settings.action.` 字串
 4b. **切換 en → ko**：`browser_click` → `.locale-toggle-btn`
    - `browser_wait_for` 頁面 reload 完成 timeout=5s
-   - **驗**：`.locale-toggle-btn` innerText 為 `KO`
+   - **驗**：`.locale-toggle-btn` innerText 為 `한`
    - **驗**：sidebar 任一 `a[href]` innerText **不含** `sidebar.` 字串（無 raw key）
 5. **切換 ko → zh-TW（回到繁體）**：`browser_click` → `.locale-toggle-btn`
    - `browser_wait_for` 頁面 reload timeout=5s

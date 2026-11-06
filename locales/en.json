@@ -18,7 +18,8 @@
       "zh-TW": "繁",
       "zh-CN": "简",
       "ja": "あ",
-      "en": "EN"
+      "en": "EN",
+      "ko": "한"
     },
     "action": {
       "confirm": "Confirm",
@@ -1661,6 +1662,66 @@
       "rotate_hint": "To replace this token: save the password again in Settings (every device will need to re-enter the password).",
       "sse_limitation": "The browser's built-in live progress stream (SSE) cannot carry this token. If your agent needs to follow scan progress, read the stream directly with curl / httpx instead — that works normally."
     },
+    "tabs": {
+      "library": "Build Library",
+      "organize": "Organize & Rename",
+      "manual": "User Guide"
+    },
+    "manual": {
+      "faq_title": "FAQ",
+      "chapters_title": "Chapters"
+    },
+    "stage": {
+      "common": {
+        "prev": "Previous step",
+        "next": "Next step",
+        "dot_label": "Step {n}",
+        "scroll_hint": "Scroll down",
+        "you": "You",
+        "background": "Behind",
+        "goto": "Go to {page}"
+      },
+      "library": {
+        "subtitle": "Keep filenames and locations; add info and browse by cover",
+        "s1_you": "Drag the folder with your videos into \"{page}\"",
+        "s1_bg": "The folder is added to the list. Scanning doesn't start yet",
+        "s2_you": "Click \"{action}\"",
+        "s2_bg": "Reads existing covers and NFO (a file listing title and actresses) in the folder",
+        "s3_you": "When some videos lack info, click \"{action}\"",
+        "s3_bg": "Fills in covers and info only. Nothing is renamed or moved. Videos organized by other tools are kept as they are.",
+        "s4_you": "Click \"{page}\" in the sidebar",
+        "s4_bg": "The same videos appear as a cover wall. For new ones, click \"{action}\" again"
+      },
+      "organize": {
+        "subtitle": "Look up info, then rename and move by your rules",
+        "s1_you": "On the \"{page}\" page, set your naming rules and click \"{action}\"",
+        "s1_bg": "Instantly previews the folders and filenames after organizing",
+        "s2_you": "On the \"{page}\" page, drag the sources into your preferred order",
+        "s2_bg": "The order saves automatically; sources placed higher are tried first",
+        "s3_you": "On the \"{page}\" page, drag in new videos; switch source if info is wrong",
+        "s3_bg": "Covers and info are fetched in your order; your files haven't been touched yet",
+        "s4_you": "Click \"{single}\"; for several files, click \"{batch}\"",
+        "s4_bg": "Makes a subfolder in the video's folder, renames and moves it in, adds cover and NFO (title/actress file). Same as step 1's preview",
+        "mt_note": "Connect it to add 30+ more sources"
+      },
+      "demo": {
+        "folder_path": "D:\\Videos",
+        "actor_a": "Actress A",
+        "actor_b": "Actress B",
+        "actor_c": "Actress C",
+        "actor_d": "Actress D",
+        "log_done": "D:\\Videos: 12 videos (cached: 0, added/updated: 12)",
+        "note_unchanged": "Filenames and locations unchanged",
+        "folder_name": "Videos",
+        "log_found": "D:\\Videos: found 12 files",
+        "title_scanning": "Scanning: D:\\Videos",
+        "title_generating": "Generating offline page...",
+        "org_maker": "Demo Maker",
+        "org_title": "Sample Title",
+        "org_tree_root": "D:\\Downloads (the folder your videos were in)",
+        "org_tree_same": "Same as your preview"
+      }
+    },
     "tag_alias": {
       "title": "Tag Alias Management",
       "intro": "Manage Chinese/Japanese/English synonyms in one place so the search box, chip filters, and fuzzy exploration all speak the same language.",
@@ -2014,7 +2075,19 @@
     "close": "Close",
     "skip": "Skip",
     "next": "Next →",
-    "done": "Done 🎉"
+    "done": "Done 🎉",
+    "flow": {
+      "s1_title": "📂 Add a Library Folder",
+      "s1_content": "Pick the folder with your videos here, or drag it into this window<br>It's only added to the list; scanning doesn't start yet",
+      "s2_title": "▶ {action}",
+      "s2_content": "Click to read the covers and NFO (a file listing title and actresses) already in the folder",
+      "s3_title": "🌐 Videos missing info: click \"{action}\" to fill in",
+      "s3_content": "Videos missing a cover or info are listed like this. Click \"{action}\" to fill them in<br>Only covers and info are added. Nothing is renamed or moved; videos organized by other tools stay as they are.",
+      "s4_title": "🎬 Browse Your Collection",
+      "s4_content": "Click \"{page}\" in the sidebar to see your videos as a cover wall<br>For new videos, click \"{action}\" again",
+      "s4_more": "Want to customize naming and sources?",
+      "s4_more_link": "See \"{tab}\" on the \"{page}\" page"
+    }
   },
   "updater": {
     "page_title": "Updater",
