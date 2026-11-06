@@ -220,7 +220,7 @@ reviews:
 
         I18N — strategy is source-locale-only plus milestone sync. During development PRs, only
         locales/zh_TW.json is required to be updated.
-        - Missing keys or entire missing subtrees in zh_CN.json, ja.json, or en.json ARE NOT
+        - Missing keys or entire missing subtrees in zh_CN.json, ja.json, en.json, or ko.json ARE NOT
           FINDINGS. Do not report them.
         - DO flag: hardcoded Chinese UI text in HTML/JS that should use t() / window.t();
           t() / window.t() referencing keys missing from zh_TW.json; HTML-containing translations
@@ -247,7 +247,7 @@ reviews:
 
         I18N — strategy is source-locale-only plus milestone sync. During development PRs, only
         locales/zh_TW.json is required to be updated.
-        - Missing keys or entire missing subtrees in zh_CN.json, ja.json, or en.json ARE NOT
+        - Missing keys or entire missing subtrees in zh_CN.json, ja.json, en.json, or ko.json ARE NOT
           FINDINGS. Do not report them.
         - DO flag: hardcoded Chinese UI text in HTML/JS that should use t() / window.t();
           t() / window.t() referencing keys missing from zh_TW.json; HTML-containing translations

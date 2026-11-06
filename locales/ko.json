@@ -649,7 +649,7 @@
         "check_not_discriminative": "두 개의 다른 이미지 벡터가 너무 가깝습니다",
         "check_model_flapping": "동일 테스트에서 모델 문자열 불일치",
         "check_unknown": "반환값이 계약과 일치하지 않음 (원인 불명)",
-        "assistant_prompt": "OpenAver 이미지 유사 엔드포인트를 구축해 주세요. 사양은 https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md의 '이미지 유사' 섹션에 있으며, 해당 섹션의 일관성 테스트를 직접 검증한 후 보고해 주세요. 구축이 완료되면 엔드포인트 URL을 알려주세요. 제가 OpenAver 설정 페이지 'AI 기능 > 이미지 유사'에 입력할 것입니다. 이 OpenAver는 {lan_url}에 있으며, 엔드포인트는 이 URL에 접근 가능해야 합니다. 서비스를 부팅 시 자동 시작으로 설정해 주세요.",
+        "assistant_prompt": "OpenAver 이미지 유사 엔드포인트를 구축해 주세요. 사양은 https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md 의 '이미지 유사' 섹션에 있으며, 해당 섹션의 일관성 테스트를 직접 검증한 후 보고해 주세요. 구축이 완료되면 엔드포인트 URL을 알려주세요. 제가 OpenAver 설정 페이지 'AI 기능 > 이미지 유사'에 입력할 것입니다. 이 OpenAver는 {lan_url}에 있으며, 엔드포인트는 이 URL에 접근 가능해야 합니다. 서비스를 부팅 시 자동 시작으로 설정해 주세요.",
         "assistant_copied": "복사되었습니다. AI 어시스턴트에게 붙여넣었습니다.",
         "assistant_copy_failed": "복사 실패. 텍스트를 수동으로 선택해 주세요."
       },
@@ -667,7 +667,7 @@
         "btn_assistant": "AI 어시스턴트에게 설정 위임",
         "btn_docs": "문서 보기",
         "rebuild_confirm": "{n} 부분의 자동 초점을 삭제하고 처음부터 다시 계산합니다. 재계산이 완료되기 전까지 이 이미지들은 임시로 중앙 자르기를 사용합니다. 수동으로 초점을 드래그한 이미지는 영향을 받지 않습니다.",
-        "assistant_prompt": "OpenAver 얼굴 초점 엔드포인트를 설정해 주세요. 사양은 https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md의 '얼굴 초점' 섹션에 있으며, 해당 섹션에 따라 일관성 테스트를 직접 수행한 후 보고해 주십시오. 설정이 완료되면 엔드포인트 URL을 알려주세요. 제가 OpenAver 설정 페이지 'AI 기능 > 얼굴'에 입력하겠습니다. 이 OpenAver는 {lan_url}에 있으며, 엔드포인트는 이 URL로 접속 가능해야 합니다. 서비스를 부팅 시 자동 시작으로 설정해 주십시오.",
+        "assistant_prompt": "OpenAver 얼굴 초점 엔드포인트를 설정해 주세요. 사양은 https://github.com/slive777/OpenAver/blob/main/docs/external-ai.md 의 '얼굴 초점' 섹션에 있으며, 해당 섹션에 따라 일관성 테스트를 직접 수행한 후 보고해 주십시오. 설정이 완료되면 엔드포인트 URL을 알려주세요. 제가 OpenAver 설정 페이지 'AI 기능 > 얼굴'에 입력하겠습니다. 이 OpenAver는 {lan_url}에 있으며, 엔드포인트는 이 URL로 접속 가능해야 합니다. 서비스를 부팅 시 자동 시작으로 설정해 주십시오.",
         "assistant_copied": "복사되었습니다. AI 비서에게 붙여넣었습니다.",
         "assistant_copy_failed": "복사 실패. 텍스트를 수동으로 선택해 주세요.",
         "test_ok": "연결 성공 - 모델 {model}",

@@ -122,7 +122,7 @@ class OllamaTranslateService(TranslateService):
                     "url": "http://localhost:11434",
                     "model": "qwen3:8b"  # 所有翻譯都用此模型
                 }
-            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko）
         """
         self.ollama_url = (config.get("url") or "http://localhost:11434").rstrip("/")
         self.model = config.get("model") or "qwen3:8b"
@@ -255,7 +255,7 @@ class GeminiTranslateService(TranslateService):
                     "api_key": "AIza...",
                     "model": "gemini-flash-lite-latest"
                 }
-            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko）
         """
         self.api_key = config.get("api_key", "")
         self.model = config.get("model", "gemini-flash-lite-latest")
@@ -330,7 +330,7 @@ class OpenAICompatibleTranslateService(TranslateService):
                     "api_key": "sk-xxx",  # 可為空（本地 LLM 不需要）
                     "model": "gpt-4o-mini"
                 }
-            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko）
         """
         self.base_url = (config.get("base_url") or "").rstrip("/")
         self.api_key = config.get("api_key", "")
@@ -409,7 +409,7 @@ class ClaudeTranslateService(TranslateService):
                     "api_key": "sk-ant-...",
                     "model": "claude-haiku-5-5"
                 }
-            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko）
         """
         self.api_key = config.get("api_key", "")
         self.model = config.get("model") or DEFAULT_CLAUDE_MODEL
@@ -474,7 +474,7 @@ def create_translate_service(config: Dict, target_language: str = "zh-TW") -> Tr
                 "openai": {...},
                 "openai_official": {...}
             }
-        target_language: 目標語言代碼（zh-TW / zh-CN / en / ja），預設 zh-TW
+        target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko），預設 zh-TW
 
     Returns:
         TranslateService 實例

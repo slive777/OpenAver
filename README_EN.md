@@ -325,7 +325,7 @@ OpenAver/
 │   ├── path_utils.py   # Cross-platform path handling (file:// URI)
 │   ├── i18n.py         # i18n core (t() / fallback chain)
 │   └── translate_service.py  # AI translation (Ollama/Gemini/Claude/OpenAI Compatible)
-├── locales/            # 4-locale JSON (zh_TW/zh_CN/ja/en)
+├── locales/            # 5-locale JSON (zh_TW/zh_CN/ja/en/ko)
 ├── tests/              # Test suite (Pytest)
 └── windows/            # Windows launcher (PyWebView)
 ```
