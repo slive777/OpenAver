@@ -317,6 +317,26 @@ test('img_search_late_response_dropped', async () => {
         await p;
         assert.equal(skeletons(page), 0);
     }
+    // (f) 圖片查詢還在飛時改打文字搜尋 → 圖片回應晚到不得蓋掉文字搜尋
+    {
+        const e = env();
+        const { page, net } = e;
+        const pImg = page.imgSearchStart(mkFile());
+        await tick();
+        assert.equal(blobs.alive.size, 1);
+        await page.doSearch('ABC-123');
+        assert.equal(blobs.alive.size, 0, '查詢被撤掉、URL 回收');
+        assert.equal(page.imgSearchPhase, 'idle');
+        net.release(isUpload, envelope(2));                 // 假 fetch 忽略 signal，晚到
+        await tick();
+        await pImg;
+        assert.equal(page.pageState, 'loading');
+        assert.equal(page.currentQuery, 'ABC-123');
+        assert.deepEqual(unwrap(page.searchResults), []);
+        assert.equal(page.imgSearchSession, null);
+        assert.equal(blobs.alive.size, 0);
+        assert.equal(FakeES.instances.at(-1).closed, false, '文字搜尋的 SSE 沒被 cancelSearch 關掉');
+    }
     // (e) 使用者先動過檢視 → 第一名補上不轉
     {
         const e = env();

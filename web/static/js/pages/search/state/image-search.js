@@ -121,7 +121,9 @@ export function searchStateImageSearch() {
         this.imgSearchPhase = 'idle';
     },
 
+    // doSearch 起手掛勾：先撤掉進行中的圖片查詢（同 ✕，不出 toast），再停候選逐部查詢
     imgSearchStopLookup() {
+        this.imgSearchAbortQuery();
         if (!this.imgSearchLooking) return;
         this._abortControllers.imgSearchLookup?.abort();
         this.imgSearchSession.loop = null;
