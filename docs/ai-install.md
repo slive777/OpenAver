@@ -99,7 +99,7 @@ If the user says no, tell them they can do it later with the same button.
 
 ## 7. Show the library
 
-Open the Browse page (`BASE/showcase`) on the user's screen: in the app window, click "Browse" in the sidebar, or open that address in their browser. Confirm they can see their covers before you continue. Setup is complete at this point.
+Open the Browse page (`BASE/showcase`) on the user's screen: in the app window, click "Showcase" (瀏覽) in the sidebar, or open that address in their browser. Confirm they can see their covers before you continue. Setup is complete at this point.
 
 Tell the user, in two or three sentences:
 
