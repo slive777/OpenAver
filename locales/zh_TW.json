@@ -1713,7 +1713,11 @@
         "folder_name": "影片",
         "log_found": "D:\\影片: 找到 12 個檔案",
         "title_scanning": "掃描: D:\\影片",
-        "title_generating": "產生離線網頁..."
+        "title_generating": "產生離線網頁...",
+        "org_maker": "示範片商",
+        "org_title": "範例標題",
+        "org_tree_root": "D:\\下載（原本放片的資料夾）",
+        "org_tree_same": "和你預覽的一樣"
       }
     },
     "tag_alias": {
