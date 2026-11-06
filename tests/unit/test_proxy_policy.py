@@ -42,6 +42,9 @@ MATRIX = [
     ('image', None, PLAIN_IMG, _s('all'), PROXY),
     # metatube 中轉圖：永遠不走
     ('image', None, RELAY, _s('all'), None),
+    # image_search（以圖查番號）：只有 all
+    ('image_search', None, None, _s('all'), PROXY),
+    ('image_search', None, None, _s('dmm'), None),
 ]
 
 
