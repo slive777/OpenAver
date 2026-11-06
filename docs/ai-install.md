@@ -50,6 +50,17 @@ curl -s http://127.0.0.1:49152/api/version
 
 Use that address as `BASE` below. Requests from the same computer need no token.
 
+### The first-run tour
+
+The first time the app opens, a tour appears over the window. It walks the user through the same things you are about to do in steps 3 to 6: add a folder, update the library, fill in missing info, open the Browse page.
+
+Tell the user this as soon as the app is open, and let them choose:
+
+- **You do it.** They press "Skip" (跳過) on the tour, and you continue with step 3. The tour can be replayed later from the Help page.
+- **They follow the tour themselves.** Do not run steps 3 to 6. Stay available for questions, wait until they say they are done, then continue from step 7.
+
+Do not dismiss the tour for them and do not mark it as completed through the API.
+
 ## 3. Ask where the videos are
 
 Ask one question only: which folder or folders hold the user's videos. Confirm each path exists.
