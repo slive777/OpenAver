@@ -2,12 +2,12 @@
 
 This file is for an AI agent (Claude Code, Codex, Cursor, and similar) that a user has asked to install OpenAver and get it ready to use. Follow the steps in order. Humans can use the [README](../README.md) instead.
 
-When you are done, the user should have: the latest release installed, the app open on their screen, their video folder added, a naming format they agreed to, and their library scanned once.
+Setup is complete when the user is looking at their own covers in the app: the latest release installed, the app open, their video folder added, the library scanned. Naming for new videos comes after that, as one optional question.
 
 ## Rules
 
 - Install the latest **release**. Do not clone the repository or run from source. The `main` branch is ahead of the release and its features may not exist in what you install.
-- Ask the user the questions in step 3. Do not guess a folder or a naming format.
+- Do not guess the video folder; ask. Do not save a naming format the user has not agreed to.
 - Never move, rename or delete the user's video files during setup. Nothing in this guide does.
 - Take field names and current values from the running app, not from this file. This file can be newer than the installed release.
 - Talk to the user in their own language.
@@ -50,32 +50,18 @@ curl -s http://127.0.0.1:49152/api/version
 
 Use that address as `BASE` below. Requests from the same computer need no token.
 
-## 3. Ask the user
+## 3. Ask where the videos are
 
-Ask these before changing any setting.
+Ask one question only: which folder or folders hold the user's videos. Confirm each path exists.
 
-**a. Where are your videos?**
-One or more folders. Confirm each path exists before you save it.
+Do not ask about naming or any other setting yet. The user should see their library first.
 
-**b. How should new videos be named?**
-This applies only when the user later uses "Organize" on the Search page. Scanning an existing library never renames anything.
-
-Read the current format with `GET BASE/api/config` (see `data.scraper`) and the available variables with `GET BASE/api/config/format-variables`. Build one concrete example path from the values you just read (folder levels only when `create_folder` is true, then the file name, filled in with the example values from `format-variables`) and show it to the user. Do not reuse an example from this file. Then ask whether to keep it or change it. The parts they can change:
-
-- whether each video gets its own folder (`create_folder`)
-- the folder levels, outermost first (`folder_layers`, up to 3)
-- the file name (`filename_format`)
-
-If the user has no preference, keep the default.
-
-## 4. Save the settings
+## 4. Add the folders
 
 Settings are saved as one whole object.
 
 1. `GET BASE/api/config` and take the `data` object.
-2. Change only what the user asked for:
-   - add each folder to `data.gallery.directories` as `{"path": "<folder>"}`. Keep entries that are already there.
-   - naming fields under `data.scraper`. If you change `folder_layers`, also set `folder_format` to the same levels joined with `/`.
+2. Add each folder to `data.gallery.directories` as `{"path": "<folder>"}`. Keep entries that are already there.
 3. `PUT BASE/api/config` with the full `data` object as the JSON body.
 
 Leave every other field exactly as you received it, including API keys, which come back masked. Do not send the top-level `resolved` field back.
@@ -111,16 +97,47 @@ If the user says yes, ask them to click "Enrich All" (一鍵補完) on the Libra
 
 If the user says no, tell them they can do it later with the same button.
 
-## 7. Hand over
+## 7. Show the library
 
-Tell the user, briefly:
+Open the Browse page (`BASE/showcase`) on the user's screen: in the app window, click "Browse" in the sidebar, or open that address in their browser. Confirm they can see their covers before you continue. Setup is complete at this point.
 
-- OpenAver is open, and the cover wall is on the Browse page (`BASE/showcase`).
+Tell the user, in two or three sentences:
+
 - how many videos were found, and how many still lack a cover or info.
-- the naming format that is saved, and that it is used only when they organize new videos from the Search page.
-- the first-run tour in the app shows the same steps and can be skipped.
+- clicking a cover opens its details.
+- new videos come in through the Search page.
 
-For anything after setup, such as favourites, tags, bookmarks or custom sources, read the app's own description of its API:
+Do not teach more than that. For the rest, point to the first-run tour and the Help page inside the app. They match the installed version; your own explanation may not.
+
+## 8. Then ask once about new videos
+
+After the user has seen their library, ask one question: when new videos arrive, should OpenAver rename them and sort them into folders?
+
+- If no, stop here. Tell them they can ask you later.
+- If yes, continue below.
+
+This setting is used when the user presses "Organize" on the Search page. Saving it changes nothing by itself. Organizing a video that is already in the library will move and rename it too, so tell the user that.
+
+**Propose a format instead of asking for one.** Most users cannot describe a naming format, but they already have one on disk.
+
+1. Look at how the user's existing videos are laid out: list a sample of paths in the folders from step 3.
+2. Read the current settings with `GET BASE/api/config` (see `data.scraper`) and the available variables with `GET BASE/api/config/format-variables`.
+3. If the existing videos follow a clear pattern, find the closest format the variables can express and show it as one concrete example path, built from the user's own data. Ask: "Your videos are mostly laid out like this. Use the same for new ones?"
+4. If there is no clear pattern, say so. Show one example of the current setting instead and ask whether to keep it. Do not guess.
+
+The parts you can set:
+
+- whether each video gets its own folder (`create_folder`)
+- the folder levels, outermost first (`folder_layers`, up to 3). Include folder levels in your example only when `create_folder` is true.
+- the file name (`filename_format`)
+
+Save only after the user agrees, the same way as step 4: `GET`, change the fields under `data.scraper`, `PUT` the whole object. If you change `folder_layers`, also set `folder_format` to the same levels joined with `/`.
+
+Then tell the user what was saved, and that they organize a new video by dropping it on the Search page and pressing "Organize".
+
+## After setup
+
+For anything else, such as favourites, tags, bookmarks or custom sources, read the app's own description of its API:
 
 ```bash
 curl -s BASE/api/capabilities
