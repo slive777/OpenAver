@@ -18,14 +18,14 @@ class AvscanGate:
         self._in_flight = False
         self._next_allowed = float("-inf")
 
-    def _retry_after(self, now: float) -> int:
-        return max(1, math.ceil(self._next_allowed - now))
+    def _retry_after(self, now: float, floor: float = 0) -> int:
+        return max(1, math.ceil(max(self._next_allowed - now, floor)))
 
     def try_acquire(self) -> tuple[bool, int]:
         with self._lock:
             now = self._clock()
             if self._in_flight:
-                return False, self._retry_after(now)
+                return False, self._retry_after(now, self._min_gap)
             if now < self._next_allowed:
                 return False, self._retry_after(now)
             self._in_flight = True

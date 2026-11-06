@@ -34,7 +34,7 @@ def test_gate_in_flight_blocks_even_after_gap():
     assert gate.try_acquire()[0] is True
     clock.now = 100
     ok, retry_after = gate.try_acquire()
-    assert ok is False and retry_after >= 1
+    assert ok is False and retry_after >= 5
     gate.release()
     assert gate.try_acquire()[0] is True
 

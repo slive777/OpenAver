@@ -1,3 +1,4 @@
+import struct
 from io import BytesIO
 
 from PIL import Image, ImageOps
@@ -24,7 +25,9 @@ def prepare_image(data: bytes) -> bytes:
             raise ImageTooLarge(f"image {w}x{h} exceeds pixel limit")
     except ImageTooLarge:
         raise
-    except (OSError, Image.DecompressionBombError, ValueError) as e:
+    except Image.DecompressionBombError as e:
+        raise ImageTooLarge("image exceeds pixel limit") from e
+    except (OSError, ValueError) as e:
         raise ImageUnsupported("cannot open image") from e
     if max(w, h) <= MAX_EDGE:
         return data
@@ -34,5 +37,7 @@ def prepare_image(data: bytes) -> bytes:
         out = BytesIO()
         img.convert("RGB").save(out, "JPEG", quality=JPEG_QUALITY)
         return out.getvalue()
-    except (OSError, Image.DecompressionBombError, ValueError) as e:
+    except Image.DecompressionBombError as e:
+        raise ImageTooLarge("image exceeds pixel limit") from e
+    except (OSError, ValueError, SyntaxError, EOFError, struct.error) as e:
         raise ImageUnsupported("cannot decode or resize image") from e

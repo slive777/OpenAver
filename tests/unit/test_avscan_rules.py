@@ -1,3 +1,4 @@
+import os
 from io import BytesIO
 
 import pytest
@@ -112,13 +113,23 @@ def test_prepare_image_passthrough_small():
     assert prepare_image(data) is data
 
 
-@pytest.mark.parametrize("kind", ["too_large", "not_image"])
-def test_prepare_image_rejects(kind):
+@pytest.mark.parametrize("kind", ["too_large", "bomb", "truncated", "not_image"])
+def test_prepare_image_rejects(kind, monkeypatch):
+    buf = BytesIO()
     if kind == "too_large":
-        buf = BytesIO()
         Image.new("1", (7100, 7100)).save(buf, "PNG")
         with pytest.raises(ImageTooLarge):
             prepare_image(buf.getvalue())
+    elif kind == "bomb":
+        monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 100)
+        Image.new("RGB", (100, 100)).save(buf, "PNG")
+        with pytest.raises(ImageTooLarge):
+            prepare_image(buf.getvalue())
+    elif kind == "truncated":
+        Image.frombytes("RGB", (1500, 1200), os.urandom(1500 * 1200 * 3)).save(buf, "PNG")
+        data = buf.getvalue()
+        with pytest.raises(ImageUnsupported):
+            prepare_image(data[: len(data) // 2])
     else:
         with pytest.raises(ImageUnsupported):
             prepare_image(b"this is not an image")
