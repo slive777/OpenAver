@@ -648,6 +648,44 @@ _TOOLS: list[dict] = [
         "_example_template": "curl -o cover.jpg '{base}/api/proxy-image?url=https://pics.dmm.co.jp/digital/video/ssis00221/ssis00221pl.jpg'",
     },
     {
+        "name": "image_search_number",
+        "description": (
+            "以影片截圖或封面圖查番號：把一張圖送到 avscan.cc 比對，回傳最像的最多 5 部候選（含 OpenAver 搜尋可直接用的番號、片庫有沒有）。不寫檔、不寫資料庫、不存圖。"
+            "會把這張圖傳到第三方網站 avscan.cc，呼叫前必須先問使用者並取得同意。"
+            "沒有明確命中（`clear_hit:false`）時，不得自行拿第一名去整理（整理會搬檔改名，認錯了要手動救）；把候選攤給使用者選。"
+            "只吃影片截圖和封面；官方劇照、一般照片通常認不出；送圖速度由 OpenAver 把關，收到 `rate_limited` 請等 `retry_after` 秒，不要重試轟炸。"
+            "認不出番號的影片檔，自己從影片中段截一張（不要截片頭：片商標誌、警語那幾分鐘）再送；圖太大時 OpenAver 會先縮小再送。"
+            "操作步驟見 docs/external-ai.md「Find the number from a screenshot」。"
+        ),
+        "method": "POST",
+        "path": "/api/image-search",
+        "input_schema": {
+            "type": "object",
+            "description": "multipart/form-data body（非 JSON），欄位如下",
+            "properties": {
+                "file": {"type": "string", "format": "binary", "description": "一張圖，JPG／PNG／WEBP，≤8MB（multipart form field，一次一張）"},
+            },
+            "required": ["file"],
+        },
+        "output_schema": {
+            "success": "boolean — 成功時 true，失敗時 false",
+            "source": "string — 固定 \"avscan\"",
+            "clear_hit": "boolean — 有沒有明確命中（至少 2 部候選且第一名領先第二名 ≥8 分才為 true）；唯一判定點，助理不要自己重算",
+            "lead": "number|null — 第一名領先第二名幾分；候選少於 2 部時 null",
+            "candidates": "array — 最多 5 部、依 avscan 名次；每部 {rank, code, number, searchable, similarity, match, in_library}：code＝avscan 原樣番號；number＝對應成 OpenAver 格式的番號；searchable＝OpenAver 的搜尋能不能直接用 number 查（false 時 number 原樣等於 code，不要拿去 /api/search）；similarity＝百分點；match＝{kind: \"frame\"|\"cover\", cover_part: null|\"full\"|\"left\"|\"right\", time_seconds: int|null, time_text: \"HH:MM:SS\"|null, thumb_url: string|null}（取最像的那一格）；in_library＝boolean|null（片庫已有這個番號為 true，查詢失敗為 null，不是 false）。候選可能為空（HTTP 200、candidates:[]、clear_hit:false），當作這次沒查到",
+            "error": "string — 失敗時的錯誤碼（僅 success:false 時出現），值見 error_codes",
+            "message": "string — 失敗時的一句中文說明（僅 success:false 時出現）",
+            "retry_after": "integer — 建議等待秒數（僅附帶時出現）",
+            "error_codes": "rate_limited（429：本機速度把關擋下，或站方回 429；請等 retry_after 秒）／unreachable（502：連不上／逾時／站方 5xx／被 Cloudflare 擋／回非 JSON／轉址）／unparseable（502：站方回了 JSON 但形狀不是預期）／file_too_large（413：超過 8MB 或像素數太多）／unsupported_image（415：檔頭不是 JPEG／PNG／WebP、圖解不開、或站方判定圖無效）",
+        },
+        "side_effect": False,
+        "confirmation_required": True,
+        "retry_safe": True,
+        "rate_limit_hint": "全域每 5 秒最多送出 1 張（畫面與助理合計）；超過立即回 429 rate_limited＋retry_after，不排隊",
+        "cost_hint": "每次呼叫把 1 張圖傳到第三方 avscan.cc；無本機費用",
+        "_example_template": "curl -F file=@shot.jpg {base}/api/image-search",
+    },
+    {
         "name": "user_tags",
         "description": (
             "管理用戶自訂標籤（評分、書籤、分類等）。存入 DB + NFO <user_tag> 元素，不被 scraper refresh 覆蓋。"
