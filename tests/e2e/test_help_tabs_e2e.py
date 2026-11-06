@@ -408,6 +408,7 @@ def test_stage_keyboard_walks_four_steps(page: Page, base_url: str) -> None:
     for _ in range(4):
         page.keyboard.press("PageDown")
     expect(count).to_have_text("4 / 4", timeout=6000)
+    expect(page.locator('.hs-root[data-hs-stage="library"] [data-hs-next]')).to_be_disabled()  # 末步：下一步不能按
     page.wait_for_function("(n) => {" + _LIB + " return Math.abs(parseFloat(vAttr(n)) - 3.86) < 0.02; }", arg="library")
     page.keyboard.press("PageUp")
     expect(count).to_have_text("3 / 4", timeout=6000)
@@ -443,13 +444,15 @@ def test_switching_tab_resets_stage_to_first_step(page: Page, base_url: str, src
             const q = (s) => root(b).querySelector(s), tr = document.querySelector('.help-tabs').getBoundingClientRect();
             const cv = q('.hs-canvas').getBoundingClientRect();
             const anchor = document.querySelector('.help-tabs-panels').getBoundingClientRect().top + scrollY;
-            return { count: q('.hs-count').textContent, v: vAttr(b),
+            return { srcCount: root(a).querySelector('.hs-count').textContent, srcV: vAttr(a),  // 剛離開的舞台：離開當下已重畫回第一幀
+                     count: q('.hs-count').textContent, v: vAttr(b),
                      tabsIn: tr.top >= 0 && tr.bottom <= innerHeight, cw: cv.width, ch: cv.height,
                      vis: getComputedStyle(q('.hs-canvas')).visibility, dy: Math.abs(scrollY - (anchor - tr.height)),
                      srcDisplay: getComputedStyle(document.querySelector('[data-help-panel="' + a + '"]')).display }; }""",
             [a, b],
         )
         assert res["count"] == "1 / 4" and res["v"] == "0.000", res
+        assert res["srcCount"] == "1 / 4" and res["srcV"] == "0.000", res  # 再切回來不會先閃舊的一步
         assert res["tabsIn"] and res["cw"] > 0 and res["ch"] > 0 and res["vis"] != "hidden", res
         assert res["dy"] <= 2 and res["srcDisplay"] == "none", res
         if a == src:

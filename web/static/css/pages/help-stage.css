@@ -126,7 +126,12 @@
         top: 0;
         left: 0;
         width: 1100px;
+        visibility: hidden; /* 引擎畫完第一幀才加 .is-ready，避免閃未 render 的 markup */
         transform-origin: 0 0;
+    }
+
+    .hs-root.is-ready .hs-canvas {
+        visibility: visible;
     }
 
     .hs-hint {

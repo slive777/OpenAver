@@ -120,6 +120,7 @@ export function createStage(root, scene) {
         });
         txt(count, n + ' / ' + N_STEPS);
         prevBtn.disabled = n === 1;
+        nextBtn.disabled = n === N_STEPS;
     }
 
     function frameTick() {
@@ -173,7 +174,7 @@ export function createStage(root, scene) {
         if (e.altKey || e.ctrlKey || e.metaKey) return;
         const space = e.key === ' ';
         const tg = e.target;
-        if (space && tg && tg.closest && tg.closest('button:not(.hs-dot):not(.hs-arr), a, summary, input')) return;
+        if (space && tg && tg.closest && tg.closest('button, a, summary, input')) return;
         if (!space && e.key !== 'PageDown' && e.key !== 'PageUp') return;
         const m = metrics();
         const pinned = m.top <= m.gap + 1 && m.top + m.h - m.pinH > m.gap - 1;
@@ -208,6 +209,7 @@ export function createStage(root, scene) {
         cur = goal = readGoal();
         shown = 0;
         draw(cur);
+        cls(root, 'is-ready', true); // 第一幀畫完才顯示畫布內容（CSS 以此類別解除隱藏），不閃未 render 的 markup
         window.addEventListener('scroll', kick, { passive: true, signal });
         window.addEventListener('wheel', stopGlide, { passive: true, signal });
         window.addEventListener('touchstart', stopGlide, { passive: true, signal });
@@ -278,6 +280,8 @@ export function createStage(root, scene) {
             envAc = null;
             cancelAnimationFrame(envRaf);
             envRaf = 0;
+            // 離開分頁當下重畫回第一幀：再切回來時 activate 排在 rAF 之後，這之前畫面不能還停在舊的一步
+            if (ac) { cur = goal = 0; shown = 0; draw(0); }
             stopMachinery();
         },
     };
