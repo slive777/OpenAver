@@ -1677,7 +1677,8 @@
         "dot_label": "第 {n} 步",
         "scroll_hint": "往下捲",
         "you": "你",
-        "background": "背後"
+        "background": "背後",
+        "goto": "前往{page}"
       },
       "library": {
         "subtitle": "保留檔名和位置，補資料、用封面看",
@@ -1708,7 +1709,11 @@
         "actor_c": "演員C",
         "actor_d": "演員D",
         "log_done": "D:\\影片: 12 部 (快取: 0, 新增/更新: 12)",
-        "note_unchanged": "檔名和位置都沒變"
+        "note_unchanged": "檔名和位置都沒變",
+        "folder_name": "影片",
+        "log_found": "D:\\影片: 找到 12 個檔案",
+        "title_scanning": "掃描: D:\\影片",
+        "title_generating": "產生離線網頁..."
       }
     },
     "tag_alias": {

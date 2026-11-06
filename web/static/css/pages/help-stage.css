@@ -1577,3 +1577,194 @@
         inset 0 -1px 0 var(--glass-shell-edge-bottom),
         var(--fluent-shadow-8);
 }
+
+/* ========== 191a-T7: 「建立片庫」舞台演出（時間表取自 poc/v3/stage.js；畫面是 v 的純函式）==========
+   本區只新增、不改 T3／T5／T6 既有規則；沒有無限循環的 CSS 動畫（spinner 轉角由 scene 依 v 寫）；
+   顏色圓角陰影走 token；游標箭頭用具名色（作業系統游標不隨主題）。 */
+
+/* tile 要飛到瀏覽頁的牆卡上方：scroll 層疊在瀏覽頁之上（掃描頁淡出時兩層 op 交接，不互相遮） */
+.hs-app-scroll {
+    z-index: 1;
+}
+
+/* 步 1：空狀態佔版面、資料夾列不佔（POC v<.38）；預設態（上方 T6 規則）不變 */
+.hs-lib-folderlist.is-empty .hs-lib-empty {
+    position: static;
+    visibility: visible;
+    opacity: 1;
+}
+
+.hs-lib-folderlist.is-empty .hs-lib-folder {
+    display: none;
+}
+
+/* 按鈕 idle／loading 兩個標籤並列，display: contents 讓內容直接成為按鈕的 flex 子項（版面與單一標籤相同） */
+.hs-lib-lab {
+    display: none;
+}
+
+.hs-lib-lab.is-on {
+    display: contents;
+}
+
+/* spinner：border 環，轉角由 scene 依 v 寫 transform */
+.hs-lib-spin {
+    box-sizing: border-box;
+    border: 2px solid color-mix(in oklch, currentcolor 25%, transparent);
+    border-top-color: currentcolor;
+    border-radius: 50%;
+}
+
+/* 紀錄 14 行常駐 DOM：不顯示的 display: none，justify-content: flex-end 才會貼底對齊；顯示的加 .hs-lib-logline */
+.hs-lib-ll {
+    display: none;
+}
+
+.hs-lib-ll.hs-lib-logline {
+    display: block;
+}
+
+/* 來源膠囊亮起 */
+.hs-lib-pill.is-on {
+    color: var(--color-primary-content);
+}
+
+/* tile：檔名條（高亮番號）、頁腳演員 */
+.hs-lib-tile {
+    will-change: transform;
+}
+
+.hs-lib-tfn {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font: 12px/1 var(--font-mono);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
+}
+
+.hs-lib-tmark {
+    padding: 2px 1px;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--color-warning) calc(var(--hs-hl, 0) * 45%), transparent);
+    border-radius: var(--fluent-radius-sm);
+}
+
+.hs-lib-tact {
+    font-size: 11px;
+    color: var(--text-secondary);
+    visibility: hidden;
+    opacity: 0;
+}
+
+/* 資料送到缺封面的片（路徑與端點由 scene.layout() 量） */
+.hs-lib-beams {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.hs-lib-beams path {
+    fill: none;
+    stroke: var(--color-primary);
+    stroke-width: 1.5;
+    stroke-dasharray: 1 1;
+    stroke-linecap: round;
+    visibility: hidden;
+    opacity: 0;
+}
+
+.hs-lib-beams circle {
+    fill: var(--color-primary);
+    visibility: hidden;
+    opacity: 0;
+}
+
+/* 游標與被拖的資料夾 chip：畫布內、.hs-app 之外的兄弟，座標是畫布內座標 */
+.hs-lib-chip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 8;
+    box-sizing: border-box;
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    height: 42px;
+    padding: 0 16px;
+    font-size: 14px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    pointer-events: none;
+    visibility: hidden;
+    background: var(--color-base-100);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--fluent-radius-lg);
+    box-shadow: var(--fluent-shadow-16);
+    opacity: 0;
+}
+
+.hs-lib-chip .bi {
+    color: var(--color-warning);
+}
+
+/* 0×0 錨點，左上角＝游標尖端；箭頭用負偏移把尖端（箭頭 viewBox 的 4,2）對到錨點 */
+.hs-lib-cur {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 9;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+}
+
+.hs-lib-cur svg {
+    position: absolute;
+    top: -2.18px;
+    left: -4.36px;
+    display: block;
+    width: 24px;
+    height: 24px;
+    overflow: visible;
+}
+
+.hs-lib-cur path {
+    fill: white;
+    stroke: black;
+    stroke-width: 1.3;
+    stroke-linejoin: round;
+}
+
+/* 結尾按鈕：在畫布外、舞台底部（畫布維持 aria-hidden 且零可聚焦）；顯隱與可點由 scene 依 v 驅動 */
+.hs-cta-wrap {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 6;
+    display: flex;
+    justify-content: center;
+    padding: 40px 0 16px;
+    pointer-events: none;
+    visibility: hidden;
+    background: linear-gradient(to top, color-mix(in oklch, var(--color-base-300) 92%, transparent), transparent);
+    opacity: 0;
+}
+
+.hs-cta-wrap.is-live {
+    pointer-events: auto;
+}
+
+.hs-cta {
+    gap: 8px;
+}
