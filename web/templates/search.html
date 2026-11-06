@@ -9,12 +9,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="search-container ds-page page-layer" x-data="searchPage" @keydown.window="handleKeydown($event)" @wheel="handleWheel($event)">
+<div class="search-container ds-page page-layer" x-data="searchPage" @keydown.window="handleKeydown($event)" @paste.window="imgSearchOnPaste($event)" @wheel="handleWheel($event)">
     <!-- 拖拽覆蓋層（必須在 x-data scope 內） -->
     <div class="drag-overlay" id="dragOverlay" :class="{ active: dragActive }">
         <div class="drag-overlay-content">
-            <i class="bi bi-file-earmark-play"></i>
-            <p>{{ t('search.drag_overlay.hint') }}</p>
+            <i class="bi" :class="imgSearchDragHint ? 'bi-image' : 'bi-file-earmark-play'"></i>
+            <p x-show="!imgSearchDragHint">{{ t('search.drag_overlay.hint') }}</p>
+            <p x-show="imgSearchDragHint">{{ t('search.image.drag_hint') }}</p>
         </div>
     </div>
 
@@ -413,7 +414,7 @@
     <!-- 搜尋框（Spotlight 中央輸入；US-1 navbar 收合不作用於 search 頁，維持永遠可見） -->
     <div class="search-bar">
         <form id="searchForm" @submit.prevent="doSearch()">
-            <div class="spotlight-search spotlight-search--wishlist-toggle">
+            <div class="spotlight-search spotlight-search--wishlist-toggle" :class="{ 'spotlight-search--has-thumb': imgThumbSrc !== '', 'is-querying': imgSearchPhase === 'querying' }">
                 <!-- TASK-140-T7 / spec F2：segmented 檢視切換，取代原本的 search-icon-left -->
                 <div class="mode-toggle">
                     <button type="button" class="mode-toggle-btn"
@@ -430,12 +431,17 @@
                         <span class="mode-toggle-badge" x-show="wishlistCount > 0" x-text="wishlistCount"></span>
                     </button>
                 </div>
-                <input type="text" id="searchQuery" name="q" placeholder="{{ t('search.placeholder.query') }}" autocomplete="off" x-model="searchQuery" x-ref="searchQuery" @keydown.enter="if ($event.isComposing) { $event.preventDefault(); return; }">
+                <!-- 193-T9: 用圖查番號的小縮圖（input 的兄弟元素；查詢中壓暗＋spinner） -->
+                <span class="search-thumb" :class="{ 'is-pending': imgSearchPhase === 'querying' }" x-show="imgThumbSrc !== ''" x-cloak>
+                    <img :src="imgThumbSrc" alt="{{ t('search.image.thumb_alt') }}">
+                    <span class="loading loading-spinner loading-sm" x-show="imgSearchPhase === 'querying'"></span>
+                </span>
+                <input type="text" id="searchQuery" name="q" placeholder="{{ t('search.placeholder.query') }}" :placeholder="imgSearchPhase === 'querying' ? t('search.image.searching') : t('search.placeholder.query')" autocomplete="off" x-model="searchQuery" x-ref="searchQuery" @input="imgSearchOnInput()" @keydown.enter="if ($event.isComposing) { $event.preventDefault(); return; }">
                 <div class="search-actions-right">
                     <!-- 取消搜尋按鈕（loading 狀態顯示） -->
                     <button type="button"
-                            x-show="pageState === 'loading'"
-                            @click="cancelSearch()"
+                            x-show="pageState === 'loading' || imgSearchLooking"
+                            @click="imgSearchOnCancel()"
                             class="btn-icon"
                             title="{{ t('search.action.cancel_search') }}">
                         <i class="bi bi-x-lg"></i>
@@ -449,15 +455,21 @@
                          **只存在於 `.search-grid` 之內**，是格牆唯一獨有的可點元素；其餘六顆鈕大卡都有）。
                          改動前 actress 模式是無條件顯示的 ⇒ 那是本次新增的死路，違反 spec F4 驗收 2。
                          前綴單一結果仍不顯示：那時格牆裡就是同一張卡、沒有多出任何東西，
-                         spec 自己那句「一張卡的格牆沒有意義」成立。精確番號單一結果同理，驗收 3 不受影響。 -->
+                         spec 自己那句「一張卡的格牆沒有意義」成立。精確番號單一結果同理，驗收 3 不受影響。
+                         193-T10：`|| imgSearchShown`——圖片搜尋只有一部候選時，格牆第一格是使用者的圖，
+                         也算有第二張卡；@click 的 imgSearchNoteMove() 是告訴圖片搜尋「使用者自己動過檢視」，
+                         自動轉詳細不要再把人轉走。 -->
                     <button type="button"
                             class="btn-icon rotating-border-spotlight active"
-                            x-show="listMode === 'search' && pageState === 'result' && (searchResults.length > 1 || actressProfile) && !isComposing()"
-                            @click="toggleDisplayMode()"
+                            x-show="listMode === 'search' && pageState === 'result' && (searchResults.length > 1 || actressProfile || imgSearchShown) && !isComposing()"
+                            @click="toggleDisplayMode(); imgSearchNoteMove()"
                             :title="displayMode === 'detail' ? t('search.action.toggle_grid') : t('search.action.toggle_detail')">
                         <i class="bi" :class="displayMode === 'detail' ? 'bi-grid-3x3' : 'bi-list-ul'"></i>
                     </button>
-                    <button type="button" id="btnClear" class="btn-icon" x-show="hasContent" x-cloak @click="clearAll()" title="{{ t('search.action.clear') }}">
+                    <button type="button" id="btnImageSearch" class="btn-icon" x-show="showImageBtn" x-cloak @click="imgSearchPickFile()" title="{{ t('search.image.btn_title') }}" aria-label="{{ t('search.image.btn_title') }}">
+                        <i class="bi bi-image"></i>
+                    </button>
+                    <button type="button" id="btnClear" class="btn-icon" x-show="showClearBtn" x-cloak @click="imgSearchOnClear()" title="{{ t('search.action.clear') }}">
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <!-- US1: 自動來源膠囊（compose 態顯示，點擊開進階搜尋 picker） -->
@@ -475,6 +487,7 @@
                 </div>
             </div>
         </form>
+        <input type="file" id="imgSearchFileInput" accept="image/jpeg,image/png,image/webp" x-ref="imgSearchFile" hidden @change="imgSearchOnFilePicked($event)">
     </div>
 
     <!-- 結果區域 -->
@@ -652,9 +665,51 @@
             <!-- T5: Actress Banner 完全移除（Detail 模式不顯示女優資訊）-->
             <!-- Hero Card 仍在 Grid 模式顯示（L379-400，已有 x-show="displayMode === 'grid'"） -->
 
+            <!-- 193-T10: 圖片搜尋比對列（詳細檢視最上面；沒有圖片搜尋時 x-if 不渲染） -->
+            {% include '_image_match_row.html' %}
+
+            <!-- 193-T10: _notFound 詳細面板（avscan 認出、來源查不到的候選；兩種檢視都導航得到）。
+                 觸控滑動掛在面板根（.av-card-full 不得有 touchstart/touchend，162c 守衛） -->
+            <div class="state-page error notfound-panel w-full rotating-border-spotlight"
+                 x-show="displayMode === 'detail' && current()._notFound"
+                 x-cloak
+                 :class="{ 'active': shouldShowLocalBorder(current()) }"
+                 @touchstart.passive="_dtTouchStart($event)"
+                 @touchend.passive="_dtTouchEnd($event)">
+                <i class="bi bi-exclamation-triangle state-page-icon"></i>
+                <h4 class="notfound-number" x-text="current().number"></h4>
+                <p class="state-page-text error-text">{{ t('search.error.no_data') }}</p>
+                <small class="state-page-hint">{{ t('search.image.not_found.hint') }}</small>
+                {{ source_pill(
+                    name="t('search.image.not_found.search_cta')",
+                    censored=true,
+                    variant='action',
+                    icon='bi-search',
+                    extra_classes='state-page-action',
+                    attrs='@click="searchQuery = current().number; doSearch(searchQuery)"'
+                ) }}
+                <div class="error-nav" x-show="showNavigation()">
+                    <button class="btn btn-sm btn-outline btn-neutral"
+                            id="notFoundBtnPrev"
+                            :disabled="!canGoPrev()"
+                            @click="navigate(-1)"
+                            title="{{ t('search.nav.prev') }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <span class="error-nav-indicator" id="notFoundNavIndicator" x-text="navIndicatorText()">1/5</span>
+                    <button class="btn btn-sm btn-outline btn-neutral"
+                            id="notFoundBtnNext"
+                            :disabled="!canGoNext()"
+                            @click="navigate(1)"
+                            title="{{ t('search.nav.next') }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
             <!-- AV Card Full：封面 + 資訊並排（Detail 模式） -->
             <div class="av-card-full rotating-border-spotlight"
-                 x-show="displayMode === 'detail'"
+                 x-show="displayMode === 'detail' && !current()._notFound"
                  :class="{ 'active': shouldShowLocalBorder(current()) }">
                 <div class="av-card-full-cover">
                     <!-- P2 fix: swipe 掛在只含海報的 wrapper（非 cover），結構排除 .sample-strip 水平捲動列 -->
@@ -1031,7 +1086,8 @@
             <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid' && listMode === 'search'" x-cloak>
                 <!-- T2d: Hero Card（第一格）— A7-Prod: actressProfile || _heroSlotReserved 時顯示 -->
                 <div class="av-card-preview hero-card"
-                     x-show="actressProfile || _heroSlotReserved"
+                     x-show="actressProfile || _heroSlotReserved || imgSearchShown"
+                     :class="{ 'av-card-user-image': imgSearchShown }"
                      x-cloak
                      @click="actressProfile && openActressLightbox()">
                     <div class="av-card-preview-img">
@@ -1043,6 +1099,8 @@
                              loading="lazy"
                              x-show="actressProfile && !_heroCardImageError"
                              @error="if (actressProfile?.img) _heroCardImageError = true">
+                        <!-- 193-T10: 第三態＝使用者的圖（FE-MOTION-11 用 x-if；必須在女優 <img @error> 之後，1200 字元守衛） -->
+                        <template x-if="imgSearchShown"><img :src="imgSearchSession?.url ?? ''" :alt="t('search.image.your_image')"></template>
                         <!-- A6-1: Hero Card fallback placeholder -->
                         <div x-show="actressProfile && _heroCardImageError"
                              class="av-card-no-cover">
@@ -1088,6 +1146,7 @@
                         <div class="footer-hover" x-show="actressProfile">
                             <div class="hover-title" x-text="[actressProfile?.height || '', actressProfile?.cup ? actressProfile.cup + t('search.unit.cup') : '', [actressProfile?.bust, actressProfile?.waist, actressProfile?.hip].filter(Boolean).join('-')].filter(Boolean).join(' · ') || '-'"></div>
                         </div>
+                        <template x-if="imgSearchShown"><div class="footer-default"><span class="av-num" x-text="t('search.image.your_image')"></span></div></template>
                         <!-- A7-Prod: skeleton 預留態 footer -->
                         <div class="footer-default" x-show="!actressProfile && _heroSlotReserved">
                             <span class="av-num" x-text="currentQuery || '...'">...</span>
@@ -1102,19 +1161,34 @@
                          :class="{
                              'skeleton': result._skeleton,
                              'failed-slot': result._failed,
+                             'is-notfound': result._notFound,
                              'rotating-border-spotlight active': !result._skeleton && !result._failed && shouldShowLocalBorder(result)
                          }"
                          :style="result._failed ? 'display: none' : ''"
-                         @click="!result._skeleton && !result._failed && openLightbox(idx)">
+                         @click="!result._skeleton && !result._failed && !result._notFound && openLightbox(idx)">
                         <div class="av-card-preview-img">
                             <!-- T4: skeleton shimmer placeholder -->
                             <div class="skeleton-cover shimmer" x-show="result._skeleton"></div>
                             <!-- 正常狀態：封面圖（非 skeleton、非 failed 才顯示） -->
+                            <template x-if="!result._notFound">
                             <img :src="resolveCoverUrl(result) ? `/api/proxy-image?url=${encodeURIComponent(resolveCoverUrl(result))}` : ''"
                                  :alt="result.number"
                                  loading="lazy"
                                  x-show="!result._skeleton && !result._failed && !_gridImageErrors.has(idx)"
                                  @error="!result._skeleton && !result._failed && markImageError(idx, result)">
+                            </template>
+                            <!-- 193-T10: _notFound 卡——avscan 縮圖頂替封面（格狀唯一載入 avscan 縮圖處）；沒有縮圖或載入失敗就佔位 -->
+                            <template x-if="result._notFound && imgSearchActive && imgSearchSession.matches[idx]?.match?.thumb_url">
+                                <img :src="'/api/proxy-image?url=' + encodeURIComponent(imgSearchSession.matches[idx].match.thumb_url)"
+                                     alt=""
+                                     loading="lazy"
+                                     x-show="!_gridImageErrors.has(idx)"
+                                     @error="markImageError(idx, result)">
+                            </template>
+                            <div class="av-card-no-cover"
+                                 x-show="result._notFound && (_gridImageErrors.has(idx) || !(imgSearchActive && imgSearchSession.matches[idx]?.match?.thumb_url))">
+                                <i class="bi bi-image"></i>
+                            </div>
                             <!-- Overlay Actions (Hover) — 只在正常狀態顯示 -->
                             <div class="av-card-preview-overlay" x-show="!result._skeleton && !result._failed">
                                 <button class="btn-glass-circle"
@@ -1162,9 +1236,10 @@
                         <div class="av-card-preview-footer">
                             <div class="footer-default">
                                 <span class="av-num" x-text="result.number || '-'">-</span>
-                                <span class="av-actress" x-show="!result._skeleton && !result._failed" x-text="(result.actors || []).slice(0, 2).join(', ') || t('search.grid.unknown_actor')">{{ t('search.grid.unknown_actor') }}</span>
+                                <span class="av-actress" x-show="!result._skeleton && !result._failed && !result._notFound" x-text="(result.actors || []).slice(0, 2).join(', ') || t('search.grid.unknown_actor')">{{ t('search.grid.unknown_actor') }}</span>
+                                <span class="av-actress" x-show="result._notFound" x-text="t('search.error.no_data')"></span>
                             </div>
-                            <div class="footer-hover" x-show="!result._skeleton && !result._failed">
+                            <div class="footer-hover" x-show="!result._skeleton && !result._failed && !result._notFound">
                                 <div class="hover-title" x-text="result.title || t('search.grid.unknown_title')">{{ t('search.grid.unknown_title') }}</div>
                             </div>
                         </div>

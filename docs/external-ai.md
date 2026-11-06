@@ -609,6 +609,61 @@ curl -s "$OA/api/ai/faces/status"
 - `running`, `processed`, `total`, `pending`: the library-wide re-focus job. `running: false` with `pending > 0` means it stopped or was interrupted; the user can continue it on the settings page. `stopped_reason` says why it stopped (for example the endpoint became unreachable).
 - `unreadable`: covers whose image file could not be read and were skipped.
 
+#### Find the number from a screenshot (ask the user first)
+
+Use this when a video file's name does not tell you the number, or when the user gives you a screenshot or a cover image. The image must be a video screenshot or a cover; official stills and ordinary photos usually do not match. Sending the image uploads it to the third-party site avscan.cc, so **get the user's confirmation before calling it.** OpenAver shrinks oversized images before sending; the limit is 8MB, JPG/PNG/WEBP.
+
+For a video file, take the screenshot around the middle of the video (about 40% in), not the head (studio logos and warnings in the first minutes). If `ffmpeg` is not installed, tell the user instead of improvising another way.
+
+```bash
+DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$VIDEO")
+SS=$(python3 -c "print(int(float('$DUR') * 0.4))")
+ffmpeg -ss "$SS" -i "$VIDEO" -frames:v 1 -q:v 2 shot.jpg
+curl -s -F "file=@shot.jpg" "$OA/api/image-search"
+```
+
+Example reply:
+
+```json
+{
+  "success": true,
+  "source": "avscan",
+  "clear_hit": true,
+  "lead": 12.1,
+  "candidates": [
+    {
+      "rank": 1,
+      "code": "SSIS-221",
+      "number": "SSIS-221",
+      "searchable": true,
+      "similarity": 87.2,
+      "match": {"kind": "frame", "cover_part": null, "time_seconds": 2430, "time_text": "00:40:30", "thumb_url": null},
+      "in_library": false
+    },
+    {
+      "rank": 2,
+      "code": "SSIS-198",
+      "number": "SSIS-198",
+      "searchable": true,
+      "similarity": 75.1,
+      "match": {"kind": "frame", "cover_part": null, "time_seconds": 1210, "time_text": "00:20:10", "thumb_url": null},
+      "in_library": false
+    }
+  ]
+}
+```
+
+- `clear_hit`: true only when there are at least 2 candidates and the top one leads the second by 8 points or more. It is the only match verdict; do not re-judge it yourself. `clear_hit: false` does not mean the top candidate is wrong, only that it is not certain enough.
+- `searchable`: whether OpenAver search can use `number` directly. When false, `number` is the avscan original spelling of `code`, so do not take it to search.
+- `in_library`: whether the library already has this number. `null` means unknown, not absent.
+- `match.time_text`: where in the video the matching frame sits (`time_seconds` is the same point in seconds).
+
+When `clear_hit: false`, show the candidates (number, similarity, `match.time_text`) to the user and let them pick. Do **not** take the top candidate into `scrape-single` or organizing on your own (organizing moves and renames files; fixing a wrong guess takes manual work).
+
+When `clear_hit: true`, and the top candidate has `searchable: true`, use its `number` to continue: `GET $OA/api/search?q=<number>` for metadata, or the organizing flow once the user agrees. When `searchable: false`, tell the user the `code` and do not take it to search.
+
+Speed and errors: globally at most 1 image every 5 seconds (screen and assistant share the quota). On `rate_limited`, wait `retry_after` seconds instead of retrying in a loop. `unreachable`/`unparseable` means avscan is currently unusable; tell the user instead of retrying. `file_too_large` is 413, `unsupported_image` is 415.
+
 ## AI tags（AI 標籤）
 
 AI tags need **no endpoint to host** and have **no consistency test**. OpenAver (or you, the assistant) looks at a video's poster and picks words from a fixed vocabulary; the picked words are saved as the video's user tags. Only what is visible on the poster counts: the person's clothing, legs, body shape and the setting. The vocabulary is fixed: 29 built-in words plus the user's own custom words.

@@ -4,6 +4,7 @@
  */
 import { isFileSearching as isPathSearching } from '../batch-search-rules.js';
 import { organizeState } from '../blank-card-rules.js';
+import { isLightboxSkippable } from '../image-search-rules.js';
 
 // 每批 local-status 查詢的番號上限；對齊後端 web/routers/search.py 的 [:100] 截斷，超過會被靜默丟掉
 const LOCAL_STATUS_CHUNK_SIZE = 100;
@@ -257,16 +258,16 @@ export function searchStateBase() {
             if (this.lightboxIndex === -1) return false;  // 已在 actress photo 最左
             if (this.lightboxIndex === 0) return !!this.actressProfile;  // 可跳到 actress
             // lightboxIndex > 0：前方有非 _failed item 或有 actressProfile
-            const hasPrevVisible = this.searchResults.slice(0, this.lightboxIndex).some(r => !r._failed);
+            const hasPrevVisible = this.searchResults.slice(0, this.lightboxIndex).some(r => !isLightboxSkippable(r));
             return hasPrevVisible || !!this.actressProfile;
         },
 
         hasVisibleNext() {
             if (this.lightboxIndex === -1) {
                 // 從 actress photo 看有沒有可見 item
-                return this.searchResults.some(r => !r._failed);
+                return this.searchResults.some(r => !isLightboxSkippable(r));
             }
-            return this.searchResults.slice(this.lightboxIndex + 1).some(r => !r._failed) || this.hasMoreResults;
+            return this.searchResults.slice(this.lightboxIndex + 1).some(r => !isLightboxSkippable(r)) || this.hasMoreResults;
         },
 
         showNavigation() {

@@ -1337,9 +1337,9 @@ const RULES = [
   },
   {
     file: 'web/templates/search.html', kind: 'tag-scan', mode: 'class-tag',
-    tagName: 'div', className: 'state-page', multi: true, expectedCount: 2,
+    tagName: 'div', className: 'state-page', multi: true, expectedCount: 3,
     required: ['x-cloak'],
-    note: '[TestStatePageCloakGuard] test_search_state_pages_cloaked — search.html 2 個 div.state-page 皆 x-cloak',
+    note: '[TestStatePageCloakGuard] test_search_state_pages_cloaked — search.html 3 個 div.state-page 皆 x-cloak（193-T10 新增 _notFound 面板，2→3；不變式不變：每一個都要 x-cloak）',
   },
   {
     file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
@@ -5287,8 +5287,8 @@ const RULES = [
   {
     file: 'web/templates/search.html',
     kind: 'required-string',
-    pattern: `x-show="listMode === 'search' && pageState === 'result' && (searchResults.length > 1 || actressProfile) && !isComposing()"`,
-    note: '[lint-guard 141a-T7] 格牆／大卡切換鈕顯示條件必須為「結果模式＋(結果數>1 或有女優 hero 卡)＋非組合輸入」（CD-9，spec F4 驗收 2/2b/3；`|| actressProfile` 是 branch review P2 補的，見 search.html 該行上方註解）',
+    pattern: `x-show="listMode === 'search' && pageState === 'result' && (searchResults.length > 1 || actressProfile || imgSearchShown) && !isComposing()"`,
+    note: '[lint-guard 141a-T7] 格牆／大卡切換鈕顯示條件必須為「結果模式＋(結果數>1 或有女優 hero 卡或圖片搜尋第一格)＋非組合輸入」（CD-9，spec F4 驗收 2/2b/3；`|| actressProfile` 是 branch review P2 補的，見 search.html 該行上方註解；193-T10 加 `|| imgSearchShown`）',
   },
   {
     file: 'web/static/js/pages/search/wishlist-aging.js',
@@ -6053,8 +6053,10 @@ const RULES = [
   // 162c: TestFailedSlotC30Guard
   { file: 'web/static/js/pages/search/state/navigation.js', kind: 'required-string', pattern: '_failed', scope: { anchor: /navigate\s*\(/, window: 500 }, stripLineComments: true, note: '[lint-guard 162c-test_failed_slot_method_bodies_contain_failed] 使用者搜尋番號、其中某幾筆抓取失敗（空白項）→ 按上一部／下一部會停在空白項、導航箭頭與「第 N／共 M 筆」計數把失敗項也算進去 — 遷自 test_frontend_lint.py' },
   // CD-162c-19：prev/nextLightboxVideo、canGoPrev/Next 的 window 切在真 ._failed 之前（只吃到註解）→ braceBalanced + stripLineComments
-  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', pattern: '_failed', scope: { anchor: /prevLightboxVideo\s*\(\s*\)\s*\{/, braceBalanced: true }, stripLineComments: true, note: '[lint-guard 162c-test_failed_slot_method_bodies_contain_failed] 使用者搜尋番號、其中某幾筆抓取失敗（空白項）→ 按上一部／下一部會停在空白項、導航箭頭與「第 N／共 M 筆」計數把失敗項也算進去 — 遷自 test_frontend_lint.py' },
-  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', pattern: '_failed', scope: { anchor: /nextLightboxVideo\s*\(\s*\)\s*\{/, braceBalanced: true }, stripLineComments: true, note: '[lint-guard 162c-test_failed_slot_method_bodies_contain_failed] 使用者搜尋番號、其中某幾筆抓取失敗（空白項）→ 按上一部／下一部會停在空白項、導航箭頭與「第 N／共 M 筆」計數把失敗項也算進去 — 遷自 test_frontend_lint.py' },
+  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', pattern: /_failed|isLightboxSkippable/, scope: { anchor: /prevLightboxVideo\s*\(\s*\)\s*\{/, braceBalanced: true }, stripLineComments: true, note: '[lint-guard 162c-test_failed_slot_method_bodies_contain_failed] 使用者搜尋番號、其中某幾筆抓取失敗（空白項）→ 按上一部／下一部會停在空白項、導航箭頭與「第 N／共 M 筆」計數把失敗項也算進去 — 遷自 test_frontend_lint.py' },
+  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', pattern: /_failed|isLightboxSkippable/, scope: { anchor: /nextLightboxVideo\s*\(\s*\)\s*\{/, braceBalanced: true }, stripLineComments: true, note: '[lint-guard 162c-test_failed_slot_method_bodies_contain_failed] 使用者搜尋番號、其中某幾筆抓取失敗（空白項）→ 按上一部／下一部會停在空白項、導航箭頭與「第 N／共 M 筆」計數把失敗項也算進去 — 遷自 test_frontend_lint.py' },
+  // 193-T12：上面兩條放寬成 /_failed|isLightboxSkippable/，這條釘住 helper 本體仍含 _failed（否則放寬等於無守衛）
+  { file: 'web/static/js/pages/search/image-search-rules.js', kind: 'required-string', pattern: '_failed', scope: { anchor: /export function isLightboxSkippable\s*\(\s*r\s*\)\s*\{/, braceBalanced: true }, stripLineComments: true, note: '[lint-guard 193-T12-lightbox-skippable-body-contains-failed] 使用者以圖查番號、其中某幾格抓取失敗 → 按上一部／下一部會停在失敗的空白格（isLightboxSkippable 本體拿掉 _failed 後，grid-mode／base 導航全走進空白項而 162c 兩條仍因呼叫該 helper 而綠）' },
   { file: 'web/static/js/pages/search/state/base.js', kind: 'required-string', pattern: '_failed', scope: { anchor: /navIndicatorText\s*\(/, window: 500 }, stripLineComments: true, note: '[lint-guard 162c-test_failed_slot_method_bodies_contain_failed] 使用者搜尋番號、其中某幾筆抓取失敗（空白項）→ 按上一部／下一部會停在空白項、導航箭頭與「第 N／共 M 筆」計數把失敗項也算進去 — 遷自 test_frontend_lint.py' },
   { file: 'web/static/js/pages/search/state/base.js', kind: 'required-string', pattern: '_failed', scope: { anchor: /canGoPrev\s*\(\s*\)\s*\{/, braceBalanced: true }, stripLineComments: true, note: '[lint-guard 162c-test_failed_slot_method_bodies_contain_failed] 使用者搜尋番號、其中某幾筆抓取失敗（空白項）→ 按上一部／下一部會停在空白項、導航箭頭與「第 N／共 M 筆」計數把失敗項也算進去 — 遷自 test_frontend_lint.py' },
   { file: 'web/static/js/pages/search/state/base.js', kind: 'required-string', pattern: '_failed', scope: { anchor: /canGoNext\s*\(\s*\)\s*\{/, braceBalanced: true }, stripLineComments: true, note: '[lint-guard 162c-test_failed_slot_method_bodies_contain_failed] 使用者搜尋番號、其中某幾筆抓取失敗（空白項）→ 按上一部／下一部會停在空白項、導航箭頭與「第 N／共 M 筆」計數把失敗項也算進去 — 遷自 test_frontend_lint.py' },
@@ -9572,6 +9574,27 @@ const RULES = [
     file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
     pattern: /^import\s*\{[^}]*\bstateLightboxAiTags\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-ai-tags\.js'/m,
     note: '[lint-guard 188c-T11-main-import] main.js 漏掉 AI 標籤分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
+  },
+
+  // ---- [193-T12] 圖片搜尋兩個單一出口 ----
+  // 邊界：只掃「帶 scheme 的站台網址」（core／web 的 .py）與「送圖端點字面」（前端 js／模板）。
+  // 不帶 scheme 的站台名（capabilities／locales／docs／模板外連文字）是說明文字，不掃——粗顆粒即可；
+  // __tests__ 的 .mjs 與 web/routers 的 .py 端點宣告不在掃描範圍。
+  {
+    file: { dir: 'core', ext: ['.py'], recursive: true, exclude: ['avscan/client.py'] }, kind: 'forbidden-string', pattern: /https?:\/\/avscan\.cc/, id: '193-T12-avscan-origin-single-source',
+    note: '[193-T12-avscan-origin-single-source] core 內另有程式碼自己寫死站台網址 → 使用者的截圖可能繞過送圖把關（間隔、大小、代理範圍）直接傳到第三方，使用者不知道',
+  },
+  {
+    file: { dir: 'web', ext: ['.py'], recursive: true }, kind: 'forbidden-string', pattern: /https?:\/\/avscan\.cc/, id: '193-T12-avscan-origin-single-source',
+    note: '[193-T12-avscan-origin-single-source] web 內另有程式碼自己寫死站台網址 → 使用者的截圖可能繞過送圖把關（間隔、大小、代理範圍）直接傳到第三方，使用者不知道',
+  },
+  {
+    file: { dir: 'web/static/js', ext: ['.js'], recursive: true, exclude: ['pages/search/state/image-search.js'] }, kind: 'forbidden-string', pattern: '/api/image-search', id: '193-T12-image-search-endpoint-single-caller',
+    note: '[193-T12-image-search-endpoint-single-caller] 別處另寫送圖呼叫 → 使用者沒按任何入口就可能送出圖片，或繞過 imgSearchStart 的撤銷／URL 回收／不落地規則',
+  },
+  {
+    file: { dir: 'web/templates', ext: ['.html'], recursive: true }, kind: 'forbidden-string', pattern: '/api/image-search', id: '193-T12-image-search-endpoint-single-caller',
+    note: '[193-T12-image-search-endpoint-single-caller] 模板裡另寫送圖呼叫 → 使用者沒按任何入口就可能送出圖片，或繞過 imgSearchStart 的撤銷／URL 回收／不落地規則',
   },
 ];
 

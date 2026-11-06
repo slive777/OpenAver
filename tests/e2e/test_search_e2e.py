@@ -7,6 +7,7 @@ E2E 測試：搜尋頁完整流程驗證
     pytest tests/e2e/ -v -m e2e
 
 無網路 / JavBus 無回應時自動 SKIP（不 FAIL）。
+（test_cancel_restores_previous_result 全 mock、零真站，不需要網路。）
 """
 import pytest
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
@@ -232,3 +233,45 @@ def test_arrow_key_navigation(page: Page, base_url: str) -> None:
     assert not gallery.evaluate("el => el.classList.contains('show')"), (
         "ArrowLeft 導航後 Sample Gallery 不應出現"
     )
+
+
+# ── E2E-4: 有結果時搜別的番號再取消 → 回到原本的結果（193-T12 / CD-193-17，全 mock） ──
+
+def test_cancel_restores_previous_result(page: Page, base_url: str) -> None:
+    """有結果時搜別的番號、載入中按取消 → 回到原本的結果，不是空白頁。"""
+    import json
+    import re
+
+    from playwright.sync_api import expect
+
+    streams = []
+    event = {"type": "result", "success": True, "has_more": False, "mode": "exact",
+             "data": [{"number": "IPX-338", "title": "T-IPX-338", "cover": "", "actors": []}]}
+
+    def stream(route):
+        streams.append(route.request.url)
+        if len(streams) == 1:  # 第二次起掛住不回應（載入中）
+            route.fulfill(content_type="text/event-stream", body="data: " + json.dumps(event) + "\n\n")
+
+    urls = []
+    page.on("request", lambda r: urls.append(r.url))
+    page.route("**/api/search/stream*", stream)
+    page.route(re.compile(r"/api/search\?q="), lambda r: r.abort())  # 防 fallback 打到真站
+    page.route(re.compile(r"https://fonts\.(googleapis|gstatic)\.com/"),
+               lambda r: r.fulfill(body="", content_type="text/css"))
+    _do_search(page, base_url, "IPX-338")
+    page.bring_to_front()
+    expect(page.locator("#resultCard")).to_be_visible()
+    expect(page.locator("#resultNumber")).to_have_text("IPX-338")
+
+    page.fill("#searchQuery", "SSIS-931")
+    page.click("#btnSubmit")
+    cancel = page.locator(".search-actions-right button:not(#btnClear):has(.bi-x-lg)")
+    expect(cancel).to_be_visible()
+    cancel.click()
+    expect(page.locator("#resultCard")).to_be_visible()
+    expect(page.locator("#resultNumber")).to_have_text("IPX-338")
+    state = page.evaluate("Alpine.$data(document.querySelector('.search-container')).pageState")
+    assert state == "result"
+    assert not [u for u in urls if not u.startswith((base_url, "blob:", "data:", "https://fonts."))]
+    assert not [u for u in urls if "/api/proxy-image" in u]

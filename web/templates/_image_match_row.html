@@ -1,0 +1,35 @@
+{# 193-T10：圖片搜尋比對列（詳細檢視最上面）。include 位置：#resultCard 內、.av-card-full 之前（FE-ALPINE-12：
+   祖先鏈已同時過 pageState==='result' 與 listMode!=='wishlist'，不得移出）。
+   x-if 而非 x-show：隱藏時 imgSearchSession 為 null，<img :src> 會產生 src=""、currentMatch() 為 null。
+   樣板出處 feature/193-image-search/mockup/build.py match_row()（G1＝擺法 A）。 #}
+<template x-if="displayMode === 'detail' && imgSearchShown">
+    <div class="img-match-row" :class="{ 'is-weak': imgSearchSession?.clearHit === false }">
+        <div class="imr-pair">
+            <div class="imr-thumb" :title="t('search.image.your_image')">
+                <img :src="imgSearchSession?.url ?? ''" :alt="t('search.image.your_image')">
+            </div>
+            <i class="bi bi-arrow-left-right"></i>
+            <div class="imr-thumb">
+                <i class="bi bi-image imr-thumb-ph"></i>
+                <template x-if="currentMatch()?.match?.thumb_url">
+                    <img :src="'/api/proxy-image?url=' + encodeURIComponent(currentMatch().match.thumb_url)"
+                         alt=""
+                         @error="$el.classList.add('is-failed')"
+                         @load="$el.classList.remove('is-failed')">
+                </template>
+            </div>
+        </div>
+        <div class="imr-meta" x-show="imgSearchSession?.clearHit !== false">
+            <span class="imr-score" x-show="currentMatch()?.similarity != null" x-text="currentMatch()?.similarity != null ? currentMatch().similarity.toFixed(1) + '%' : ''"></span>
+            <span class="imr-sub" x-text="t('search.image.match.title') + (currentMatch()?.match?.kind === 'cover' ? ' · ' + t('search.image.match.cover') : (currentMatch()?.match?.time_text ? ' · ' + currentMatch().match.time_text : ''))"></span>
+        </div>
+        <div class="imr-note" x-show="imgSearchSession?.clearHit === false">
+            <i class="bi bi-exclamation-circle"></i>
+            <div>
+                <strong>{{ t('search.image.match.no_clear_hit') }}</strong>
+                <span>{{ t('search.image.match.retry_hint') }}</span>
+            </div>
+        </div>
+        <a class="imr-source" href="https://avscan.cc" target="_blank" rel="noopener noreferrer">{{ t('search.image.match.source_link') }}<i class="bi bi-box-arrow-up-right"></i></a>
+    </div>
+</template>

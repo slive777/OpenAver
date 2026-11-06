@@ -110,6 +110,7 @@ EXPECTED_TOOL_NAMES = {
     "video_title_writeback",
     "wishlist_add",
     "wishlist_membership",
+    "image_search_number",
 }
 
 REQUIRED_TOOL_FIELDS = [
@@ -341,6 +342,7 @@ class TestTranslateTitleTools:
             "video_title_writeback",
             "wishlist_add",
             "wishlist_membership",
+            "image_search_number",
             "ai_tags_vocab",
             "ai_tags_vocab_add",
             "ai_tags_vocab_remove",
