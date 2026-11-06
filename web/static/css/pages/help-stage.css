@@ -3068,7 +3068,7 @@
     z-index: 6;
     box-sizing: border-box;
     visibility: hidden;
-    border: 2px solid var(--color-warning);
+    border: 1px dashed color-mix(in oklch, var(--color-warning) 55%, transparent);
     border-radius: calc(var(--radius-sm) * 1.25);
     opacity: 0;
 }
@@ -3313,3 +3313,35 @@
     background: none;
 }
 /* ========== /191a-T9 ========== */
+
+/* ========== 191a-T11: 每步一個看點（橘框）＋Metatube 淡框註解 ========== */
+/* 橘框＝掛在目標上的 ::after；不透明度由 scene 寫的 --hs-mark（0～1，v 的純函式）控制，所以框黏著目標、不重算座標。
+   --hs-mark-pad 與 stage-organize.js 的 PILL_PEEK 互指（4px＋8px 餘量）。沒有 CSS 動畫。 */
+.hs-mark {
+    --hs-mark-pad: 4px;
+
+    position: relative;
+}
+
+.hs-mark::after {
+    position: absolute;
+    inset: calc(var(--hs-mark-pad) * -1);
+    box-sizing: border-box;
+    pointer-events: none;
+    content: "";
+    border: 2px solid var(--color-warning);
+    border-radius: calc(var(--radius-sm) * 1.25);
+    opacity: var(--hs-mark, 0);
+}
+
+/* Metatube 淡框旁的一行註解：跟著 .hs-org-ring 的不透明度（子節點） */
+.hs-org-ringnote {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+/* ========== /191a-T11 ========== */

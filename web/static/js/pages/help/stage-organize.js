@@ -24,6 +24,9 @@ const TREE_MAX_W = 560;
 const PRESS = [0.3, 0.66, 1.16, 1.3, 2.16, 2.68, 3.16]; // 游標按下的七個時間點（POC press）
 const GLYPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789-_';
 const N_ROWS = 6; // 樹卡的列數（資料夾 2、檔案 3、「和預覽一樣」1）
+const PILL_PEEK = 12; // step 2: headroom above the first source pill = mark outset 4px (--hs-mark-pad in help-stage.css) + 8px
+// mark hosts, same order as the mk array of stateOf (= DOM order)
+const MARKS = ['.hs-org-prev:not(.hs-org-prev--nfo)', '.hs-org-pill--bus', '.hs-org-pill--res', '.hs-org-tname'];
 
 const out = (x) => 1 - Math.pow(1 - x, 3); // 三次方緩出（POC stage.js:9；不是 stage-math 的 ease）
 
@@ -85,6 +88,12 @@ function stateOf(v) {
         dg: ease(seg(v, 1.3, 1.5)), // 步 2：JavBus 拖到最前
         lift: v > 1.28 && v < 1.52,
         ring: seg(v, 1.64, 1.72) * (1 - seg(v, 1.96, 2.02)),
+        mk: [ // marks: preview, first source pill, result-card source, new file name (stays on in step 4)
+            seg(v, 0.54, 0.62) * (1 - seg(v, 0.94, 1.0)),
+            seg(v, 1.5, 1.58) * (1 - seg(v, 1.96, 2.02)),
+            seg(v, 2.74, 2.82) * (1 - seg(v, 2.94, 3.0)),
+            seg(v, 3.66, 3.74),
+        ],
         sc: scrollSeg(v),
         chipE: ease(seg(v, 2.24, 2.4)), // 步 3：檔案 chip 拖進搜尋頁
         chipO: seg(v, 2.22, 2.24) * (1 - seg(v, 2.44, 2.5)),
@@ -132,6 +141,7 @@ function paint(s) {
     css(E.pBus, 'transform', mat(s.lift ? 1.05 : 1, s.dg * geo.dx, 0));
     css(E.pDmm, 'transform', mat(1, s.dg * geo.dx2, 0));
     op(E.ring, s.ring);
+    E.marks.forEach((el, i) => css(el, '--hs-mark', s.mk[i].toFixed(3)));
 
     // 步 3：搜尋頁——空狀態 → 結果、提示字 → 番號、封面擦換、來源名
     cls(E.empty, 'is-on', !s.has);
@@ -185,6 +195,7 @@ export const scene = {
         E.pDmm = pick(root, '.hs-org-pills .hs-org-pill');
         E.pBus = pick(root, '.hs-org-pill--bus');
         E.ring = pick(root, '.hs-org-ring');
+        E.marks = MARKS.map((sel) => pick(root, sel));
         E.tree = pick(root, '.hs-org-tree');
         E.rows = [...E.tree.children];
         E.tname = pick(root, '.hs-org-tname');
@@ -277,7 +288,8 @@ export const scene = {
         const S2 = clamp(docY(E.tabsBar) - TAB_PEEK, 0, maxS(E.set));
         const mt = rel(E.mtTier);
         const mtDocY = docY(E.mtTier);
-        const S3 = Math.max(S2, Math.min(maxS(E.set), mtDocY - FH * 0.4));
+        const pillsDocY = docY(E.pBus); // first source pill (same row as DMM); its transform is cleared in this pose
+        const S3 = Math.max(S2, Math.min(maxS(E.set), mtDocY - FH * 0.4, pillsDocY - PILL_PEEK));
         const dmm = rel(E.pDmm);
         const bus = rel(E.pBus);
         const tab0 = rel(E.tabSrc);

@@ -20,6 +20,8 @@ const GRID_GAP = 8;
 const STATS_PEEK = 14; // 統計卡下緣要露出的餘量（POC G.S 公式）
 const PRESS = [1.18, 2.16, 3.16]; // 游標按下的三個時間點（POC press）
 const N_LINES = 14; // 紀錄：找到 1 行＋進度 12 行＋完成 1 行
+// mark hosts, same order as the mk array of stateOf (= DOM order: note inside the log area, missing row inside the stats card)
+const MARKS = ['.hs-lib-notefit', '.hs-lib-miss'];
 
 const out = (x) => 1 - Math.pow(1 - x, 3); // 三次方緩出（POC stage.js:9；不是 stage-math 的 ease）
 
@@ -121,6 +123,10 @@ function stateOf(v) {
         enriching,
         cardO: seg(v, 2.18, 2.22) * (1 - seg(v, 2.68, 2.72)),
         noteO: seg(v, 2.74, 2.82),
+        mk: [ // marks: the unchanged note (step 3), the missing-data row (step 2)
+            seg(v, 2.78, 2.83) * (1 - seg(v, 3.08, 3.14)),
+            seg(v, 1.8, 1.84) * (1 - seg(v, 2.06, 2.12)),
+        ],
         // 進度卡淡出（v≥2.72）後文字回到第一張：看不見，但步 3 定格時卡片文字與 T6 終態一致
         showM: v >= 2.72 ? 0 : nowM,
         hit,
@@ -247,6 +253,7 @@ function paint(s) {
     cls(E.enLoad, 'is-on', s.enriching);
     op(E.card, s.cardO);
     op(E.note, s.noteO);
+    E.marks.forEach((el, i) => css(el, '--hs-mark', s.mk[i].toFixed(3)));
     txt(E.cNum, 'DEMO-' + (101 + MISS[s.showM]));
     txt(E.cSrc, SOURCES[SRC[s.showM]]);
     op(E.cSrc, s.hit ? 1 : 0);
@@ -290,6 +297,7 @@ export const scene = {
         E.pills = pick(root, '.hs-lib-pills');
         E.pillEls = [...root.querySelectorAll('.hs-lib-pill')];
         E.note = pick(root, '.hs-lib-note');
+        E.marks = MARKS.map((sel) => pick(root, sel));
         E.bar = pick(root, '.hs-lib-bar');
         E.grid = pick(root, '.hs-lib-grid');
         E.titles = [...root.querySelectorAll('.hs-lib-tt')];

@@ -317,6 +317,7 @@ _READ = """(n) => {""" + _LIB + """
              orgPanSrc: (q('.hs-org-pan--sources')[0] || {}).classList?.contains('is-on') ?? null,
              orgNav: (q('.hs-app-navlink')[0] || {}).classList?.contains('is-active') ?? null,
              orgDone: (q('.hs-org-scr.is-done')[0] || {}).classList?.contains('is-on') ?? null,
+             marks: q('.hs-mark').map((e) => Number(e.style.getPropertyValue('--hs-mark')) || 0),
              v: vAttr(n) }; }"""
 _OBSERVE_SCROLL = """async (sels) => {
     let n = 0;
@@ -368,6 +369,9 @@ def test_stage_progress_is_pure_function_of_scroll_and_pin_releases(page: Page, 
     assert from_top["count"] == "3 / 4" and from_top["dots"] == [3] and from_top["on"] == [3], from_top
     assert from_top["term"] is True and from_top["navShow"] is False, from_top
     assert 2.4 < float(from_top["v"]) < 2.6, from_top
+    # T11：每步停下來（v＝n−1＋.86）恰有一個橘框亮（建立片庫的順序＝提示、缺資料列）
+    for v, want in ((1.86, [0, 1]), (2.86, [1, 0])):
+        assert [round(m, 2) for m in _stage_goto_v(page, "library", v)["marks"]] == want, v
     # I-5b：v=3.5 時 pin 黏著；track 之後有內容（注入 spacer）捲過去 pin 就釋放
     _stage_goto_v(page, "library", 3.5)
     pin_top = page.evaluate("() => document.querySelector('.hs-root[data-hs-stage=\"library\"] .hs-pin').getBoundingClientRect().top")
@@ -398,6 +402,8 @@ def test_stage_progress_is_pure_function_of_scroll_and_pin_releases(page: Page, 
     assert org4["orgSea"] is True and org4["orgDone"] is True, org4  # 步 4：整理鈕變「完成」
     org25_back = _stage_goto_v(page, "organize", 2.5)
     assert org25_top == org25_back, (org25_top, org25_back)
+    for i, v in enumerate((0.86, 1.86, 2.86, 3.86)):  # T11：整理與改名每步一個框（預覽、排最前的來源、結果卡來源、新檔名）
+        assert [round(m, 2) for m in _stage_goto_v(page, "organize", v)["marks"]] == [int(i == k) for k in range(4)], v
 
 
 def test_stage_keyboard_walks_four_steps(page: Page, base_url: str) -> None:
