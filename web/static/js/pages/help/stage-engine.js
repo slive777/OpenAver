@@ -68,6 +68,8 @@ export function createStage(root, scene) {
     let envAc = null;     // 環境監聽的 AbortController
     let envRaf = 0;
     let ac = null;        // scroll 機制的 AbortController（所有 scroll 機制監聽共用其 signal）
+    let ro = null;        // 舞台自身寬度的 ResizeObserver（側欄收合展開時視窗沒變、舞台寬度會變）
+    let roW = 0;
     let cur = 0;
     let goal = 0;
     let running = false;
@@ -219,11 +221,23 @@ export function createStage(root, scene) {
             if (n <= N_STEPS) goStep(n);
         }, { signal });
         dots.forEach((b, i) => b.addEventListener('click', () => goStep(i + 1), { signal }));
+        // 舞台寬度變（☰ 切側欄：.main-content 的 margin-left 有 0.2s transition，逐幀都會觸發）
+        // → 與 window resize 同一條 reflow 路徑（rAF 去抖，保持步數），最後一次落在最終寬度
+        roW = stageEl.clientWidth;
+        ro = new ResizeObserver(() => {
+            const w = stageEl.clientWidth;
+            if (w === roW) return; // observe 起始的第一次回呼、或只有高度變
+            roW = w;
+            reflow();
+        });
+        ro.observe(stageEl);
     }
     function stopMachinery() {
         if (!ac) return;
         ac.abort();
         ac = null;
+        ro.disconnect();
+        ro = null;
         cancelAnimationFrame(raf);
         cancelAnimationFrame(glideRaf);
         raf = glideRaf = 0;

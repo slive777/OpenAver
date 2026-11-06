@@ -519,3 +519,41 @@ def test_narrow_and_reduced_motion_show_text_steps(page: Page, base_url: str, wi
         obs = page.evaluate(_OBSERVE_SCROLL, [f'.hs-root[data-hs-stage="{name}"]'])
         assert obs["hi"] > obs["lo"], obs
         assert obs["records"] == 0, obs
+
+
+# ───────────────────────── 側欄收合／展開：舞台寬度變、視窗沒變（ResizeObserver）─────────────────────────
+# ☰ 會寫 config 的 sidebar_collapsed（用隔離資料根）；測完一律還原。
+
+_STAGE_FIT_JS = """async (n) => {
+    const r = document.querySelector('.hs-root[data-hs-stage="' + n + '"]'), st = r.querySelector('.hs-stage'), cv = r.querySelector('.hs-canvas');
+    const frame = () => new Promise(res => requestAnimationFrame(res));
+    let last = -1, same = 0;                              // margin-left 有 0.2s transition：等舞台寬度連續多幀不變
+    while (same < 15) { const w = st.getBoundingClientRect().width; same = w === last ? same + 1 : 0; last = w; await frame(); }
+    await frame(); await frame();                         // 再讓 rAF 去抖的重算跑完
+    return { stageW: st.clientWidth, canvasW: cv.getBoundingClientRect().width, collapsed: document.body.classList.contains('sidebar-collapsed') }; }"""
+
+
+@pytest.mark.parametrize("name", ["library", "organize"])
+def test_stage_refits_when_sidebar_toggles(page: Page, base_url: str, name: str) -> None:
+    _stage_open(page, base_url, name, 220 if name == "library" else 221)
+    assert _stage_goto_v(page, name, 1.5)["count"] == "2 / 4"
+    start = page.evaluate(_STAGE_FIT_JS, name)
+    assert abs(start["canvasW"] - start["stageW"]) <= 2, start
+    toggle = page.locator(".sidebar-toggle")
+    widths = [start["stageW"]]
+    try:
+        for _ in range(2):  # 收合再展開（或相反）：兩個方向都驗
+            toggle.click()  # 真滑鼠
+            res = page.evaluate(_STAGE_FIT_JS, name)
+            assert res["collapsed"] != start["collapsed"] and res["stageW"] != widths[-1], (start, res)  # 寬度真的變了
+            assert abs(res["canvasW"] - res["stageW"]) <= 2, res  # 沒重算的話右側會被裁掉一段
+            cur = page.evaluate(_READ, name)
+            assert cur["count"] == "2 / 4" and abs(float(cur["v"]) - 1.5) < 0.05, cur
+            widths.append(res["stageW"])
+            start = res
+    finally:
+        # 還原側欄原狀態（widths[0] 對應的狀態）：回到初始寬度即還原
+        if page.evaluate(_STAGE_FIT_JS, name)["stageW"] != widths[0]:
+            toggle.click()
+            page.evaluate(_STAGE_FIT_JS, name)
+    assert widths[2] == widths[0], widths
