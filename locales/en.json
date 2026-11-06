@@ -1661,24 +1661,6 @@
       "rotate_hint": "To replace this token: save the password again in Settings (every device will need to re-enter the password).",
       "sse_limitation": "The browser's built-in live progress stream (SSE) cannot carry this token. If your agent needs to follow scan progress, read the stream directly with curl / httpx instead — that works normally."
     },
-    "workflow": {
-      "title": "First time? Follow these 3 steps",
-      "subtitle": "From adding your folder to filling metadata — three steps to get started",
-      "step1_title": "Add Your Library Folder",
-      "step1_desc": "Track your AV video folder in Library Manager",
-      "step2_title": "Update Library",
-      "step2_desc": "Scan and build a browsable collection page in one click",
-      "step3_title": "NFO Fill",
-      "step3_desc": "Missing covers or metadata? Fetch them from the web in one click",
-      "next_steps_title": "✅ Done! Now try these",
-      "next_steps_similar": "Lightbox wand button: fuzzy-explore similar videos",
-      "next_steps_favorite": "Add your favorite actresses to your collection",
-      "next_steps_tag_alias": "Click any tag chip to expand synonyms (auto cross-language: Chinese, Japanese, English)"
-    },
-    "power_user": {
-      "title": "Want more control?",
-      "intro": "Want finer control? OpenAver gives you the full set of advanced entry points — scrape titles one by one, define custom naming rules, manage cross-language aliases. See the Search page, Settings page, and Tag Alias sections below."
-    },
     "tag_alias": {
       "title": "Tag Alias Management",
       "intro": "Manage Chinese/Japanese/English synonyms in one place so the search box, chip filters, and fuzzy exploration all speak the same language.",
@@ -1983,7 +1965,6 @@
       "recover_mac": "macOS recovery: System Settings → Network → Firewall → Options, find this app and set it to \"Allow incoming connections\"."
     },
     "troubleshooting": {
-      "title": "Troubleshooting",
       "h6_crash": "App Won't Start / Crashes (Windows)",
       "h6_display": "UI Display Issues / Blank Screen",
       "h6_report": "Reporting a Problem",
@@ -2033,21 +2014,7 @@
     "close": "Close",
     "skip": "Skip",
     "next": "Next →",
-    "done": "Done 🎉",
-    "step1_title": "📂 Add Your Library Folder",
-    "step1_content": "Add the folder path where your AV videos are stored<br>OpenAver will scan all videos and build a browsable page",
-    "step2_title": "▶ Update Library",
-    "step2_content": "Click this button to scan and build your private collection page<br>Takes just a few seconds",
-    "step3_title": "🌐 NFO Fill Entry Point",
-    "step3_content": "After scanning, return to the Library Manager page<br>The NFO fill button appears automatically — fetch missing covers or metadata from the web in one click",
-    "step4_title": "🎬 Browse Your Collection",
-    "step4_content": "Open Showcase when done<br>The lightbox has a wand button to fuzzy-explore similar videos",
-    "step5_title": "🔍 Advanced — Per-title Scraping",
-    "step5_content": "Want precise control over each title's metadata?<br>The Search page lets you handle them one by one manually",
-    "step6_title": "⚙️ Advanced — Custom Rules",
-    "step6_content": "Naming format, AI translation, and visual strategy are all in the Settings page<br>Come back when you're ready to dig deeper",
-    "step7_title": "📖 Help Manual",
-    "step7_content": "Come back any time to replay this<br>The Help page also has full feature docs and AI agent commands"
+    "done": "Done 🎉"
   },
   "updater": {
     "page_title": "Updater",

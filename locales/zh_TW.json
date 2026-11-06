@@ -1661,23 +1661,65 @@
       "rotate_hint": "要換掉這組 token：到設定頁重新儲存密碼即可（所有裝置都需要重新輸入密碼）。",
       "sse_limitation": "瀏覽器內建的即時進度推送（SSE）無法夾帶此 token；若 agent 需要訂閱掃描進度，改用 curl / httpx 等程式直接讀取串流不受影響。"
     },
-    "workflow": {
-      "title": "第一次使用？先看這 3 步",
-      "subtitle": "從加入資料夾到補全資料，三步上手",
-      "step1_title": "加入片庫資料夾",
-      "step1_desc": "在片庫管理追蹤你的 AV 影片資料夾",
-      "step2_title": "更新片庫",
-      "step2_desc": "一鍵掃描並建立可瀏覽的收藏頁",
-      "step3_title": "NFO 補全",
-      "step3_desc": "缺封面或資料？點一下從網路自動補齊",
-      "next_steps_title": "✅ 完成！接下來試試",
-      "next_steps_similar": "燈箱魔杖按鈕：模糊探索類似片",
-      "next_steps_favorite": "把喜歡的女優加最愛",
-      "next_steps_tag_alias": "Tag chip 點一下展開同義詞（中日英自動 cross-language）"
+    "tabs": {
+      "library": "建立片庫",
+      "organize": "整理與改名",
+      "manual": "使用手冊"
     },
-    "power_user": {
-      "title": "想要更多控制？",
-      "intro": "想要更細的控制？OpenAver 提供完整入口 — 一片一片刮削、自訂命名規則、管理跨語言別名，詳見下方搜尋頁、設定頁、Tag 別名管理段落。"
+    "manual": {
+      "faq_title": "常見問題",
+      "chapters_title": "章節"
+    },
+    "stage": {
+      "common": {
+        "prev": "上一步",
+        "next": "下一步",
+        "dot_label": "第 {n} 步",
+        "scroll_hint": "往下捲",
+        "you": "你",
+        "background": "背後",
+        "goto": "前往{page}"
+      },
+      "library": {
+        "subtitle": "保留檔名和位置，補資料、用封面看",
+        "s1_you": "把放片的資料夾拖進「{page}」",
+        "s1_bg": "資料夾加進清單，這一步還不會開始掃描",
+        "s2_you": "按「{action}」",
+        "s2_bg": "讀取資料夾裡已有的封面和 NFO（記著片名、女優的資料檔）",
+        "s3_you": "有片缺資料時，按「{action}」",
+        "s3_bg": "從內建來源查資料。只補封面和資料，不會改名，也不會搬動你的檔案；用其他工具整理過的片會直接收進來，不重抓",
+        "s4_you": "點側欄「{page}」",
+        "s4_bg": "同一批片排成封面牆。之後有新片，再按一次「{action}」"
+      },
+      "organize": {
+        "subtitle": "查好資料，按你的規則改名、搬好",
+        "s1_you": "在「{page}」頁定好命名規則，按「{action}」",
+        "s1_bg": "馬上預覽整理後的資料夾和檔名",
+        "s2_you": "在「{page}」頁拖動來源，排出順序",
+        "s2_bg": "順序自動儲存；查資料時優先採用排在前面的來源",
+        "s3_you": "到「{page}」頁，把新片拖進來；資料不對就換來源",
+        "s3_bg": "依你排的順序查出封面和資料；這時檔案都還沒動",
+        "s4_you": "按「{single}」；多個檔案可按「{batch}」",
+        "s4_bg": "在影片原本的資料夾裡建子資料夾，改名、搬進去、放進封面和 NFO（記著片名、女優的資料檔）；結果和第 1 步的預覽一樣",
+        "mt_note": "接上後可再多 30+ 來源"
+      },
+      "demo": {
+        "folder_path": "D:\\影片",
+        "actor_a": "演員A",
+        "actor_b": "演員B",
+        "actor_c": "演員C",
+        "actor_d": "演員D",
+        "log_done": "D:\\影片: 12 部 (快取: 0, 新增/更新: 12)",
+        "note_unchanged": "檔名和位置都沒變",
+        "folder_name": "影片",
+        "log_found": "D:\\影片: 找到 12 個檔案",
+        "title_scanning": "掃描: D:\\影片",
+        "title_generating": "產生離線網頁...",
+        "org_maker": "示範片商",
+        "org_title": "範例標題",
+        "org_tree_root": "D:\\下載（原本放片的資料夾）",
+        "org_tree_same": "和你預覽的一樣"
+      }
     },
     "tag_alias": {
       "title": "Tag 別名管理",
@@ -1983,7 +2025,6 @@
       "recover_mac": "macOS 救回：系統設定 → 網路 → 防火牆 → 選項，找到本程式改成「允許傳入連線」。"
     },
     "troubleshooting": {
-      "title": "疑難排解",
       "h6_crash": "程式無法啟動 / 閃退 (Windows)",
       "h6_display": "介面顯示異常 / 空白",
       "h6_report": "需要回報問題",
@@ -2034,20 +2075,18 @@
     "skip": "跳過",
     "next": "下一步 →",
     "done": "完成 🎉",
-    "step1_title": "📂 加入片庫資料夾",
-    "step1_content": "把放影片的資料夾加進來，也可以直接把資料夾拖進這個視窗<br>OpenAver 會掃出所有影片並建立瀏覽頁",
-    "step2_title": "▶ 更新片庫",
-    "step2_content": "按下這顆按鈕，掃描 + 建立你的私人收藏頁<br>幾秒就好",
-    "step3_title": "🌐 已整理過的直接匯入，缺的一鍵補",
-    "step3_content": "已經用其他工具整理過的片會直接匯入，不重刮。<br>缺資料的片會像這樣列出來，按橘色按鈕就從網路一次補齊：",
-    "step4_title": "🎬 瀏覽你的收藏",
-    "step4_content": "完成後從這裡進瀏覽頁<br>燈箱裡有魔杖按鈕可以模糊探索類似片",
-    "step5_title": "🔍 進階 — 逐片刮削",
-    "step5_content": "想精準掌控每片的資料？<br>搜尋頁讓你一片一片手動處理",
-    "step6_title": "⚙️ 進階 — 自訂規則",
-    "step6_content": "命名格式、AI 翻譯、視覺策略都在設定頁裡<br>玩透了再來",
-    "step7_title": "📖 說明手冊",
-    "step7_content": "隨時回來重看就好<br>說明頁也有功能詳解與 AI agent 指令"
+    "flow": {
+      "s1_title": "📂 加入片庫資料夾",
+      "s1_content": "按這顆鈕選擇放影片的資料夾，也可以直接把資料夾拖進這個視窗<br>資料夾會先加進清單，這一步還不會開始掃描",
+      "s2_title": "▶ {action}",
+      "s2_content": "按下這顆鈕，讀取資料夾裡已有的封面和 NFO（記著片名、女優的資料檔）",
+      "s3_title": "🌐 缺資料的片，按「{action}」補齊",
+      "s3_content": "有片缺封面或資料時，會像下面這樣列出來，按「{action}」就從內建來源查資料補上<br>只補封面和資料，不會改名，也不會搬動你的檔案；用其他工具整理過的片會直接收進來，不重抓",
+      "s4_title": "🎬 瀏覽你的收藏",
+      "s4_content": "點側欄「{page}」，同一批片會排成封面牆<br>之後有新片，再按一次「{action}」",
+      "s4_more": "想自訂命名和來源？",
+      "s4_more_link": "到「{page}」頁看「{tab}」"
+    }
   },
   "updater": {
     "page_title": "更新器",

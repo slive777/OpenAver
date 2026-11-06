@@ -1,6 +1,7 @@
 // Help 頁面 Alpine.js 元件
 import { toastState } from '../shared/state-toast.js';
 import { whenBridgeReady, callBridge, clientRouting } from '../shared/shell-client.js';
+import { helpTabs } from './help/help-tabs.js';
 
 // 168c-T5: 桌面殼 client 模式下，說明頁的更新功能走這台電腦的 bridge；缺任一個（舊殼）就退回伺服器端點。
 const HELP_BRIDGE_METHODS = ['update_check', 'update_context', 'update_run'];
@@ -331,4 +332,5 @@ export function helpPage() {
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('helpPage', helpPage);
+    Alpine.data('helpTabs', helpTabs);
 });

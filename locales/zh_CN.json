@@ -1661,24 +1661,6 @@
       "rotate_hint": "要换掉这组 token：到设置页重新保存密码即可（所有设备都需要重新输入密码）。",
       "sse_limitation": "浏览器内置的实时进度推送（SSE）无法夹带此 token；若 agent 需要订阅扫描进度，改用 curl / httpx 等程序直接读取流不受影响。"
     },
-    "workflow": {
-      "title": "第一次使用？先看这 3 步",
-      "subtitle": "从加入文件夹到补全资料，三步上手",
-      "step1_title": "加入片库文件夹",
-      "step1_desc": "在片库管理追踪你的 AV 视频文件夹",
-      "step2_title": "更新片库",
-      "step2_desc": "一键扫描并建立可浏览的收藏页",
-      "step3_title": "NFO 补全",
-      "step3_desc": "缺封面或资料？点一下从网络自动补齐",
-      "next_steps_title": "✅ 完成！接下来试试",
-      "next_steps_similar": "灯箱魔杖按钮：模糊探索类似片",
-      "next_steps_favorite": "把喜欢的女优加最爱",
-      "next_steps_tag_alias": "Tag chip 点一下展开同义词（中日英自动 cross-language）"
-    },
-    "power_user": {
-      "title": "想要更多控制？",
-      "intro": "想要更细的控制？OpenAver 提供完整入口 — 一片一片刮削、自定义命名规则、管理跨语言别名，详见下方搜索页、设置页、Tag 别名管理段落。"
-    },
     "tag_alias": {
       "title": "Tag 别名管理",
       "intro": "中日英同义词集中管理，让搜索框、chip 筛选、模糊探索全部说同一种语言。",
@@ -1983,7 +1965,6 @@
       "recover_mac": "macOS 恢复：系统设置 → 网络 → 防火墙 → 选项，找到本程序改成「允许传入连接」。"
     },
     "troubleshooting": {
-      "title": "疑难排解",
       "h6_crash": "程序无法启动 / 闪退 (Windows)",
       "h6_display": "界面显示异常 / 空白",
       "h6_report": "需要回报问题",
@@ -2033,21 +2014,7 @@
     "close": "关闭",
     "skip": "跳过",
     "next": "下一步 →",
-    "done": "完成 🎉",
-    "step1_title": "📂 加入片库文件夹",
-    "step1_content": "把放 AV 视频的文件夹路径加进来<br>OpenAver 会扫出所有视频并建立浏览页",
-    "step2_title": "▶ 更新片库",
-    "step2_content": "按下这个按钮，扫描 + 建立你的私人收藏页<br>几秒就好",
-    "step3_title": "🌐 NFO 补全入口",
-    "step3_content": "扫完后，回到片库管理页面<br>NFO 补全按钮会自动出现，缺封面或资料一键从网络补齐",
-    "step4_title": "🎬 浏览你的收藏",
-    "step4_content": "完成后从这里进浏览页<br>灯箱里有魔杖按钮可以模糊探索类似片",
-    "step5_title": "🔍 进阶 — 逐片刮削",
-    "step5_content": "想精准掌控每片的资料？<br>搜索页让你一片一片手动处理",
-    "step6_title": "⚙️ 进阶 — 自定义规则",
-    "step6_content": "命名格式、AI 翻译、视觉策略都在设置页里<br>玩透了再来",
-    "step7_title": "📖 说明手册",
-    "step7_content": "随时回来重看就好<br>说明页也有功能详解与 AI agent 指令"
+    "done": "完成 🎉"
   },
   "updater": {
     "page_title": "更新器",

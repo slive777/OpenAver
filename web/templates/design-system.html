@@ -2320,7 +2320,7 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
                     <strong>技術細節：</strong>
                     <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
                         <li><code>.hero-terminal</code>：背景 <code>var(--surface-2)</code>，<code>[data-theme="dim"] .hero-terminal</code> override 為固定深色 <code>oklch(20% 0.01 250)</code>（design-intent）</li>
-                        <li><code>.terminal-prompt</code>：青綠 <code>var(--color-success)</code>（iOS Green，與 <code>.workflow-arrow</code>/<code>.workflow-step-num</code> 統一動作指引色），<code>user-select: none</code></li>
+                        <li><code>.terminal-prompt</code>：青綠 <code>var(--color-success)</code>（iOS Green，動作指引色），<code>user-select: none</code></li>
                         <li><code>.terminal-copy-btn</code>：絕對定位右上角，<code>:hover</code> 有背景高亮</li>
                         <li>此頁 CSS 由局部 <code>&lt;style&gt;</code> 提供；production 版定義見 <code>help.css</code> 行 17–52</li>
                     </ul>
@@ -2602,6 +2602,35 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
     內容...
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
+            </div>
+
+            <!-- 說明頁手冊列（191a-T2；CSS source: help.css .help-manual-*） -->
+            <div class="ds-subsection">
+                <h3>說明頁手冊列（原生 details）</h3>
+                <p class="ds-desc">來源：<code>help.css</code> 的 <code>.help-manual-row</code>（說明頁「使用手冊」分頁的常見問題與章節）。原生 <code>&lt;details&gt;</code>，不靠 Alpine；預設收合，點一列展開，右側 chevron 轉 180°；summary 高度 ≥ 44px。</p>
+                <div class="ds-card-demo">
+                    <div class="help-manual" style="max-width: 560px; padding: 1rem; background: var(--bg-card); border-radius: 12px;">
+                        <details class="help-manual-row">
+                            <summary><span class="help-manual-title">範例問題（預設收合）</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                            <div class="help-manual-body">
+                                <p>展開後的內容。長字串如 <code>C:\Users\name\Videos\very-long-folder-name\another-long-folder-name</code> 會在窄螢幕斷行，不撐寬頁面。</p>
+                            </div>
+                        </details>
+                        <details class="help-manual-row" open>
+                            <summary><span class="help-manual-title"><i class="bi bi-list-ul"></i> 範例章節（已展開）</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                            <div class="help-manual-body">
+                                <p>章節列的標題前面帶圖示；常見問題列沒有圖示。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>&lt;details class="help-manual-row" id="faq-example"&gt;
+  &lt;summary&gt;
+    &lt;span class="help-manual-title"&gt;問題標題&lt;/span&gt;
+    &lt;i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"&gt;&lt;/i&gt;
+  &lt;/summary&gt;
+  &lt;div class="help-manual-body"&gt;內容...&lt;/div&gt;
+&lt;/details&gt;</code></pre>
             </div>
         </section>
 

@@ -1,0 +1,192 @@
+{# 191a-T5: 桌機（≥1024、未開減少動態）是舞台（track／pin／canvas／caption），其餘是 T3 的四步文字版；同一份 <ol>，顯示由 help-stage.css 的媒體查詢決定；舞台 markup 不帶 Alpine 指令（CD-191a-2）；App 名稱以參數插入既有 key（CD-191a-4）。 #}
+<div class="hs-root" data-hs-stage="library">
+    <div class="hs-track">
+        <div class="hs-pin">
+            <p class="hs-subtitle">{{ t('help.stage.library.subtitle') }}</p>
+            <div class="hs-stage">
+                <div class="hs-canvas" aria-hidden="true">
+                    <div class="hs-app">
+                        <div class="hs-app-bg"></div>
+                        <div class="hs-app-side">
+                            <div class="hs-app-sidehead">
+                                <span class="hs-app-toggle"><i class="bi bi-list"></i></span>
+                                <span class="hs-app-brand"><svg viewBox="0 0 64 64" width="20" height="20"><circle cx="32" cy="32" r="30"/><path d="M20 48L32 16L44 48"/></svg></span>
+                            </div>
+                            <div class="hs-app-nav">
+                                    <div class="hs-app-navitem"><span class="hs-app-navlink"><i class="bi bi-search"></i><span class="hs-app-navtext">{{ t('nav.search') }}</span></span></div>
+                                    <div class="hs-app-navitem"><span class="hs-app-navlink is-active"><i class="bi bi-list-ul"></i><span class="hs-app-navtext">{{ t('nav.scanner') }}</span></span></div>
+                                    <div class="hs-app-navitem"><span class="hs-app-navlink is-spot"><i class="bi bi-collection-play"></i><span class="hs-app-navtext">{{ t('nav.showcase') }}</span></span></div>
+                                    <div class="hs-app-navitem"><span class="hs-app-navlink"><svg class="hs-app-navsvg" viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor"><path d="M6 2.5A.5.5 0 0 1 6.5 2h3a.5.5 0 0 1 .5.5V14H6zM7 3v11h2V3zM1 7.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V14H1zM2 8v6h2V8zm9 1.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V14h-4zm1 .5v4h2v-4z"/><path d="M0 14.5a.5.5 0 0 1 .5-.5h15a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5"/></svg><span class="hs-app-navtext">{{ t('nav.insights') }}</span></span></div>
+                                    <div class="hs-app-navitem hs-app-navitem--end"><span class="hs-app-navlink"><i class="bi bi-bell"></i><span class="hs-app-navtext">{{ t('notif.title') }}</span></span></div>
+                                    <div class="hs-app-navitem"><span class="hs-app-navlink"><i class="bi bi-question-circle"></i><span class="hs-app-navtext">{{ t('nav.help') }}</span></span></div>
+                                    <div class="hs-app-navitem"><span class="hs-app-navlink"><i class="bi bi-gear"></i><span class="hs-app-navtext">{{ t('nav.settings') }}</span></span></div>
+                            </div>
+                        </div>
+                        <div class="hs-app-main">
+                            <div class="hs-app-scroll">
+                                <div class="hs-lib-scan">
+                                    <div class="hs-lib-container">
+                                        <div class="hs-app-header"><div class="hs-app-h4"><i class="bi bi-list-ul"></i> {{ t('scanner.page_title') }}</div></div>
+                                        <div class="hs-app-card">
+                                            <div class="hs-app-cardhead">
+                                                <div class="hs-app-cardtitle"><i class="bi bi-folder"></i><span>{{ t('scanner.folder.section_title') }}</span></div>
+                                                <div class="hs-app-actions"><span class="hs-app-iconbtn"><i class="bi bi-folder-plus"></i></span><span class="hs-app-iconbtn"><i class="bi bi-keyboard"></i></span></div>
+                                            </div>
+                                            <div class="hs-app-cardbody">
+                                                <div class="hs-lib-folderlist">
+                                                    <div class="hs-lib-empty"><i class="bi bi-folder-plus"></i><div class="hs-lib-empty-l1">{{ t('scanner.folder.empty_line1') }}</div><div class="hs-lib-empty-l2">{{ t('scanner.folder.empty_line2') }}</div></div>
+                                                    <div class="hs-lib-folder"><span class="hs-lib-ro"><span class="hs-lib-toggle"></span><span>{{ t('scanner.folder.readonly_label') }}</span></span><i class="bi bi-folder hs-lib-foldericon"></i><span class="hs-lib-path">{{ t('help.stage.demo.folder_path') }}</span><span class="hs-lib-rm"></span></div>
+                                                </div>
+                                            </div>
+                                            <div class="hs-lib-output">
+                                                <div class="hs-lib-outpath"><i class="bi bi-file-earmark-code"></i> {{ t('scanner.folder.output_prefix') }} <code>C:\OpenAver\output\gallery_output.html</code></div>
+                                                <span class="hs-lib-setlink"><i class="bi bi-gear"></i> {{ t('scanner.folder.settings_link') }}</span>
+                                            </div>
+                                            <div class="hs-lib-action"><span class="hs-lib-btnhero"><span class="hs-lib-lab is-on"><i class="bi bi-play-fill"></i> {{ t('scanner.stats.generate_idle') }}</span><span class="hs-lib-lab"><span class="hs-lib-spin"></span> {{ t('scanner.stats.generate_loading') }}</span></span></div>
+                                        </div>
+                                        <div class="hs-lib-term">
+                                            <div class="hs-lib-termhead">
+                                                <span class="hs-lib-termtitle"><span class="hs-lib-tt">{{ t('scanner.stats.status_preparing') }}</span><span class="hs-lib-tt">{{ t('help.stage.demo.title_scanning') }}</span><span class="hs-lib-tt">{{ t('help.stage.demo.title_generating') }}</span><span class="hs-lib-tt is-on">{{ t('scanner.stats.status_done_count', count=12) }}</span><span class="hs-lib-tt">{{ t('scanner.stats.missing_enrich_loading') }}</span><span class="hs-lib-tt">{{ t('scanner.stats.missing_enrich_done') }}</span></span>
+                                                <div class="hs-lib-filters"><span class="hs-lib-fbtn is-on">{{ t('scanner.terminal.filter_all') }}</span><span class="hs-lib-fbtn">{{ t('scanner.terminal.filter_error') }}</span><span class="hs-lib-fbtn">{{ t('scanner.terminal.filter_warn') }}</span></div>
+                                                <div class="hs-lib-logacts"><span class="hs-lib-logact"><i class="bi bi-clipboard"></i></span><span class="hs-lib-logact"><i class="bi bi-eraser"></i></span><span class="hs-lib-logact"><i class="bi bi-trash"></i></span></div>
+                                            </div>
+                                            <div class="hs-lib-progress"><div class="hs-lib-bar"></div></div>
+                                            <div class="hs-lib-strip">
+                                                <div class="hs-lib-log">
+                                                    <div class="hs-lib-ll">{{ t('help.stage.demo.log_found') }}</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[1/12]&nbsp;[HD]demo-101_1080p.mp4</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[2/12]&nbsp;DEMO-102.mp4</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[3/12]&nbsp;video_demo103-C.mkv</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[4/12]&nbsp;[HQ]DEMO-104.mp4</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[5/12]&nbsp;demo-105-4K.mp4</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[6/12]&nbsp;2024-DEMO_106.mp4</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[7/12]&nbsp;[SUB]DEMO-107.mkv</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[8/12]&nbsp;demo108.mp4</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[9/12]&nbsp;DEMO-109_part1.mp4</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[10/12]&nbsp;new_demo-110.mp4</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[11/12]&nbsp;DEMO-111.mp4</div>
+                                                    <div class="hs-lib-ll">&nbsp;&nbsp;[12/12]&nbsp;[FHD]demo-112.mp4</div>
+                                                    <div class="hs-lib-ll">{{ t('help.stage.demo.log_done') }}</div>
+                                                </div>
+                                                <div class="hs-lib-enrich"><span class="hs-lib-ondeck"></span><div class="hs-lib-enrichinfo"><span class="hs-lib-enrich-num">DEMO-102</span><span class="hs-lib-enrich-src">DMM</span><span class="hs-lib-enrich-status"><span class="hs-lib-spin"></span><span>{{ t('scanner.stats.missing_enrich_card_searching') }}</span></span></div></div>
+                                                <div class="hs-lib-note"><span class="hs-lib-notefit hs-mark"><i class="bi bi-check-circle"></i> {{ t('help.stage.demo.note_unchanged') }}</span></div>
+                                            </div>
+                                            <div class="hs-lib-pills"><span class="hs-lib-pill">DMM</span><span class="hs-lib-pill">JavBus</span><span class="hs-lib-pill">Jav321</span><span class="hs-lib-pill">JavDB</span><span class="hs-lib-pill">D2Pass</span><span class="hs-lib-pill">HEYZO</span><span class="hs-lib-pill">FC2</span><span class="hs-lib-pill">AVSOX</span></div>
+                                            <div class="hs-lib-grid"></div>
+                                        </div>
+                                        <div class="hs-lib-stats">
+                                            <div class="hs-lib-statsrow">
+                                                <div class="hs-lib-statitem"><i class="bi bi-collection-play"></i><span>{{ t('scanner.stats.cached_prefix') }} <span class="hs-lib-statval">12</span> {{ t('scanner.stats.cached_suffix') }}</span><span class="hs-lib-trash"><i class="bi bi-trash3"></i></span></div>
+                                                <div class="hs-lib-statitem hs-lib-lastrun">{{ t('scanner.stats.last_run_prefix') }}11/5 22:10 {{ t('scanner.stats.last_added', count=12) }}</div>
+                                            </div>
+                                            <div class="hs-lib-miss hs-mark">
+                                                <span class="hs-lib-missbadge"><i class="bi bi-file-earmark-x"></i><span>{{ t('scanner.stats.missing_both_prefix') }} <span class="hs-lib-missanchor"><span class="hs-lib-missnum">5</span></span> {{ t('scanner.stats.missing_suffix') }}</span></span>
+                                                <span class="hs-lib-enrichbtn"><span class="hs-lib-lab is-on"><i class="bi bi-file-earmark-plus"></i> {{ t('scanner.stats.missing_enrich_idle') }}</span><span class="hs-lib-lab"><span class="hs-lib-spin"></span> {{ t('scanner.stats.missing_enrich_loading') }}</span></span>
+                                            </div>
+                                        </div>
+                                        <div class="hs-app-alias"><div class="hs-app-aliashead"><div class="hs-app-aliastitle"><i class="bi bi-person-circle"></i><span>{{ t('scanner.alias.section_title') }}</span></div><span class="hs-app-collapse"><i class="bi bi-chevron-down"></i></span></div></div>
+                                        <div class="hs-app-alias"><div class="hs-app-aliashead"><div class="hs-app-aliastitle"><i class="bi bi-tags"></i><span>{{ t('scanner.tag_alias.section_title') }}</span></div><span class="hs-app-aliashint"><span class="hs-app-qbtn"><i class="bi bi-question-circle"></i></span></span><span class="hs-app-collapse"><i class="bi bi-chevron-down"></i></span></div></div>
+                                    </div>
+                                </div>
+                                <div class="hs-lib-tiles">
+                                <svg class="hs-lib-beams" width="1" height="1" aria-hidden="true"><path pathLength="1"></path><circle r="3"></circle><path pathLength="1"></path><circle r="3"></circle><path pathLength="1"></path><circle r="3"></circle><path pathLength="1"></path><circle r="3"></circle><path pathLength="1"></path><circle r="3"></circle></svg>
+                                <div class="hs-lib-tile" style="--hs-h:250"><div class="hs-lib-tfn"><span>[HD]</span><span class="hs-lib-tmark">demo-101</span><span>_1080p.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-101</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_a') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:20"><div class="hs-lib-tfn"><span></span><span class="hs-lib-tmark">DEMO-102</span><span>.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-102</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_b') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:300"><div class="hs-lib-tfn"><span>video_</span><span class="hs-lib-tmark">demo103</span><span>-C.mkv</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-103</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_c') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:160"><div class="hs-lib-tfn"><span>[HQ]</span><span class="hs-lib-tmark">DEMO-104</span><span>.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-104</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_d') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:60"><div class="hs-lib-tfn"><span></span><span class="hs-lib-tmark">demo-105</span><span>-4K.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-105</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_a') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:200"><div class="hs-lib-tfn"><span>2024-</span><span class="hs-lib-tmark">DEMO_106</span><span>.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-106</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_b') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:340"><div class="hs-lib-tfn"><span>[SUB]</span><span class="hs-lib-tmark">DEMO-107</span><span>.mkv</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-107</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_c') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:100"><div class="hs-lib-tfn"><span></span><span class="hs-lib-tmark">demo108</span><span>.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-108</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_d') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:230"><div class="hs-lib-tfn"><span></span><span class="hs-lib-tmark">DEMO-109</span><span>_part1.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-109</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_a') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:30"><div class="hs-lib-tfn"><span>new_</span><span class="hs-lib-tmark">demo-110</span><span>.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-110</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_b') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:280"><div class="hs-lib-tfn"><span></span><span class="hs-lib-tmark">DEMO-111</span><span>.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-111</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_c') }}</small></div></div></div>
+                                <div class="hs-lib-tile" style="--hs-h:140"><div class="hs-lib-tfn"><span>[FHD]</span><span class="hs-lib-tmark">demo-112</span><span>.mp4</span></div><div class="hs-lib-tcard"><div class="hs-lib-tcover"><span class="hs-lib-tph">{{ t('scanner.stats.missing_cover_tag') }}</span><span class="hs-lib-tcv"></span><span class="hs-lib-ttag">NFO</span></div><div class="hs-lib-tfoot"><span>DEMO-112</span><small class="hs-lib-tact">{{ t('help.stage.demo.actor_d') }}</small></div></div></div>
+                                </div>
+                            </div>
+                            <div class="hs-lib-show">
+                                <div class="hs-lib-showwrap">
+                                    <div class="hs-lib-toolbar">
+                                        <div class="hs-lib-search">
+                                            <div class="hs-lib-searchbox"><span class="hs-lib-input"><span class="hs-lib-ph">{{ t('showcase.placeholder.search') }}</span></span></div>
+                                            <div class="hs-lib-mode"><span class="hs-lib-modebtn is-on"><i class="bi bi-film"></i></span><span class="hs-lib-modebtn"><i class="bi bi-person-circle"></i></span></div>
+                                            <div class="hs-lib-go"><span class="hs-lib-gobtn"><i class="bi bi-arrow-right"></i></span></div>
+                                        </div>
+                                        <div class="hs-lib-controls"><div class="hs-lib-cgroup"><span class="hs-app-iconbtn"><i class="bi bi-funnel"></i></span><span class="hs-app-iconbtn"><i class="bi bi-sort-down"></i></span><span class="hs-app-iconbtn"><i class="bi bi-person-vcard hs-lib-mirror"></i></span><span class="hs-app-iconbtn"><i class="bi bi-eye"></i></span></div></div>
+                                    </div>
+                                    <div class="hs-lib-wall">
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:250"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-101</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_a') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:20"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-102</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_b') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:300"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-103</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_c') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:160"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-104</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_d') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:60"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-105</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_a') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:200"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-106</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_b') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:340"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-107</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_c') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:100"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-108</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_d') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:230"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-109</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_a') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:30"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-110</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_b') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:280"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-111</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_c') }}</span></div></div></div>
+                                    <div class="hs-lib-wcard"><div class="hs-lib-wcover"><span class="hs-lib-wimg" style="--hs-h:140"></span></div><div class="hs-lib-wfoot"><div class="hs-lib-wdef"><span class="hs-lib-wgrp"><span class="hs-lib-wnum">DEMO-112</span></span><span class="hs-lib-wactor">{{ t('help.stage.demo.actor_d') }}</span></div></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="hs-lib-showfoot">
+                                <div class="hs-lib-fcount"><i class="bi bi-film"></i><span><b>12</b> {{ t('showcase.status.total_suffix') }}</span></div>
+                                <div class="hs-lib-hint"><kbd>A</kbd> {{ t('showcase.shortcut.switch_mode') }} · <kbd>S</kbd> {{ t('showcase.shortcut.toggle_info') }} · <kbd>&larr;</kbd> <kbd>&rarr;</kbd> {{ t('showcase.shortcut.pagination') }} · <kbd>ESC</kbd> {{ t('showcase.shortcut.close') }}</div>
+                                <div class="hs-lib-fright"><div class="hs-lib-pager"><span class="hs-lib-pbtn">&lsaquo;</span><span class="hs-lib-pcur"><b>1</b>/<b>1</b></span><span class="hs-lib-pbtn">&rsaquo;</span></div></div>
+                            </div>
+                        </div>
+                        <div class="hs-app-drag"><div class="hs-app-dragbox"><i class="bi bi-folder-plus"></i><div>{{ t('scanner.drag_overlay.hint') }}</div></div></div>
+                    </div>
+                    <div class="hs-lib-chip"><i class="bi bi-folder-fill"></i><span>{{ t('help.stage.demo.folder_name') }}</span></div>
+                    <div class="hs-lib-cur"><svg viewBox="0 0 22 22" width="24" height="24"><path d="M4 2l13.5 11.2-6.3.5 3.6 6.3-2.8 1.4-3.3-6.6L4 19z"></path></svg></div>
+                </div>
+                <div class="hs-hint" aria-hidden="true"><i class="bi bi-chevron-down"></i><span>{{ t('help.stage.common.scroll_hint') }}</span></div>
+                <div class="hs-cta-wrap"><a class="btn btn-primary hs-cta" href="/scanner">{{ t('help.stage.common.goto', page=t('nav.scanner')) }}<i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
+            </div>
+            <div class="hs-caption">
+                <div class="hs-nav">
+                    <button type="button" class="hs-arr" data-hs-prev aria-label="{{ t('help.stage.common.prev') }}" disabled><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+                    <div class="hs-dots">
+                        <button type="button" class="hs-dot" data-hs-dot="1" aria-label="{{ t('help.stage.common.dot_label', n=1) }}" aria-current="step"></button>
+                        <button type="button" class="hs-dot" data-hs-dot="2" aria-label="{{ t('help.stage.common.dot_label', n=2) }}"></button>
+                        <button type="button" class="hs-dot" data-hs-dot="3" aria-label="{{ t('help.stage.common.dot_label', n=3) }}"></button>
+                        <button type="button" class="hs-dot" data-hs-dot="4" aria-label="{{ t('help.stage.common.dot_label', n=4) }}"></button>
+                    </div>
+                    <button type="button" class="hs-arr" data-hs-next aria-label="{{ t('help.stage.common.next') }}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                    <span class="hs-count">1 / 4</span>
+                </div>
+                <ol class="hs-steps">
+                    <li class="hs-step is-on">
+                        <span class="hs-step-num" aria-hidden="true">1</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s1_you', page=t('nav.scanner')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s1_bg') }}</p>
+                        </div>
+                    </li>
+                    <li class="hs-step">
+                        <span class="hs-step-num" aria-hidden="true">2</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s2_you', action=t('scanner.stats.generate_idle')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s2_bg') }}</p>
+                        </div>
+                    </li>
+                    <li class="hs-step">
+                        <span class="hs-step-num" aria-hidden="true">3</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s3_you', action=t('scanner.stats.missing_enrich_idle')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s3_bg') }}</p>
+                        </div>
+                    </li>
+                    <li class="hs-step">
+                        <span class="hs-step-num" aria-hidden="true">4</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.library.s4_you', page=t('nav.showcase')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.library.s4_bg', action=t('scanner.stats.generate_idle')) }}</p>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>

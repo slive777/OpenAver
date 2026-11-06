@@ -1,0 +1,273 @@
+{# 191a-T5: 桌機（≥1024、未開減少動態）是舞台（track／pin／canvas／caption），其餘是 T3 的四步文字版；同一份 <ol>，顯示由 help-stage.css 的媒體查詢決定；舞台 markup 不帶 Alpine 指令（CD-191a-2）；App 名稱以參數插入既有 key（CD-191a-4）。 #}
+<div class="hs-root" data-hs-stage="organize">
+    <div class="hs-track">
+        <div class="hs-pin">
+            <p class="hs-subtitle">{{ t('help.stage.organize.subtitle') }}</p>
+            <div class="hs-stage">
+                <div class="hs-canvas" aria-hidden="true">
+                    <div class="hs-app hs-org-app">
+                        <div class="hs-app-bg"></div>
+                    <div class="hs-app-side">
+                        <div class="hs-app-sidehead">
+                            <span class="hs-app-toggle"><i class="bi bi-list"></i></span>
+                            <span class="hs-app-brand"><svg viewBox="0 0 64 64" width="20" height="20"><circle cx="32" cy="32" r="30"/><path d="M20 48L32 16L44 48"/></svg></span>
+                        </div>
+                        <div class="hs-app-nav">
+                                <div class="hs-app-navitem"><span class="hs-app-navlink"><i class="bi bi-search"></i><span class="hs-app-navtext">{{ t('nav.search') }}</span></span></div>
+                                <div class="hs-app-navitem"><span class="hs-app-navlink"><i class="bi bi-list-ul"></i><span class="hs-app-navtext">{{ t('nav.scanner') }}</span></span></div>
+                                <div class="hs-app-navitem"><span class="hs-app-navlink"><i class="bi bi-collection-play"></i><span class="hs-app-navtext">{{ t('nav.showcase') }}</span></span></div>
+                                <div class="hs-app-navitem"><span class="hs-app-navlink"><svg class="hs-app-navsvg" viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor"><path d="M6 2.5A.5.5 0 0 1 6.5 2h3a.5.5 0 0 1 .5.5V14H6zM7 3v11h2V3zM1 7.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V14H1zM2 8v6h2V8zm9 1.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V14h-4zm1 .5v4h2v-4z"/><path d="M0 14.5a.5.5 0 0 1 .5-.5h15a.5.5 0 0 1 0 1H.5a.5.5 0 0 1-.5-.5"/></svg><span class="hs-app-navtext">{{ t('nav.insights') }}</span></span></div>
+                                <div class="hs-app-navitem hs-app-navitem--end"><span class="hs-app-navlink"><i class="bi bi-bell"></i><span class="hs-app-navtext">{{ t('notif.title') }}</span></span></div>
+                                <div class="hs-app-navitem"><span class="hs-app-navlink"><i class="bi bi-question-circle"></i><span class="hs-app-navtext">{{ t('nav.help') }}</span></span></div>
+                                <div class="hs-app-navitem"><span class="hs-app-navlink is-active"><i class="bi bi-gear"></i><span class="hs-app-navtext">{{ t('nav.settings') }}</span></span></div>
+                        </div>
+                    </div>
+                        <div class="hs-app-main">
+                            <div class="hs-app-scroll">
+                                <div class="hs-org-set is-on">
+                        <div class="hs-app-header hs-org-sethead"></div>
+                        <div class="hs-org-form">
+                            <div class="hs-org-wrap">
+                                <div class="hs-org-tabs">
+                        <span class="hs-org-tab"><i class="bi bi-collection"></i><span>{{ t('settings.tabs.sources') }}</span></span>
+                        <span class="hs-org-tab is-active"><i class="bi bi-gear"></i><span>{{ t('settings.tabs.scraping') }}</span></span>
+                        <span class="hs-org-tab"><i class="bi bi-grid"></i><span>{{ t('settings.tabs.gallery') }}</span></span>
+                        <span class="hs-org-tab"><i class="bi bi-sliders"></i><span>{{ t('settings.section.system') }}</span></span>
+                    </div>
+                                <div class="hs-org-sec">
+                                    <div class="hs-org-pan hs-org-pan--scraping is-on">
+                        <div class="hs-org-body">
+                            <div class="hs-org-desc">{{ t('settings.tab_desc.scraping') }}</div>
+                            <div class="hs-org-grp">
+                                <div class="hs-org-frow">
+                                    <div class="hs-org-rlabel">{{ t('settings.scraper.external_manager_label') }}</div>
+                                    <div class="hs-org-fwrap">
+                                        <div class="hs-org-seg"><span class="hs-org-segbtn is-on">{{ t('settings.scraper.external_manager_off') }}</span><span class="hs-org-segbtn">Jellyfin</span><span class="hs-org-segbtn">Emby</span><span class="hs-org-segbtn">Kodi</span></div>
+                                        <div class="hs-org-hint hs-org-hint--fill">{{ t('settings.scraper.external_manager_off_hint') }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="hs-org-grp">
+                                <div class="hs-org-tier">{{ t('settings.group.organize_from') }}</div>
+                                <div class="hs-org-frow">
+                                    <div class="hs-org-rlabel">{{ t('settings.search.favorite_folder_label') }}<span class="hs-org-help"><i class="bi bi-question-circle"></i></span></div>
+                                    <div class="hs-org-fcol">
+                                        <div class="hs-org-vig"><div class="hs-org-input"><span class="hs-org-ph">{{ t('settings.search.favorite_folder_placeholder_server') }}</span></div><span class="hs-org-btn hs-org-btn--out"><i class="bi bi-folder2-open"></i></span></div>
+                                        <div class="hs-org-warn">{{ t('settings.favorite_folder.not_linked_text') }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="hs-org-grp">
+                                <div class="hs-org-tier">{{ t('settings.group.organize_attach') }}</div>
+                                <div class="hs-org-toggles">
+                                    <div class="hs-org-fgrp"><div class="hs-org-tlabel"><span class="hs-org-tog is-on"></span><span class="hs-org-ltext">{{ t('settings.scraper.create_folder_label') }}</span></div></div>
+                                    <div class="hs-org-fgrp"><div class="hs-org-tlabel"><span class="hs-org-tog"></span><span class="hs-org-ltext">{{ t('settings.scraper.download_sample_images_label') }}</span><span class="hs-org-help"><i class="bi bi-question-circle"></i></span></div></div>
+                                </div>
+                            </div>
+                            <div class="hs-org-grp">
+                                <div class="hs-org-tier">{{ t('settings.group.organize_naming') }}</div>
+                                <div class="hs-org-frow">
+                                    <div class="hs-org-rlabel">{{ t('settings.scraper.preview_label') }}</div>
+                                    <div class="hs-org-fcol hs-org-hero">
+                                        <div class="hs-org-prev hs-mark">
+                                            <div class="hs-org-pline"><i class="bi bi-file-earmark-play"></i><span class="hs-org-ptext"><span class="hs-org-pvis">{{ t('help.stage.demo.actor_a') }}/[{{ t('help.stage.demo.org_maker') }}] DEMO-101 {{ t('help.stage.demo.org_title') }}.mp4</span><span class="hs-org-ptold">{{ t('help.stage.demo.actor_a') }}/DEMO-101 {{ t('help.stage.demo.org_title') }}.mp4</span></span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="hs-org-frow">
+                                    <div class="hs-org-rlabel">{{ t('settings.scraper.folder_layers_label') }}</div>
+                                    <div class="hs-org-fcol hs-org-fcol--g2">
+                                        <div class="hs-org-layer"><span class="hs-org-lidx">1</span><div class="hs-org-edhost"><div class="hs-org-editor"><span class="hs-org-chip"><span class="hs-org-pname">{{ t('settings.var.actor') }}</span><span class="hs-org-chipx">×</span></span></div></div><span class="hs-org-varbtn"><i class="bi bi-braces"></i>{{ t('settings.action.variable') }}</span><span class="hs-org-layerx"><i class="bi bi-x-lg"></i></span></div>
+                                        <span class="hs-org-addlayer"><i class="bi bi-plus-lg"></i>{{ t('settings.scraper.add_layer') }}</span>
+                                    </div>
+                                </div>
+                                <div class="hs-org-frow">
+                                    <div class="hs-org-rlabel">{{ t('settings.scraper.filename_format_label') }}</div>
+                                    <div class="hs-org-fcol">
+                                        <div class="hs-org-fnrow"><div class="hs-org-edhost"><div class="hs-org-editor"><span class="hs-org-chipwrap">[<span class="hs-org-chip"><span class="hs-org-pname">{{ t('settings.var.maker') }}</span><span class="hs-org-chipx">×</span></span>] </span><span class="hs-org-chip"><span class="hs-org-pname">{{ t('settings.var.num') }}</span><span class="hs-org-chipx">×</span></span> <span class="hs-org-chip"><span class="hs-org-pname">{{ t('settings.var.title') }}</span><span class="hs-org-chipx">×</span></span></div></div><span class="hs-org-varbtn"><i class="bi bi-braces"></i>{{ t('settings.action.variable') }}</span></div>
+                                    </div>
+                                </div>
+                                <div class="hs-org-frow">
+                                    <div class="hs-org-rlabel">{{ t('settings.scraper.nfo_title_format_label') }}</div>
+                                    <div class="hs-org-fcol">
+                                        <div class="hs-org-fnrow"><div class="hs-org-edhost"><div class="hs-org-editor">[<span class="hs-org-chip"><span class="hs-org-pname">{{ t('settings.var.num') }}</span></span>]<span class="hs-org-chip"><span class="hs-org-pname">{{ t('settings.var.title') }}</span></span></div></div><span class="hs-org-varbtn"><i class="bi bi-braces"></i>{{ t('settings.action.variable') }}</span><span class="hs-org-anchor"><span class="hs-org-help"><i class="bi bi-question-circle"></i></span></span></div>
+                                        <div class="hs-org-prev hs-org-prev--nfo"><div class="hs-org-pline"><i class="bi bi-file-earmark-play"></i><span class="hs-org-ptext hs-org-ptext--nfo">{{ t('settings.scraper.preview_prefix') }}: <span class="hs-org-ptn">[DEMO-101]{{ t('help.stage.demo.org_title') }}</span></span></div></div>
+                                    </div>
+                                </div>
+                                <div class="hs-org-frow">
+                                    <div class="hs-org-rlabel">{{ t('settings.scraper.max_title_length_label') }}</div>
+                                    <div class="hs-org-inl"><div class="hs-org-num">50</div><span class="hs-org-suffix">{{ t('settings.scraper.unit_chars') }}</span></div>
+                                </div>
+                                <div class="hs-org-frow">
+                                    <div class="hs-org-rlabel">{{ t('settings.scraper.max_filename_length_label') }}</div>
+                                    <div class="hs-org-inl"><div class="hs-org-num">60</div><span class="hs-org-suffix">{{ t('settings.scraper.unit_chars') }}</span><span class="hs-org-help"><i class="bi bi-question-circle"></i></span></div>
+                                </div>
+                                <div class="hs-org-hint">{{ t('settings.scraper.naming_default_hint') }}</div>
+                                <div class="hs-org-frow">
+                                    <div class="hs-org-rlabel hs-org-rlabel--wide">{{ t('settings.scraper.suffix_keywords_label') }} <span class="hs-org-hint hs-org-hint--inl">{{ t('settings.scraper.suffix_keywords_hint') }}</span></div>
+                                    <div class="hs-org-fcol">
+                                        <div class="hs-org-sfx">
+                                            <span class="hs-org-sfxtag"><span>-cd1</span><span class="hs-org-sfxx">×</span></span><span class="hs-org-sfxtag"><span>-cd2</span><span class="hs-org-sfxx">×</span></span><span class="hs-org-sfxtag"><span>-4k</span><span class="hs-org-sfxx">×</span></span><span class="hs-org-sfxtag"><span>-uc</span><span class="hs-org-sfxx">×</span></span>
+                                            <div class="hs-org-sfxin"><div class="hs-org-sfxinput"><span class="hs-org-ph">-4k</span></div><span class="hs-org-sfxplus">+</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                                    <div class="hs-org-pan hs-org-pan--sources">
+                        <div class="hs-org-body">
+                            <div class="hs-org-desc">{{ t('settings.tab_desc.sources') }}</div>
+                            <div class="hs-org-grp">
+                                <div class="hs-org-tier">{{ t('settings.group.sources_sites') }}</div>
+                                <div class="hs-org-batch">
+                                    <div class="hs-org-batch-l"><div class="hs-org-seg"><span class="hs-org-segbtn is-on">{{ t('settings.sources.select_all') }}</span><span class="hs-org-segbtn">{{ t('settings.sources.uncensored_mode_label') }}</span></div></div>
+                                    <div class="hs-org-batch-r">
+                                        <span class="hs-org-btn hs-org-btn--out"><span>{{ t('settings.sources.probe_btn') }}</span></span>
+                                        <span class="hs-org-counter"><span>{{ t('settings.sources.counter_prefix') }}</span><b>8</b><span class="hs-org-capdiv">/</span><span class="hs-org-capval">10</span><span class="hs-org-captag">{{ t('settings.sources.cap_tag') }}</span><span class="hs-org-help"><i class="bi bi-question-circle"></i></span></span>
+                                    </div>
+                                </div>
+                                <div class="hs-org-pills"><div class="hs-org-pill"><span class="hs-org-pname">DMM</span></div><div class="hs-org-pill hs-org-pill--bus hs-mark"><span class="hs-org-pname">JavBus</span></div><div class="hs-org-pill"><span class="hs-org-pname">Jav321</span></div><div class="hs-org-pill"><span class="hs-org-pname">JavDB</span></div><div class="hs-org-pill hs-org-pill--unc"><span class="hs-org-pname">D2Pass</span></div><div class="hs-org-pill hs-org-pill--unc"><span class="hs-org-pname">HEYZO</span></div><div class="hs-org-pill hs-org-pill--unc"><span class="hs-org-pname">FC2</span></div><div class="hs-org-pill hs-org-pill--unc"><span class="hs-org-pname">AVSOX</span></div><div class="hs-org-pill hs-org-pill--man"><i class="bi bi-slash-circle hs-org-slash"></i><span class="hs-org-pname">JavLibrary</span></div><div class="hs-org-pill hs-org-pill--unc hs-org-pill--man"><i class="bi bi-slash-circle hs-org-slash"></i><span class="hs-org-pname">FC2-javten</span></div></div>
+                            </div>
+                            <div class="hs-org-grp">
+                                <div class="hs-org-tier">{{ t('settings.group.sources_proxy') }}</div>
+                                <div class="hs-org-frow hs-org-frow--proxy">
+                                    <div class="hs-org-rlabel hs-org-rlabel--auto">Proxy</div>
+                                    <div class="hs-org-fwrap hs-org-fwrap--proxy">
+                                        <div class="hs-org-input hs-org-input--proxy"><span class="hs-org-ph">{{ t('settings.search.proxy_placeholder') }}</span></div>
+                                        <div class="hs-org-seg"><span class="hs-org-segbtn is-on is-dim">{{ t('settings.search.proxy_scope_dmm') }}</span><span class="hs-org-segbtn is-dim">{{ t('settings.search.proxy_scope_all') }}</span></div>
+                                        <div class="hs-org-hint hs-org-hint--full">{{ t('settings.search.proxy_scope_dmm_hint') }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="hs-org-grp hs-org-mt">
+                                <div class="hs-org-tier">{{ t('settings.group.sources_metatube') }}</div>
+                                <div class="hs-org-fgrp hs-org-fgrp--mt">
+                                    <div class="hs-org-tlabel"><span class="hs-org-tog"></span><span class="hs-org-ltext">{{ t('settings.sources.mt_enable_label') }}</span></div>
+                                    <div class="hs-org-hint hs-org-hint--mt">{{ t('settings.sources.mt_enable_help') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                                </div>
+                            </div>
+                            <div class="hs-org-savebar"><span class="hs-org-btn hs-org-btn--err"><i class="bi bi-arrow-counterclockwise"></i>{{ t('settings.action.reset') }}</span><span class="hs-org-save"><i class="bi bi-save"></i>{{ t('settings.action.save') }}</span></div>
+                        </div>
+                    </div>
+                                <div class="hs-org-sea">
+                        <div class="hs-org-sbar">
+                            <div class="hs-org-spot">
+                                <div class="hs-org-mode"><span class="hs-org-modebtn is-on"><i class="bi bi-search"></i></span><span class="hs-org-modebtn"><i class="bi bi-bookmarks"></i></span></div>
+                                <div class="hs-org-sinput"><span class="hs-org-siph">{{ t('search.placeholder.query') }}</span><span class="hs-org-sitext">DEMO-101</span></div>
+                                <div class="hs-org-sact"><span class="hs-org-ibtn"><i class="bi bi-x-lg"></i></span><span class="hs-org-ibtn is-go"><i class="bi bi-arrow-right"></i></span></div>
+                            </div>
+                        </div>
+                        <div class="hs-org-area">
+                            <div class="hs-org-empty">
+                                <i class="bi bi-film hs-org-eicon"></i>
+                                <div class="hs-org-etext">{{ t('search.empty.hint') }}</div>
+                                <div class="hs-org-eacts">
+                                    <span class="hs-org-btn hs-org-btn--pri hs-org-btn--e"><i class="bi bi-file-earmark-plus"></i>{{ t('search.action.add_files') }}</span>
+                                    <span class="hs-org-btn hs-org-btn--pri hs-org-btn--e"><i class="bi bi-folder-plus"></i>{{ t('search.action.add_folder') }}</span>
+                                    <span class="hs-org-btn hs-org-btn--warn hs-org-btn--e"><i class="bi bi-inbox-fill"></i><span>{{ t('search.action.favorite') }}</span></span>
+                                    <span class="hs-org-btn hs-org-btn--out hs-org-btn--e"><i class="bi bi-clock-history"></i><span>{{ t('search.action.auto_organize') }}</span></span>
+                                </div>
+                                <div class="hs-org-ehint">{{ t('search.empty.drag_hint') }}</div>
+                            </div>
+                            <div class="hs-org-res">
+                                <div class="hs-org-card">
+                                    <div class="hs-org-cover"><div class="hs-org-cwrap"><div class="hs-org-cov hs-org-cov--b" style="--hs-h:210"></div><div class="hs-org-cov hs-org-cov--a" style="--hs-h:20"></div></div></div>
+                                    <div class="hs-org-info">
+                                        <div class="hs-org-ihead"><div class="hs-org-num2">DEMO-101</div><div class="hs-org-pill hs-org-pill--res hs-mark"><span class="hs-org-pname">DMM</span></div><span class="hs-org-iconbtn"><i class="bi bi-bookmark-plus"></i></span></div>
+                                        <div class="hs-org-ititle"><div class="hs-org-ifoot"><span class="hs-org-ilabel">{{ t('search.label.title') }}</span><div class="hs-org-ival-act"><span class="hs-org-ival">{{ t('help.stage.demo.org_title') }}</span><span class="hs-org-iconbtn"><i class="bi bi-pencil"></i></span></div></div></div>
+                                        <div class="hs-org-ibody">
+                                            <div class="hs-org-pair"><div class="hs-org-cell"><span class="hs-org-ilabel">{{ t('search.label.date') }}</span><span class="hs-org-ival">2024-01-15</span></div></div>
+                                            <div class="hs-org-pair"><div class="hs-org-cell"><span class="hs-org-ilabel">{{ t('search.label.maker') }}</span><span class="hs-org-ival">{{ t('help.stage.demo.org_maker') }}</span></div></div>
+                                            <div class="hs-org-irow"><span class="hs-org-ilabel">{{ t('search.label.actor') }}</span><div class="hs-org-ival-act"><span class="hs-org-ival">{{ t('help.stage.demo.actor_a') }}</span><span class="hs-org-iconbtn"><i class="bi bi-pencil"></i></span></div></div>
+                                            <div class="hs-org-irow"><span class="hs-org-ilabel">{{ t('search.label.tags') }}</span><span class="hs-org-ival hs-org-ival--tags"><span class="hs-org-tagadd">+</span></span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="hs-org-stg"></div>
+                                <div class="hs-org-tray">
+                                    <div class="hs-org-thead">
+                                        <span class="hs-org-fcount">{{ t('search.filelist.file_count', current=1, total=1) }}</span>
+                                        <div class="hs-org-join"><span class="hs-org-btn hs-org-btn--tray hs-org-btn--ghost"><i class="bi bi-search"></i><span>{{ t('search.button.search_all') }}</span></span><span class="hs-org-btn hs-org-btn--tray hs-org-btn--succ"><span><i class="bi bi-folder-plus"></i> {{ t('search.filelist.scrape_all') }}</span></span></div>
+                                    </div>
+                                    <div class="hs-org-flist">
+                                        <div class="hs-org-fitem">
+                                            <span class="hs-org-frm"><i class="bi bi-x"></i></span><i class="bi bi-file-earmark-play hs-org-ficon"></i><span class="hs-org-fname">[HD]demo-101_1080p.mp4</span><span class="hs-org-fstat">✓</span>
+                                            <span class="hs-org-btn hs-org-btn--scr hs-org-scr is-on"><i class="bi bi-file-earmark-plus"></i></span>
+                                            <span class="hs-org-btn hs-org-btn--scr hs-org-scr is-run"><span class="hs-org-spin"></span></span>
+                                            <span class="hs-org-btn hs-org-btn--scr hs-org-scr is-done"><i class="bi bi-check"></i></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                            </div>
+                        </div>
+                        <div class="hs-app-drag"><div class="hs-app-dragbox"><i class="bi bi-file-earmark-play"></i><div>{{ t('search.drag_overlay.hint') }}</div></div></div>
+                        <div class="hs-org-ring"><span class="hs-org-ringnote">{{ t('help.stage.organize.mt_note') }}</span></div>
+                        <div class="hs-org-tree">
+                            <div class="hs-org-tr hs-org-tr--f"><i class="bi bi-folder-fill"></i>{{ t('help.stage.demo.org_tree_root') }}</div>
+                            <div class="hs-org-tr hs-org-tr--f hs-org-tr--d1"><i class="bi bi-folder-fill"></i>{{ t('help.stage.demo.actor_a') }}</div>
+                            <div class="hs-org-tr hs-org-tr--d2"><i class="bi bi-film"></i><span class="hs-org-tname hs-mark">[{{ t('help.stage.demo.org_maker') }}] DEMO-101 {{ t('help.stage.demo.org_title') }}.mp4</span></div>
+                            <div class="hs-org-tr hs-org-tr--d2"><i class="bi bi-file-earmark-text"></i><span>[{{ t('help.stage.demo.org_maker') }}] DEMO-101 {{ t('help.stage.demo.org_title') }}.nfo</span></div>
+                            <div class="hs-org-tr hs-org-tr--d2"><i class="bi bi-image"></i><span>[{{ t('help.stage.demo.org_maker') }}] DEMO-101 {{ t('help.stage.demo.org_title') }}.jpg</span></div>
+                            <div class="hs-org-tr hs-org-tr--same"><i class="bi bi-check-circle"></i> {{ t('help.stage.demo.org_tree_same') }}</div>
+                        </div>
+                    </div>
+                    <div class="hs-org-fchip"><i class="bi bi-film"></i><span>[HD]demo-101_1080p.mp4</span></div>
+                    <div class="hs-org-cur"><svg viewBox="0 0 22 22" width="24" height="24"><path d="M4 2l13.5 11.2-6.3.5 3.6 6.3-2.8 1.4-3.3-6.6L4 19z"></path></svg></div>
+                </div>
+                <div class="hs-hint" aria-hidden="true"><i class="bi bi-chevron-down"></i><span>{{ t('help.stage.common.scroll_hint') }}</span></div>
+                <div class="hs-cta-wrap hs-cta-wrap--top"><a class="btn btn-primary hs-cta" href="/settings#scraping">{{ t('help.stage.common.goto', page=t('nav.settings')) }}<i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
+            </div>
+            <div class="hs-caption">
+                <div class="hs-nav">
+                    <button type="button" class="hs-arr" data-hs-prev aria-label="{{ t('help.stage.common.prev') }}" disabled><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+                    <div class="hs-dots">
+                        <button type="button" class="hs-dot" data-hs-dot="1" aria-label="{{ t('help.stage.common.dot_label', n=1) }}" aria-current="step"></button>
+                        <button type="button" class="hs-dot" data-hs-dot="2" aria-label="{{ t('help.stage.common.dot_label', n=2) }}"></button>
+                        <button type="button" class="hs-dot" data-hs-dot="3" aria-label="{{ t('help.stage.common.dot_label', n=3) }}"></button>
+                        <button type="button" class="hs-dot" data-hs-dot="4" aria-label="{{ t('help.stage.common.dot_label', n=4) }}"></button>
+                    </div>
+                    <button type="button" class="hs-arr" data-hs-next aria-label="{{ t('help.stage.common.next') }}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                    <span class="hs-count">1 / 4</span>
+                </div>
+                <ol class="hs-steps">
+                    <li class="hs-step is-on">
+                        <span class="hs-step-num" aria-hidden="true">1</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.organize.s1_you', page=t('nav.settings'), action=t('settings.action.save')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.organize.s1_bg') }}</p>
+                        </div>
+                    </li>
+                    <li class="hs-step">
+                        <span class="hs-step-num" aria-hidden="true">2</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.organize.s2_you', page=t('nav.settings')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.organize.s2_bg') }}</p>
+                        </div>
+                    </li>
+                    <li class="hs-step">
+                        <span class="hs-step-num" aria-hidden="true">3</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.organize.s3_you', page=t('nav.search')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.organize.s3_bg') }}</p>
+                        </div>
+                    </li>
+                    <li class="hs-step">
+                        <span class="hs-step-num" aria-hidden="true">4</span>
+                        <div class="hs-step-body">
+                            <p class="hs-you"><span class="hs-k">{{ t('help.stage.common.you') }}</span>{{ t('help.stage.organize.s4_you', single=t('search.filelist.scrape_nfo'), batch=t('search.filelist.scrape_all')) }}</p>
+                            <p class="hs-bg"><span class="hs-k">{{ t('help.stage.common.background') }}</span>{{ t('help.stage.organize.s4_bg') }}</p>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>

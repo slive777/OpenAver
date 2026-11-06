@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link href="/static/css/pages/help.css" rel="stylesheet">
+<link href="/static/css/pages/help-stage.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -156,695 +157,653 @@
         </div>
     </div>
 
-    <!-- 工作流程 — 3步卡片 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body py-3 px-5">
-            <h3 class="text-sm font-bold mb-3">{{ t('help.workflow.title') }} <span class="font-normal opacity-50">— {{ t('help.workflow.subtitle') }}</span></h3>
-            <div class="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
-                <!-- Step 1 -->
-                <div class="flex-1 rounded-xl bg-base-200 p-6 text-center">
-                    <i class="bi bi-folder-plus workflow-step-icon"></i>
-                    <div class="font-bold text-lg mt-1"><span class="workflow-step-num">1</span> {{ t('help.workflow.step1_title') }}</div>
-                    <div class="text-base opacity-50 mt-0.5">{{ t('help.workflow.step1_desc') }}</div>
-                </div>
-                <!-- Arrow -->
-                <div class="workflow-arrow text-xl leading-none">▶</div>
-                <!-- Step 2 -->
-                <div class="flex-1 rounded-xl bg-base-200 p-6 text-center">
-                    <i class="bi bi-file-earmark-play workflow-step-icon"></i>
-                    <div class="font-bold text-lg mt-1"><span class="workflow-step-num">2</span> {{ t('help.workflow.step2_title') }}</div>
-                    <div class="text-base opacity-50 mt-0.5">{{ t('help.workflow.step2_desc') }}</div>
-                </div>
-                <!-- Arrow -->
-                <div class="workflow-arrow text-xl leading-none">▶</div>
-                <!-- Step 3 -->
-                <div class="flex-1 rounded-xl bg-base-200 p-6 text-center">
-                    <i class="bi bi-magic workflow-step-icon"></i>
-                    <div class="font-bold text-lg mt-1"><span class="workflow-step-num">3</span> {{ t('help.workflow.step3_title') }}</div>
-                    <div class="text-base opacity-50 mt-0.5">{{ t('help.workflow.step3_desc') }}</div>
-                </div>
-            </div>
-
-            <!-- Next Steps mini-list -->
-            <div class="mt-4">
-                <h6 class="text-sm font-bold mb-2">{{ t('help.workflow.next_steps_title') }}</h6>
-                <ul class="text-sm opacity-80">
-                    <li>{{ t('help.workflow.next_steps_similar') }}</li>
-                    <li>{{ t('help.workflow.next_steps_favorite') }}</li>
-                    <li>{{ t('help.workflow.next_steps_tag_alias') }}</li>
-                </ul>
-            </div>
-        </div>
+    <!-- 191a-T1: 三分頁外殼（獨立元件 helpTabs；panel 以 data-help-panel 歸屬分頁）。tutorial_completed 由 SSR 寫入 dataset。 -->
+    <div class="help-tabs-wrap" x-data="helpTabs"
+         data-tutorial-completed="{{ 'true' if config.get('general', {}).get('tutorial_completed', False) else 'false' }}"
+         @hashchange.window="syncHelpTabFromHash()">
+    <div role="tablist" class="help-tabs">
+        <button type="button" role="tab" class="help-tab" id="helpTabLibrary"
+                aria-controls="helpPanelLibrary"
+                :class="{ 'is-active': helpTab === 'library' }"
+                :aria-selected="helpTab === 'library'"
+                @click="selectHelpTab('library')"><i class="bi bi-folder-plus"></i> <span>{{ t('help.tabs.library') }}</span></button>
+        <button type="button" role="tab" class="help-tab" id="helpTabOrganize"
+                aria-controls="helpPanelOrganize"
+                :class="{ 'is-active': helpTab === 'organize' }"
+                :aria-selected="helpTab === 'organize'"
+                @click="selectHelpTab('organize')"><i class="bi bi-magic"></i> <span>{{ t('help.tabs.organize') }}</span></button>
+        <button type="button" role="tab" class="help-tab" id="helpTabManual"
+                aria-controls="helpPanelManual"
+                :class="{ 'is-active': helpTab === 'manual' }"
+                :aria-selected="helpTab === 'manual'"
+                @click="selectHelpTab('manual')"><i class="bi bi-book"></i> <span>{{ t('help.tabs.manual') }}</span></button>
     </div>
-
-    <!-- 想要更多控制？分流段 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body py-3 px-5">
-            <h3 class="text-base font-bold mb-2">{{ t('help.power_user.title') }}</h3>
-            <p class="text-sm opacity-80 mb-0">{{ t('help.power_user.intro') }}</p>
-        </div>
+    <div class="help-tabs-panels">
+    <div role="tabpanel" id="helpPanelLibrary" aria-labelledby="helpTabLibrary" data-help-panel="library" x-show="helpTab === 'library'" x-cloak>
+        {% include 'partials/help/stage_library.html' %}
     </div>
-
-    <!-- 影片列表生成 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
+    <div role="tabpanel" id="helpPanelOrganize" aria-labelledby="helpTabOrganize" data-help-panel="organize" x-show="helpTab === 'organize'" x-cloak>
+        {% include 'partials/help/stage_organize.html' %}
+    </div>
+    <div role="tabpanel" id="helpPanelManual" aria-labelledby="helpTabManual" data-help-panel="manual" x-show="helpTab === 'manual'" x-cloak>
+    <div class="card help-card fluent-rounded-xl mb-4 help-manual">
         <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-list-ul"></i> {{ t('help.scanner.title') }}
-            </h2>
-            <h6>{{ t('help.scanner.h6_features') }}</h6>
-            <ul>
-                <li>{{ t('help.scanner.feat_scan') }}</li>
-                <li>{{ t('help.scanner.feat_nfo') }}</li>
-                <li>{{ t('help.scanner.feat_nfo_fill') }}</li>
-                <li>{{ t('help.scanner.feat_terminal') }}</li>
-            </ul>
+            <h2 class="card-title text-lg">{{ t('help.manual.faq_title') }}</h2>
+            <details class="help-manual-row" id="faq-crash">
+                <summary><span class="help-manual-title">{{ t('help.troubleshooting.h6_crash') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <p>{{ t('help.troubleshooting.crash_cause') | safe }}</p>
+                    <p>{{ t('help.troubleshooting.crash_fix_label') | safe }}</p>
+                    <ol>
+                        <li>{{ t('help.troubleshooting.crash_fix_1') }}</li>
+                        <li>{{ t('help.troubleshooting.crash_fix_2') }}</li>
+                        <li>{{ t('help.troubleshooting.crash_fix_3') }}</li>
+                    </ol>
+                </div>
+            </details>
+            <details class="help-manual-row" id="faq-display">
+                <summary><span class="help-manual-title">{{ t('help.troubleshooting.h6_display') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <p>{{ t('help.troubleshooting.display_cause') | safe }}</p>
+                    <p>{{ t('help.troubleshooting.display_fix') | safe }}</p>
+                </div>
+            </details>
+            <details class="help-manual-row" id="faq-dmm">
+                <summary><span class="help-manual-title">{{ t('help.troubleshooting.h6_dmm') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <ul>
+                        <li>{{ t('help.troubleshooting.dmm_proxy') | safe }}</li>
+                        <li>{{ t('help.troubleshooting.dmm_blocked_try_jp_proxy') | safe }}</li>
+                    </ul>
+                </div>
+            </details>
+            <details class="help-manual-row" id="faq-translate">
+                <summary><span class="help-manual-title">{{ t('help.troubleshooting.h6_translate') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <ul>
+                        <li>{{ t('help.troubleshooting.translate_ollama') | safe }}</li>
+                        <li>{{ t('help.troubleshooting.translate_gemini') | safe }}</li>
+                        <li>{{ t('help.troubleshooting.translate_openai') | safe }}</li>
+                        <li>{{ t('help.troubleshooting.translate_claude') | safe }}</li>
+                        <li>{{ t('help.troubleshooting.translate_blocked') | safe }}</li>
+                        <li>{{ t('help.troubleshooting.translate_manual_model') | safe }}</li>
+                    </ul>
+                </div>
+            </details>
+            <details class="help-manual-row" id="faq-report">
+                <summary><span class="help-manual-title">{{ t('help.troubleshooting.h6_report') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <p>{{ t('help.troubleshooting.report_log_path') | safe }}</p>
+                    <p>{{ t('help.troubleshooting.report_debug_label') | safe }}</p>
+                    <ol>
+                        <li>{{ t('help.troubleshooting.report_debug_1') | safe }}</li>
+                        <li>{{ t('help.troubleshooting.report_debug_2') }}</li>
+                        <li>{{ t('help.troubleshooting.report_debug_3') | safe }}</li>
+                    </ol>
+                </div>
+            </details>
 
-            <h6 class="mt-4">{{ t('help.scanner.h6_output') }}</h6>
-            <ul>
-                <li>{{ t('help.scanner.output_html') | safe }}</li>
-                <li>{{ t('help.scanner.output_copy') | safe }}</li>
-                <li>{{ t('help.scanner.output_darkmode') | safe }}</li>
-            </ul>
+            <h2 class="card-title text-lg">{{ t('help.manual.chapters_title') }}</h2>
+            <!-- 影片列表生成 -->
+            <details class="help-manual-row" id="scanner">
+                <summary><span class="help-manual-title"><i class="bi bi-list-ul"></i> {{ t('help.scanner.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <h6>{{ t('help.scanner.h6_features') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scanner.feat_scan') }}</li>
+                        <li>{{ t('help.scanner.feat_nfo') }}</li>
+                        <li>{{ t('help.scanner.feat_nfo_fill') }}</li>
+                        <li>{{ t('help.scanner.feat_terminal') }}</li>
+                    </ul>
 
-            <h6 class="mt-4">{{ t('help.scanner.h6_subtitle') }}</h6>
-            <ul>
-                <li>{{ t('help.scanner.subtitle_detect') | safe }}</li>
-                <li>{{ t('help.scanner.subtitle_move') | safe }}</li>
-                <li>{{ t('help.scanner.subtitle_nfo') }}</li>
-            </ul>
+                    <h6 class="mt-4">{{ t('help.scanner.h6_output') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scanner.output_html') | safe }}</li>
+                        <li>{{ t('help.scanner.output_copy') | safe }}</li>
+                        <li>{{ t('help.scanner.output_darkmode') | safe }}</li>
+                    </ul>
 
-            <h6 class="mt-4">{{ t('help.scanner.h6_jellyfin') }}</h6>
-            <ul>
-                <li>{{ t('help.scanner.jellyfin_enable') | safe }}</li>
-                <li>{{ t('help.scanner.jellyfin_canonical') | safe }}</li>
-                <li>{{ t('help.scanner.jellyfin_showcase') | safe }}</li>
-            </ul>
+                    <h6 class="mt-4">{{ t('help.scanner.h6_subtitle') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scanner.subtitle_detect') | safe }}</li>
+                        <li>{{ t('help.scanner.subtitle_move') | safe }}</li>
+                        <li>{{ t('help.scanner.subtitle_nfo') }}</li>
+                    </ul>
 
-            <h6 class="mt-4">{{ t('help.scanner.h6_strm_deploy') }}</h6>
-            <ol>
-                <li>{{ t('help.scanner.strm_deploy_step1') | safe }}</li>
-                <li>{{ t('help.scanner.strm_deploy_step2') | safe }}</li>
-                <li>{{ t('help.scanner.strm_deploy_step3') | safe }}</li>
-                <li>{{ t('help.scanner.strm_deploy_step4') | safe }}</li>
-            </ol>
+                    <h6 class="mt-4">{{ t('help.scanner.h6_jellyfin') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scanner.jellyfin_enable') | safe }}</li>
+                        <li>{{ t('help.scanner.jellyfin_canonical') | safe }}</li>
+                        <li>{{ t('help.scanner.jellyfin_showcase') | safe }}</li>
+                    </ul>
 
-            <h6 class="mt-4">{{ t('help.scanner.h6_multiversion') }}</h6>
-            <p>{{ t('help.scanner.multiversion_intro') }}</p>
-            <pre class="bg-base-200 rounded-lg p-3 text-sm overflow-x-auto"><code>ABC-123/
+                    <h6 class="mt-4">{{ t('help.scanner.h6_strm_deploy') }}</h6>
+                    <ol>
+                        <li>{{ t('help.scanner.strm_deploy_step1') | safe }}</li>
+                        <li>{{ t('help.scanner.strm_deploy_step2') | safe }}</li>
+                        <li>{{ t('help.scanner.strm_deploy_step3') | safe }}</li>
+                        <li>{{ t('help.scanner.strm_deploy_step4') | safe }}</li>
+                    </ol>
+
+                    <h6 class="mt-4">{{ t('help.scanner.h6_multiversion') }}</h6>
+                    <p>{{ t('help.scanner.multiversion_intro') }}</p>
+                    <pre class="bg-base-200 rounded-lg p-3 text-sm overflow-x-auto"><code>ABC-123/
   ABC-123 - 有碼.mp4{# cjk-exempt(有碼): 檔名命名慣例真實範例，非 UI copy — TASK-103-T7 §F.3 #}
   ABC-123 - 無碼流出.mp4{# cjk-exempt(無碼流出): 同上 #}
   ABC-123 - 中文字幕.mp4{# cjk-exempt(中文字幕): 同上 #}
   ABC-123.nfo
   ABC-123-poster.jpg</code></pre>
-            <ul>
-                <li>{{ t('help.scanner.multiversion_rule1') | safe }}</li>
-                <li>{{ t('help.scanner.multiversion_rule2') | safe }}</li>
-            </ul>
+                    <ul>
+                        <li>{{ t('help.scanner.multiversion_rule1') | safe }}</li>
+                        <li>{{ t('help.scanner.multiversion_rule2') | safe }}</li>
+                    </ul>
+                </div>
+            </details>
+            <!-- 影片瀏覽 Showcase -->
+            <details class="help-manual-row" id="showcase">
+                <summary><span class="help-manual-title"><i class="bi bi-collection-play"></i> {{ t('help.showcase.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <p>{{ t('help.showcase.intro') | safe }}</p>
+
+                    <h6 class="mt-4">{{ t('help.showcase.h6_modes') }}</h6>
+                    <ul>
+                        <li>{{ t('help.showcase.mode_grid') | safe }}</li>
+                        <li>{{ t('help.showcase.mode_poster') | safe }}</li>
+                        <li>{{ t('help.showcase.mode_list') | safe }}</li>
+                        <li>{{ t('help.showcase.mode_table') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.showcase.h6_sort') }}</h6>
+                    <ul>
+                        <li>{{ t('help.showcase.sort_sort') | safe }}</li>
+                        <li>{{ t('help.showcase.sort_search') | safe }}</li>
+                        <li>{{ t('help.showcase.sort_pill') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.showcase.h6_other') }}</h6>
+                    <ul>
+                        <li>{{ t('help.showcase.other_lightbox') | safe }}</li>
+                        <li>{{ t('help.showcase.other_lightbox_detail') }}</li>
+                        <li>{{ t('help.showcase.other_table_cols') }}</li>
+                        <li>{{ t('help.showcase.other_gallery') }}</li>
+                        <li>{{ t('help.showcase.other_translate_title') | safe }}</li>
+                        <li>{{ t('help.showcase.other_per_page') | safe }}</li>
+                    </ul>
+                </div>
+            </details>
+            <!-- 搜尋功能 -->
+            <details class="help-manual-row" id="search">
+                <summary><span class="help-manual-title"><i class="bi bi-search"></i> {{ t('help.search.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <h6>{{ t('help.search.h6_methods') }}</h6>
+                    <ul>
+                        <li>{{ t('help.search.method_full') | safe }}</li>
+                        <li>{{ t('help.search.method_partial') | safe }}</li>
+                        <li>{{ t('help.search.method_series') | safe }}</li>
+                        <li>{{ t('help.search.method_actress') | safe }}</li>
+                        <li>{{ t('help.search.method_maker') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.search.h6_dragdrop') }}</h6>
+                    <ul>
+                        <li>{{ t('help.search.drag_auto') }}</li>
+                        <li>{{ t('help.search.drag_batch') }}</li>
+                        <li>{{ t('help.search.drag_generate') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.search.h6_grid') }}</h6>
+                    <ul>
+                        <li>{{ t('help.search.grid_switch') }}</li>
+                        <li>{{ t('help.search.grid_lightbox') | safe }}</li>
+                        <li>{{ t('help.search.grid_detail') }}</li>
+                        <li>{{ t('help.search.grid_gallery') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.search.h6_badge') }}</h6>
+                    <ul>
+                        <li>{{ t('help.search.badge_keywords') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.search.h6_advanced_picker') }}</h6>
+                    <ul>
+                        <li>{{ t('help.search.picker_longpress') }}</li>
+                        <li>{{ t('help.search.picker_panel_switch') }}</li>
+                        <li>{{ t('help.search.picker_showcase_enrich') }}</li>
+                        <li>{{ t('help.search.picker_lightbox_gear') }}</li>
+                    </ul>
+                </div>
+            </details>
+            <!-- 批次檔案搜尋 -->
+            <details class="help-manual-row" id="batch">
+                <summary><span class="help-manual-title"><i class="bi bi-files"></i> {{ t('help.batch.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <h6>{{ t('help.batch.h6_add') }}</h6>
+                    <ul>
+                        <li>{{ t('help.batch.add_folder') | safe }}</li>
+                        <li>{{ t('help.batch.add_filter') | safe }}</li>
+                        <li>{{ t('help.batch.add_batch') | safe }}</li>
+                        <li>{{ t('help.batch.add_progress') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.batch.h6_favorite') }}</h6>
+                    <ul>
+                        <li>{{ t('help.batch.fav_settings') | safe }}</li>
+                        <li>{{ t('help.batch.fav_load') }}</li>
+                        <li>{{ t('help.batch.fav_auto') }}</li>
+                        <li>{{ t('help.batch.fav_nfo_skip') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.batch.h6_pause') }}</h6>
+                    <ul>
+                        <li>{{ t('help.batch.pause_pause') }}</li>
+                        <li>{{ t('help.batch.pause_resume') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.batch.h6_generate_all') }}</h6>
+                    <ul>
+                        <li>{{ t('help.batch.generate_all') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.batch.h6_badge') }}</h6>
+                    <ul>
+                        <li>{{ t('help.batch.badge_suffix') | safe }}</li>
+                    </ul>
+                </div>
+            </details>
+            <!-- 女優功能 -->
+            <details class="help-manual-row" id="actress">
+                <summary><span class="help-manual-title"><i class="bi bi-person-circle"></i> {{ t('help.actress.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <h6>{{ t('help.actress.h6_search') }}</h6>
+                    <ul>
+                        <li>{{ t('help.actress.search_hero') }}</li>
+                        <li>{{ t('help.actress.search_favorite') }}</li>
+                        <li>{{ t('help.actress.search_grid') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.actress.h6_showcase') }}</h6>
+                    <ul>
+                        <li>{{ t('help.actress.showcase_toggle') }}</li>
+                        <li>{{ t('help.actress.showcase_grid') }}</li>
+                        <li>{{ t('help.actress.showcase_metric_pill') }}</li>
+                        <li>{{ t('help.actress.showcase_lightbox') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.actress.h6_manage') }}</h6>
+                    <ul>
+                        <li>{{ t('help.actress.manage_add') }}</li>
+                        <li>{{ t('help.actress.manage_library') | safe }}</li>
+                        <li>{{ t('help.actress.manage_alias') }}</li>
+                        <li>{{ t('help.actress.manage_enrich') }}</li>
+                        <li>{{ t('help.actress.manage_photo_path') }}</li>
+                    </ul>
+                </div>
+            </details>
+            <!-- 相似影片探索 -->
+            <details class="help-manual-row" id="similar">
+                <summary><span class="help-manual-title"><i class="bi bi-magic"></i> {{ t('help.similar.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <p>{{ t('help.similar.intro') | safe }}</p>
+
+                    <h6 class="mt-4">{{ t('help.similar.h6_what') }}</h6>
+                    <ul>
+                        <li>{{ t('help.similar.what_principle') | safe }}</li>
+                        <li>{{ t('help.similar.what_crop') | safe }}</li>
+                        <li>{{ t('help.similar.what_diversity') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.similar.h6_use') }}</h6>
+                    <ul>
+                        <li>{{ t('help.similar.use_lightbox') | safe }}</li>
+                        <li>{{ t('help.similar.use_constellation') | safe }}</li>
+                        <li>{{ t('help.similar.use_mobile') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.similar.h6_beta') }}</h6>
+                    <ul>
+                        <li>{{ t('help.similar.beta_uncensored') | safe }}</li>
+                        <li>{{ t('help.similar.beta_compilation') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.similar.h6_manage') }}</h6>
+                    <ul>
+                        <li>{{ t('help.similar.manage_enable') | safe }}</li>
+                        <li>{{ t('help.similar.manage_scanner') | safe }}</li>
+                    </ul>
+                </div>
+            </details>
+            <!-- Tag 別名管理 -->
+            <details class="help-manual-row" id="tag-alias">
+                <summary><span class="help-manual-title"><i class="bi bi-tags"></i> {{ t('help.tag_alias.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <p>{{ t('help.tag_alias.intro') }}</p>
+
+                    <h6 class="mt-4">{{ t('help.tag_alias.h6_scanner') }}</h6>
+                    <ul>
+                        <li>{{ t('help.tag_alias.scanner_chipwall') }}</li>
+                        <li>{{ t('help.tag_alias.scanner_ai_hint') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.tag_alias.h6_showcase') }}</h6>
+                    <ul>
+                        <li>{{ t('help.tag_alias.showcase_expand') }}</li>
+                        <li>{{ t('help.tag_alias.showcase_click') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.tag_alias.h6_tips') }}</h6>
+                    <ul>
+                        <li>{{ t('help.tag_alias.tip_ranker') }}</li>
+                    </ul>
+                </div>
+            </details>
+            <!-- Scraper 來源說明 -->
+            <details class="help-manual-row" id="scraper">
+                <summary><span class="help-manual-title"><i class="bi bi-globe"></i> {{ t('help.scraper.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <h6>{{ t('help.scraper.h6_censored') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scraper.censored_dmm') | safe }}</li>
+                        <li>{{ t('help.scraper.censored_others') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.scraper.h6_uncensored') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scraper.uncensored_d2pass') | safe }}</li>
+                        <li>{{ t('help.scraper.uncensored_heyzo') | safe }}</li>
+                        <li>{{ t('help.scraper.uncensored_fc2') | safe }}</li>
+                        <li>{{ t('help.scraper.uncensored_avsox') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.scraper.h6_manual') }}</h6>
+                    <p>{{ t('help.scraper.manual_intro') | safe }}</p>
+                    <ul>
+                        <li>{{ t('help.scraper.manual_javlibrary') | safe }}</li>
+                        <li>{{ t('help.scraper.manual_fc2_javten') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.scraper.h6_custom') }}</h6>
+                    <p>{{ t('help.scraper.custom_what') | safe }}</p>
+                    <ul>
+                        <li>{{ t('help.scraper.custom_how') }}</li>
+                        <li>{{ t('help.scraper.custom_verify') | safe }}</li>
+                        <li>{{ t('help.scraper.custom_modal') }}</li>
+                        <li>{{ t('help.scraper.custom_new_media') | safe }}</li>
+                    </ul>
+                    <ul>
+                        <li>{{ t('help.scraper.custom_state_unverified') }}</li>
+                        <li>{{ t('help.scraper.custom_state_verifying') }}</li>
+                        <li>{{ t('help.scraper.custom_state_passed') }}</li>
+                        <li>{{ t('help.scraper.custom_state_failed') }}</li>
+                        <li>{{ t('help.scraper.custom_state_load_failed') }}</li>
+                    </ul>
+                    <p>{{ t('help.scraper.custom_folder_intro') }}</p>
+                    <ul>
+                        <li>{{ t('help.scraper.custom_folder_desktop') | safe }}</li>
+                        <li>{{ t('help.scraper.custom_folder_linux') | safe }}</li>
+                        <li>{{ t('help.scraper.custom_folder_synology') | safe }}</li>
+                    </ul>
+                    <ul>
+                        <li>{{ t('help.scraper.custom_limit_host') }}</li>
+                        <li>{{ t('help.scraper.custom_limit_userinfo') }}</li>
+                        <li>{{ t('help.scraper.custom_limit_stale') }}</li>
+                    </ul>
+                    <p><a href="https://github.com/slive777/OpenAver/blob/main/docs/custom-sources.md" target="_blank" rel="noopener noreferrer">{{ t('help.scraper.custom_docs_link') }}</a></p>
+
+                    <h6 class="mt-4">{{ t('help.scraper.h6_default_source') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scraper.default_source_set') | safe }}</li>
+                        <li>{{ t('help.scraper.default_source_effect') }}</li>
+                        <li>{{ t('help.scraper.fuzzy_always_on') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.scraper.h6_dmm_fuzzy') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scraper.dmm_fuzzy_trigger') }}</li>
+                        <li>{{ t('help.scraper.dmm_fuzzy_prereq') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.scraper.h6_proxy_scope') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scraper.proxy_empty_system') }}</li>
+                        <li>{{ t('help.scraper.proxy_scope_how') }}</li>
+                        <li>{{ t('help.scraper.proxy_scope_all_includes') }}</li>
+                        <li>{{ t('help.scraper.proxy_scope_excludes') }}</li>
+                        <li>{{ t('help.scraper.proxy_scope_verifier') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.scraper.h6_probe') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scraper.probe_where') }}</li>
+                        <li>{{ t('help.scraper.probe_states') | safe }}</li>
+                        <li>{{ t('help.scraper.probe_not_data') }}</li>
+                        <li>{{ t('help.scraper.probe_no_images') }}</li>
+                        <li>{{ t('help.scraper.probe_verifier') }}</li>
+                        {% if is_windows_desktop %}
+                        <li>{{ t('help.scraper.probe_skipped_windows') }}</li>
+                        {% elif is_mac_desktop %}
+                        <li>{{ t('help.scraper.probe_skipped_mac') }}</li>
+                        {% else %}
+                        <li>{{ t('help.scraper.probe_skipped') }}</li>
+                        {% endif %}
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.scraper.h6_toggle') }}</h6>
+                    <ul>
+                        <li>{{ t('help.scraper.toggle_uncensored') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.scraper.h6_format') }}</h6>
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>{{ t('help.scraper.col_source') }}</th><th>{{ t('help.scraper.col_format') }}</th><th>{{ t('help.scraper.col_example') }}</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Caribbeancom</td><td><code>DDMMYY-NNN</code></td><td><code>010125-001</code></td></tr>
+                                <tr><td>1Pondo</td><td><code>DDMMYY_NNN</code></td><td><code>010125_001</code></td></tr>
+                                <tr><td>HEYZO</td><td><code>HEYZO-NNNN</code></td><td><code>HEYZO-3510</code></td></tr>
+                                <tr><td>FC2</td><td><code>FC2-PPV-NNNNNN</code></td><td><code>FC2-PPV-1723984</code></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+            <!-- Metatube 教學 -->
+            <details class="help-manual-row" id="metatube">
+                <summary><span class="help-manual-title"><i class="bi bi-plug"></i> {{ t('help.metatube.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <h6>{{ t('help.metatube.h6_what') }}</h6>
+                    <ul>
+                        <li>{{ t('help.metatube.what_desc') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.metatube.h6_enable') }}</h6>
+                    <ul>
+                        <li>{{ t('help.metatube.enable_gate') }}</li>
+                        <li>{{ t('help.metatube.enable_url') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.metatube.h6_sources') }}</h6>
+                    <ul>
+                        <li>{{ t('help.metatube.sources_promote') }}</li>
+                        <li>{{ t('help.metatube.sources_offline') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.metatube.h6_lan') }}</h6>
+                    <ul>
+                        <li>{{ t('help.metatube.lan_ssrf') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.metatube.h6_limits') }}</h6>
+                    <ul>
+                        <li>{{ t('help.metatube.limits_picker') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.metatube.h6_db') }}</h6>
+                    <ul>
+                        <li>{{ t('help.metatube.db_hint') }}</li>
+                    </ul>
+
+                    <p class="text-sm text-base-content/50 mt-2">↗ {{ t('help.metatube.crossref_picker') }}</p>
+                </div>
+            </details>
+            <!-- 格式變數一覽表 -->
+            <details class="help-manual-row" id="format">
+                <summary><span class="help-manual-title"><i class="bi bi-braces"></i> {{ t('help.format.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>{{ t('help.format.col_var') }}</th><th>{{ t('help.format.col_desc') }}</th><th>{{ t('help.format.col_example') }}</th><th>{{ t('help.format.col_fallback') }}</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><code>{num}</code></td><td>{{ t('help.format.var_num_desc') }}</td><td>SONE-205</td><td>—</td></tr>
+                                <tr><td><code>{title}</code></td><td>{{ t('help.format.var_title_desc') }}</td><td>新人出道...</td><td>{{ t('help.format.fallback_unknown_title') }}</td></tr>{# cjk-exempt(新人出道): 格式變數對照表範例值，非 UI copy — TASK-103-T7 §F.3 #}
+                                <tr><td><code>{actor}</code></td><td>{{ t('help.format.var_actor_desc') }}</td><td>三上悠亜</td><td>{{ t('help.format.fallback_unknown_actor') }}</td></tr>{# cjk-exempt(三上悠亜): 同上 #}
+                                <tr><td><code>{actors}</code></td><td>{{ t('help.format.var_actors_desc') }}</td><td>三上悠亜, 明日花</td><td>{{ t('help.format.fallback_unknown_actor') }}</td></tr>{# cjk-exempt(三上悠亜|明日花): 同上 #}
+                                <tr><td><code>{maker}</code></td><td>{{ t('help.format.var_maker_desc') }}</td><td>S1</td><td>{{ t('help.format.fallback_unknown_maker') }}</td></tr>
+                                <tr><td><code>{date}</code></td><td>{{ t('help.format.var_date_desc') }}</td><td>2024-01-15</td><td>{{ t('help.format.fallback_unknown_date') }}</td></tr>
+                                <tr><td><code>{year}</code></td><td>{{ t('help.format.var_year_desc') }}</td><td>2024</td><td>{{ t('help.format.fallback_unknown_year') }}</td></tr>
+                                <tr><td><code>{month}</code></td><td>{{ t('help.format.var_month_desc') }}</td><td>01</td><td>{{ t('help.format.fallback_unknown_month') }}</td></tr>
+                                <tr><td><code>{day}</code></td><td>{{ t('help.format.var_day_desc') }}</td><td>15</td><td>{{ t('help.format.fallback_unknown_day') }}</td></tr>
+                                <tr><td><code>{suffix}</code></td><td>{{ t('help.format.var_suffix_desc') }}</td><td>-4k</td><td>{{ t('help.format.fallback_empty') }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h6 class="mt-4">{{ t('help.format.h6_default') }}</h6>
+                    <ul>
+                        <li>{{ t('help.format.default_filename') | safe }}</li>
+                        <li>{{ t('help.format.default_folder') | safe }}</li>
+                    </ul>
+                    <h6 class="mt-4">{{ t('help.format.h6_fallback') }}</h6>
+                    <ul>
+                        <li>{{ t('help.format.fallback_folder_rule') }}</li>
+                        <li>{{ t('help.format.fallback_filename_rule') }}</li>
+                    </ul>
+                </div>
+            </details>
+            <!-- 快捷鍵 -->
+            <details class="help-manual-row" id="shortcuts">
+                <summary><span class="help-manual-title"><i class="bi bi-keyboard"></i> {{ t('help.shortcuts.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <h6>{{ t('help.shortcuts.h6_search') }}</h6>
+                    <p class="text-base-content/60 text-sm mb-2">{{ t('help.shortcuts.search_hint') }}</p>
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>{{ t('help.shortcuts.col_key') }}</th><th>{{ t('help.shortcuts.col_context') }}</th><th>{{ t('help.shortcuts.col_action') }}</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><kbd class="kbd kbd-sm">Esc</kbd></td>
+                                    <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
+                                    <td>{{ t('help.shortcuts.action_close_lightbox') }}</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                                    <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
+                                    <td>{{ t('help.shortcuts.action_prev_next_video') }}</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                                    <td>{{ t('help.shortcuts.search_arrow2_ctx') }}</td>
+                                    <td>{{ t('help.shortcuts.search_arrow2_action') }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h6 class="mt-4">{{ t('help.shortcuts.h6_showcase') }}</h6>
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr><th>{{ t('help.shortcuts.col_key') }}</th><th>{{ t('help.shortcuts.col_context') }}</th><th>{{ t('help.shortcuts.col_action') }}</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                                    <td>{{ t('help.shortcuts.ctx_lightbox_closed') }}</td>
+                                    <td>{{ t('help.shortcuts.showcase_arrow_action') }}</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd class="kbd kbd-sm">A</kbd></td>
+                                    <td>{{ t('help.shortcuts.ctx_lightbox_closed') }}</td>
+                                    <td>{{ t('help.shortcuts.showcase_a_action') }}</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd class="kbd kbd-sm">S</kbd></td>
+                                    <td>{{ t('help.shortcuts.showcase_s_ctx') }}</td>
+                                    <td>{{ t('help.shortcuts.showcase_s_action') }}</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd class="kbd kbd-sm">Esc</kbd></td>
+                                    <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
+                                    <td>{{ t('help.shortcuts.action_close_lightbox') }}</td>
+                                </tr>
+                                <tr>
+                                    <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                                    <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
+                                    <td>{{ t('help.shortcuts.action_prev_next_video') }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+            <!-- 伺服器模式 -->
+            <details class="help-manual-row" id="server-mode">
+                <summary><span class="help-manual-title"><i class="bi bi-hdd-network"></i> {{ t('help.server_mode.title') }}</span> <i class="bi bi-chevron-down help-manual-chevron" aria-hidden="true"></i></summary>
+                <div class="help-manual-body">
+                    <h6>{{ t('help.server_mode.h6_what') }}</h6>
+                    <ul>
+                        <li>{{ t('help.server_mode.what_single') }}</li>
+                        <li>{{ t('help.server_mode.what_server') }}</li>
+                        <li>{{ t('help.server_mode.what_where') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.server_mode.h6_how') }}</h6>
+                    <ul>
+                        <li>{{ t('help.server_mode.how_url') | safe }}</li>
+                        <li>{{ t('help.server_mode.how_copy') }}</li>
+                        <li>{{ t('help.server_mode.how_off') }}</li>
+                        <li>{{ t('help.server_mode.how_shared_folder') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.server_mode.client_h6') }}</h6>
+                    <ul>
+                        <li>{{ t('help.server_mode.client_entry') }}</li>
+                        <li>{{ t('help.server_mode.client_password') }}</li>
+                        <li>{{ t('help.server_mode.client_map') }}</li>
+                        <li>{{ t('help.server_mode.client_back_local') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.server_mode.h6_security') }}</h6>
+                    <ul>
+                        <li>{{ t('help.server_mode.security_lan_auth') if auth_enabled else t('help.server_mode.security_lan') }}</li>
+                        <li>{{ t('help.server_mode.security_vpn') }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.server_mode.h6_firewall') }}</h6>
+                    <ul>
+                        <li>{{ t('help.server_mode.firewall_allow') | safe }}</li>
+                        <li>{{ t('help.server_mode.firewall_why') | safe }}</li>
+                    </ul>
+
+                    <h6 class="mt-4">{{ t('help.server_mode.h6_recover') }}</h6>
+                    <ul>
+                        <li>{{ t('help.server_mode.recover_win_intro') }}</li>
+                        <li>{{ t('help.server_mode.recover_win_1') | safe }}</li>
+                        <li>{{ t('help.server_mode.recover_win_2') }}</li>
+                        <li>{{ t('help.server_mode.recover_win_3') | safe }}</li>
+                        <li>{{ t('help.server_mode.recover_win_4') }}</li>
+                        <li>{{ t('help.server_mode.recover_mac') }}</li>
+                    </ul>
+                </div>
+            </details>
         </div>
     </div>
-
-    <!-- 影片瀏覽 Showcase -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-collection-play"></i> {{ t('help.showcase.title') }}
-            </h2>
-            <p>{{ t('help.showcase.intro') | safe }}</p>
-
-            <h6 class="mt-4">{{ t('help.showcase.h6_modes') }}</h6>
-            <ul>
-                <li>{{ t('help.showcase.mode_grid') | safe }}</li>
-                <li>{{ t('help.showcase.mode_poster') | safe }}</li>
-                <li>{{ t('help.showcase.mode_list') | safe }}</li>
-                <li>{{ t('help.showcase.mode_table') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.showcase.h6_sort') }}</h6>
-            <ul>
-                <li>{{ t('help.showcase.sort_sort') | safe }}</li>
-                <li>{{ t('help.showcase.sort_search') | safe }}</li>
-                <li>{{ t('help.showcase.sort_pill') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.showcase.h6_other') }}</h6>
-            <ul>
-                <li>{{ t('help.showcase.other_lightbox') | safe }}</li>
-                <li>{{ t('help.showcase.other_lightbox_detail') }}</li>
-                <li>{{ t('help.showcase.other_table_cols') }}</li>
-                <li>{{ t('help.showcase.other_gallery') }}</li>
-                <li>{{ t('help.showcase.other_translate_title') | safe }}</li>
-                <li>{{ t('help.showcase.other_per_page') | safe }}</li>
-            </ul>
-        </div>
     </div>
-
-    <!-- 相似影片探索 -->
-    <div class="card help-card fluent-rounded-xl mb-4" id="similar">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-magic"></i> {{ t('help.similar.title') }}
-            </h2>
-            <p>{{ t('help.similar.intro') | safe }}</p>
-
-            <h6 class="mt-4">{{ t('help.similar.h6_what') }}</h6>
-            <ul>
-                <li>{{ t('help.similar.what_principle') | safe }}</li>
-                <li>{{ t('help.similar.what_crop') | safe }}</li>
-                <li>{{ t('help.similar.what_diversity') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.similar.h6_use') }}</h6>
-            <ul>
-                <li>{{ t('help.similar.use_lightbox') | safe }}</li>
-                <li>{{ t('help.similar.use_constellation') | safe }}</li>
-                <li>{{ t('help.similar.use_mobile') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.similar.h6_beta') }}</h6>
-            <ul>
-                <li>{{ t('help.similar.beta_uncensored') | safe }}</li>
-                <li>{{ t('help.similar.beta_compilation') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.similar.h6_manage') }}</h6>
-            <ul>
-                <li>{{ t('help.similar.manage_enable') | safe }}</li>
-                <li>{{ t('help.similar.manage_scanner') | safe }}</li>
-            </ul>
-        </div>
     </div>
-
-    <!-- Tag 別名管理 -->
-    <div class="card help-card fluent-rounded-xl mb-4" id="tag-alias">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-tags"></i> {{ t('help.tag_alias.title') }}
-            </h2>
-            <p>{{ t('help.tag_alias.intro') }}</p>
-
-            <h6 class="mt-4">{{ t('help.tag_alias.h6_scanner') }}</h6>
-            <ul>
-                <li>{{ t('help.tag_alias.scanner_chipwall') }}</li>
-                <li>{{ t('help.tag_alias.scanner_ai_hint') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.tag_alias.h6_showcase') }}</h6>
-            <ul>
-                <li>{{ t('help.tag_alias.showcase_expand') }}</li>
-                <li>{{ t('help.tag_alias.showcase_click') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.tag_alias.h6_tips') }}</h6>
-            <ul>
-                <li>{{ t('help.tag_alias.tip_ranker') }}</li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- 女優功能 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-person-circle"></i> {{ t('help.actress.title') }}
-            </h2>
-            <h6>{{ t('help.actress.h6_search') }}</h6>
-            <ul>
-                <li>{{ t('help.actress.search_hero') }}</li>
-                <li>{{ t('help.actress.search_favorite') }}</li>
-                <li>{{ t('help.actress.search_grid') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.actress.h6_showcase') }}</h6>
-            <ul>
-                <li>{{ t('help.actress.showcase_toggle') }}</li>
-                <li>{{ t('help.actress.showcase_grid') }}</li>
-                <li>{{ t('help.actress.showcase_metric_pill') }}</li>
-                <li>{{ t('help.actress.showcase_lightbox') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.actress.h6_manage') }}</h6>
-            <ul>
-                <li>{{ t('help.actress.manage_add') }}</li>
-                <li>{{ t('help.actress.manage_library') | safe }}</li>
-                <li>{{ t('help.actress.manage_alias') }}</li>
-                <li>{{ t('help.actress.manage_enrich') }}</li>
-                <li>{{ t('help.actress.manage_photo_path') }}</li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- 搜尋功能 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-search"></i> {{ t('help.search.title') }}
-            </h2>
-            <h6>{{ t('help.search.h6_methods') }}</h6>
-            <ul>
-                <li>{{ t('help.search.method_full') | safe }}</li>
-                <li>{{ t('help.search.method_partial') | safe }}</li>
-                <li>{{ t('help.search.method_series') | safe }}</li>
-                <li>{{ t('help.search.method_actress') | safe }}</li>
-                <li>{{ t('help.search.method_maker') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.search.h6_dragdrop') }}</h6>
-            <ul>
-                <li>{{ t('help.search.drag_auto') }}</li>
-                <li>{{ t('help.search.drag_batch') }}</li>
-                <li>{{ t('help.search.drag_generate') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.search.h6_grid') }}</h6>
-            <ul>
-                <li>{{ t('help.search.grid_switch') }}</li>
-                <li>{{ t('help.search.grid_lightbox') | safe }}</li>
-                <li>{{ t('help.search.grid_detail') }}</li>
-                <li>{{ t('help.search.grid_gallery') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.search.h6_badge') }}</h6>
-            <ul>
-                <li>{{ t('help.search.badge_keywords') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.search.h6_advanced_picker') }}</h6>
-            <ul>
-                <li>{{ t('help.search.picker_longpress') }}</li>
-                <li>{{ t('help.search.picker_panel_switch') }}</li>
-                <li>{{ t('help.search.picker_showcase_enrich') }}</li>
-                <li>{{ t('help.search.picker_lightbox_gear') }}</li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- 批次檔案搜尋 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-files"></i> {{ t('help.batch.title') }}
-            </h2>
-            <h6>{{ t('help.batch.h6_add') }}</h6>
-            <ul>
-                <li>{{ t('help.batch.add_folder') | safe }}</li>
-                <li>{{ t('help.batch.add_filter') | safe }}</li>
-                <li>{{ t('help.batch.add_batch') | safe }}</li>
-                <li>{{ t('help.batch.add_progress') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.batch.h6_favorite') }}</h6>
-            <ul>
-                <li>{{ t('help.batch.fav_settings') | safe }}</li>
-                <li>{{ t('help.batch.fav_load') }}</li>
-                <li>{{ t('help.batch.fav_auto') }}</li>
-                <li>{{ t('help.batch.fav_nfo_skip') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.batch.h6_pause') }}</h6>
-            <ul>
-                <li>{{ t('help.batch.pause_pause') }}</li>
-                <li>{{ t('help.batch.pause_resume') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.batch.h6_generate_all') }}</h6>
-            <ul>
-                <li>{{ t('help.batch.generate_all') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.batch.h6_badge') }}</h6>
-            <ul>
-                <li>{{ t('help.batch.badge_suffix') | safe }}</li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- 伺服器模式 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-hdd-network"></i> {{ t('help.server_mode.title') }}
-            </h2>
-
-            <h6>{{ t('help.server_mode.h6_what') }}</h6>
-            <ul>
-                <li>{{ t('help.server_mode.what_single') }}</li>
-                <li>{{ t('help.server_mode.what_server') }}</li>
-                <li>{{ t('help.server_mode.what_where') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.server_mode.h6_how') }}</h6>
-            <ul>
-                <li>{{ t('help.server_mode.how_url') | safe }}</li>
-                <li>{{ t('help.server_mode.how_copy') }}</li>
-                <li>{{ t('help.server_mode.how_off') }}</li>
-                <li>{{ t('help.server_mode.how_shared_folder') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.server_mode.client_h6') }}</h6>
-            <ul>
-                <li>{{ t('help.server_mode.client_entry') }}</li>
-                <li>{{ t('help.server_mode.client_password') }}</li>
-                <li>{{ t('help.server_mode.client_map') }}</li>
-                <li>{{ t('help.server_mode.client_back_local') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.server_mode.h6_security') }}</h6>
-            <ul>
-                <li>{{ t('help.server_mode.security_lan_auth') if auth_enabled else t('help.server_mode.security_lan') }}</li>
-                <li>{{ t('help.server_mode.security_vpn') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.server_mode.h6_firewall') }}</h6>
-            <ul>
-                <li>{{ t('help.server_mode.firewall_allow') | safe }}</li>
-                <li>{{ t('help.server_mode.firewall_why') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.server_mode.h6_recover') }}</h6>
-            <ul>
-                <li>{{ t('help.server_mode.recover_win_intro') }}</li>
-                <li>{{ t('help.server_mode.recover_win_1') | safe }}</li>
-                <li>{{ t('help.server_mode.recover_win_2') }}</li>
-                <li>{{ t('help.server_mode.recover_win_3') | safe }}</li>
-                <li>{{ t('help.server_mode.recover_win_4') }}</li>
-                <li>{{ t('help.server_mode.recover_mac') }}</li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- 格式變數一覽表 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-braces"></i> {{ t('help.format.title') }}
-            </h2>
-            <div class="overflow-x-auto">
-                <table class="table table-sm">
-                    <thead>
-                        <tr><th>{{ t('help.format.col_var') }}</th><th>{{ t('help.format.col_desc') }}</th><th>{{ t('help.format.col_example') }}</th><th>{{ t('help.format.col_fallback') }}</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td><code>{num}</code></td><td>{{ t('help.format.var_num_desc') }}</td><td>SONE-205</td><td>—</td></tr>
-                        <tr><td><code>{title}</code></td><td>{{ t('help.format.var_title_desc') }}</td><td>新人出道...</td><td>{{ t('help.format.fallback_unknown_title') }}</td></tr>{# cjk-exempt(新人出道): 格式變數對照表範例值，非 UI copy — TASK-103-T7 §F.3 #}
-                        <tr><td><code>{actor}</code></td><td>{{ t('help.format.var_actor_desc') }}</td><td>三上悠亜</td><td>{{ t('help.format.fallback_unknown_actor') }}</td></tr>{# cjk-exempt(三上悠亜): 同上 #}
-                        <tr><td><code>{actors}</code></td><td>{{ t('help.format.var_actors_desc') }}</td><td>三上悠亜, 明日花</td><td>{{ t('help.format.fallback_unknown_actor') }}</td></tr>{# cjk-exempt(三上悠亜|明日花): 同上 #}
-                        <tr><td><code>{maker}</code></td><td>{{ t('help.format.var_maker_desc') }}</td><td>S1</td><td>{{ t('help.format.fallback_unknown_maker') }}</td></tr>
-                        <tr><td><code>{date}</code></td><td>{{ t('help.format.var_date_desc') }}</td><td>2024-01-15</td><td>{{ t('help.format.fallback_unknown_date') }}</td></tr>
-                        <tr><td><code>{year}</code></td><td>{{ t('help.format.var_year_desc') }}</td><td>2024</td><td>{{ t('help.format.fallback_unknown_year') }}</td></tr>
-                        <tr><td><code>{month}</code></td><td>{{ t('help.format.var_month_desc') }}</td><td>01</td><td>{{ t('help.format.fallback_unknown_month') }}</td></tr>
-                        <tr><td><code>{day}</code></td><td>{{ t('help.format.var_day_desc') }}</td><td>15</td><td>{{ t('help.format.fallback_unknown_day') }}</td></tr>
-                        <tr><td><code>{suffix}</code></td><td>{{ t('help.format.var_suffix_desc') }}</td><td>-4k</td><td>{{ t('help.format.fallback_empty') }}</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <h6 class="mt-4">{{ t('help.format.h6_default') }}</h6>
-            <ul>
-                <li>{{ t('help.format.default_filename') | safe }}</li>
-                <li>{{ t('help.format.default_folder') | safe }}</li>
-            </ul>
-            <h6 class="mt-4">{{ t('help.format.h6_fallback') }}</h6>
-            <ul>
-                <li>{{ t('help.format.fallback_folder_rule') }}</li>
-                <li>{{ t('help.format.fallback_filename_rule') }}</li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- 快捷鍵 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-keyboard"></i> {{ t('help.shortcuts.title') }}
-            </h2>
-
-            <h6>{{ t('help.shortcuts.h6_search') }}</h6>
-            <p class="text-base-content/60 text-sm mb-2">{{ t('help.shortcuts.search_hint') }}</p>
-            <div class="overflow-x-auto">
-                <table class="table table-sm">
-                    <thead>
-                        <tr><th>{{ t('help.shortcuts.col_key') }}</th><th>{{ t('help.shortcuts.col_context') }}</th><th>{{ t('help.shortcuts.col_action') }}</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><kbd class="kbd kbd-sm">Esc</kbd></td>
-                            <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
-                            <td>{{ t('help.shortcuts.action_close_lightbox') }}</td>
-                        </tr>
-                        <tr>
-                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                            <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
-                            <td>{{ t('help.shortcuts.action_prev_next_video') }}</td>
-                        </tr>
-                        <tr>
-                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                            <td>{{ t('help.shortcuts.search_arrow2_ctx') }}</td>
-                            <td>{{ t('help.shortcuts.search_arrow2_action') }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <h6 class="mt-4">{{ t('help.shortcuts.h6_showcase') }}</h6>
-            <div class="overflow-x-auto">
-                <table class="table table-sm">
-                    <thead>
-                        <tr><th>{{ t('help.shortcuts.col_key') }}</th><th>{{ t('help.shortcuts.col_context') }}</th><th>{{ t('help.shortcuts.col_action') }}</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                            <td>{{ t('help.shortcuts.ctx_lightbox_closed') }}</td>
-                            <td>{{ t('help.shortcuts.showcase_arrow_action') }}</td>
-                        </tr>
-                        <tr>
-                            <td><kbd class="kbd kbd-sm">A</kbd></td>
-                            <td>{{ t('help.shortcuts.ctx_lightbox_closed') }}</td>
-                            <td>{{ t('help.shortcuts.showcase_a_action') }}</td>
-                        </tr>
-                        <tr>
-                            <td><kbd class="kbd kbd-sm">S</kbd></td>
-                            <td>{{ t('help.shortcuts.showcase_s_ctx') }}</td>
-                            <td>{{ t('help.shortcuts.showcase_s_action') }}</td>
-                        </tr>
-                        <tr>
-                            <td><kbd class="kbd kbd-sm">Esc</kbd></td>
-                            <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
-                            <td>{{ t('help.shortcuts.action_close_lightbox') }}</td>
-                        </tr>
-                        <tr>
-                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                            <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
-                            <td>{{ t('help.shortcuts.action_prev_next_video') }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scraper 來源說明 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-globe"></i> {{ t('help.scraper.title') }}
-            </h2>
-
-            <h6>{{ t('help.scraper.h6_censored') }}</h6>
-            <ul>
-                <li>{{ t('help.scraper.censored_dmm') | safe }}</li>
-                <li>{{ t('help.scraper.censored_others') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.scraper.h6_uncensored') }}</h6>
-            <ul>
-                <li>{{ t('help.scraper.uncensored_d2pass') | safe }}</li>
-                <li>{{ t('help.scraper.uncensored_heyzo') | safe }}</li>
-                <li>{{ t('help.scraper.uncensored_fc2') | safe }}</li>
-                <li>{{ t('help.scraper.uncensored_avsox') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.scraper.h6_manual') }}</h6>
-            <p>{{ t('help.scraper.manual_intro') | safe }}</p>
-            <ul>
-                <li>{{ t('help.scraper.manual_javlibrary') | safe }}</li>
-                <li>{{ t('help.scraper.manual_fc2_javten') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.scraper.h6_custom') }}</h6>
-            <p>{{ t('help.scraper.custom_what') | safe }}</p>
-            <ul>
-                <li>{{ t('help.scraper.custom_how') }}</li>
-                <li>{{ t('help.scraper.custom_verify') | safe }}</li>
-                <li>{{ t('help.scraper.custom_modal') }}</li>
-                <li>{{ t('help.scraper.custom_new_media') | safe }}</li>
-            </ul>
-            <ul>
-                <li>{{ t('help.scraper.custom_state_unverified') }}</li>
-                <li>{{ t('help.scraper.custom_state_verifying') }}</li>
-                <li>{{ t('help.scraper.custom_state_passed') }}</li>
-                <li>{{ t('help.scraper.custom_state_failed') }}</li>
-                <li>{{ t('help.scraper.custom_state_load_failed') }}</li>
-            </ul>
-            <p>{{ t('help.scraper.custom_folder_intro') }}</p>
-            <ul>
-                <li>{{ t('help.scraper.custom_folder_desktop') | safe }}</li>
-                <li>{{ t('help.scraper.custom_folder_linux') | safe }}</li>
-                <li>{{ t('help.scraper.custom_folder_synology') | safe }}</li>
-            </ul>
-            <ul>
-                <li>{{ t('help.scraper.custom_limit_host') }}</li>
-                <li>{{ t('help.scraper.custom_limit_userinfo') }}</li>
-                <li>{{ t('help.scraper.custom_limit_stale') }}</li>
-            </ul>
-            <p><a href="https://github.com/slive777/OpenAver/blob/main/docs/custom-sources.md" target="_blank" rel="noopener noreferrer">{{ t('help.scraper.custom_docs_link') }}</a></p>
-
-            <h6 class="mt-4">{{ t('help.scraper.h6_default_source') }}</h6>
-            <ul>
-                <li>{{ t('help.scraper.default_source_set') | safe }}</li>
-                <li>{{ t('help.scraper.default_source_effect') }}</li>
-                <li>{{ t('help.scraper.fuzzy_always_on') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.scraper.h6_dmm_fuzzy') }}</h6>
-            <ul>
-                <li>{{ t('help.scraper.dmm_fuzzy_trigger') }}</li>
-                <li>{{ t('help.scraper.dmm_fuzzy_prereq') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.scraper.h6_proxy_scope') }}</h6>
-            <ul>
-                <li>{{ t('help.scraper.proxy_empty_system') }}</li>
-                <li>{{ t('help.scraper.proxy_scope_how') }}</li>
-                <li>{{ t('help.scraper.proxy_scope_all_includes') }}</li>
-                <li>{{ t('help.scraper.proxy_scope_excludes') }}</li>
-                <li>{{ t('help.scraper.proxy_scope_verifier') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.scraper.h6_probe') }}</h6>
-            <ul>
-                <li>{{ t('help.scraper.probe_where') }}</li>
-                <li>{{ t('help.scraper.probe_states') | safe }}</li>
-                <li>{{ t('help.scraper.probe_not_data') }}</li>
-                <li>{{ t('help.scraper.probe_no_images') }}</li>
-                <li>{{ t('help.scraper.probe_verifier') }}</li>
-                {% if is_windows_desktop %}
-                <li>{{ t('help.scraper.probe_skipped_windows') }}</li>
-                {% elif is_mac_desktop %}
-                <li>{{ t('help.scraper.probe_skipped_mac') }}</li>
-                {% else %}
-                <li>{{ t('help.scraper.probe_skipped') }}</li>
-                {% endif %}
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.scraper.h6_toggle') }}</h6>
-            <ul>
-                <li>{{ t('help.scraper.toggle_uncensored') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.scraper.h6_format') }}</h6>
-            <div class="overflow-x-auto">
-                <table class="table table-sm">
-                    <thead>
-                        <tr><th>{{ t('help.scraper.col_source') }}</th><th>{{ t('help.scraper.col_format') }}</th><th>{{ t('help.scraper.col_example') }}</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>Caribbeancom</td><td><code>DDMMYY-NNN</code></td><td><code>010125-001</code></td></tr>
-                        <tr><td>1Pondo</td><td><code>DDMMYY_NNN</code></td><td><code>010125_001</code></td></tr>
-                        <tr><td>HEYZO</td><td><code>HEYZO-NNNN</code></td><td><code>HEYZO-3510</code></td></tr>
-                        <tr><td>FC2</td><td><code>FC2-PPV-NNNNNN</code></td><td><code>FC2-PPV-1723984</code></td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Metatube 教學 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-plug"></i> {{ t('help.metatube.title') }}
-            </h2>
-
-            <h6>{{ t('help.metatube.h6_what') }}</h6>
-            <ul>
-                <li>{{ t('help.metatube.what_desc') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.metatube.h6_enable') }}</h6>
-            <ul>
-                <li>{{ t('help.metatube.enable_gate') }}</li>
-                <li>{{ t('help.metatube.enable_url') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.metatube.h6_sources') }}</h6>
-            <ul>
-                <li>{{ t('help.metatube.sources_promote') }}</li>
-                <li>{{ t('help.metatube.sources_offline') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.metatube.h6_lan') }}</h6>
-            <ul>
-                <li>{{ t('help.metatube.lan_ssrf') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.metatube.h6_limits') }}</h6>
-            <ul>
-                <li>{{ t('help.metatube.limits_picker') }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.metatube.h6_db') }}</h6>
-            <ul>
-                <li>{{ t('help.metatube.db_hint') }}</li>
-            </ul>
-
-            <p class="text-sm text-base-content/50 mt-2">↗ {{ t('help.metatube.crossref_picker') }}</p>
-        </div>
-    </div>
-
-    <!-- 疑難排解 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-tools"></i> {{ t('help.troubleshooting.title') }}
-            </h2>
-            <h6>{{ t('help.troubleshooting.h6_crash') }}</h6>
-            <p>{{ t('help.troubleshooting.crash_cause') | safe }}</p>
-            <p>{{ t('help.troubleshooting.crash_fix_label') | safe }}</p>
-            <ol>
-                <li>{{ t('help.troubleshooting.crash_fix_1') }}</li>
-                <li>{{ t('help.troubleshooting.crash_fix_2') }}</li>
-                <li>{{ t('help.troubleshooting.crash_fix_3') }}</li>
-            </ol>
-
-            <h6 class="mt-4">{{ t('help.troubleshooting.h6_display') }}</h6>
-            <p>{{ t('help.troubleshooting.display_cause') | safe }}</p>
-            <p>{{ t('help.troubleshooting.display_fix') | safe }}</p>
-
-            <h6 class="mt-4">{{ t('help.troubleshooting.h6_report') }}</h6>
-            <p>{{ t('help.troubleshooting.report_log_path') | safe }}</p>
-            <p>{{ t('help.troubleshooting.report_debug_label') | safe }}</p>
-            <ol>
-                <li>{{ t('help.troubleshooting.report_debug_1') | safe }}</li>
-                <li>{{ t('help.troubleshooting.report_debug_2') }}</li>
-                <li>{{ t('help.troubleshooting.report_debug_3') | safe }}</li>
-            </ol>
-
-            <h6 class="mt-4">{{ t('help.troubleshooting.h6_dmm') }}</h6>
-            <ul>
-                <li>{{ t('help.troubleshooting.dmm_proxy') | safe }}</li>
-                <li>{{ t('help.troubleshooting.dmm_blocked_try_jp_proxy') | safe }}</li>
-            </ul>
-
-            <h6 class="mt-4">{{ t('help.troubleshooting.h6_translate') }}</h6>
-            <ul>
-                <li>{{ t('help.troubleshooting.translate_ollama') | safe }}</li>
-                <li>{{ t('help.troubleshooting.translate_gemini') | safe }}</li>
-                <li>{{ t('help.troubleshooting.translate_openai') | safe }}</li>
-                <li>{{ t('help.troubleshooting.translate_claude') | safe }}</li>
-                <li>{{ t('help.troubleshooting.translate_blocked') | safe }}</li>
-                <li>{{ t('help.troubleshooting.translate_manual_model') | safe }}</li>
-            </ul>
-        </div>
     </div>
     </div>
     {% if is_desktop %}

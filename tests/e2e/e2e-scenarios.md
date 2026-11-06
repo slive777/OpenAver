@@ -45,7 +45,7 @@ source venv/bin/activate && uvicorn web.app:app --host 127.0.0.1 --port 8000
 
 ## US1: 新手 Onboarding
 
-**故事**：用戶第一次開軟體 → tutorial 自動觸發 → 7 步 spotlight 走完 → 完成狀態持久化（加資料夾 / 掃描 / Showcase 依賴 PyWebView picker，不在本 US；由 US2 / US3 涵蓋實際資料流）。
+**故事**：用戶第一次開軟體 → tutorial 自動觸發 → 4 步 spotlight 走完（第 4 步連結到說明頁「整理與改名」）→ 完成狀態持久化（加資料夾 / 掃描 / Showcase 依賴 PyWebView picker，不在本 US；由 US2 / US3 涵蓋實際資料流）。
 
 ### Setup
 
@@ -64,21 +64,19 @@ source venv/bin/activate && uvicorn web.app:app --host 127.0.0.1 --port 8000
 3. `browser_snapshot` 驗：
    - `#tutorialOverlay` 存在且有 `.active` class
    - `#btnSelectFolder` 在頁面上（spotlight 模式靠 CSS box-shadow punch-out 命中此元素）
-   - `#tutorialProgress` 文字含 `1 / 7`
-4. `browser_click` → `#tutorialNext`；`browser_wait_for` `#tutorialProgress` text contains `2 / 7`
+   - `#tutorialProgress` 文字含 `1 / 4`
+4. `browser_click` → `#tutorialNext`；`browser_wait_for` `#tutorialProgress` text contains `2 / 4`
 5. `browser_snapshot` 驗 `#btnGenerate` 在 viewport 內（step 2 spotlight 命中更新片庫按鈕）
-6. `browser_click` → `#tutorialNext`；驗進度 `3 / 7`（**v0.15.15 起 step 3 改指向 `#btnGenerate` 本身**，不再指 sidebar Scanner 連結）：
+6. `browser_click` → `#tutorialNext`；驗進度 `3 / 4`（**v0.15.15 起 step 3 改指向 `#btnGenerate` 本身**，不再指 sidebar Scanner 連結）：
    - `browser_snapshot` 驗 `#btnGenerate` 仍在 spotlight 命中範圍（與 step 2 同一顆按鈕）
    - **驗**：提示卡內含 `.tutorial-mock-card`，其中 `.nfo-badge` 文字同時含 `13` 與 `11`（固定假數字，見 `tutorial-step3-card.js` CD-146a-3：不讀真實片庫）
    - **驗**：`.tutorial-mock-card .btn-nfo-update` 存在且帶 `disabled` — `browser_click` 該鈕**不應**觸發任何網路請求（`browser_network_requests` 比對點擊前後無新增 `/api/enrich` 類請求），純示意圖不可點
-   - **驗**：提示文字（`tutorial.step3_content`）講明「已經用其他工具整理過的片會直接匯入，不重刮」
-7. `browser_click` → `#tutorialNext`；驗進度 `4 / 7`、sidebar `a[href="/showcase"]` outline
-8. `browser_click` → `#tutorialNext` × 3 → 依序驗 step 5/6/7：
-   - step 5：sidebar `a[href="/search"]` outline、進度 `5 / 7`
-   - step 6：sidebar `a[href="/settings"]` outline、進度 `6 / 7`
-   - step 7：sidebar `a[href="/help"]` outline、進度 `7 / 7`、`#tutorialNext` innerText 變為 `tutorial.done` 翻譯（如「完成」/「Done」）
-9. `browser_click` → `#tutorialNext`（done）；`browser_wait_for` `#tutorialOverlay` 消失或 `:not(.active)`
-10. `browser_evaluate` → `localStorage.getItem('openaver_tutorial_completed')` 預期 `=== 'true'`
+   - **驗**：提示文字（`tutorial.flow.s3_content`）講明「只補封面和資料，不會改名，也不會搬動你的檔案；用其他工具整理過的片會直接收進來，不重抓」
+7. `browser_click` → `#tutorialNext`；驗進度 `4 / 4`、sidebar `a[href="/showcase"]` outline、`#tutorialNext` innerText 變為 `tutorial.done` 翻譯（如「完成」/「Done」）；`#tutorialContent` 內有且僅有一顆 `a[data-tutorial-go]`，`href` 為 `/help#organize`（底線、強調色）
+8. `browser_click` → `a[data-tutorial-go]`；`browser_wait_for` URL = `/help#organize` timeout=3s
+   - **驗**：說明頁落在「整理與改名」分頁（`[data-help-panel="organize"]` 顯示、其餘兩個隱藏）
+9. `GET /api/tutorial-status` 預期 `{"completed": true}`（點連結一律先寫旗標再換頁）
+10. `browser_navigate` → `http://localhost:8000/scanner`；`browser_wait_for` 2s；驗 `#tutorialOverlay` 不存在（回片庫管理不再被打擾）；`browser_evaluate` → `localStorage.getItem('openaver_tutorial_completed')` 預期 `=== 'true'`
 11. **H1 Help verify**：`browser_click` → `#sidebar a[href="/help"]`；`browser_wait_for` URL = `/help` timeout=3s
     - **驗**：`h2.card-title` 至少 1 個存在且 innerText **不含** `help.` 字串（無 raw i18n key）
     - **驗**：`.terminal-copy-btn` 可見（curl 複製按鈕 render 正常）
@@ -86,7 +84,7 @@ source venv/bin/activate && uvicorn web.app:app --host 127.0.0.1 --port 8000
 **Tutorial Restart 分支**：
 - `browser_navigate` → `http://localhost:8000/scanner?tutorial=restart`
 - `browser_wait_for` `#tutorialOverlay.active` timeout=2s
-- 驗 `#tutorialProgress` 從 `1 / 7` 開始（重播一律從 step 1）
+- 驗 `#tutorialProgress` 從 `1 / 4` 開始（重播一律從 step 1）
 
 **重整後不自動觸發驗證**：
 - `browser_navigate` 重新整理 `http://localhost:8000/scanner`
@@ -106,12 +104,13 @@ N/A — tutorial flow 是 browser-only，無需 PyWebView picker。Step 4（show
 
 ### Regression 偵測點
 
-- `#btnSelectFolder` 不存在 → tutorial step 1 silent skip → 觀察 `#tutorialProgress` 一開始就是 `2 / 7` 而非 `1 / 7`
+- `#btnSelectFolder` 不存在 → tutorial step 1 silent skip → 觀察 `#tutorialProgress` 一開始就是 `2 / 4` 而非 `1 / 4`
 - sidebar mode dim 區域算錯 → overlay 沒覆蓋主內容（視覺：主內容仍亮、sidebar 也被 dim）
-- locale 切換後文案沒抓對 step → i18n raw key 顯示（如 `tutorial.step1_title` 字串出現在 overlay）
+- locale 切換後文案沒抓對 step → i18n raw key 顯示（如 `tutorial.flow.s1_title` 字串出現在 overlay）
 - `tutorial_completed` 沒持久化到後端 → 重整後 tutorial 再次自動觸發（步驟「重整後不自動觸發驗證」失敗）
-- `?tutorial=restart` 不從 step 1 起算 → 進度顯示非 `1 / 7`
+- `?tutorial=restart` 不從 step 1 起算 → 進度顯示非 `1 / 4`
 - step 3 的模擬卡數字（13／11）與真卡片共用的 i18n key（`scanner.stats.missing_nfo_prefix` 等）沒有同步變動 → 導覽卡片文字與真實補完列的措辭不一致，使用者事後認不出「就是導覽裡那個」
+- 第 4 步連結點了沒先寫完成旗標就換頁 → 回片庫管理又跳出引導（步驟 9／10 失敗）
 - 點 `.tutorial-mock-card .btn-nfo-update` 發出了真實請求 → `pointer-events:none` 或 `disabled` 守衛被移除，示意圖變成會誤觸的假按鈕
 
 ---
@@ -427,8 +426,8 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
    - **驗**：`.terminal-copy-btn` 可見（curl copy 按鈕 render 正常，help.html:71）
 9. **Tutorial 文案 locale 驗收**：`browser_navigate` → `http://localhost:8000/scanner?tutorial=restart`
    - `browser_wait_for` `#tutorialOverlay.active` timeout=3s
-   - **驗**：`#tutorialTitle`（tutorial.js:97）innerText **不含** `tutorial.step1_title` 字串（當前 locale 應有翻譯顯示，非 raw key）
-   - **驗**：`#tutorialProgress` 文字格式正確（含 `/`，如 `1 / 7`）
+   - **驗**：`#tutorialTitle`（tutorial.js:97）innerText **不含** `tutorial.flow.s1_title` 字串（當前 locale 應有翻譯顯示，非 raw key）
+   - **驗**：`#tutorialProgress` 文字格式正確（含 `/`，如 `1 / 4`）
    - `browser_click` → `#tutorialClose` 關閉 tutorial（由 `tutorial.js` 動態建立，行號易漂移）
 
 ### 完成後 state
@@ -445,7 +444,7 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
 
 ### Regression 偵測點
 
-- locale 切換後某頁出現 raw key（如 `tutorial.step1_title` 顯示在 overlay）→ 對應 locale JSON 缺翻譯或 `window.t()` fallback 未命中；觀察：`#tutorialTitle` innerText 直接是 key 字串
+- locale 切換後某頁出現 raw key（如 `tutorial.flow.s1_title` 顯示在 overlay）→ 對應 locale JSON 缺翻譯或 `window.t()` fallback 未命中；觀察：`#tutorialTitle` innerText 直接是 key 字串
 - Dark mode 重載後 fallback 回 Light → `toggleThemeWithTransition` 沒把 `data-theme` 寫入 DB / localStorage；觀察：`html[data-theme]` 重載後變回預設值
 - locale 循環跳過某個 locale → `cycleLocale()` 的 `order` array 缺項；觀察：`.locale-toggle-btn` 從 `简` 直接跳 `EN`（漏掉 `あ`）
 - Help 頁 Hero 文字出現 `help.hero.` 開頭 raw key → Jinja `t()` 呼叫失敗（locale JSON 缺鍵 + no fallback）
@@ -1349,7 +1348,7 @@ curl -s -X POST http://localhost:8000/api/gallery/generate-from-ids \
 
 ### 跨頁面
 
-- ~~**X1. Sidebar 導航**~~ → **deprecated**（US1 step 5–7 已逐一 sidebar 導航，獨立 scenario 冗餘）
+- ~~**X1. Sidebar 導航**~~ → **deprecated**（US1 第 4 步已走 sidebar 導航，獨立 scenario 冗餘）
 - ~~**X2. 頁面間狀態不互相污染**~~ → 保留為 Regression 偵測點 in US2 / US3
 
 ### Agentic API

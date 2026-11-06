@@ -107,6 +107,11 @@
     color: var(--text-secondary);
 }
 
+.tutorial-card-body a[data-tutorial-go] {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
 .tutorial-card-footer {
     display: flex;
     align-items: center;
