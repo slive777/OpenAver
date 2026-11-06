@@ -1678,7 +1678,7 @@
         "dot_label": "Step {n}",
         "scroll_hint": "Scroll down",
         "you": "You",
-        "background": "Behind",
+        "background": "App",
         "goto": "Go to {page}"
       },
       "library": {
@@ -2085,7 +2085,7 @@
       "s3_content": "Videos missing a cover or info are listed like this. Click \"{action}\" to fill them in<br>Only covers and info are added. Nothing is renamed or moved; videos organized by other tools stay as they are.",
       "s4_title": "🎬 Browse Your Collection",
       "s4_content": "Click \"{page}\" in the sidebar to see your videos as a cover wall<br>For new videos, click \"{action}\" again",
-      "s4_more": "Want to customize naming and sources?",
+      "s4_more": "Want to customize naming and sources? ",
       "s4_more_link": "See \"{tab}\" on the \"{page}\" page"
     }
   },

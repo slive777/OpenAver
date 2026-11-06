@@ -3344,4 +3344,11 @@
     color: var(--text-secondary);
     white-space: nowrap;
 }
+
+/* Metatube 卡片說明：單行，超出以省略號收尾，避免折行後撞到上面的註解（192：en／ko／ja 句子比繁中長） */
+.hs-org-hint--mt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 /* ========== /191a-T11 ========== */
