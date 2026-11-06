@@ -7,6 +7,7 @@ import { detectSwipe } from '@/shared/swipe.js';
 // TASK-113c-T7: preview 失敗時決定要不要改試 cover（同一顆純函式供 hero/grid 共用，
 // 見 result-card.js 頂部 export，裁決 2：純函式回傳原始 URL，proxy 包裹留在呼叫點）。
 import { isStaleCoverError, shouldFallbackToCover } from '@/shared/cover-fallback.js';
+import { isLightboxSkippable } from '../image-search-rules.js';
 
 export function searchStateGridMode() {
     return {
@@ -285,7 +286,7 @@ export function searchStateGridMode() {
         } else if (this.lightboxIndex > 0) {
             // U11b: skip _failed items going backwards
             newIdx = this.lightboxIndex - 1;
-            while (newIdx >= 0 && this.searchResults[newIdx]._failed) {
+            while (newIdx >= 0 && isLightboxSkippable(this.searchResults[newIdx])) {
                 newIdx--;
             }
             if (newIdx < 0 && this.actressProfile) {
@@ -334,12 +335,12 @@ export function searchStateGridMode() {
         var newIdx;
         if (this.lightboxIndex === -1) {
             // U11b: from actress photo, find first non-_failed item
-            newIdx = this.searchResults.findIndex(r => !r._failed);
+            newIdx = this.searchResults.findIndex(r => !isLightboxSkippable(r));
             if (newIdx === -1) return;  // no valid items → don't move
         } else if (this.lightboxIndex < this.searchResults.length - 1) {
             // U11b: skip _failed items going forward
             newIdx = this.lightboxIndex + 1;
-            while (newIdx < this.searchResults.length && this.searchResults[newIdx]._failed) {
+            while (newIdx < this.searchResults.length && isLightboxSkippable(this.searchResults[newIdx])) {
                 newIdx++;
             }
             if (newIdx >= this.searchResults.length) {

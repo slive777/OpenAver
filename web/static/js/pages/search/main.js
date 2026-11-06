@@ -14,6 +14,7 @@ import { searchStateWishlist }    from '@/search/state/wishlist.js';
 import { searchStateEmptyExplainer } from '@/search/state/empty-explainer.js';
 import { searchStateMakerLatest }    from '@/search/state/maker-latest.js';
 import { searchStateBlankCard }      from '@/search/state/blank-card.js';
+import { searchStateImageSearch }    from '@/search/state/image-search.js';
 import { mergeState }              from '@/shared/merge-state.js';
 
 let _dragTimeoutHandle = null;
@@ -41,6 +42,7 @@ export function searchPage() {
         searchStateEmptyExplainer(),
         searchStateMakerLatest(),
         searchStateBlankCard(),
+        searchStateImageSearch(),
         {
             // ===== 頁面組裝層 lifecycle（從 state/index.js 搬移）=====
             _armDragHeartbeat(e) {
@@ -112,6 +114,7 @@ export function searchPage() {
                         },
                         cleanup: () => {
                             this.cleanupForNavigation();  // 關 SSE + abort fallback + requestId++
+                            this.imgSearchCleanup();      // 193：圖片查詢／逐部查詢中止、object URL 回收
                             this._lightboxGeneration++;   // B19: invalidate pending $nextTick lightbox callbacks
                             if (this.lightboxCloseTimer) {
                                 clearTimeout(this.lightboxCloseTimer);

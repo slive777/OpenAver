@@ -186,6 +186,11 @@ export function searchStatePersistence() {
     },
 
     saveState() {
+        // 圖片搜尋結果（含骨架）不落地：live 或 snapshot 握著圖片 session 就清掉 key、不寫（193 I-11-4）
+        if (this._imgSearchOwns?.(this.searchResults) || this._imgSearchOwns?.(this._searchSnapshot?.searchResults)) {
+            this.clearState();
+            return;
+        }
         // 搜尋進行中：用 _searchSnapshot 保存（上一輪完整一致狀態）
         // 條件：snapshot 存在 + pageState 仍是 loading（覆蓋 SSE 和 REST fallback 兩條路徑）
         if (this._searchSnapshot && this.pageState === 'loading') {

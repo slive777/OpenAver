@@ -97,3 +97,25 @@ export function validateImageFile(file) {
 export function isSessionFor(rawResults, rawBound) {
     return rawBound != null && rawResults === rawBound;
 }
+
+/**
+ * isPristine(baseline, now) → 使用者自格狀出現後是否完全沒動過檢視（第一名補上時才自動轉詳細）。
+ * baseline／now 缺席一律 false。
+ */
+export function isPristine(baseline, now) {
+    if (!baseline || !now) return false;
+    return !!now.active
+        && now.listMode === 'search'
+        && now.displayMode === 'grid'
+        && now.currentIndex === 0
+        && !now.lightboxOpen
+        && now.lightboxGen === baseline.lightboxGen
+        && now.moveSeq === baseline.moveSeq;
+}
+
+/**
+ * isLightboxSkippable(r) → 燈箱前後導航是否略過這一格（失敗、查不到、骨架）。
+ */
+export function isLightboxSkippable(r) {
+    return !!(r && (r._failed || r._notFound || r._skeleton));
+}

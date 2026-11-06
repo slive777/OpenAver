@@ -363,6 +363,12 @@
       "wishlist_already_owned": "這部片已經在你的片庫裡",
       "wishlist_added_offscreen": "已加入書籤"
     },
+    "image": {
+      "too_large": "圖片太大（上限 8MB）",
+      "unsupported": "只支援 JPG、PNG、WEBP",
+      "unreachable": "avscan 目前連不上",
+      "rate_limited": "avscan 要求稍等幾秒，約 {seconds} 秒後可再試"
+    },
     "duplicate": {
       "title": "檔案重複",
       "body": "目標檔案已存在，繼續會覆蓋原有檔案：",

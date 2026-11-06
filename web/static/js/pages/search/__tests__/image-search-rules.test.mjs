@@ -6,6 +6,7 @@ import {
     pasteIntent,
     shouldSkipPaste,
     isSessionFor,
+    isPristine,
 } from '../image-search-rules.js';
 
 const mp4 = { name: 'ABC-123.mp4', type: 'video/mp4' };
@@ -93,5 +94,26 @@ test('is_session_for_table', () => {
     ];
     for (const [name, rawResults, rawBound, expected] of rows) {
         assert.equal(isSessionFor(rawResults, rawBound), expected, name);
+    }
+});
+
+test('is_pristine_table', () => {
+    // 使用者格狀出現後自己切過檢視、開關過燈箱，第一名補上時不被自動轉走；沒動過才轉
+    const base = { lightboxGen: 3, moveSeq: 0 };
+    const ok = { active: true, listMode: 'search', displayMode: 'grid', currentIndex: 0, lightboxOpen: false, lightboxGen: 3, moveSeq: 0 };
+    const rows = [
+        ['untouched', base, ok, true],
+        ['moveSeq changed', base, { ...ok, moveSeq: 1 }, false],
+        ['lightboxGen changed', base, { ...ok, lightboxGen: 4 }, false],
+        ['lightbox open', base, { ...ok, lightboxOpen: true }, false],
+        ['currentIndex moved', base, { ...ok, currentIndex: 2 }, false],
+        ['listMode changed', base, { ...ok, listMode: 'file' }, false],
+        ['displayMode changed', base, { ...ok, displayMode: 'detail' }, false],
+        ['array replaced (inactive)', base, { ...ok, active: false }, false],
+        ['baseline missing', undefined, ok, false],
+        ['now missing', base, undefined, false],
+    ];
+    for (const [name, b, n, expected] of rows) {
+        assert.equal(isPristine(b, n), expected, name);
     }
 });

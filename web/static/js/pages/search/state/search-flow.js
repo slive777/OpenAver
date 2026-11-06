@@ -145,32 +145,16 @@ export function searchStateSearchFlow() {
             if (!query) return;
         }
 
-        // 2. 取消現有搜尋
-        this.cancelSearch();
+        // 2. 取消現有搜尋（圖片逐部查詢先停；穩定畫面上不呼叫 cancelSearch，否則 snapshot 會抓到被清空的 pageState）
+        this.imgSearchStopLookup?.();
+        if (this._isSearchInFlight()) this.cancelSearch();
 
         // 3. 新搜尋請求
         this.requestId++;
         const currentRequestId = this.requestId;
 
         // Fix 2: 保存 snapshot（供 cancelSearch 還原）
-        this._searchSnapshot = {
-            searchResults: this.searchResults,
-            currentIndex: this.currentIndex,
-            fileList: this.fileList,
-            currentFileIndex: this.currentFileIndex,
-            listMode: this.listMode,
-            hasMoreResults: this.hasMoreResults,
-            currentQuery: this.currentQuery,
-            currentOffset: this.currentOffset,
-            pageState: this.pageState,
-            actressProfile: this.actressProfile,
-            displayMode: this.displayMode,      // T3 fix: 還原 Grid 狀態
-            currentMode: this.currentMode,      // T3 fix: 還原搜尋模式（toggle 顯示依賴）
-            currentMaker: this.currentMaker,    // 173 CD-173-12：取消時還原片商
-            currentCursor: this.currentCursor,  // 175d：取消時還原續頁 token
-            errorText: this.errorText,           // T6c fix: 還原錯誤訊息
-            errorKind: this.errorKind,
-        };
+        this._searchSnapshot = this._captureSearchSnapshot();
 
         // 5. 初始化狀態（修正 1: 使用 showState）
         this.pageState = 'loading';
@@ -713,6 +697,37 @@ export function searchStateSearchFlow() {
             && this.pageState === 'result'
             && this.currentMode === 'exact'
             && (this.searchQuery || '').trim() !== '';
+    },
+
+    /**
+     * 搜尋前狀態快照（doSearch 存、cancelSearch 還原）。
+     */
+    _captureSearchSnapshot() {
+        return {
+            searchResults: this.searchResults,
+            currentIndex: this.currentIndex,
+            fileList: this.fileList,
+            currentFileIndex: this.currentFileIndex,
+            listMode: this.listMode,
+            hasMoreResults: this.hasMoreResults,
+            currentQuery: this.currentQuery,
+            currentOffset: this.currentOffset,
+            pageState: this.pageState,
+            actressProfile: this.actressProfile,
+            displayMode: this.displayMode,      // T3 fix: 還原 Grid 狀態
+            currentMode: this.currentMode,      // T3 fix: 還原搜尋模式（toggle 顯示依賴）
+            currentMaker: this.currentMaker,    // 173 CD-173-12：取消時還原片商
+            currentCursor: this.currentCursor,  // 175d：取消時還原續頁 token
+            errorText: this.errorText,           // T6c fix: 還原錯誤訊息
+            errorKind: this.errorKind,
+        };
+    },
+
+    /**
+     * 是否有文字／SSE 搜尋正在飛（穩定畫面上為 false）。
+     */
+    _isSearchInFlight() {
+        return this.pageState === 'loading' || this.isStreaming || !!this.activeEventSource;
     },
 
     /**
