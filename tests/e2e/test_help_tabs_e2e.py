@@ -312,6 +312,11 @@ _READ = """(n) => {""" + _LIB + """
              on: q('.hs-step').flatMap((s, i) => s.classList.contains('is-on') ? [i + 1] : []),
              term: (q('.hs-lib-term')[0] || {}).classList?.contains('is-shown') ?? null,
              navShow: (q('.hs-app-navlink')[2] || {}).classList?.contains('is-active') ?? null,
+             orgSet: (q('.hs-org-set')[0] || {}).classList?.contains('is-on') ?? null,
+             orgSea: (q('.hs-org-sea')[0] || {}).classList?.contains('is-on') ?? null,
+             orgPanSrc: (q('.hs-org-pan--sources')[0] || {}).classList?.contains('is-on') ?? null,
+             orgNav: (q('.hs-app-navlink')[0] || {}).classList?.contains('is-active') ?? null,
+             orgDone: (q('.hs-org-scr.is-done')[0] || {}).classList?.contains('is-on') ?? null,
              v: vAttr(n) }; }"""
 _OBSERVE_SCROLL = """async (sels) => {
     let n = 0;
@@ -378,6 +383,21 @@ def test_stage_progress_is_pure_function_of_scroll_and_pin_releases(page: Page, 
                 res(p.getBoundingClientRect().top)))); }"""
     )
     assert released < 0, released
+    # 「整理與改名」同一支測試：scene 真的有畫（讀 scene 自己寫的 DOM，不是引擎探針）。
+    # 探針只取「SSR 預設不是這個值」的欄位（預設就是 is-on 的 .hs-org-set／待整理鈕在 v=0.5 時真假都一樣）。
+    _stage_open(page, base_url, "organize", 206)
+    page.evaluate("() => scrollTo({ top: 0, behavior: 'instant' })")
+    org15 = _stage_goto_v(page, "organize", 1.5)  # 步 2：設定頁、「刮削來源」分頁
+    assert org15["orgSet"] is True and org15["orgPanSrc"] is True, org15
+    page.evaluate("() => scrollTo({ top: 0, behavior: 'instant' })")
+    org25_top = _stage_goto_v(page, "organize", 2.5)  # 步 3：搜尋頁、側欄「搜尋」亮起、整理鈕還沒完成
+    assert org25_top["orgSet"] is False and org25_top["orgSea"] is True and org25_top["orgNav"] is True and org25_top["orgDone"] is False, org25_top
+    page.evaluate(_TO_V, ["organize", 4])
+    page.wait_for_function(_SETTLED, arg="organize")
+    org4 = page.evaluate(_READ, "organize")
+    assert org4["orgSea"] is True and org4["orgDone"] is True, org4  # 步 4：整理鈕變「完成」
+    org25_back = _stage_goto_v(page, "organize", 2.5)
+    assert org25_top == org25_back, (org25_top, org25_back)
 
 
 def test_stage_keyboard_walks_four_steps(page: Page, base_url: str) -> None:

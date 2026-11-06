@@ -129,26 +129,6 @@
         transform-origin: 0 0;
     }
 
-    /* T6／T8 換成各自的畫面；此刻只有步驟號與佔位方塊 */
-    .hs-stub {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-    }
-
-    .hs-stub-num {
-        display: grid;
-        place-items: center;
-        width: 240px;
-        height: 240px;
-        font-size: 96px;
-        font-weight: 600;
-        color: var(--accent);
-        border: 2px dashed var(--stroke-default);
-        border-radius: var(--radius-md);
-    }
-
     .hs-hint {
         position: absolute;
         bottom: 12px;
@@ -3203,3 +3183,128 @@
     border-color: var(--color-success);
 }
 /* ========== /191a-T8 ========== */
+
+/* ========== 191a-T9: 「整理與改名」舞台演出（時間表取自 poc/v4/stage.js；畫面是 v 的純函式）========== */
+/* 本區只新增、不改 T3／T5／T6／T7／T8 既有規則的預設值（預設態＝T8 終態，新行為一律是 modifier）；
+   沒有 CSS 動畫（spinner 轉角由 scene 依 v 寫）；顏色圓角陰影走 token；游標箭頭用具名色（作業系統游標不隨主題）。 */
+
+/* 儲存列：App 是 sticky 貼底 z-index 20；畫布頁面用 transform 平移，scene 依捲動量對它補償位移，這裡只給堆疊層級 */
+.hs-org-savebar {
+    position: relative;
+    z-index: 20;
+}
+
+/* 預覽的可見文字落在自己的 span（scene 逐字變形時只改它；舊字串由隱藏的 .hs-org-ptold 保管）；塊級＝行盒高與原本相同 */
+.hs-org-pvis {
+    display: block;
+}
+
+/* JavBus 膠囊拖曳時要浮在 DMM 之上（POC stage.js:139） */
+.hs-org-pill--bus {
+    position: relative;
+    z-index: 3;
+}
+
+/* 搜尋頁：空狀態 ↔ 結果（scene 依 v 切） */
+.hs-org-empty.is-on {
+    display: flex;
+}
+
+.hs-org-res.is-off {
+    display: none;
+}
+
+/* 搜尋框：提示字 ↔ 番號（並列兩個元素，scene 切 class） */
+.hs-org-siph {
+    display: none;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-muted);
+}
+
+.hs-org-siph.is-on {
+    display: block;
+}
+
+.hs-org-sitext.is-off {
+    display: none;
+}
+
+/* 整理鈕「進行中」：圖示換成 border 環，轉角由 scene 依 v 寫 transform */
+.hs-org-spin {
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    border: 2px solid color-mix(in oklch, currentcolor 25%, transparent);
+    border-top-color: currentcolor;
+    border-radius: 50%;
+}
+
+/* 游標與被拖的檔案 chip：畫布內、.hs-app 之外的兄弟，座標是畫布內座標 */
+.hs-org-fchip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 8;
+    box-sizing: border-box;
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    height: 42px;
+    padding: 0 16px;
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    font-size: 14px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    pointer-events: none;
+    visibility: hidden;
+    background: var(--color-base-100);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--fluent-shadow-16);
+    opacity: 0;
+}
+
+.hs-org-fchip .bi {
+    color: var(--color-warning);
+}
+
+/* 0×0 錨點，左上角＝游標尖端；箭頭用負偏移把尖端（箭頭 viewBox 的 4,2）對到錨點 */
+.hs-org-cur {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 9;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+}
+
+.hs-org-cur svg {
+    position: absolute;
+    top: -2.18px;
+    left: -4.36px;
+    display: block;
+    width: 24px;
+    height: 24px;
+    overflow: visible;
+}
+
+.hs-org-cur path {
+    fill: white;
+    stroke: black;
+    stroke-width: 1.3;
+    stroke-linejoin: round;
+}
+
+/* 結尾按鈕：沿用 T7 的 .hs-cta-wrap（畫布外、顯隱與可點由 scene 驅動），位置改到舞台右上（POC stage.html:12） */
+.hs-cta-wrap.hs-cta-wrap--top {
+    top: 12px;
+    bottom: auto;
+    justify-content: flex-end;
+    padding: 0 16px;
+    background: none;
+}
+/* ========== /191a-T9 ========== */
