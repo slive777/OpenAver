@@ -88,6 +88,70 @@
     flex-shrink: 0;
 }
 
+/* 193-T9：搜尋框小縮圖＋查詢中。樣板出處 feature/193-image-search/mockup/mockup.css「T9」段；
+ * 查詢中不藏檢視切換鈕（plan 已裁決 G1 第 3 點），故不搬 mockup 的 .is-querying 右槽 5.75rem 那條。
+ * input / .is-querying 規則加 .search-bar 前綴：本檔載入早於 showcase 的 css，同特異度會輸。 */
+
+/* 有縮圖：輸入框左內距讓出縮圖位置（縮圖 2.5rem + 前後間距 0.25rem + 0.5rem） */
+.search-bar .spotlight-search--has-thumb input {
+    padding-left: calc(var(--spotlight-left-slot) + 3.25rem);
+}
+
+/* 縮圖：接在 .mode-toggle 右邊，垂直置中；是 input 的兄弟元素（G1），z-index 與切換膠囊一致 */
+.search-thumb {
+    position: absolute;
+    left: calc(var(--spotlight-left-slot) + 0.25rem);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.5rem;
+    height: 1.75rem;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    background: var(--color-base-300);
+    z-index: 2;
+}
+
+.search-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 查詢中：縮圖壓暗＋中央 spinner；提示字走 placeholder（顏色從 muted 提到 secondary） */
+.search-thumb.is-pending img {
+    opacity: 0.45;
+}
+
+.search-thumb.is-pending .loading {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 1.125rem;
+    height: 1.125rem;
+    color: var(--text-primary);
+}
+
+.search-bar .spotlight-search.is-querying input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* 手機：有縮圖時不會同時出現「自動」pill，右槽由 11.5rem 縮到三顆鈕的實際佔位（照 129-T6 先例） */
+@media (max-width: 480px) {
+    .search-bar .spotlight-search.spotlight-search--has-thumb {
+        --spotlight-right-slot: 8.5rem; /* 切換 + ✕ + 送出 = 3×40 + 2×4 = 128px = 8rem + 右緣 0.5rem */
+    }
+
+    .search-bar .spotlight-search--has-thumb input {
+        font-size: 0.95rem;
+    }
+
+    .search-bar .spotlight-search.is-querying input::placeholder {
+        font-size: 0.8125rem;
+    }
+}
+
 /* 結果區域（外層容器，包含所有狀態頁 + 結果卡片） */
 .result-area {
     flex: 1;

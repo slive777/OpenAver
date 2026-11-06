@@ -369,7 +369,10 @@
       "unreachable": "avscan 目前連不上",
       "rate_limited": "avscan 要求稍等幾秒，約 {seconds} 秒後可再試",
       "drag_hint": "用影片截圖或封面查番號（avscan.cc）",
-      "one_at_a_time": "一次只查一張"
+      "one_at_a_time": "一次只查一張",
+      "btn_title": "用影片截圖或封面查番號（avscan.cc）",
+      "thumb_alt": "你的圖",
+      "searching": "正在用 avscan 查番號…"
     },
     "duplicate": {
       "title": "檔案重複",

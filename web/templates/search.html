@@ -414,7 +414,7 @@
     <!-- 搜尋框（Spotlight 中央輸入；US-1 navbar 收合不作用於 search 頁，維持永遠可見） -->
     <div class="search-bar">
         <form id="searchForm" @submit.prevent="doSearch()">
-            <div class="spotlight-search spotlight-search--wishlist-toggle">
+            <div class="spotlight-search spotlight-search--wishlist-toggle" :class="{ 'spotlight-search--has-thumb': imgThumbSrc !== '', 'is-querying': imgSearchPhase === 'querying' }">
                 <!-- TASK-140-T7 / spec F2：segmented 檢視切換，取代原本的 search-icon-left -->
                 <div class="mode-toggle">
                     <button type="button" class="mode-toggle-btn"
@@ -431,12 +431,17 @@
                         <span class="mode-toggle-badge" x-show="wishlistCount > 0" x-text="wishlistCount"></span>
                     </button>
                 </div>
-                <input type="text" id="searchQuery" name="q" placeholder="{{ t('search.placeholder.query') }}" autocomplete="off" x-model="searchQuery" x-ref="searchQuery" @keydown.enter="if ($event.isComposing) { $event.preventDefault(); return; }">
+                <!-- 193-T9: 用圖查番號的小縮圖（input 的兄弟元素；查詢中壓暗＋spinner） -->
+                <span class="search-thumb" :class="{ 'is-pending': imgSearchPhase === 'querying' }" x-show="imgThumbSrc !== ''" x-cloak>
+                    <img :src="imgThumbSrc" alt="{{ t('search.image.thumb_alt') }}">
+                    <span class="loading loading-spinner loading-sm" x-show="imgSearchPhase === 'querying'"></span>
+                </span>
+                <input type="text" id="searchQuery" name="q" placeholder="{{ t('search.placeholder.query') }}" :placeholder="imgSearchPhase === 'querying' ? t('search.image.searching') : t('search.placeholder.query')" autocomplete="off" x-model="searchQuery" x-ref="searchQuery" @input="imgSearchOnInput()" @keydown.enter="if ($event.isComposing) { $event.preventDefault(); return; }">
                 <div class="search-actions-right">
                     <!-- 取消搜尋按鈕（loading 狀態顯示） -->
                     <button type="button"
-                            x-show="pageState === 'loading'"
-                            @click="cancelSearch()"
+                            x-show="pageState === 'loading' || imgSearchLooking"
+                            @click="imgSearchOnCancel()"
                             class="btn-icon"
                             title="{{ t('search.action.cancel_search') }}">
                         <i class="bi bi-x-lg"></i>
@@ -458,7 +463,10 @@
                             :title="displayMode === 'detail' ? t('search.action.toggle_grid') : t('search.action.toggle_detail')">
                         <i class="bi" :class="displayMode === 'detail' ? 'bi-grid-3x3' : 'bi-list-ul'"></i>
                     </button>
-                    <button type="button" id="btnClear" class="btn-icon" x-show="hasContent" x-cloak @click="clearAll()" title="{{ t('search.action.clear') }}">
+                    <button type="button" id="btnImageSearch" class="btn-icon" x-show="showImageBtn" x-cloak @click="imgSearchPickFile()" title="{{ t('search.image.btn_title') }}" aria-label="{{ t('search.image.btn_title') }}">
+                        <i class="bi bi-image"></i>
+                    </button>
+                    <button type="button" id="btnClear" class="btn-icon" x-show="showClearBtn" x-cloak @click="imgSearchOnClear()" title="{{ t('search.action.clear') }}">
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <!-- US1: 自動來源膠囊（compose 態顯示，點擊開進階搜尋 picker） -->
