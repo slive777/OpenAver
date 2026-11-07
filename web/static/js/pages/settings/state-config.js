@@ -89,6 +89,7 @@ export function stateConfig() {
             coverBadgesEnabled: false,
             coverBadgeItems: {},
             showTableList: false,
+            hideUnreachableSources: false,
 
             // Showcase
             viewerPlayer: '',
@@ -852,6 +853,7 @@ export function stateConfig() {
                     this.form.coverBadgesEnabled = config.gallery?.cover_badges?.enabled === true;
                     this.form.coverBadgeItems = { ...(config.gallery?.cover_badges?.items || {}) };
                     this.form.showTableList = config.gallery?.show_table_list === true;
+                    this.form.hideUnreachableSources = config.gallery?.hide_unreachable_sources === true;
                     // response-only：後端解析出的實際輸出路徑，供 placeholder 顯示
                     this.resolvedGalleryOutputPath = result.resolved?.data_root || '';
 
@@ -1213,6 +1215,7 @@ export function stateConfig() {
                     output_dir: this.form.avlistOutputDir.trim(),
                     output_filename: this.form.avlistOutputFilename.trim() || 'gallery_output.html',
                     show_table_list: this.form.showTableList,
+                    hide_unreachable_sources: this.form.hideUnreachableSources,
                     cover_badges: {
                         enabled: this.form.coverBadgesEnabled,
                         items: this.form.coverBadgeItems

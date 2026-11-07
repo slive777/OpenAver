@@ -893,3 +893,23 @@ class TestMigrationAITagsConfig:
         assert result["ai_services"]["faces"]["enabled"] is True
         assert _read_config(config_path)["ai_services"]["tags"] == {"enabled": False, "provider": "", "model": ""}
 
+
+# ============ TASK-195-T3：gallery.hide_unreachable_sources additive migration ============
+
+class TestHideUnreachableSourcesMigration:
+    """舊 config 缺 hide_unreachable_sources → 補 False 並寫回磁碟（TASK-195-T3）"""
+
+    def test_hide_unreachable_defaults_off_for_legacy_config(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"gallery": {"items_per_page": 60}})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        assert result["gallery"]["hide_unreachable_sources"] is False
+        assert result["gallery"]["items_per_page"] == 60
+        disk = _read_config(config_path)
+        assert disk["gallery"]["hide_unreachable_sources"] is False
+        assert disk["gallery"]["items_per_page"] == 60
+

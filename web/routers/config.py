@@ -10,6 +10,7 @@
 - POST   /api/tutorial-reset            — 重置新手引導狀態
 - PUT    /api/config/general/{field}    — 更新 general 區塊單一欄位（sidebar_collapsed/theme/font_size）
 - PUT    /api/config/focal-device/disabled — 更新人臉自動對焦使用者開關（StrictBool）
+- PUT    /api/config/gallery/hide-unreachable-sources — 更新「隱藏未連線硬碟」開關（StrictBool）
 - GET    /api/version                   — 取得應用程式版本資訊
 - GET    /api/config/format-variables   — 取得刮削路徑/檔名格式可用變數
 - GET    /api/ollama/models             — 取得 Ollama 可用模型列表
@@ -419,6 +420,26 @@ def update_focal_device_disabled(request: FocalDeviceDisabledRequest) -> dict:
         return {"success": True}
     except Exception as e:
         logger.error("更新 focal_device.disabled 失敗: %s", e)
+        return {"success": False, "error": "操作失敗"}
+
+
+class HideUnreachableSourcesRequest(BaseModel):
+    # 純 StrictBool：非 bool → Pydantic 422（含字串 "yes"、數字 1）。
+    value: StrictBool
+
+
+@router.put("/config/gallery/hide-unreachable-sources")
+def update_hide_unreachable_sources(request: HideUnreachableSourcesRequest) -> dict:
+    """更新「隱藏未連線硬碟」開關（輕量端點，供瀏覽頁／設定頁同步）
+
+    註：保持同步 def —— mutate_config 走檔案 I/O，依 async-offload 守衛
+    須在 Starlette threadpool 執行，不可改 async def 卡 event loop。
+    """
+    try:
+        mutate_config(lambda cfg: cfg.setdefault("gallery", {}).update({"hide_unreachable_sources": request.value}))
+        return {"success": True}
+    except Exception as e:
+        logger.error("更新 gallery.hide_unreachable_sources 失敗: %s", e)
         return {"success": False, "error": "操作失敗"}
 
 

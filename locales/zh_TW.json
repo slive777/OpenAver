@@ -871,6 +871,9 @@
       "show_table_list_label": "顯示表格與清單",
       "show_table_list_note": "開啟後，瀏覽頁右上角會多出表格與清單兩種呈現。預設只有封面與海報。",
       "show_table_list_help_aria": "顯示表格與清單說明",
+      "hide_unreachable_sources_label": "隱藏未連線硬碟",
+      "hide_unreachable_sources_note": "硬碟沒插或雲端硬碟斷線時，先不顯示那上面的片；接回來就會自動出現。不會刪除任何片或紀錄。",
+      "hide_unreachable_sources_help_aria": "隱藏未連線硬碟說明",
       "cover_badge": {
         "subtitle": "中文字幕",
         "cracked": "無碼破解（AI 演算法去馬）",

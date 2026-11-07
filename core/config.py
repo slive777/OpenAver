@@ -208,6 +208,7 @@ class GalleryConfig(BaseModel):
     default_order: str = "descending"
     items_per_page: int = 90
     show_table_list: bool = False
+    hide_unreachable_sources: bool = False
     cover_badges: CoverBadgesConfig = CoverBadgesConfig()
 
 
@@ -426,6 +427,12 @@ def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；
             # Migration: gallery.output_dir 字面 "output" → ""（僅精確相等）
             if g.get('output_dir') == 'output':
                 g['output_dir'] = ''
+                need_save = True
+
+            # Additive migration（feature/195 T3）：gallery.hide_unreachable_sources 補預設。
+            # load_config 回 raw dict 不經 model_validate，所以缺鍵要顯式補。
+            if 'hide_unreachable_sources' not in g:
+                g['hide_unreachable_sources'] = False
                 need_save = True
 
         # Migration: gallery.directories 純字串 → DirectoryConfig 物件（feature/88）
