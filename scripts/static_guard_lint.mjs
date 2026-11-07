@@ -3831,15 +3831,33 @@ const RULES = [
   // '/api/gallery/player' in state-videos.js 斷言）——不補則 T5 整刪
   // test_video_api_files_contain 時會靜默失網，故本卡納入。
   {
-    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '/api/gallery/player',
+    file: 'web/static/js/shared/play-video.js', kind: 'required-string', pattern: '/api/gallery/player',
     note: '[TestVideoPlaybackGuard] test_video_api_files_contain（JS 半邊，plan CD-96e-5 三分法未明列，96e-T3 研究補洞）',
   },
   {
     // CD-120a-11：playVideo 方法體內禁止 await——window.open 前若插入 await，
     // 手機／區網按播放會被瀏覽器當廣告彈窗擋掉、什麼都不會發生。
-    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'forbidden-string', pattern: 'await',
+    file: 'web/static/js/shared/play-video.js', kind: 'forbidden-string', pattern: 'await',
     scope: { anchor: /playVideo\s*\(\s*path\s*\)\s*\{/, braceBalanced: true },
     note: '[CD-120a-11] playVideo 內 window.open 前若插入 await，手機／區網按播放會被瀏覽器當廣告彈窗擋掉、什麼都不會發生',
+  },
+
+  // 195-T6（plan CD-195-11／13）：搜尋頁兩顆播放鈕改走共用 playVideo（桌面殼交 open_file）。
+  // 薄守衛只擋「回退成直接 window.open 播放網址」；required 兩條各錨到自己那顆鈕的開標籤
+  // （FE-GUARD-03：裸整檔 required 會被另一顆鈕餵飽而 fail-open）。scope 找不到＝規則報錯（fail-closed）。
+  {
+    file: 'web/templates/search.html', kind: 'forbidden-string', pattern: "window.open('/api/gallery/player",
+    note: '[lint-guard:195-T6-search-no-direct-player-open] 使用者在桌面 App 搜尋頁按播放 → 又直接開瀏覽器分頁而不是交給播放器（兩頁判斷再次漂移）',
+  },
+  {
+    file: 'web/templates/search.html', kind: 'required-string', pattern: 'playVideo(',
+    scope: /<button\b[^>]*\bdata-tooltip="\{\{ t\('search\.action\.play'\) \}\}"[^>]*>/,
+    note: '[lint-guard:195-T6-search-lightbox-play-wired] 燈箱播放鈕必須呼叫共用 playVideo(...)，否則桌面 App 按播放會跳去瀏覽器分頁',
+  },
+  {
+    file: 'web/templates/search.html', kind: 'required-string', pattern: 'playVideo(',
+    scope: /<button\b[^>]*\btitle="\{\{ t\('search\.action\.play'\) \}\}"[^>]*>/,
+    note: '[lint-guard:195-T6-search-card-play-wired] 結果卡播放鈕必須呼叫共用 playVideo(...)，否則桌面 App 按播放會跳去瀏覽器分頁',
   },
 
   // 120a-T1：.lb-full 原圖載不到時才會出現提示 pill。綁定必須是 img.lb-full 開標籤屬性

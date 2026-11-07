@@ -3,6 +3,7 @@
  * 包含：結果卡片顯示、編輯、翻譯、標籤、本地狀態
  */
 import { openLocal } from '@/shared/open-local.js';
+import { playVideo } from '@/shared/play-video.js';
 import { isCloudTranslateProvider, translateFailureToastKey } from '@/shared/translate-provider.js';
 
 // TASK-106-T3 CD-106-8: 純函式，module-level named export（非 this.-bound method）
@@ -512,6 +513,7 @@ export function searchStateResultCard() {
     // ===== T1c: Local Badge =====
 
     openLocal,
+    playVideo,
 
     // ===== T18c: Source Link =====
 
