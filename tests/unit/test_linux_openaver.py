@@ -497,7 +497,7 @@ def test_autostart_on_stops_self_managed_daemon_then_starts_via_systemd(tmp_path
         def do_GET(self):
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(b"ok")
+            self.wfile.write(b'{"status":"ok","version":"9.9.9"}')
 
         def log_message(self, *a):
             pass
@@ -546,3 +546,32 @@ def test_reset_password_reports_unknown_service_state_instead_of_next_start(tmp_
     r = _run_cli(home, cli, ["reset-password"], stub_out=stub_out, extra_env=env)
     assert r.returncode == 0
     assert "下次啟動生效" in r.stdout
+
+
+def test_start_does_not_report_started_when_port_answers_with_other_version_health(tmp_path):
+    """服務已登記、conf 的 port 被別人（或別版 OpenAver）占走且 /api/health 也回 200：不得印已啟動。"""
+    home, cli, stub_out = _setup_tree(tmp_path)
+    _fb, env = _fakebin(tmp_path)
+    unit_dir = home / ".config" / "systemd" / "user"
+    unit_dir.mkdir(parents=True)
+    (unit_dir / "openaver.service").write_text("[Unit]\n", encoding="utf-8")
+
+    class _Foreign(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'{"status":"ok","version":"1.2.3"}')
+
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), _Foreign)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    (home / "OpenAver" / "openaver.conf").write_text(f"port={srv.server_address[1]}\n", encoding="utf-8")
+    try:
+        r = _run_cli(home, cli, ["start"], stub_out=stub_out, extra_env=env, timeout=90)
+        assert r.returncode != 0, r.stdout
+        assert "OpenAver 已啟動" not in r.stdout
+        assert r.stderr.strip()
+    finally:
+        srv.shutdown()

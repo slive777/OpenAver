@@ -433,18 +433,42 @@ main() {
         (echo >/dev/tcp/127.0.0.1/"$1") >/dev/null 2>&1
     }
 
+    # 成功＝200 且內文（去空白後）含 "status":"ok" 與本份 __version__；別人的服務或別版 OpenAver 不算。
+    # 版本讀不出（get_version 回 ?）時退回只比 status:ok。
     health_ok() {
-        local port="$1" line
+        local port="$1" line st="" body="" n=0 inbody=0 cr ver
+        cr="$(printf '\r')"
+        ver="$(get_version)"
         # bash 對 /dev/tcp 連線失敗有時仍往 stderr 吐字；整段包住以免污染 start 輸出
         if ! { exec 3<>/dev/tcp/127.0.0.1/"$port"; } 2>/dev/null; then
             return 1
         fi
         printf 'GET /api/health HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' >&3
-        IFS= read -r -t 2 line <&3 || { exec 3<&-; exec 3>&-; return 1; }
+        while IFS= read -r -t 2 line <&3 || [ -n "$line" ]; do
+            line="${line%"$cr"}"
+            if [ "$n" -eq 0 ]; then
+                st="$line"
+            elif [ "$inbody" -eq 1 ]; then
+                body="$body$line"
+            elif [ -z "$line" ]; then
+                inbody=1
+            fi
+            n=$((n + 1))
+        done
         exec 3<&-
         exec 3>&-
-        case "$line" in
-            *" 200 "*|*" 200") return 0 ;;
+        case "$st" in
+            *" 200 "*|*" 200") ;;
+            *) return 1 ;;
+        esac
+        body="$(printf '%s' "$body" | tr -d '[:space:]')"
+        case "$body" in
+            *'"status":"ok"'*) ;;
+            *) return 1 ;;
+        esac
+        [ "$ver" = "?" ] && return 0
+        case "$body" in
+            *'"version":"'"$ver"'"'*) return 0 ;;
             *) return 1 ;;
         esac
     }
