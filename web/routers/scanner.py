@@ -53,7 +53,7 @@ from core.scraper import smart_search
 from core.source_settings import is_uncensored_mode_effective
 from pydantic import BaseModel
 from core.logger import get_logger
-from core.platform_info import DSM_PERMISSION_HINT, is_synology
+from core.platform_info import DSM_PERMISSION_HINT, LINUX_PERMISSION_HINT, is_headless_server, is_synology
 from core.proxy_policy import proxy_kwargs
 from web.routers.notifications import emit_notification as _emit_notif
 from core.wishlist_reconcile import reconcile_wishlist, format_wishlist_removed_message
@@ -232,6 +232,8 @@ def _permission_denied_warning(directory: str) -> str:
     warning = f"  {directory}: 沒有權限讀取，跳過刪除偵測以免誤刪"
     if is_synology():
         warning += f"；{DSM_PERMISSION_HINT}"
+    elif is_headless_server():
+        warning += f"；{LINUX_PERMISSION_HINT}"
     return warning
 
 

@@ -27,7 +27,7 @@ from core.path_utils import (
     uri_to_local_fs_path,
 )
 from core.logger import get_logger
-from core.platform_info import DSM_PERMISSION_HINT, is_synology
+from core.platform_info import DSM_PERMISSION_HINT, LINUX_PERMISSION_HINT, is_headless_server, is_synology
 from core.config import load_config, get_gallery_source_paths, get_configured_gallery_dirs
 from core.title_writeback import apply_title_writeback
 from core.user_tags_write import hold_nfo_write
@@ -571,5 +571,5 @@ async def get_source_status():
         seen_displays.add(display)
         out.append({"path": path, "display": display, "status": status,
                     "reason": status,
-                    "dsm_hint": DSM_PERMISSION_HINT if status == "no_permission" and is_synology() else None})
+                    "dsm_hint": DSM_PERMISSION_HINT if status == "no_permission" and is_synology() else (LINUX_PERMISSION_HINT if status == "no_permission" and is_headless_server() else None)})
     return out

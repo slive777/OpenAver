@@ -111,3 +111,39 @@ def test_maybe_notify_update_dedup_same_version_only_once():
             ctx.stop()
     emit.assert_called_once_with("info", "notif.update_available", message="v9.9.9", url="https://example.com")
     assert config["general"]["last_notified_update_version"] == "9.9.9"
+
+
+def test_headless_server_update_notice_without_download_url(monkeypatch):
+    """Linux 伺服器版收到更新通知 → emit 新 key、無 url、記下版本。"""
+    monkeypatch.setenv("OPENAVER_SERVER_ONLY", "1")
+    config = {"general": {"auto_check_update": True, "last_notified_update_version": ""}}
+    cu, emit, load, mutate, is_win, is_mac = _patches(config=config)
+    result = {"has_update": True, "latest_version": "9.9.9", "download_url": "https://example.com"}
+    ctxs = _apply(cu, emit, load, mutate, is_win, is_mac)
+    for ctx in ctxs:
+        ctx.start()
+    try:
+        webapp._maybe_notify_update(result)
+    finally:
+        for ctx in ctxs:
+            ctx.stop()
+    emit.assert_called_once_with("info", "notif.update_available_server", message="v9.9.9")
+    assert config["general"]["last_notified_update_version"] == "9.9.9"
+
+
+def test_synology_update_notice_keeps_download_url(monkeypatch):
+    """Synology 收到更新通知 → 仍走舊 key、帶下載連結。"""
+    monkeypatch.setenv("OPENAVER_SYNOLOGY", "1")
+    config = {"general": {"auto_check_update": True, "last_notified_update_version": ""}}
+    cu, emit, load, mutate, is_win, is_mac = _patches(config=config)
+    result = {"has_update": True, "latest_version": "9.9.9", "download_url": "https://example.com"}
+    ctxs = _apply(cu, emit, load, mutate, is_win, is_mac)
+    for ctx in ctxs:
+        ctx.start()
+    try:
+        webapp._maybe_notify_update(result)
+    finally:
+        for ctx in ctxs:
+            ctx.stop()
+    emit.assert_called_once_with("info", "notif.update_available", message="v9.9.9", url="https://example.com")
+    assert config["general"]["last_notified_update_version"] == "9.9.9"

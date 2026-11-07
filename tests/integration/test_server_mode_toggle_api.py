@@ -141,11 +141,12 @@ class TestServerModeToggleAPI:
         assert data["lan_port"] == 49200
         assert data["lan_ip"] == "192.168.1.50"
 
-    def test_get_lan_port_synology_uses_request_server_port(self, client, mock_config_path, monkeypatch):
-        """Synology 回傳此請求的主服務埠，不受停止中的 LAN listener 影響。"""
+    @pytest.mark.parametrize("env_name", ["OPENAVER_SYNOLOGY", "OPENAVER_SERVER_ONLY"])
+    def test_get_lan_port_synology_uses_request_server_port(self, client, mock_config_path, monkeypatch, env_name):
+        """Synology／Linux 伺服器版回傳此請求的主服務埠，不受停止中的 LAN listener 影響。"""
         import web.lan_listener as _ll_mod
 
-        monkeypatch.setenv("OPENAVER_SYNOLOGY", "1")
+        monkeypatch.setenv(env_name, "1")
         monkeypatch.setattr(_ll_mod.lan_listener.__class__, "is_running", property(lambda self: False))
         monkeypatch.setattr(_ll_mod.lan_listener.__class__, "lan_port", property(lambda self: None))
         monkeypatch.setattr(_ll_mod, "get_lan_ip", lambda: "192.168.1.50")
@@ -231,20 +232,22 @@ class TestServerModeToggleAPI:
         )
 
 
-    def test_synology_blocks_server_mode_put_even_loopback(self, client, mock_config_path, monkeypatch):
-        """CD-159-6/159-T7: is_synology()=True 時 server_mode PUT 無條件被擋，即使是 loopback 呼叫。"""
-        monkeypatch.setenv("OPENAVER_SYNOLOGY", "1")
+    @pytest.mark.parametrize("env_name,reason", [("OPENAVER_SYNOLOGY", "synology_fixed"), ("OPENAVER_SERVER_ONLY", "server_fixed")])
+    def test_synology_blocks_server_mode_put_even_loopback(self, client, mock_config_path, monkeypatch, env_name, reason):
+        """CD-159-6/159-T7: is_synology()=True（或 Linux 伺服器版）時 server_mode PUT 無條件被擋，即使是 loopback 呼叫。"""
+        monkeypatch.setenv(env_name, "1")
 
         resp = client.put("/api/config/general/server_mode", json={"value": False})
 
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
-        assert data["reason"] == "synology_fixed"
+        assert data["reason"] == reason
 
-    def test_synology_reset_keeps_server_mode_and_listener(self, client, mock_config_path, monkeypatch):
-        """Synology 重設後仍允許 LAN 存取，且不停止既有 listener。"""
-        monkeypatch.setenv("OPENAVER_SYNOLOGY", "1")
+    @pytest.mark.parametrize("env_name", ["OPENAVER_SYNOLOGY", "OPENAVER_SERVER_ONLY"])
+    def test_synology_reset_keeps_server_mode_and_listener(self, client, mock_config_path, monkeypatch, env_name):
+        """Synology／Linux 伺服器版重設後仍允許 LAN 存取，且不停止既有 listener。"""
+        monkeypatch.setenv(env_name, "1")
         saved = json.loads(mock_config_path.read_text())
         saved["general"]["server_mode"] = True
         mock_config_path.write_text(json.dumps(saved))

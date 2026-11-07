@@ -1283,6 +1283,7 @@
     "jl_cf_timeout": "Cloudflare 驗證逾時",
     "cf_shell_lost": "驗證視窗沒有回應，請重新整理後再試",
     "update_available": "OpenAver 有新版本",
+    "update_available_server": "OpenAver 有新版本，請在主機執行 openaver update",
     "auto_organize_summary": "定時整理",
     "auto_organize_aborted": "定時整理已中止",
     "auto_organize_folder_not_set": "定時整理：還沒設定待整理資料夾",

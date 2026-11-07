@@ -88,13 +88,13 @@ class TestScannerAPI:
         os.name != "posix" or (hasattr(os, "geteuid") and os.geteuid() == 0),
         reason="chmod 000 requires POSIX non-root DAC enforcement",
     )
-    @pytest.mark.parametrize("synology", [True])
+    @pytest.mark.parametrize("synology,server_only", [(True, False), (False, True)])
     def test_scan_root_unreadable_dir_shows_permission_denied_message(
-        self, client, tmp_path, monkeypatch, parse_sse_events, synology,
+        self, client, tmp_path, monkeypatch, parse_sse_events, synology, server_only,
     ):
         from core.database import init_db, VideoRepository, Video
         from core.path_utils import to_file_uri
-        from core.platform_info import DSM_PERMISSION_HINT
+        from core.platform_info import DSM_PERMISSION_HINT, LINUX_PERMISSION_HINT
 
         scan_dir = tmp_path / "videos"
         scan_dir.mkdir()
@@ -110,6 +110,8 @@ class TestScannerAPI:
         before = len(repo.get_mtime_index())
         monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: db_path)
         monkeypatch.setattr("web.routers.scanner.is_synology", lambda: synology)
+        if server_only:
+            monkeypatch.setenv("OPENAVER_SERVER_ONLY", "1")
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: {
             "gallery": {"directories": [str(scan_dir)], "output_dir": str(output_dir),
                         "path_mappings": {}, "min_size_mb": 0},
@@ -132,6 +134,9 @@ class TestScannerAPI:
             assert any("沒有權限" in m for m in denied_messages)
             assert not any("資料夾不存在" in m for m in denied_messages)
             assert any(DSM_PERMISSION_HINT in m for m in denied_messages) is synology
+            if server_only:
+                assert any(LINUX_PERMISSION_HINT in m for m in denied_messages)
+                assert not any(DSM_PERMISSION_HINT in m for m in denied_messages)
             assert len(repo.get_mtime_index()) == before
         finally:
             scan_dir.chmod(0o700)
