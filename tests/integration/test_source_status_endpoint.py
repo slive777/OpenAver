@@ -180,3 +180,87 @@ def test_same_unc_host_sources_merge_into_one_display(monkeypatch: pytest.Monkey
     displays = [item["display"] for item in data]
     assert displays.count("\\\\nas-box") == 1, "同一 UNC 主機只該出現一次"
     assert sorted(displays) == sorted(["\\\\nas-box", "/mnt/usb-a", "/mnt/usb-b"])
+
+
+def test_source_status_merges_same_disk_keeps_no_permission_apart(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        sr,
+        "get_snapshot",
+        lambda: {
+            "D:\\電影": "unreachable",
+            "d:/FC2": "unreachable",
+            "D:\\x": "no_permission",
+        },
+    )
+    monkeypatch.setattr(sr, "schedule_reprobe_if_stale", AsyncMock())
+
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    data = client.get("/api/showcase/source-status").json()
+
+    assert len(data) == 2
+    merged = next(item for item in data if item["status"] == "unreachable")
+    assert merged["display"] == "D:"
+    assert merged["path"] == "D:\\電影"
+    assert merged["members"] == ["D:\\電影", "d:/FC2"]
+    alone = next(item for item in data if item["status"] == "no_permission")
+    assert alone["path"] == "D:\\x"
+    assert alone["display"] == "D:\\x"
+    assert alone["members"] == []
+
+
+def test_source_status_same_host_no_permission_stays_single_with_empty_members(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        sr,
+        "get_snapshot",
+        lambda: {
+            "\\\\nas-box\\share\\videos": "no_permission",
+            "\\\\nas-box\\share2\\more": "no_permission",
+        },
+    )
+    monkeypatch.setattr(sr, "schedule_reprobe_if_stale", AsyncMock())
+
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    data = client.get("/api/showcase/source-status").json()
+
+    assert len(data) == 1
+    item = data[0]
+    assert item["status"] == "no_permission"
+    assert item["display"] == "\\\\nas-box"
+    assert item["members"] == []
+
+
+def test_source_status_recheck_throttles_and_refreshes(monkeypatch: pytest.MonkeyPatch) -> None:
+    import core.source_reachability as mod
+
+    _reset_sr_module()
+    try:
+        now = [1000.0]
+        from core.config import DirectoryConfig as _DC
+
+        fixed = [_DC(path="/mnt/usb-a")]
+        probe = AsyncMock(return_value="unreachable")
+        monkeypatch.setattr(mod, "_now", lambda: now[0])
+        monkeypatch.setattr(mod, "load_config", lambda: {"gallery": {}})
+        monkeypatch.setattr(mod, "iter_gallery_sources", lambda gallery: fixed)
+        monkeypatch.setattr(mod, "_probe_one", probe)
+
+        client = TestClient(app, client=("127.0.0.1", 50000))
+
+        data = client.get("/api/showcase/source-status").json()
+        assert probe.await_count == 1
+        assert any(item["path"] == "/mnt/usb-a" for item in data)
+
+        now[0] = 1003.0
+        data = client.get("/api/showcase/source-status?recheck=1").json()
+        assert probe.await_count == 1
+
+        now[0] = 1011.0
+        data = client.get("/api/showcase/source-status").json()
+        assert probe.await_count == 1
+
+        probe.return_value = "ok"
+        data = client.get("/api/showcase/source-status?recheck=1").json()
+        assert probe.await_count == 2
+        assert data == []
+    finally:
+        _reset_sr_module()
