@@ -6,15 +6,18 @@
  * 從 state-base.js import 共用大陣列（F1：移出 Alpine reactive scope）。
  */
 
-import { _videos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setFilteredVideos, _recomputeAllBadges, _recomputeCardActorAges } from '@/showcase/state-base.js';
+import { _videos, _allVideos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setAllVideos, _setFilteredVideos, _recomputeAllBadges, _recomputeCardActorAges } from '@/showcase/state-base.js';
 import { applyCellFocal } from '@/shared/focal-cell.js';
 import { openLocal } from '@/shared/open-local.js';
-import { notifyOpenResult } from '@/shared/bridge-notify.js';
+import { playVideo } from '@/shared/play-video.js';
 import { normalizePillValue, buildPillPredicate } from '@/shared/pill-filter.js';
+import { isDigitsOnlySearch } from '@/shared/digits-only-search.js';
 // TASK-124a-T2：發售日 pill 浮層狀態機直接呼叫的 T1 六支純函式中的五支
 // （matchesReleasePill 屬 pill-filter.js 內部使用，state 層不直接呼叫）。
 import { parseReleaseKey, parseEndpoint, expandPill, composeEndpoint, videoYearRange } from '@/shared/release-window.js';
 
+// TASK-195-T9（195d／CD-195-16）：純數字搜尋自動清除的白名單，不含 pick。
+const CLEAR_SEARCH_DIMS = ['actress', 'maker', 'series', 'director', 'label', 'tag'];
 // TASK-124a-T2：鏡射 state-actress.js 的 _trimOrNull（模組私有，無法 import，各自一份）。
 function _trimOrNull(v) {
     if (v == null) return null;
@@ -46,6 +49,8 @@ export function stateVideos() {
                 const resp = await fetch('/api/showcase/videos');
                 if (!resp.ok) {
                     _videos.length = 0;
+                    _allVideos.length = 0;      // 195b-T4：全庫與被藏片數同步歸零
+                    this.hiddenCount = 0;
                     this.videoCount = 0;
                     _filteredVideos.length = 0;
                     this.filteredCount = 0;
@@ -55,6 +60,8 @@ export function stateVideos() {
                 const data = await resp.json();
                 if (!data.success) {
                     _videos.length = 0;
+                    _allVideos.length = 0;      // 195b-T4：全庫與被藏片數同步歸零
+                    this.hiddenCount = 0;
                     this.videoCount = 0;
                     _filteredVideos.length = 0;
                     this.filteredCount = 0;
@@ -69,13 +76,19 @@ export function stateVideos() {
                 // （_videos → _filteredVideos → paginatedVideos slice，皆同 ref），故初始化一處即涵蓋
                 // 初次載入/retry/翻頁/搜尋/排序；後端不回此欄位。補封面走 refreshVideoData reset。
                 vids.forEach(function (v) { if (v._imgLoaded === undefined) v._imgLoaded = false; if (v._coverRequested === undefined) v._coverRequested = false; });
-                _setVideos(vids);
+                // 195b-T4：全庫存 _allVideos；_videos ＝ 扣掉被「隱藏未連線硬碟」藏起來的片（同一物件 ref）。
+                // _recomputeVisible 不呼叫 applyFilterAndSort；下面 _setFilteredVideos 與其後 init/retry 的重篩接手。
+                _setAllVideos(vids);
+                this._hsSources = Array.isArray(data.sources) ? data.sources : [];
+                this._recomputeVisible();
                 this.videoCount = _videos.length;
                 _setFilteredVideos(_videos);
                 this.filteredCount = _filteredVideos.length;
             } catch (e) {
                 console.error('Failed to fetch videos:', e);
                 _videos.splice(0, _videos.length);
+                _allVideos.splice(0, _allVideos.length);    // 195b-T4
+                this.hiddenCount = 0;
                 this.videoCount = 0;
                 _filteredVideos.splice(0, _filteredVideos.length);
                 this.filteredCount = 0;
@@ -124,6 +137,7 @@ export function stateVideos() {
             var exists = this.pills.some(p => p.dim + '::' + normalizePillValue(p.value) === key);
             if (exists) return;  // 靜默去重：不重跑 _animateFilter/_reconcileHeroCard
             this.pills = [...this.pills, { dim: dim, value: value }];  // value 存原始字面（CD-3）
+            if (CLEAR_SEARCH_DIMS.includes(dim)) this._clearDigitsOnlySearch();
             this._animateFilter();
             this._reconcileHeroCard();
         },
@@ -141,7 +155,7 @@ export function stateVideos() {
         },
 
         // TASK-123-T6：「只看精選」漏斗選單項 ＋ pill chip 的一組讀寫入口（CD-123-9：
-        // addPill()/removePill() 本體一行都不改，togglePickPill() 完全複用它們既有的
+        // addPill()/removePill() 本體一行都不改，togglePickPill() 完全複用它們既有的（195d 起 addPill 多一行白名單清文字；pick 不在白名單，行為不變）
         // _animateFilter()/_reconcileHeroCard()/持久化副作用鏈）。
         _hasPickPill() {
             return this.pills.some(p => p.dim === 'pick');
@@ -326,10 +340,16 @@ export function stateVideos() {
 
         // 入口 adapter（燈箱 metadata 點擊 / searchFromMetadata 分派用）：dateStr 切前 7 字
         // （與 parseReleaseKey() 內部 RELEASE_KEY_RE 判定「解析得出」的同一段字元，不會有落差）。
+        _clearDigitsOnlySearch() {
+            if (isDigitsOnlySearch(this.search)) this.search = '';
+        },
         _setReleasePillFromDate(dateStr) {
             var key = parseReleaseKey(dateStr);
             if (key == null) return;                       // 解析不出年月：不產生 pill（spec §4.4）
-            this._setReleasePill({ dim: 'release', op: '=', value: dateStr.slice(0, 7) });
+            var month = dateStr.slice(0, 7);
+            var same = this.pills.some(function (p) { return p.dim === 'release' && p.op === '=' && p.value === month; });
+            if (!same) this._clearDigitsOnlySearch();      // 同值＝沒新增：不清，仍照常委派（動畫 1 次，與今天相同）
+            this._setReleasePill({ dim: 'release', op: '=', value: month });
         },
 
         // 跨切面 teardown 唯一實作（四個呼叫點：state-base.js 斷點 handler ×2、
@@ -866,21 +886,8 @@ export function stateVideos() {
             (this.paginatedVideos || []).forEach(_recomputeCardActorAges);
         },
 
-        // --- 播放影片 (PyWebView 整合) ---
-        playVideo(path) {
-            if (window.pywebview && window.pywebview.api) {
-                window.pywebview.api.open_file(path)
-                    .then(result => {
-                        if (!notifyOpenResult(this.showToast.bind(this), result, 'file')) return;
-                    })
-                    .catch(err => {
-                        console.error('Failed to open file:', err);
-                        this.showToast(window.t('showcase.video.play_failed'), 'error');
-                    });
-            } else {
-                window.open('/api/gallery/player?path=' + encodeURIComponent(path), '_blank');
-            }
-        },
+        // --- 播放影片 (PyWebView 整合；實作在 shared/play-video.js，搜尋頁共用) ---
+        playVideo,
 
         // 工具方法：從 paginatedVideos 的 index 映射到 filteredVideos 的 index
         getCurrentFilteredIndex(paginatedIndex) {

@@ -173,6 +173,7 @@ function makeInitComponent(overrides = {}) {
     const base = stateBaseFactory.call({ $persist: (obj) => ({ as: () => obj }) });
     return Object.assign({}, base, stateVideos(), stateActress(), {
         restoreState() {},
+        _hsInit: () => Promise.resolve(),   // 195b-T4：init() 呼叫分片的 _hsInit（本 harness 不 merge 該分片）
         fetchVideos: async () => {},
         applyFilterAndSort() {},
         updatePagination() {},

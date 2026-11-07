@@ -197,13 +197,23 @@ def get_videos(request: Request):
         # 一個 member，_serialize_group() 輸出與改動前逐鍵逐值相同（AC-4）。
         groups = group_rows(all_videos, fs_path_of=lambda v: uri_to_local_fs_path(v.path, path_mappings))
 
-        videos_json = [_serialize_group(g, path_mappings, thumb_enabled)
-                       for g in groups]
+        from core.source_reachability import owning_source_index, source_keys_and_prefixes
+
+        sources, prefixes = source_keys_and_prefixes(gallery_config)
+
+        videos_json = []
+        for g in groups:
+            item = _serialize_group(g, path_mappings, thumb_enabled)
+            idx = owning_source_index(g.members[0].path, prefixes)
+            if idx is not None:
+                item["src"] = idx
+            videos_json.append(item)
 
         resp = JSONResponse({
             "success": True,
             "videos": videos_json,
-            "total": len(videos_json)
+            "total": len(videos_json),
+            "sources": sources,
         })
         resp.headers["ETag"] = etag
         resp.headers["Cache-Control"] = "no-cache"
@@ -546,30 +556,55 @@ def write_video_title(req: TitleWritebackRequest):
 
 
 @router.get("/source-status")
-async def get_source_status():
+async def get_source_status(recheck: bool = False):
     from core.source_reachability import (
+        RECHECK_MIN_INTERVAL_S,
+        disk_label,
         get_snapshot,
         schedule_reprobe_if_stale,
         unc_host,
         wait_for_first_probe,
+        wait_for_inflight_probe,
     )
 
-    await schedule_reprobe_if_stale()
-    await wait_for_first_probe()
+    if recheck:
+        await schedule_reprobe_if_stale(max_age=RECHECK_MIN_INTERVAL_S)
+        await wait_for_inflight_probe()
+    else:
+        await schedule_reprobe_if_stale()
+        await wait_for_first_probe()
     snapshot = get_snapshot()
     out = []
-    seen_displays = set()
+    seen_keys = set()
     for path, status in snapshot.items():
         if status not in ("unreachable", "no_permission"):
             continue
         host = unc_host(path)
-        display = host if host else path
-        # spec F3：同一主機底下多個來源合成一個名字。去重在端點做（CD-6：顯示名由端點算、
-        # 前端不做字串處理），否則 footer 會列出兩次同一台 NAS，「N 個位置」也會多算。
-        if display in seen_displays:
+        if status == "no_permission":
+            display = host if host else path
+            key = ("no_permission", display)
+        else:
+            label = disk_label(path)
+            group = host if host else (label if label else path)
+            display = group
+            key = ("unreachable", group)
+        if key in seen_keys:
+            if status == "unreachable":
+                for item in out:
+                    if item["_key"] == key:
+                        item["members"].append(path)
+                        break
             continue
-        seen_displays.add(display)
-        out.append({"path": path, "display": display, "status": status,
+        seen_keys.add(key)
+        item = {"path": path, "display": display, "status": status,
                     "reason": status,
-                    "dsm_hint": DSM_PERMISSION_HINT if status == "no_permission" and is_synology() else (LINUX_PERMISSION_HINT if status == "no_permission" and is_headless_server() else None)})
+                    "dsm_hint": DSM_PERMISSION_HINT if status == "no_permission" and is_synology() else (LINUX_PERMISSION_HINT if status == "no_permission" and is_headless_server() else None)}
+        if status == "no_permission":
+            item["members"] = []
+        else:
+            item["members"] = [path]
+        item["_key"] = key
+        out.append(item)
+    for item in out:
+        del item["_key"]
     return out

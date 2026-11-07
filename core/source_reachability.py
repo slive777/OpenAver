@@ -8,7 +8,12 @@ Public API:
   - ``get_snapshot()`` — pure memory read; safe from sync threadpool endpoints
   - ``schedule_reprobe_if_stale()`` — async-only; schedules background reprobe
   - ``wait_for_first_probe()`` — async-only; bounded wait for cold start only
+  - ``wait_for_inflight_probe()`` — async-only; bounded wait for a recheck probe
   - ``unc_host(native_path)`` — public (T2 display name; ruff PLC2701)
+  - ``disk_label(native_path)`` — public (195b group name; ruff PLC2701)
+  - ``source_keys_and_prefixes(gallery_config)`` — public route helper
+  - ``owning_source_index(file_uri, prefixes)`` — public longest-prefix match
+  - ``RECHECK_MIN_INTERVAL_S`` — recheck throttle window in seconds
 """
 
 from __future__ import annotations
@@ -35,6 +40,7 @@ _TCP_TIMEOUT_S = 2.0
 _EXISTS_WAIT_S = 20.0
 _RETRY_SLEEP_S = 1.0
 _FIRST_PROBE_WAIT_S = 120.0
+RECHECK_MIN_INTERVAL_S = 10.0
 
 # Sentinel for "never probed" (module just imported / process just started).
 # time.monotonic() is seconds-since-boot on Linux/macOS/Windows, so a literal
@@ -84,7 +90,7 @@ def get_snapshot() -> dict[str, str]:
         return dict(_snapshot)
 
 
-async def schedule_reprobe_if_stale() -> None:
+async def schedule_reprobe_if_stale(max_age: float | None = None) -> None:
     """If the snapshot is stale (TTL is status-dependent — see ``_TTL_HEALTHY``/``_TTL_DEGRADED``) and no probe is in flight, schedule one.
 
     Must only be called from an async context (has a running event loop).
@@ -95,7 +101,7 @@ async def schedule_reprobe_if_stale() -> None:
     should_schedule = False
     with _lock:
         now = _now()
-        ttl = _current_ttl_locked()
+        ttl = _current_ttl_locked() if max_age is None else max_age
         stale = (now - _snapshot_at) > ttl
         if stale and not _in_flight:
             _in_flight = True
@@ -157,6 +163,19 @@ async def wait_for_first_probe(timeout: float = _FIRST_PROBE_WAIT_S) -> None:
         await asyncio.wait_for(asyncio.shield(task), timeout)
 
 
+async def wait_for_inflight_probe(timeout: float = _FIRST_PROBE_WAIT_S) -> None:
+    """Wait for the currently running probe task, if any, then return.
+
+    Only looks at ``_reprobe_task``; never reads ``_snapshot_at``.
+    """
+    with _lock:
+        task = _reprobe_task
+    if task is None or task.done():
+        return
+    with contextlib.suppress(Exception):
+        await asyncio.wait_for(asyncio.shield(task), timeout)
+
+
 def unc_host(native_path: str) -> str | None:
     """Return ``\\\\host`` for UNC paths; ``None`` otherwise.
 
@@ -174,6 +193,69 @@ def unc_host(native_path: str) -> str | None:
     if not host:
         return None
     return "\\\\" + host
+
+
+def disk_label(native_path: str) -> str | None:
+    """Map a native source path to its drive label, or None when it has none.
+
+    ``D:`` style roots (either slash direction, either letter case) map to the
+    upper-case letter plus a colon; ``/Volumes/<name>`` maps to ``<name>``.
+    UNC paths and plain Linux mounts map to None (UNC keeps its own grouping
+    through ``unc_host``; ``/mnt/...`` stays per-path).
+    """
+    if not native_path:
+        return None
+    head = native_path[0]
+    if (
+        ("A" <= head <= "Z" or "a" <= head <= "z")
+        and len(native_path) >= 2
+        and native_path[1] == ":"
+        and (len(native_path) == 2 or native_path[2] in ("\\", "/"))
+    ):
+        return native_path[0].upper() + ":"
+    if native_path.startswith("/Volumes/"):
+        rest = native_path[len("/Volumes/"):]
+        if rest:
+            return rest.split("/", 1)[0]
+    return None
+
+
+def source_keys_and_prefixes(
+    gallery_config: dict,
+) -> tuple[list[str], list[str | None]]:
+    """Return ``(keys, prefixes)`` for every gallery source, in config order.
+
+    ``keys`` are the snapshot keys (``uri_to_fs_path(src.path)`` — the same
+    call ``_probe_all`` uses when writing the snapshot). ``prefixes`` are the
+    ``file_uri``-namespace match prefixes (``_canonical_source_prefix``); a
+    source whose prefix cannot be built keeps its index with None (never a hit).
+    """
+    from core.readonly_source import _canonical_source_prefix  # shape copy of is_path_on_unreachable_source
+
+    path_mappings = gallery_config.get("path_mappings", {})
+    keys: list[str] = []
+    prefixes: list[str | None] = []
+    for src in iter_gallery_sources(gallery_config):
+        keys.append(uri_to_fs_path(src.path))  # uri-no-reverse
+        try:
+            prefixes.append(_canonical_source_prefix(src.path, path_mappings))
+        except ValueError:
+            prefixes.append(None)
+    return keys, prefixes
+
+
+def owning_source_index(file_uri: str, prefixes: list[str | None]) -> int | None:
+    """Return the index of the longest matching source prefix, or None on miss.
+
+    Ties keep the smaller index (strict ``>`` on the running best length).
+    """
+    from core.path_utils import is_path_under_dir
+
+    best_idx, best_len = None, -1
+    for i, prefix in enumerate(prefixes):
+        if prefix is not None and len(prefix) > best_len and is_path_under_dir(file_uri, prefix):
+            best_idx, best_len = i, len(prefix)
+    return best_idx
 
 
 async def _probe_all() -> None:

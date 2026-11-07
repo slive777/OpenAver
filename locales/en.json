@@ -1437,8 +1437,6 @@
       "pill_actresses_prefix": "Matching",
       "pill_actresses_middle": "filters —",
       "pill_actresses_suffix": "actresses",
-      "source_unreachable_list": "Unreachable: {list}",
-      "source_unreachable_count": "{n} location(s) unreachable",
       "source_no_permission_list": "No permission to read: {list}",
       "source_no_permission_count": "{n} location(s) without read permission"
     },

@@ -109,7 +109,7 @@ class TestShowcaseResponseShape:
             "path", "title", "original_title", "actresses", "number", "maker", "release_date", "tags",
             "size", "cover_url", "cover_full_url", "mtime", "director", "duration", "series", "label",
             "sample_images", "user_tags", "user_rating", "has_cover", "has_nfo", "auto_focal", "crop_mode",
-            "part_tokens", "needs_translate", "has_plot",
+            "part_tokens", "needs_translate", "has_plot", "src",
         }
         video_dir = tmp_path / "videos"
         video_dir.mkdir()
@@ -755,4 +755,69 @@ class TestShowcaseVideosETag:
 
         multi = self._get(client, mocker, showcase_setup, if_none_match=f'"bogus-etag-value", {etag}')
         assert multi.status_code == 304
+
+
+@pytest.mark.parametrize("case", ["parallel", "nested"])
+def test_videos_src_points_to_owning_source(client, tmp_path, mocker, case) -> None:
+    from core.database import Video
+
+    if case == "parallel":
+        src_a = tmp_path / "src_a"
+        src_a.mkdir()
+        src_b = tmp_path / "src_b"
+        src_b.mkdir()
+        src_b_setting = to_file_uri(str(src_b), {})
+        directories = [str(src_a), src_b_setting]
+        v0_uri = to_file_uri(str(src_a / "v0.mp4"), {})
+        v1_uri = to_file_uri(str(src_b / "v1.mp4"), {})
+        orphan_uri = to_file_uri(str(tmp_path / "orphan.mp4"), {})
+        rows = [
+            Video(path=v0_uri, number="SRC-001", title="V0"),
+            Video(path=v1_uri, number="SRC-002", title="V1"),
+            Video(path=orphan_uri, number="SRC-999", title="Orphan"),
+        ]
+    else:
+        parent = tmp_path / "parent"
+        parent.mkdir()
+        child = parent / "child"
+        child.mkdir()
+        directories = [str(parent), str(child)]
+        v_uri = to_file_uri(str(child / "v.mp4"), {})
+        rows = [Video(path=v_uri, number="NEST-001", title="Nested")]
+
+    db_path = tmp_path / f"src_{case}.db"
+    init_db(db_path)
+    VideoRepository(db_path).upsert_batch(rows)
+    config = {
+        "gallery": {
+            "directories": directories,
+            "path_mappings": {},
+            "min_size_mb": 0,
+            "thumbnail_width": 400,
+        },
+        "scraper": {"video_extensions": [".mp4"], "image_extensions": [".jpg"]},
+        "database": {"path": ":memory:"},
+        "translate": {"provider": "ollama", "ollama_model": "llama3"},
+    }
+    mocker.patch("web.routers.showcase.get_db_path", return_value=db_path)
+    mocker.patch("web.routers.showcase.load_config", return_value=config)
+
+    response = client.get("/api/showcase/videos")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+
+    expected_sources = [uri_to_fs_path(d) for d in directories]
+    assert data["sources"] == expected_sources
+
+    if case == "parallel":
+        assert expected_sources[1] != directories[1]
+        assert len(expected_sources) == 2
+        by_path = {v["path"]: v for v in data["videos"]}
+        assert set(by_path) == {v0_uri, v1_uri}
+        assert by_path[v0_uri]["src"] == 0
+        assert by_path[v1_uri]["src"] == 1
+    else:
+        assert len(data["videos"]) == 1
+        assert data["videos"][0]["src"] == 1
 

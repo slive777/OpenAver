@@ -761,7 +761,7 @@
                         <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
                             <span class="lb-tag">動作</span>
                             <span class="lb-tag">喜劇</span>
-                            <span class="lb-user-tag">自訂標籤</span>
+                            <span class="lb-user-tag"><a href="#" class="lb-user-tag-link" style="pointer-events: none;" tabindex="-1"><span>自訂標籤</span></a><button type="button" class="lb-tag-remove" style="pointer-events: none;" tabindex="-1" aria-hidden="true">×</button></span>
                             <button type="button" class="maker-latest-chip" style="pointer-events: none;">示例片商</button>
                         </div>
                         <div class="ds-pill-card-meta">
@@ -3135,8 +3135,8 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
             <div class="ds-subsection">
                 <h3>來源不可達 Pill (Footer) <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(圖示待 owner 拍板)</span></h3>
                 <p class="ds-desc">
-                    Showcase 頁面底部狀態列（<code>.showcase-footer .footer-left</code>）的來源不可達提示。使用 <code>.footer-count</code>、<code>.footer-count--unreachable</code>。當系統偵測到影片來源路徑無法存取時顯示，文字與圖示皆使用 <code>var(--color-warning)</code>（文字色需要 <code>.footer-count.footer-count--unreachable &gt; span</code> 覆蓋既有的 label 降階規則），並套用單次淡入動畫。<br>
-                    收斂規則：1 至 2 個位置時直接列出路徑名稱；3 個以上位置時收斂為「N 個位置無法存取」，並於文字 <code>&lt;span&gt;</code> 上帶原生 <code>title</code> 提示完整路徑清單（與產品碼同一層）。<br>
+                    Showcase 頁面底部狀態列（<code>.showcase-footer .footer-left</code>）的來源離線提示。使用 <code>.footer-count</code>、<code>.footer-count--unreachable</code>、<code>.footer-source-notice</code>。文字與圖示皆使用 <code>var(--color-warning)</code>（文字色需要 <code>.footer-count.footer-count--unreachable &gt; span</code> 覆蓋既有的 label 降階規則），並套用單次淡入動畫。<br>
+                    收斂規則：1 至 2 組時直接列出 display（「D: 沒有連線」）；3 組以上收斂為「N 顆硬碟沒有連線」，並於句子 <code>&lt;span&gt;</code> 上帶原生 <code>title</code> 提示完整清單。離線段內附 <code>.footer-source-toggle</code>（隱藏／顯示），外觀抄 <code>.filter-pill</code>。<br>
                     <strong>⚠️ 圖示待 owner 拍板：</strong>目前產品碼使用 <code>bi-plug</code>，<code>bi-hdd-network</code> 為候選圖示，以下並列展示兩者在三種狀態下（footer 字級）的辨識度比較。
                 </p>
 
@@ -3147,38 +3147,41 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
                             版本 A：<code>bi-plug</code>（目前產品碼）
                         </p>
                         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                            <!-- 1 個位置 -->
+                            <!-- 1 組 -->
                             <div>
-                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">1 個位置無法存取</p>
+                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">1 組離線</p>
                                 <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border); padding: 0.5rem 1rem;">
                                     <div class="ds-footer-pill-demo">
-                                        <span class="footer-count footer-count--unreachable">
+                                        <span class="footer-count footer-count--unreachable footer-source-notice">
                                             <i class="bi bi-plug"></i>
-                                            <span>無法存取：\\192.168.1.177</span>
+                                            <span class="footer-source-text">D: 沒有連線</span>
+                                            <button type="button" class="footer-source-toggle" aria-pressed="false">隱藏</button>
                                         </span>
                                     </div>
                                 </div>
                             </div>
-                            <!-- 2 個位置 -->
+                            <!-- 2 組 -->
                             <div>
-                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">2 個位置無法存取</p>
+                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">2 組離線</p>
                                 <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border); padding: 0.5rem 1rem;">
                                     <div class="ds-footer-pill-demo">
-                                        <span class="footer-count footer-count--unreachable">
+                                        <span class="footer-count footer-count--unreachable footer-source-notice">
                                             <i class="bi bi-plug"></i>
-                                            <span>無法存取：\\192.168.1.177、D:\Videos</span>
+                                            <span class="footer-source-text">D:、E: 沒有連線</span>
+                                            <button type="button" class="footer-source-toggle" aria-pressed="false">隱藏</button>
                                         </span>
                                     </div>
                                 </div>
                             </div>
                             <!-- 3 個以上 -->
                             <div>
-                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">3 個以上位置（含原生 title tooltip）</p>
+                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">4 組離線（含原生 title tooltip）</p>
                                 <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border); padding: 0.5rem 1rem;">
                                     <div class="ds-footer-pill-demo">
-                                        <span class="footer-count footer-count--unreachable">
+                                        <span class="footer-count footer-count--unreachable footer-source-notice">
                                             <i class="bi bi-plug"></i>
-                                            <span title="\\192.168.1.177、D:\Videos、/Volumes/Archive">3 個位置無法存取</span>
+                                            <span class="footer-source-text" title="C:、D:、E:、F:">4 顆硬碟沒有連線</span>
+                                            <button type="button" class="footer-source-toggle" aria-pressed="false">隱藏</button>
                                         </span>
                                     </div>
                                 </div>
@@ -3192,42 +3195,74 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
                             版本 B：<code>bi-hdd-network</code>（候選，圖示待 owner 拍板）
                         </p>
                         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                            <!-- 1 個位置 -->
+                            <!-- 1 組 -->
                             <div>
-                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">1 個位置無法存取</p>
+                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">1 組離線</p>
                                 <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border); padding: 0.5rem 1rem;">
                                     <div class="ds-footer-pill-demo">
-                                        <span class="footer-count footer-count--unreachable">
+                                        <span class="footer-count footer-count--unreachable footer-source-notice">
                                             <i class="bi bi-hdd-network"></i>
-                                            <span>無法存取：\\192.168.1.177</span>
+                                            <span class="footer-source-text">D: 沒有連線</span>
+                                            <button type="button" class="footer-source-toggle" aria-pressed="false">隱藏</button>
                                         </span>
                                     </div>
                                 </div>
                             </div>
-                            <!-- 2 個位置 -->
+                            <!-- 2 組 -->
                             <div>
-                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">2 個位置無法存取</p>
+                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">2 組離線</p>
                                 <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border); padding: 0.5rem 1rem;">
                                     <div class="ds-footer-pill-demo">
-                                        <span class="footer-count footer-count--unreachable">
+                                        <span class="footer-count footer-count--unreachable footer-source-notice">
                                             <i class="bi bi-hdd-network"></i>
-                                            <span>無法存取：\\192.168.1.177、D:\Videos</span>
+                                            <span class="footer-source-text">D:、E: 沒有連線</span>
+                                            <button type="button" class="footer-source-toggle" aria-pressed="false">隱藏</button>
                                         </span>
                                     </div>
                                 </div>
                             </div>
                             <!-- 3 個以上 -->
                             <div>
-                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">3 個以上位置（含原生 title tooltip）</p>
+                                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">4 組離線（含原生 title tooltip）</p>
                                 <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border); padding: 0.5rem 1rem;">
                                     <div class="ds-footer-pill-demo">
-                                        <span class="footer-count footer-count--unreachable">
+                                        <span class="footer-count footer-count--unreachable footer-source-notice">
                                             <i class="bi bi-hdd-network"></i>
-                                            <span title="\\192.168.1.177、D:\Videos、/Volumes/Archive">3 個位置無法存取</span>
+                                            <span class="footer-source-text" title="C:、D:、E:、F:">4 顆硬碟沒有連線</span>
+                                            <button type="button" class="footer-source-toggle" aria-pressed="false">隱藏</button>
                                         </span>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- .footer-source-toggle 開／關兩態 -->
+                <div style="margin-top: 1.25rem;">
+                    <p class="ds-desc" style="font-weight: 600; margin-bottom: 0.5rem;">
+                        <code>.footer-source-toggle</code> 開／關兩態（aria-pressed）
+                    </p>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border); padding: 0.5rem 1rem;">
+                            <div class="ds-footer-pill-demo">
+                                <span class="footer-count footer-count--unreachable footer-source-notice">
+                                    <i class="bi bi-plug"></i>
+                                    <span class="footer-source-text">D: 沒有連線</span>
+                                    <button type="button" class="footer-source-toggle" aria-pressed="false">隱藏</button>
+                                </span>
+                            </div>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.35rem 0 0;">關（隱藏）</p>
+                        </div>
+                        <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border); padding: 0.5rem 1rem;">
+                            <div class="ds-footer-pill-demo">
+                                <span class="footer-count footer-count--unreachable footer-source-notice">
+                                    <i class="bi bi-plug"></i>
+                                    <span class="footer-source-text">D: 沒有連線・已隱藏 312 部</span>
+                                    <button type="button" class="footer-source-toggle" aria-pressed="true">顯示</button>
+                                </span>
+                            </div>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.35rem 0 0;">開（顯示）</p>
                         </div>
                     </div>
                 </div>

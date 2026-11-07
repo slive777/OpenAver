@@ -26,7 +26,7 @@ Design decisions (CD-63a-12):
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Callable
+from typing import Callable, Literal
 
 from core.logger import get_logger
 from core.metatube.client import MetatubeHttpClient  # patch target: core.metatube.probe.MetatubeHttpClient
@@ -72,9 +72,19 @@ METATUBE_PROBE_CANARIES: dict[str, str] = {
     'PACOPACOMAMA': '082107_257',
     'FC2':          '2812904',
     'fc2hub':       '1152468-2725031',
-    # NOT listed (no canary): JAV321, SOD, FC2PPVDB, KIN8
-    # These consistently fail in probe; probe will mark them available=false.
+    # Providers without a canary are classified via METATUBE_KNOWN_FAILING below.
 }
+
+METATUBE_KNOWN_FAILING: frozenset[str] = frozenset({'JAV321', 'SOD', 'FC2PPVDB', 'KIN8'})
+
+
+def classify_provider(name: str) -> Literal['canary', 'known_failing', 'unknown']:
+    """Classify a provider by canary availability and known-failure list."""
+    if name in METATUBE_PROBE_CANARIES:
+        return 'canary'
+    if name in METATUBE_KNOWN_FAILING:
+        return 'known_failing'
+    return 'unknown'
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +145,8 @@ def probe_all(
     Each worker creates its own MetatubeHttpClient (no shared Session).
     Results are collected in the main thread (via as_completed) to serialise
     state mutations and on_progress callbacks — avoids race conditions.
+    Canary providers are probed, known-failing providers are marked failed
+    without probing, and unknown providers keep the connect() baseline untouched.
 
     Args:
         base_url:       Metatube server base URL (e.g. 'http://192.168.1.10:8900').
@@ -162,7 +174,11 @@ def probe_all(
     logger.info('probe_all: probing %d providers via %s', total, redact_metatube_url(base_url))
 
     def _worker(name: str) -> tuple[str, bool]:
-        """Worker: create own client, run probe_provider, return (name, result)."""
+        """Worker: probe canary providers; others return fixed results without probing."""
+        if classify_provider(name) == 'unknown':
+            return name, True
+        if classify_provider(name) == 'known_failing':
+            return name, False
         client = MetatubeHttpClient(base_url, token)
         ok = probe_provider(client, name)
         return name, ok
@@ -177,16 +193,18 @@ def probe_all(
         for future in as_completed(future_to_name):
             name, ok = future.result()
             results[name] = ok
-            done += 1
 
             # Update state (thread-safe — state uses RLock internally)
             source_id = f'metatube:{name}'
-            if ok:
+            if classify_provider(name) == 'unknown':
+                pass  # unknown: never probed; leave connect() baseline and runtime marks untouched
+            elif ok:
                 state.mark_available(source_id, generation=generation)
                 logger.debug('probe_all: %r → available', source_id)
             else:
                 state.mark_failed(source_id, generation=generation)
                 logger.debug('probe_all: %r → failed', source_id)
+            done += 1
 
             # Notify progress in main thread (serialised, no race)
             if on_progress is not None:

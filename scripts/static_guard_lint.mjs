@@ -1331,10 +1331,22 @@ const RULES = [
   // ---- [TestStatePageCloakGuard] div.state-page 全 x-cloak（tag-scan class-tag multi） ----
   {
     file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
-    tagName: 'div', className: 'state-page', multi: true, expectedCount: 6,
+    tagName: 'div', className: 'state-page', multi: true, expectedCount: 7,
     required: ['x-cloak'],
-    note: '[TestStatePageCloakGuard] test_showcase_state_pages_cloaked — showcase.html 6 個 div.state-page 皆 x-cloak（116a-T4 新增「有收藏但篩選後為零」分支，5→6；不變式不變：每一個都要 x-cloak）',
+    note: '[TestStatePageCloakGuard] test_showcase_state_pages_cloaked — showcase.html 7 個 div.state-page 皆 x-cloak（195b-T5 新增「全部被藏」分支，6→7；不變式不變：每一個都要 x-cloak）',
   },
+  // 195b-T5：footer 來源開關按鈕接線（tag 開標籤錨定，不得用裸 required-string）
+  {
+    file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
+    tagName: 'button', className: 'footer-source-toggle',
+    required: [
+      'type="button"',
+      '@click="hsSetHide(!hideUnreachable)"',
+      ':aria-pressed="hideUnreachable"',
+    ],
+    note: '[195b-T5] .footer-source-toggle 開標籤必須含 type=button、@click=hsSetHide(!hideUnreachable)、:aria-pressed=hideUnreachable',
+  },
+
   {
     file: 'web/templates/search.html', kind: 'tag-scan', mode: 'class-tag',
     tagName: 'div', className: 'state-page', multi: true, expectedCount: 3,
@@ -3819,15 +3831,41 @@ const RULES = [
   // '/api/gallery/player' in state-videos.js 斷言）——不補則 T5 整刪
   // test_video_api_files_contain 時會靜默失網，故本卡納入。
   {
-    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '/api/gallery/player',
+    file: 'web/static/js/shared/play-video.js', kind: 'required-string', pattern: '/api/gallery/player',
     note: '[TestVideoPlaybackGuard] test_video_api_files_contain（JS 半邊，plan CD-96e-5 三分法未明列，96e-T3 研究補洞）',
   },
   {
     // CD-120a-11：playVideo 方法體內禁止 await——window.open 前若插入 await，
     // 手機／區網按播放會被瀏覽器當廣告彈窗擋掉、什麼都不會發生。
-    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'forbidden-string', pattern: 'await',
+    file: 'web/static/js/shared/play-video.js', kind: 'forbidden-string', pattern: 'await',
     scope: { anchor: /playVideo\s*\(\s*path\s*\)\s*\{/, braceBalanced: true },
     note: '[CD-120a-11] playVideo 內 window.open 前若插入 await，手機／區網按播放會被瀏覽器當廣告彈窗擋掉、什麼都不會發生',
+  },
+
+  // 195-T6（plan CD-195-11／13）：搜尋頁兩顆播放鈕改走共用 playVideo（桌面殼交 open_file）。
+  // 薄守衛只擋「回退成直接 window.open 播放網址」；required 兩條各錨到自己那顆鈕的開標籤
+  // （FE-GUARD-03：裸整檔 required 會被另一顆鈕餵飽而 fail-open）。scope 找不到＝規則報錯（fail-closed）。
+  {
+    file: 'web/templates/search.html', kind: 'forbidden-string', pattern: "window.open('/api/gallery/player",
+    note: '[lint-guard:195-T6-search-no-direct-player-open] 使用者在桌面 App 搜尋頁按播放 → 又直接開瀏覽器分頁而不是交給播放器（兩頁判斷再次漂移）',
+  },
+  {
+    file: 'web/templates/search.html', kind: 'required-string', pattern: 'playVideo(',
+    scope: /<button\b[^>]*\bdata-tooltip="\{\{ t\('search\.action\.play'\) \}\}"[^>]*>/,
+    note: '[lint-guard:195-T6-search-lightbox-play-wired] 燈箱播放鈕必須呼叫共用 playVideo(...)，否則桌面 App 按播放會跳去瀏覽器分頁',
+  },
+  {
+    file: 'web/templates/search.html', kind: 'required-string', pattern: 'playVideo(',
+    scope: /<button\b[^>]*\btitle="\{\{ t\('search\.action\.play'\) \}\}"[^>]*>/,
+    note: '[lint-guard:195-T6-search-card-play-wired] 結果卡播放鈕必須呼叫共用 playVideo(...)，否則桌面 App 按播放會跳去瀏覽器分頁',
+  },
+
+  // 195-T11：燈箱 user tag 文字必須包進 <a class="lb-user-tag-link"> 並呼叫 searchFromMetadata。
+  // 只錨 <a> 開標籤，不錨整個 span——整個 span 範圍內的 HTML 註解會餵飽 required-string 而 fail-open（FE-GUARD-03）。
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', pattern: "searchFromMetadata(tag, 'tag')",
+    scope: /<a\b[^>]*\bclass="lb-user-tag-link"[^>]*>/,
+    note: '[lint-guard:195-T11-user-tag-click-wired] 燈箱 user tag 文字必須呼叫 searchFromMetadata(tag, \'tag\')，否則使用者點自己加的 tag 沒反應（其餘檢查照樣全綠）',
   },
 
   // 120a-T1：.lb-full 原圖載不到時才會出現提示 pill。綁定必須是 img.lb-full 開標籤屬性
@@ -4945,8 +4983,8 @@ const RULES = [
   // 拆掉其中一顆仍會過；count 讓「少一顆」直接紅）。131b branch review P3。
   {
     file: 'web/templates/settings.html', kind: 'structure-count',
-    pattern: 'x-data="helpPopover"', count: 11,
-    note: '[131b-T4] settings 的 11 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應（console ReferenceError，畫面無事發生）。133b-T1 新增第 7 顆（顯示表格與清單）時同步 +1；152c-T9 新增第 8 顆（人臉自動對焦狀態）時同步 +1；154b-T4 新增 NFO 標題格式說明浮層 +1；186-T2 新增 AI 功能卡說明 +1；190a-T2a 新增待整理資料夾說明 +1',
+    pattern: 'x-data="helpPopover"', count: 12,
+    note: '[131b-T4] settings 的 12 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應（console ReferenceError，畫面無事發生）。133b-T1 新增第 7 顆（顯示表格與清單）時同步 +1；152c-T9 新增第 8 顆（人臉自動對焦狀態）時同步 +1；154b-T4 新增 NFO 標題格式說明浮層 +1；186-T2 新增 AI 功能卡說明 +1；190a-T2a 新增待整理資料夾說明 +1；195-T3 隱藏未連線硬碟 +1',
   },
   {
     file: 'web/templates/scanner.html', kind: 'structure-count',
@@ -9073,6 +9111,20 @@ const RULES = [
     pattern: 'this.search = ',
     scope: { anchor: /searchFromMetadata\s*\([^)]*\)\s*\{/, braceBalanced: true },
     note: '[lint-guard 162c-test_search_from_metadata_delegates_to_add_pill] 燈箱點導演／系列／女優名 → searchFromMetadata 不得直接寫 this.search（須走 addPill） — 遷自 test_showcase_mobile_search.py',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string',
+    pattern: '_clearDigitsOnlySearch',
+    scope: { anchor: /^\s*addPill\s*\([^)]*\)\s*\{/m, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard 195d] addPill 必須呼叫 _clearDigitsOnlySearch，否則純數字搜尋點 metadata 後文字不清掉 — TASK-195-T9',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string',
+    pattern: '_clearDigitsOnlySearch',
+    scope: { anchor: /^\s*_setReleasePillFromDate\s*\([^)]*\)\s*\{/m, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard 195d] _setReleasePillFromDate 必須呼叫 _clearDigitsOnlySearch，否則純數字搜尋點發售日後文字不清掉 — TASK-195-T9',
   },
   { file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', anyOf: true,
     pattern: ["$watch('search'", '$watch("search"'],

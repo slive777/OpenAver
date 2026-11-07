@@ -949,3 +949,58 @@ class TestNfoTitleFormatConfigGuard:
         get_resp = client.get("/api/config")
         assert get_resp.status_code == 200
         assert get_resp.json()["data"]["scraper"]["nfo_title_format"] == custom_fmt
+
+
+class TestHideUnreachableSourcesEndpoint:
+    """PUT /api/config/gallery/hide-unreachable-sources（TASK-195-T3）
+
+    用 conftest 的 client 與 autouse 預設 config（AppConfig().model_dump()），
+    不自建 mock_config_path——Pydantic 預設靠 conftest 才被測到。
+    """
+
+    def test_hide_unreachable_endpoint_persists_and_rejects_non_bool(self, client):
+        import core.config as core_config
+
+        # 全新／conftest 預設 → 關
+        get0 = client.get("/api/config")
+        assert get0.status_code == 200
+        data0 = get0.json()["data"]
+        assert data0["gallery"]["hide_unreachable_sources"] is False
+        items_before = data0["gallery"]["items_per_page"]
+
+        # PUT true → 200 + success，磁碟與再 GET 都是 True，其他鍵不變
+        resp = client.put(
+            "/api/config/gallery/hide-unreachable-sources",
+            json={"value": True},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+
+        disk = json.loads(core_config.CONFIG_PATH.read_text(encoding="utf-8"))
+        assert disk["gallery"]["hide_unreachable_sources"] is True
+        assert disk["gallery"]["items_per_page"] == items_before
+
+        get1 = client.get("/api/config")
+        assert get1.status_code == 200
+        data1 = get1.json()["data"]
+        assert data1["gallery"]["hide_unreachable_sources"] is True
+        assert data1["gallery"]["items_per_page"] == items_before
+
+        # PUT false → 讀回 False（同時證明 migration 不會覆蓋已設值）
+        resp2 = client.put(
+            "/api/config/gallery/hide-unreachable-sources",
+            json={"value": False},
+        )
+        assert resp2.status_code == 200
+        assert resp2.json()["success"] is True
+        disk2 = json.loads(core_config.CONFIG_PATH.read_text(encoding="utf-8"))
+        assert disk2["gallery"]["hide_unreachable_sources"] is False
+
+        # 非 bool → 422，磁碟仍是 False
+        resp3 = client.put(
+            "/api/config/gallery/hide-unreachable-sources",
+            json={"value": "yes"},
+        )
+        assert resp3.status_code == 422
+        disk3 = json.loads(core_config.CONFIG_PATH.read_text(encoding="utf-8"))
+        assert disk3["gallery"]["hide_unreachable_sources"] is False

@@ -348,6 +348,7 @@ test('CoverBadgeManifest cold/warm：pill 中文字幕 vs user_tags 中字（B1�
     // 本 harness 刻意只建 stateBase（不 merge stateVideos）以縮小 cold/warm 的變因，
     // 所以比照上面每一條 init 依賴的既有做法，補一個 stub。
     c._reconcileHeroCard = () => {};
+    c._hsInit = () => Promise.resolve();   // 195b-T4：init() 呼叫分片的 _hsInit（本 harness 不 merge 該分片）
     c.$watch = () => {};
     c.$nextTick = () => {};
     c.mode = 'list';

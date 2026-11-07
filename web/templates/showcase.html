@@ -26,7 +26,7 @@
     </div>
 
     <!-- Empty State (API 回傳空資料時) -->
-    <div class="state-page" x-cloak x-show="!showFavoriteActresses && !loading && !error && videoCount === 0">
+    <div class="state-page" x-cloak x-show="!showFavoriteActresses && !loading && !error && videoCount === 0 && hiddenCount === 0">
         <i class="bi bi-collection-play state-page-icon"></i>
         <p class="state-page-text">{{ t('showcase.state.empty') }}</p>
         <div class="empty-actions">
@@ -34,6 +34,12 @@
                 <i class="bi bi-plus-circle"></i> {{ t('showcase.state.generate_action') }}
             </a>
         </div>
+    </div>
+
+    <!-- 全部被藏：開關開且牆上 0 片、但有片被藏在未連線硬碟 -->
+    <div class="state-page" x-cloak x-show="!showFavoriteActresses && !loading && !error && videoCount === 0 && hiddenCount > 0">
+        <i class="bi bi-plug state-page-icon"></i>
+        <p class="state-page-text">{{ t('showcase.state.all_hidden') }}</p>
     </div>
 
     <!-- Error State (API 錯誤時) -->
@@ -1335,7 +1341,7 @@
                                 <!-- User tag badges with × remove button -->
                                 <template x-for="tag in (currentLightboxVideo?.user_tags || [])" :key="tag">
                                     <span class="lb-user-tag">
-                                        <span x-text="tag"></span>
+                                        <a href="#" class="lb-user-tag-link" @click.prevent="searchFromMetadata(tag, 'tag')"><span x-text="tag"></span></a>
                                         <button class="lb-tag-remove"
                                                 @click.stop="removeLbUserTag(tag)"
                                                 :title="tag">×</button>
@@ -2034,17 +2040,23 @@
                     </template>
                 </span>
             </template>
-            <!-- TASK-142-T4: 來源不可達 pill（與 .footer-count 同層；不可加 x-data） -->
-            <template x-if="unreachableSources.length">
+            <!-- 195b-T5: 來源提示兩段（離線＋切換鈕／無權限）；不可加 x-data -->
+            <template x-if="hsNotice().offline">
+                <span class="footer-count footer-count--unreachable footer-source-notice">
+                    <i class="bi bi-plug"></i>
+                    <span class="footer-source-text" :title="hsNotice().offline.title || null" x-text="hsNotice().offline.text"></span>
+                    <button type="button"
+                            class="footer-source-toggle"
+                            :aria-pressed="hideUnreachable"
+                            aria-label="{{ t('settings.gallery.hide_unreachable_sources_label') }}"
+                            @click="hsSetHide(!hideUnreachable)"
+                            x-text="hsNotice().offline.button"></button>
+                </span>
+            </template>
+            <template x-if="hsNotice().permission">
                 <span class="footer-count footer-count--unreachable">
                     <i class="bi bi-plug"></i>
-                    <template x-if="unreachableSources.length <= 2">
-                        <span x-text="unreachableSources.every(s => s.reason === 'no_permission') ? t('showcase.status.source_no_permission_list', { list: unreachableSources.map(s => s.display).join('、') }) + (unreachableSources.find(s => s.dsm_hint)?.dsm_hint ? ' ' + unreachableSources.find(s => s.dsm_hint).dsm_hint : '') : t('showcase.status.source_unreachable_list', { list: unreachableSources.map(s => s.display).join('、') })"></span>
-                    </template>
-                    <template x-if="unreachableSources.length > 2">
-                        <span :title="unreachableSources.map(s => s.display).join('、')"
-                              x-text="unreachableSources.every(s => s.reason === 'no_permission') ? t('showcase.status.source_no_permission_count', { n: unreachableSources.length }) + (unreachableSources.find(s => s.dsm_hint)?.dsm_hint ? ' ' + unreachableSources.find(s => s.dsm_hint).dsm_hint : '') : t('showcase.status.source_unreachable_count', { n: unreachableSources.length })"></span>
-                    </template>
+                    <span class="footer-source-text" :title="hsNotice().permission.title || null" x-text="hsNotice().permission.text"></span>
                 </span>
             </template>
         </div>

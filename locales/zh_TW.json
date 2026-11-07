@@ -871,6 +871,9 @@
       "show_table_list_label": "顯示表格與清單",
       "show_table_list_note": "開啟後，瀏覽頁右上角會多出表格與清單兩種呈現。預設只有封面與海報。",
       "show_table_list_help_aria": "顯示表格與清單說明",
+      "hide_unreachable_sources_label": "隱藏未連線硬碟",
+      "hide_unreachable_sources_note": "硬碟沒插或雲端硬碟斷線時，先不顯示那上面的片；接回來就會自動出現。不會刪除任何片或紀錄。",
+      "hide_unreachable_sources_help_aria": "隱藏未連線硬碟說明",
       "cover_badge": {
         "subtitle": "中文字幕",
         "cracked": "無碼破解（AI 演算法去馬）",
@@ -1311,7 +1314,8 @@
       "loading": "載入影片列表中...",
       "empty": "片庫還沒有影片",
       "generate_action": "前往片庫管理",
-      "retry": "重試"
+      "retry": "重試",
+      "all_hidden": "所有影片都在未連線的硬碟上"
     },
     "error": {
       "server_error": "伺服器錯誤 ({status})",
@@ -1461,10 +1465,14 @@
       "pill_actresses_prefix": "符合",
       "pill_actresses_middle": "個條件的",
       "pill_actresses_suffix": "位",
-      "source_unreachable_list": "無法存取：{list}",
-      "source_unreachable_count": "{n} 個位置無法存取",
       "source_no_permission_list": "沒有權限讀取：{list}",
-      "source_no_permission_count": "{n} 個位置沒有權限讀取"
+      "source_no_permission_count": "{n} 個位置沒有權限讀取",
+      "source_offline_list": "{list} 沒有連線",
+      "source_offline_count": "{n} 顆硬碟沒有連線",
+      "source_offline_hidden": "・已隱藏 {n} 部",
+      "source_hide_btn": "隱藏",
+      "source_show_btn": "顯示",
+      "source_hide_save_failed": "「隱藏未連線硬碟」沒有存成功，已改回原本的顯示"
     },
     "nav": {
       "prev_page": "上一頁",

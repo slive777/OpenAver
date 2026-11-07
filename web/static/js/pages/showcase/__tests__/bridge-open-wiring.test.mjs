@@ -33,6 +33,7 @@ register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.u
 
 const { stateVideos } = await import('../state-videos.js');
 const { openLocal } = await import('@/shared/open-local.js');
+const { searchStateResultCard } = await import('@/search/state/result-card.js');
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -100,4 +101,43 @@ test('openLocal 無 bridge：複製 pathToDisplay 後的資料夾', withClipboar
     await tick();
     assert.deepEqual(writes, ['C:\\AV']);
     assert.deepEqual(self.toasts, [['common.open_local.path_copied|C:\\AV', 'success']]);
+}));
+
+
+// 195-T6：搜尋頁播放鈕與瀏覽頁共用同一支 playVideo；被測物是搜尋頁 state 上的那一支
+function withWindowOpenSpy(fn) {
+    return async () => {
+        const opened = [];
+        globalThis.open = (...args) => { opened.push(args); };
+        try { await fn(opened); } finally { delete globalThis.open; delete globalThis.window.pywebview; }
+    };
+}
+
+test('搜尋頁 playVideo：桌面殼交給 open_file 且不開瀏覽器分頁，失敗 dict 顯示與瀏覽頁相同的 toast', withWindowOpenSpy(async (opened) => {
+    const comp = searchStateResultCard();
+    assert.equal(typeof comp.playVideo, 'function');
+    const calls = [];
+    setApi((p) => { calls.push(p); return Promise.resolve({ ok: true, reason: null, local_path: p, server_path: p }); }, 'open_file');
+    const ok = fakeThis();
+    comp.playVideo.call(ok, 'D:\\AV\\A.mp4');
+    await tick();
+    assert.deepEqual(calls, ['D:\\AV\\A.mp4']);
+    assert.equal(opened.length, 0);
+    assert.deepEqual(ok.toasts, []);
+    setApi(() => Promise.resolve(NF), 'open_file');
+    const bad = fakeThis();
+    comp.playVideo.call(bad, 'D:\\AV\\A.mp4');
+    await tick();
+    assert.deepEqual(bad.toasts, [['common.bridge.file_not_found|D:\\AV\\A.mp4', 'error']]);
+    assert.equal(opened.length, 0);
+}));
+
+
+test('搜尋頁 playVideo：無桌面殼時開 /api/gallery/player 新分頁', withWindowOpenSpy(async (opened) => {
+    const comp = searchStateResultCard();
+    assert.equal(typeof comp.playVideo, 'function');
+    delete globalThis.window.pywebview;
+    const p = 'D:\\AV\\A B.mp4';
+    comp.playVideo.call(fakeThis(), p);
+    assert.deepEqual(opened, [['/api/gallery/player?path=' + encodeURIComponent(p), '_blank']]);
 }));

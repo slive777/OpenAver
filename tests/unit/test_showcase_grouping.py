@@ -165,6 +165,8 @@ class TestAC4BaselineFixtureComparison:
             #                   的 TestShowcaseUserRatingField 三支守著，不歸本 baseline 管）
             #   needs_translate —— 172 新增，無條件輸出
             #   has_plot —— 187b CD-187b-1.3 新增，無條件輸出 bool（NULL→false；FE-ALPINE-06）
+            #   src —— 195b T2 新增，有來源歸屬時才輸出；行為由 tests/integration/test_api_showcase.py
+            #          的 src 歸屬測試守著，不歸本 baseline 管
             assert actual_v.get("user_rating") == 0, (
                 f"單檔片 {path} 的 user_rating 在 baseline fixture 情境下必為 0，"
                 f"實際 {actual_v.get('user_rating')}"
@@ -180,7 +182,7 @@ class TestAC4BaselineFixtureComparison:
             )
             extra_keys = (
                 set(actual_v.keys()) - set(expected_v.keys())
-                - {"part_tokens", "user_rating", "needs_translate", "has_plot"}
+                - {"part_tokens", "user_rating", "needs_translate", "has_plot", "src"}
             )
             assert not extra_keys, f"多出非預期 key: {extra_keys}（path={path}）"
 

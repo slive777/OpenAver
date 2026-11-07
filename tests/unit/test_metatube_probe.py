@@ -90,6 +90,65 @@ def test_probe_all_mixed_results_correct_state(fresh_state):
 # 憑證不得進 probe 的 log（Codex PR review 三審 P1）
 # ============================================================
 
+def test_probe_all_unknown_provider_stays_available_and_is_not_probed():
+    """unknown 來源不發請求、仍可用；同輪 canary 照舊被探測。"""
+    import core.metatube.probe as probe
+
+    state = MetatubeConnectionState()
+    state.connect('http://localhost:8900', '', ['AVBASE', 'FC2DB', 'HEYZO'])
+    progress = []
+    with patch('core.metatube.probe.MetatubeHttpClient') as MockClient:
+        MockClient.return_value.get_info.return_value = {'id': 'x'}
+        result = probe.probe_all(
+            'http://localhost:8900', '', state, ['AVBASE', 'FC2DB', 'HEYZO'],
+            on_progress=lambda done, total: progress.append((done, total)),
+        )
+        probed = [c.args[0] for c in MockClient.return_value.get_info.call_args_list]
+
+    assert result == {'AVBASE': True, 'FC2DB': True, 'HEYZO': True}
+    assert probed == ['HEYZO']
+    assert state.is_available('metatube:AVBASE') is True
+    assert state.is_available('metatube:FC2DB') is True
+    assert state.is_available('metatube:HEYZO') is True
+    assert len(progress) == 3 and progress[-1] == (3, 3)
+
+
+def test_probe_all_known_failing_providers_still_marked_failed():
+    """已知失敗 4 來源：分類正確、不發請求、結果 False 且不可用。"""
+    import core.metatube.probe as probe
+
+    failing = ['JAV321', 'SOD', 'FC2PPVDB', 'KIN8']
+    for name in failing:
+        assert probe.classify_provider(name) == 'known_failing'
+    for name in probe.METATUBE_PROBE_CANARIES:
+        assert probe.classify_provider(name) == 'canary'
+    assert probe.classify_provider('AVBASE') == 'unknown'
+
+    state = MetatubeConnectionState()
+    state.connect('http://localhost:8900', '', failing)
+    with patch('core.metatube.probe.MetatubeHttpClient') as MockClient:
+        result = probe.probe_all('http://localhost:8900', '', state, failing)
+        MockClient.return_value.get_info.assert_not_called()
+
+    assert result == {name: False for name in failing}
+    for name in failing:
+        assert state.is_available(f'metatube:{name}') is False
+
+
+def test_probe_all_does_not_wash_runtime_failure_of_unknown_provider():
+    """runtime 已標失敗的 unknown 來源，probe_all 不洗成可用。"""
+    import core.metatube.probe as probe
+
+    state = MetatubeConnectionState()
+    state.connect('http://localhost:8900', '', ['AVBASE'])
+    state.mark_failed('metatube:AVBASE')
+    with patch('core.metatube.probe.MetatubeHttpClient') as MockClient:
+        probe.probe_all('http://localhost:8900', '', state, ['AVBASE'])
+        MockClient.return_value.get_info.assert_not_called()
+
+    assert state.is_available('metatube:AVBASE') is False
+
+
 def test_probe_all_log_does_not_leak_userinfo(caplog):
     """`probe_all()` 的 info log 記的是 redacted target，不是原始 base_url。"""
     import logging

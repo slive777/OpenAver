@@ -68,7 +68,7 @@
                     </button>
                     <!-- TASK-140-T6: 播放 -->
                     <button class="lb-action-btn"
-                            @click="window.open('/api/gallery/player?path=' + encodeURIComponent(currentLightboxVideo()?._localStatus?.paths?.[0] || ''), '_blank')"
+                            @click="playVideo(currentLightboxVideo()?._localStatus?.paths?.[0] || '')"
                             x-show="!actressLightboxMode() && (cardActionState(currentLightboxVideo()) === 'play' || cardActionState(currentLightboxVideo()) === 'play+folder')"
                             data-tooltip="{{ t('search.action.play') }}" aria-label="{{ t('search.action.play') }}">
                         <i class="bi bi-play-fill"></i>
@@ -1198,7 +1198,7 @@
                                 </button>
                                 <!-- TASK-140-T6: 播放（count===1 或 count>1 皆顯示）-->
                                 <button class="btn-glass-circle"
-                                        @click.stop="window.open('/api/gallery/player?path=' + encodeURIComponent(result._localStatus?.paths?.[0] || ''), '_blank')"
+                                        @click.stop="playVideo(result._localStatus?.paths?.[0] || '')"
                                         x-show="cardActionState(result) === 'play' || cardActionState(result) === 'play+folder'"
                                         title="{{ t('search.action.play') }}">
                                     <i class="bi bi-play-fill"></i>

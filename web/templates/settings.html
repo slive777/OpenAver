@@ -1098,6 +1098,31 @@
                             </div>
                         </div>
 
+                        <!-- 隱藏未連線硬碟（TASK-195-T3） -->
+                        <div class="settings-form-row">
+                            <div class="flex-1 flex flex-col gap-1">
+                                <div class="settings-attr-head popover-anchor" x-data="helpPopover">
+                                    <label class="settings-label">
+                                        <input type="checkbox" class="toggle toggle-primary"
+                                               x-model="form.hideUnreachableSources">
+                                        <span class="label-text">{{ t('settings.gallery.hide_unreachable_sources_label') }}</span>
+                                    </label>
+                                    <button type="button" class="help-popover-btn"
+                                            @click="toggle()"
+                                            :aria-expanded="open"
+                                            aria-controls="hideUnreachableSourcesHelp"
+                                            aria-label="{{ t('settings.gallery.hide_unreachable_sources_help_aria') }}">
+                                        <i class="bi bi-question-circle"></i>
+                                    </button>
+                                    <div id="hideUnreachableSourcesHelp" x-show="open" x-cloak x-transition
+                                         @click.outside="close()"
+                                         class="help-popover">
+                                        <small class="help-popover__body">{{ t('settings.gallery.hide_unreachable_sources_note') }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 封面屬性標籤：總開關 + manifest 驅動 pill 清單 -->
                         <div class="settings-form-row">
                             <div class="flex-1 flex flex-col gap-1">
