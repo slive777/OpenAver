@@ -1,215 +1,282 @@
 # 在 Linux 伺服器上跑 OpenAver
 
-> **這是進階路徑，請自己承擔。** 一般使用者請走 [README 的 Win/Mac 一行安裝](../README.md#安裝)——
-> 那條路有圖形介面、有安裝程式、有一鍵更新，這裡三樣都沒有。
-
 這份文件寫給想把 OpenAver 架在**家裡那台沒有螢幕的 Linux 機器**上的人：舊主機、NAS、
-Proxmox LXC、樹莓派都算。裝好之後你用**同一個網段內其他裝置的瀏覽器**操作它。
+Proxmox LXC（輕量的虛擬機器）、樹莓派都算。貼一行指令就裝好，之後你用**同一個網段內其他裝置的瀏覽器**操作它。
 
 > ⛔ **不要架在公開的雲端主機上**（VPS、有公網 IP 的機器）。
-> 理由見下方第 2 步的安全警告——這不是「不建議」，是這套軟體的門禁根本不是為那種場景設計的。
+> 理由見下方的安全警告——這不是「不建議」，是這套軟體的門禁根本不是為那種場景設計的。
 
-跟桌面版比，這條路少掉這些東西：
-
-- **沒有應用程式視窗**，也沒有系統匣圖示
-- **沒有「一鍵更新」按鈕**（那顆鈕是桌面版限定，見下方〈升級〉）
-- **沒有原生的檔案選擇對話框**——改用網頁版的資料夾選擇彈窗（v0.14.8 起）
-
----
-
-## 前置需求
-
-- **系統上要有 Python 3.12**，以及建立虛擬環境用的 `venv` 模組
-- `curl` 與 `tar`（幾乎所有 Linux 都內建）
-- 影片檔所在的資料夾，這台機器讀得到
-
-查一下你的版本：
-
-```bash
-python3 --version          # 要看到 3.12.x
-```
-
-**為什麼需要先裝 Python——不是有 venv 嗎？** venv **不含 Python 本體**，
-它只是把系統上那支 python 用符號連結指過來，再獨立出一份套件目錄：
-
-```
-venv/bin/python3 -> /usr/bin/python3
-```
-
-所以 venv 隔離的是**套件**，不是直譯器；系統上沒有 python3，第一行 `python3 -m venv` 就跑不了。
-
-Debian／Ubuntu 上另外要裝 venv 模組（Ubuntu 24.04 內建的就是 3.12）：
-
-```bash
-sudo apt install python3.12 python3.12-venv
-```
-
-3.12 是官方打包用的版本，也是唯一測過的。程式沒有硬性擋住其他版本，但別的版本沒人試過。
-
----
-
-## 1. 安裝
-
-抓最新**正式版**的原始碼，解壓到 `~/OpenAver`：
-
-```bash
-LATEST=$(curl -fsSL https://api.github.com/repos/slive777/OpenAver/releases/latest \
-         | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
-echo "最新正式版：$LATEST"
-
-mkdir -p ~/OpenAver && cd ~/OpenAver
-curl -fsSL "https://github.com/slive777/OpenAver/archive/refs/tags/$LATEST.tar.gz" \
-  | tar xz --strip-components=1
-```
-
-裝相依套件：
-
-```bash
-python3 -m venv venv
-grep -v '^pywebview' requirements.txt > /tmp/openaver-req.txt
-venv/bin/pip install -r /tmp/openaver-req.txt
-```
-
-確認自己裝到哪一版：
-
-```bash
-grep -m1 '__version__' core/version.py
-```
-
-> 💡 **不想用那行自動查版號的話**，直接去 [Releases 頁面](https://github.com/slive777/OpenAver/releases)
-> 看版號，把上面的 `$LATEST` 換成 `v0.13.14` 這種寫法即可。
+> 🔒 **安裝之前務必看完這段。**
 >
-> 也可以改用 `git clone` ——但那樣預設會停在 `main`，也就是**開發中的版本**（隨時可能半完成、
-> 沒過發布驗收）。用 git 的話記得補一行切到正式版：
-> `git checkout "$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)"`。
-> 這份文件用原始碼壓縮檔，是因為不需要裝 git，升級也只是把同一行指令再跑一次。
-
-**為什麼要 `grep -v '^pywebview'`**：`pywebview` 是桌面版拿來開應用程式視窗用的，
-在沒有圖形環境的機器上既裝不起來也用不到。OpenAver 的伺服器端程式碼**完全沒有 import 它**，
-排除掉不影響任何功能。
-
-> ℹ️ 這份文件描述的網頁版資料夾選擇彈窗**需要 v0.14.8 以上**。更舊的版本在瀏覽器裡
-> 按「加資料夾」不會有反應——那時候那顆鈕還是桌面版限定的。
-
----
-
-## 2. 開啟伺服器模式（只需做一次）
-
-**這步不能跳過。** OpenAver 預設只接受本機連線——不開伺服器模式的話，
-同網段其他裝置連進來一律拿到 `403 Forbidden`，連登入畫面都看不到。
-
-```bash
-venv/bin/python -c "from core.data_layout import bootstrap_data_layout; bootstrap_data_layout(); from core.config import mutate_config; mutate_config(lambda c: c.setdefault('general', {}).__setitem__('server_mode', True))"
-```
-
-這行會先把資料位置定版（第一次執行會建立 `output/`；若有舊版留下的 `web/config.json` 會複製一份過去），再建立／更新 `output/config.json`（之後只認這一份）。想關掉的話，把 `True` 改成 `False` 再跑一次即可。
-
-> 🔒 **開啟之前務必看完這段。**
->
-> 伺服器模式的門禁只分兩種來源：**本機**，以及**其他所有人**。
-> 開啟之後，凡是連得到這台機器的 `8000` port 的裝置**一律放行**——
+> 伺服器模式（讓其他裝置也連得進來的開關）的門禁只分兩種來源：**本機**，以及**其他所有人**。
+> 安裝器已自動開啟伺服器模式，所以凡是連得到這台機器的 `49152` port 的裝置**一律放行**——
 > 它**不會**去檢查對方是不是真的在你家網段內。家裡的智慧電視、訪客的手機、
 > 室友的筆電都算；而如果這個 port 從網際網路連得到，**那就是全世界都算**。
 >
 > 所以：
 >
-> - **不要**把 `8000` port 轉發（port forward）到網際網路上
+> - **不要**把 `49152` port 轉發（port forward，在路由器上把外面的連線導進這台機器）到網際網路上
 > - **不要**架在有公網 IP 的雲端主機上
-> - 真的需要在外面看，請走 **Tailscale／WireGuard／Zero Trust** 這類把裝置拉進私有網路的方式，
+> - 真的需要在外面看，請走 **Tailscale**（免費的私人網路）、WireGuard、Zero Trust 這類把裝置拉進私有網路的方式，
 >   而不是把服務開到公網
-> - 家裡有人共用網路的話，連進去之後在「設定 → 區網存取」設一組 4 位數 PIN
+> - 家裡有人共用網路的話，裝好後設一組連線密碼（見下方〈連線與設密碼〉）
 >   （**預設是關閉的**，不設就等於沒有密碼）
 
 ---
 
-## 3. 查出區網網址
+## 需求
+
+- **系統**：64 位元 Linux（x86_64），glibc 2.28 以上（Debian 10、Ubuntu 20.04、RHEL 8 之後都符合）；**不用先裝 Python**，套件已內附。
+- 不支援 Alpine 這類 musl 系統（安裝器會直接告訴你並停下來）。
+- `curl` 與 `tar`（幾乎所有 Linux 都內建）
+- 影片檔所在的資料夾，這台機器讀得到
+
+---
+
+## 一行安裝
+
+用**一般使用者**帳號（不是 root）登入這台機器（SSH 進去就可以），貼上這一行：
 
 ```bash
-venv/bin/python -c "from web.lan_listener import get_lan_ip; ip = get_lan_ip(); print('http://%s:8000' % ip if ip else '查不到，改用下面的備援做法')"
+curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh | bash
 ```
 
-印出來的就是等一下要在別台裝置的瀏覽器打的網址，例如 `http://192.168.1.100:8000`。
+**你會看到什麼**（安裝畫面跟著系統語言走，以下以繁體中文為例）：
 
-**如果它說「查不到」**：這個查法是靠系統的預設路由反推的，
-機器沒有對外預設路由時（純內網、沒接網際網路的環境）就會查不到。改用系統指令：
+1. 下載進度，接著出現「✅ 安裝完成！」。
+2. 一個問題：「要設定開機自動啟動嗎？(Y/n)」。直接按 Enter 就是要——機器重開之後 OpenAver 會自己起來。
+   （如果是在沒有終端機的環境跑，例如腳本或自動化，它不會問，會印「沒有終端機，預設開啟自動啟動」並直接開啟。）
+3. 最後印出「OpenAver 已啟動」和一行網址，例如 `http://192.168.1.100:49152`——這就是等一下要在別台裝置打的網址。
+
+程式裝在 `~/OpenAver`（內含 Python）；你的設定、片庫資料庫、封面都在 `~/OpenAver/output/`，升級不會動它們。
+另外會在 `~/.local/bin` 放一個 `openaver` 指令，後面所有操作都用它。
+
+**開機自動啟動要注意兩件事：**
+
+- 它靠 systemd（Linux 管背景服務的標準機制）。這台機器沒有 systemd、或 systemd 使用者服務不可用時，
+  安裝器會告訴你「這台機器的 systemd 使用者服務不可用，無法設定開機自動啟動；請改用 openaver start 手動啟動」，
+  OpenAver 這次仍然會啟動，只是**重開機後要自己再打一次 `openaver start`**。
+- 服務已登記、但你的帳號沒有 linger（讓登出後服務也繼續跑的設定）時，登出或重開機後服務會停。
+  安裝器會先自己試著處理；處理不了就會印出一行以「注意：服務已登記，但登出後會停止、重開機後不會自己起來」開頭的提醒，
+  請用有管理權限的帳號執行一次：
+
+  ```bash
+  sudo loginctl enable-linger <你的帳號>
+  ```
+
+  （`<你的帳號>` 換成你登入用的名字，`whoami` 印得出來。`openaver status` 也會再提醒一次。）
+
+如果這台機器以前照舊版文件手動裝過（`~/OpenAver` 裡有 `venv/`），安裝器會偵測到並改裝，見最下面的附錄 A。
+
+---
+
+## 連線與設密碼
+
+**1. 取得網址。** 在伺服器上打：
+
+```bash
+openaver url
+```
+
+你會看到兩行，例如：
+
+```
+http://192.168.1.100:49152
+桌面 App 側欄連線填這個網址
+```
+
+**2. 在另一台裝置連線。** 同一個 Wi-Fi／區網內的手機、平板、電腦，用瀏覽器打開上面那個網址，就會看到 OpenAver 的畫面（第一次會有新手導覽）。
+如果你用桌面 App，在側欄「連線」填同一個網址即可。
+
+**如果它說「查不到區網 IP，請用 hostname -I 或 ip addr 自行確認」**：機器沒有對外預設路由時（純內網、沒接網際網路的環境）會查不到。改用系統指令：
 
 ```bash
 hostname -I
 ```
 
 它會把這台機器所有的位址一次列出來，例如 `192.168.1.100 172.17.0.1`——
-**挑那個跟你其他裝置同網段的**（通常是 `192.168.x.x` 或 `10.x.x.x` 開頭那個）。
+**挑那個跟你其他裝置同網段的**（通常是 `192.168.x.x` 或 `10.x.x.x` 開頭那個），網址就是 `http://<那個位址>:49152`。
 `172.17.x.x` 通常是 Docker 的虛擬網卡，不是你要的。真的分不出來就去路由器的
 裝置清單看這台機器被分到哪個 IP。
 
+**3. 設密碼（建議）。** 在瀏覽器開「設定」頁，頁面上方勾選「需要密碼才能連線」，
+旁邊會出現密碼欄，輸入密碼（4 位英文或數字，區分大小寫），按「儲存」。
+成功會顯示「密碼設定已儲存」。之後其他裝置連進來都要先輸入這組密碼。
+
 ---
 
-## 4. 啟動
+## `openaver` 指令
+
+| 指令 | 做什麼 |
+|---|---|
+| `openaver run` | 前景執行（關掉終端機就停）。服務與 `start` 內部用，一般不必直接跑 |
+| `openaver start` | 在背景啟動，成功會印「OpenAver 已啟動」；已經在跑會印「OpenAver 已在執行」 |
+| `openaver stop` | 停止：先請它自己結束，等 20 秒還沒停才強制結束，成功印「OpenAver 已停止」（已登記開機自動啟動時交給 systemd 停） |
+| `openaver restart` | 先停再啟動 |
+| `openaver status` | 印「狀態：在跑」或「狀態：沒跑」，加上版本、服務是否已登記、port。在跑時結束碼是 0，沒跑是 3 |
+| `openaver log` | 即時看日誌（`debug.log` 與 `server.log` 最後 50 行，之後持續跟著新增），按 `Ctrl-C` 離開 |
+| `openaver url` | 印區網網址 |
+| `openaver config port <n>` | 改 port，範圍 1024 到 65535；存下後要 `openaver restart` 才生效 |
+| `openaver reset-password` | 忘記密碼時用，見下一節 |
+| `openaver autostart on` ／ `off` | 開／關開機自動啟動 |
+| `openaver update [vX.Y.Z]` | 升級（或換成指定版本），見〈升級〉 |
+
+port 固定是 `49152`，**不會**被占用時自動往後找。被別的程式占了的話：
+
+- 沒登記開機自動啟動：`openaver start` 會當場告訴你
+  「port 49152 被占用，OpenAver 沒有啟動。換一個 port：openaver config port <n>，再執行 openaver start」。
+- 已登記開機自動啟動：可能只看到「啟動逾時，詳見 logs/server.log」，不一定會明講 port 被占。
+  這時看 `openaver log`，或直接 `openaver config port <n>` 換一個 port，再 `openaver restart`。
+
+如果打 `openaver` 說找不到指令，是因為 `~/.local/bin` 不在你的 PATH 裡（安裝器結尾會提醒「提示：請把 ~/.local/bin 加入 PATH」）。
+可以先改打完整路徑 `~/OpenAver/openaver`，或把 `~/.local/bin` 加進 PATH。
+
+---
+
+## 忘記密碼 / 被鎖在外面
+
+輸錯太多次密碼會觸發逐步拉長的鎖定（最長一小時）。不想等、或根本忘了密碼，
+**在伺服器本機**跑這行：
 
 ```bash
-venv/bin/uvicorn web.app:app --host 0.0.0.0 --port 8000
+openaver reset-password
 ```
 
-這是**前景執行**——關掉終端機或中斷 SSH，它就停了。
-要它開機自動起來、斷線也不停，見下方〈選配：開機自動啟動〉。
+服務在跑的話，它會自己重啟一次，然後印「密碼保護已關閉、所有裝置已登出」，**立即生效**。
+效果是：密碼保護關閉、鎖定解除、所有已登入的裝置與 AI 助理的連線憑證一併失效。
+之後想再設密碼，照〈連線與設密碼〉第 3 步重設即可。
 
-`--port` 想換成別的數字都可以，記得第 3 步印出的網址要跟著改。
+服務目前沒在跑的話，它會印「已標記重設密碼，下次啟動生效（openaver start）」，等你下次 `openaver start` 就生效。
 
 ---
 
-## 5. 升級 / 安裝指定版本
+## 升級
 
-**就是把第 1 步的下載指令再跑一次**，蓋在原本的目錄上：
+```bash
+openaver update
+```
+
+這會下載最新版並換上去。你會看到：
+
+- 約 10 到 20 秒這段時間沒有服務，之後自動恢復，**瀏覽器不用重新登入**。
+- 設定、片庫、密碼都不會動（都在 `~/OpenAver/output/`）。
+- 換好之後如果新版起不來，會自動退回升級前的版本。
+- 已經是最新版時，會印「已是最新版本（x.y.z），沒有需要更新的」，什麼都不動。
+
+**另一種做法**：重貼〈一行安裝〉那一行指令。效果相同——裝過的機器會走升級，不會當成全新安裝。
+
+**指定版本或退回舊版**：
+
+```bash
+openaver update vX.Y.Z
+```
+
+把 `X.Y.Z` 換成想要的版號（可以到 [Releases 頁面](https://github.com/slive777/OpenAver/releases)查）。
+只能選有 Linux 版的版本，也就是 0.18.14 起；更舊的會印「這個版本（vX.Y.Z）沒有 Linux 版」。
+
+**沒有「一鍵更新」按鈕。** 說明頁與通知中心有新版時，會提示你在主機執行 `openaver update`。
+瀏覽器、桌面 App、AI 助理都不能觸發更新——只有在這台主機上打指令才算數，這是刻意的安全護欄，不是壞掉。
+
+---
+
+## 疑難排解
+
+- **連不進去、瀏覽器顯示無法連線** → 先在伺服器上打 `openaver status`，確認是「狀態：在跑」。
+  再檢查防火牆有沒有放行 49152（例如 `sudo ufw allow 49152/tcp`）。如果你改過 port，網址要用 `openaver url` 印出來的新的。
+- **連得到但顯示 `Forbidden`** → 代表伺服器模式沒有開著。安裝器每次安裝或升級都會自動開啟它，
+  所以通常是設定檔（`~/OpenAver/output/config.json`）被刪掉或手動改過。修法是重裝同一個版本讓它再開一次：
+  `openaver update vX.Y.Z`，版號填 `openaver status` 印的「版本」前面加 `v`。
+  （不指定版號的 `openaver update` 在已是最新版時會直接略過，不會重新開啟。）
+- **一直停在登入畫面** → 忘了密碼，見上面〈忘記密碼〉：`openaver reset-password`。
+- **啟動不了，或 `openaver status` 結束碼是 3** → 看日誌：`openaver log`，或直接打開 `~/OpenAver/logs/server.log`。
+  如果是 port 被占，`openaver start` 會直接告訴你，照它說的 `openaver config port <n>` 換一個，再 `openaver start`。
+  已登記開機自動啟動的話，port 被占時你看到的會是「啟動逾時，詳見 logs/server.log」，原因寫在 `server.log` 裡，處理方式一樣。
+- **登出或重開機之後服務停了** → 帳號沒有 linger，請用有管理權限的帳號執行一次：
+
+  ```bash
+  sudo loginctl enable-linger <你的帳號>
+  ```
+
+- **升級失敗或中斷：先試 `openaver update`；若指令本身跑不動，重貼安裝那一行。** 依你看到的畫面：
+  - 「無法取得安裝程式（請檢查網路），沒有動任何檔案」→ 沒動任何東西，網路通了再試一次就好。
+  - 「這次沒有完成，已還原成這次之前的版本與服務狀態」→ 已經退回升級前的版本，可以照常使用；原因看它上面的訊息或 `~/OpenAver/logs/server.log`。
+  - 「還原沒有完全成功」→ 舊版的檔案可能還在 `~/OpenAver/.prev` 裡，**先不要刪**，處理好之後再重貼安裝那一行。
+- **其他** → 日誌在 `~/OpenAver/logs/debug.log` 與 `~/OpenAver/logs/server.log`；開 issue 時附上就好查很多。
+
+---
+
+## 其他
+
+- **別用 root 裝。** root 寫進你片庫的 NFO（記著片名、女優、標籤的資料檔）和封面，之後你自己的帳號改不動。
+  安裝器偵測到你是 root 會提醒，但不會擋你。
+- ARM64 有打包但未在實機測試過，遇到問題請[開 issue](https://github.com/slive777/OpenAver/issues)。
+
+---
+
+## 附錄 A　不想用內附 Python 的人
+
+### 舊手動安裝想改用一行安裝
+
+如果你以前照舊版文件手動裝過（`~/OpenAver` 裡有 `venv/`），直接貼上面的一行安裝即可。它會先問你一次「要繼續改裝嗎？(y/N)」，同意後：
+
+- 舊的程式檔與 `venv/` 會搬到 `~/OpenAver/.old-install/`，確認沒問題可以自己刪。
+- `output/`（設定、片庫、封面）和你自己放在裡面的東西都不動。
+
+**沒有終端機時**（腳本、自動化）它問不了，會直接拒絕。要同意的話加上 `OPENAVER_YES=1`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh | OPENAVER_YES=1 bash
+```
+
+（或寫成 `... | bash -s -- --yes`。）
+
+**舊的 systemd 服務要先停掉。** 舊服務還在跑時，安裝器會請你先關；沒有終端機的話則直接拒絕。停法：
+
+```bash
+sudo systemctl disable --now openaver
+```
+
+之後想把舊服務移除，再刪掉 `/etc/systemd/system/openaver.service`，並跑 `sudo systemctl daemon-reload`。
+
+### 手動安裝（自備 Python）
+
+不想用內附的 Python、想自己管環境的話，可以照下面做。這條路**沒有 `openaver` 指令**，啟動、升級、重設密碼都要自己打指令。
+它和一行安裝用同一個 `~/OpenAver`，二擇一。上方的公網警告同樣適用，只是這裡的 port 是 `8000`。
+
+需要 Python 3.12 與 `venv` 模組（Debian／Ubuntu：`sudo apt install python3.12 python3.12-venv`），以及 `curl`、`tar`。
+
+下載最新正式版、解壓、裝套件：
 
 ```bash
 LATEST=$(curl -fsSL https://api.github.com/repos/slive777/OpenAver/releases/latest \
          | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
 
-cd ~/OpenAver
+mkdir -p ~/OpenAver && cd ~/OpenAver
 curl -fsSL "https://github.com/slive777/OpenAver/archive/refs/tags/$LATEST.tar.gz" \
   | tar xz --strip-components=1
 
+python3 -m venv venv
 grep -v '^pywebview' requirements.txt > /tmp/openaver-req.txt
 venv/bin/pip install -r /tmp/openaver-req.txt
 ```
 
-改完重啟伺服器（前景執行的按 `Ctrl-C` 再跑一次第 4 步；systemd 的話 `sudo systemctl restart openaver`）。
+`pywebview` 是桌面版開視窗用的，沒有圖形環境的機器裝不起來也用不到，所以排除。
 
-想**退回舊版**或裝特定版本，把 `$LATEST` 換成版號即可，例如 `v0.13.14`——
-同一個目錄直接覆蓋回去就好，設定與資料庫一樣不受影響。
-
-> ℹ️ 覆蓋升級只會蓋掉同名檔案，**不會刪掉舊版留下、新版已經移除的檔案**。
-> 那些檔案沒有任何程式碼會去載入它們，放著不影響運作；真的想要一份乾乾淨淨的，
-> 就解壓到新目錄，再把舊的 `output/` 整個搬過去；如果舊目錄裡還有 `web/config.json`（還沒用新版啟動過的話，設定檔還在那裡），也一起搬到新目錄的 `web/` 底下，第一次啟動時會自動收進 `output/`。
-
-**這裡沒有「一鍵更新」按鈕。** 設定頁上那顆更新鈕只在桌面版有作用，
-從瀏覽器按它會得到 403——那是刻意的安全護欄，不是壞掉。伺服器要升級就是重跑上面這段。
-
-你的**設定與資料庫不會被動到**：`output/`（設定檔、資料庫、封面、縮圖都在裡面）
-不在原始碼壓縮檔裡，覆蓋解壓不會碰到它們。
-
----
-
-## 6. 忘記密碼 / 被鎖在外面
-
-輸錯太多次 PIN 會觸發逐步拉長的鎖定（最長一小時）。不想等、或根本忘了密碼，
-**在伺服器本機**跑這行：
+開啟伺服器模式（只需做一次；不開的話，其他裝置連進來一律拿到 `403 Forbidden`）：
 
 ```bash
-venv/bin/python -c "from core.access_auth import set_auth; set_auth(enabled=False, pin='')"
+venv/bin/python -c "from core.data_layout import bootstrap_data_layout; bootstrap_data_layout(); from core.config import mutate_config; mutate_config(lambda c: c.setdefault('general', {}).__setitem__('server_mode', True))"
 ```
 
-密碼保護會被關掉、鎖定會被解除、所有已登入的裝置一併登出。
+啟動（前景執行，關掉終端機就停）：
 
-> ⚠️ **跑完一定要重啟伺服器**，否則沒有效果。
-> 執行中的伺服器把密碼設定快取在記憶體裡，不會發現另一個行程改了資料庫——
-> 指令跑完看起來成功了，瀏覽器卻還是擋在登入畫面。這不是指令失敗，是還沒重新讀取。
+```bash
+venv/bin/uvicorn web.app:app --host 0.0.0.0 --port 8000
+```
 
----
+網址是 `http://<這台機器的區網 IP>:8000`，IP 用 `hostname -I` 查。
 
-## 選配：開機自動啟動（systemd）
-
-第 4 步的前景執行只適合先試跑。要它長期活著，建一個 systemd unit：
+開機自動啟動（systemd）：
 
 ```bash
 sudo tee /etc/systemd/system/openaver.service > /dev/null <<'EOF'
@@ -233,20 +300,21 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now openaver
 ```
 
-三個 `CHANGE_ME` 換成你的使用者名稱（`whoami` 印得出來），路徑也照實際位置改。
-**`User=` 要填「讀得到你的影片資料夾」的那個使用者**——填 `root` 雖然一定讀得到，
-但 OpenAver 會用它的身分寫 NFO 與封面到你的片庫裡，之後你自己的帳號可能反而改不動那些檔案。
+三個 `CHANGE_ME` 換成你的使用者名稱（`whoami`），`User=` 要填讀得到影片資料夾的那個使用者。
 
-看狀態與日誌：
+升級：把上面「下載、解壓、裝套件」那段再跑一次（蓋在原目錄上，`output/` 不受影響），然後重啟（`sudo systemctl restart openaver`）。
+
+忘記密碼：
 
 ```bash
-systemctl status openaver
-journalctl -u openaver -f
+venv/bin/python -c "from core.access_auth import set_auth; set_auth(enabled=False, pin='')"
 ```
+
+⚠️ **跑完一定要重啟伺服器**，否則沒有效果——執行中的伺服器把密碼設定快取在記憶體裡，不會發現另一個行程改了資料庫。
 
 ---
 
-## Docker（實驗性）
+## 附錄 B　Docker（實驗性，官方 image 規劃中）
 
 > **先說結論：不想折騰的話，別用這段。**
 > 上面的 CLI 安裝功能完全一樣，而且步驟更少。
@@ -388,13 +456,3 @@ stat -c '%u:%g' /srv/media/av     # 片庫資料夾的擁有者
 兩邊一致的話，把那組數字填進 compose 的 `user:` 就好。不一致的話，
 填的那個 UID 必須對片庫資料夾有讀取權限（要 OpenAver 寫 NFO／封面的話還要寫入權限），
 專案目錄本身也一樣。
-
----
-
-## 遇到問題
-
-- **連不進去、瀏覽器顯示無法連線** → 檢查防火牆（`sudo ufw allow 8000/tcp`），
-  以及第 4 步是不是用了 `--host 0.0.0.0`（用 `127.0.0.1` 只有本機連得到）
-- **連得到但顯示 `Forbidden`** → 第 2 步的伺服器模式沒開（這項改完立即生效，不用重啟）
-- **一直停在登入畫面** → 見上方第 6 節，注意「跑完要重啟」
-- **其他** → 日誌在 `~/OpenAver/logs/debug.log`（Docker 是專案目錄下的 `OpenAver/logs/debug.log`）；開 issue 時附上就好查很多

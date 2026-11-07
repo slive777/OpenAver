@@ -14,7 +14,7 @@ Jellyfin/Emby/Kodi. AI-operable REST API, 3,300+ tests, MIT. -->
   Works right after install on Windows/Mac, no Docker, no command line · Bring in videos you already organized and browse them right away, no re-scraping needed
 </p>
 
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-0078D6.svg)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6.svg)
 ![GitHub Release](https://img.shields.io/github/v/release/slive777/OpenAver)
 ![Downloads](https://img.shields.io/github/downloads/slive777/OpenAver/total?color=success)
 ![Stars](https://img.shields.io/github/stars/slive777/OpenAver)
@@ -28,10 +28,10 @@ Point OpenAver at the folder where you keep your videos and it turns them into a
 **The "Open" in OpenAver means you're never locked in:**
 
 - **Open to come in**: collections already organized by JavSP, MDCX, or EverAver are read as-is — no re-scraping. If a video has a data file next to it (NFO — a small file that holds the title, actress, and tags) and a cover image, scanning reads it in and leaves your files untouched; the same goes for Jellyfin/Emby or any other tool that writes a standard NFO + cover.
-- **Open to leave**: the data files and covers it writes are recognized by Jellyfin/Emby/Kodi, so you can play on your TV; if you ever stop using OpenAver, everything is still in your own folders.
+- **Open to leave**: the data files and covers it writes are recognized by Jellyfin/Emby/Kodi; if you ever stop using OpenAver, everything is still in your own folders.
 - **Open source**: MIT licensed and free — anyone can read or change the code.
 
-**By default, nothing about your videos is changed, moved, or deleted.** Filling in missing metadata only adds a data file and images next to the video. Only when you press "Organize" does it rename or move files, following the rules you set, and it never deletes. It runs on your own computer; no account needed.
+**By default, nothing about your videos is changed, moved, or deleted.** Filling in missing metadata only adds a data file and images next to the video. Only when you press "Organize" does it rename or move files, following the rules you set, and it never deletes.
 
 **100% local** — no data collection, no uploaded file info. Network requests are only used to scrape publicly available metadata.
 
@@ -43,7 +43,7 @@ Point OpenAver at the folder where you keep your videos and it turns them into a
 
 | Item | Details |
 |------|---------|
-| **Platform** | Windows 10/11 · macOS (Apple Silicon, M1 and later) |
+| **Platform** | Windows 10/11 · macOS (Apple Silicon, M1 and later) · Linux x86_64 (server edition, used from a browser) |
 | **Install** | One-line command or double-click installer, no Docker, everything runs in the GUI |
 | **Inherit an existing collection** | Reads the NFO and cover images already sitting next to your videos — scanning never changes your files |
 | **Collection browsing** | Cover wall with stackable filters; actress wall sortable by cup size, age, height |
@@ -81,7 +81,7 @@ Point OpenAver at the folder where you keep your videos and it turns them into a
 
 ### One-Line Install
 
-**macOS** (open "Terminal" and paste this):
+**macOS / Linux** (open "Terminal" and paste this):
 ```bash
 curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh | bash
 ```
@@ -103,13 +103,13 @@ Download from [GitHub Releases](https://github.com/slive777/OpenAver/releases/la
 |----------|------|
 | **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` |
 | **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64.zip` |
+| **Linux x86_64** | `OpenAver-vX.X.X-Linux-x86_64.tar.gz` |
 
 > ⚠️ The manual ZIP needs one extra step to clear security restrictions — see the included document. macOS is Apple Silicon only.
 
 The first time you open it, an onboarding tour walks you through picking a folder and pressing "Update Library" — no need to read the docs first.
 
-> 🐧 **Linux**: No official installer, but you can set it up yourself as a LAN server and use it from a browser — see [`docs/linux-server.md`](docs/linux-server.md).
-
+> 🐧 **Linux**: Paste the same line, then use it from a browser; it can start on boot — see [`docs/linux-server.md`](docs/linux-server.md).  
 > 🗄️ **Synology NAS**: Install the `.spk` manually (beta) — see [`docs/synology.md`](docs/synology.md).
 
 ---
@@ -126,17 +126,15 @@ The first time you open it, an onboarding tour walks you through picking a folde
 
 ### 🎬 Showcase: Browse by cover, find by actress
 
-**A media player finds videos by filename; here you browse by cover, tag, and actress.**
-
 - **Cover wall + Lightbox**: click a cover to see stills, tags, and actress info; uncensored covers auto-crop to the face, drag to adjust if you don't like it.
 - **Collected actresses show their age on release day**: her name is followed by something like `(28y)` — her age on the day that title released.
 - **Stackable filters**: click an actress, tag, maker, director, or series and only titles matching all of them stay; clicking is an exact match, typing is a fuzzy search.
-- **One-click switch between landscape cover and portrait card**: a landscape JAV cover's front is its right half, so portrait cards fit more per row — purely a display change.
+- **One-click switch between landscape cover and portrait card**: a landscape JAV cover's front is its right half, so portrait cards fit more per row.
 - **Actress mode**: actresses get their own wall, profile cards with height, cup size, measurements, age, alias history; sortable and filterable.
 - **Fill the actress wall from your own library**: press `+` for a list of who's in your library and how many titles each has, aliases merged; tap the heart to add.
 - **Similar exploration**: tap the wand and similar titles circle the main cover; works offline.
 - **Shows up right after organizing**: a title organized on the Search page flies straight into Showcase; if your library location can't be reached, the status bar names which one.
-- **Browse on phone or tablet too**: flip to "Server" in Settings and same-Wi-Fi devices can browse in a browser; flip back to "Standalone" to close access. The interface is redone for touch.
+- **Browse on phone or tablet too**: flip to "Server" in Settings and same-Wi-Fi devices can browse in a browser; flip back to "Standalone" to close access.
 - **Browse offline too**: one click in Settings exports an offline page you can open without the app.
 
 ### 🔍 Search: where new titles come in
@@ -216,8 +214,6 @@ Works with any function-calling AI tool:
 
 > 💡 Want to see covers right in the chat? **Codex App** and **Google Antigravity 2.0** both support inline display.
 
-> ⚡ Small models work too: Gemini Flash, GPT mini, and Claude Haiku can all operate it.
-
 > 🪄 **Power-user easter egg: auto-find actresses in FC2 titles.** Almost no FC2 video has an actress tag, but plenty later debuted in censored titles. SQL pulls titles with an empty actress field → DeepFace matches them against Gfriends → `POST /api/user-tags` writes it back; 50 lines of Python chew through your whole library, unidentified ones get auto-clustered via DBSCAN.
 
 </details>
@@ -245,7 +241,7 @@ Yes. Apple Silicon only (M1 and later), one command or a ZIP, no Docker.
 Yes. Run OpenAver on the NAS (Synology package or Linux) or another computer, then enter its address and password under "Connect" in the desktop app's sidebar. Compared with a browser you get three extras: your own player (which can read `.srt`), the JavLibrary / FC2-javten human verification, and opening the folder a video is in. If paths differ, set up a path mapping. The host needs 0.17.7 or later.
 
 **Can I browse the videos on my computer from my phone or tablet?**
-Yes. On the same Wi-Fi, turn on "Server" in Settings and open the URL in your phone's browser; turn it off when done so nothing is exposed to the internet.
+Yes. On the same Wi-Fi, turn on "Server" in Settings and open the URL in your phone's browser.
 
 **What if one of the built-in scrape sources stops working?**
 The 8 sources fill in for each other, so if one fails the rest can still find the title. JavDB also has an app channel, so it usually still works even when blocked. You can also connect Metatube, or ask an AI to add a source.
