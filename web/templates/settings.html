@@ -13,7 +13,7 @@
         <!-- 81b-T1: 左 cluster 包標題 + 膠囊 + 連線 inline 區塊；flex 樣式由 T2 補 -->
         <div class="settings-header-left">
             <!-- Server Mode Toggle (80a-T3) — 81b-T1: 從 actions 末尾搬到標題側 -->
-            {% if not is_synology %}
+            {% if not is_headless_server %}
             <div class="settings-server-mode">
                 <div class="settings-sources-segmented" role="group" :aria-label="window.t('settings.mode.label')">
                     <button type="button"

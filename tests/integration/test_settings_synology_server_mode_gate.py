@@ -44,3 +44,18 @@ class TestSettingsSynologyServerModeGate:
             f"應{'出現' if expect_visible else '不出現'}在 /settings 渲染結果，"
             f"實際{'出現' if is_visible else '不出現'}"
         )
+
+    def test_settings_server_mode_toggle_hidden_for_server_only(
+        self, client, monkeypatch
+    ):
+        monkeypatch.delenv("OPENAVER_SYNOLOGY", raising=False)
+        monkeypatch.setenv("OPENAVER_SERVER_ONLY", "1")
+
+        resp = client.get("/settings")
+        assert resp.status_code == 200
+
+        # [lint-guard: pytest-justified] 開關出不出現取決於執行期環境變數 OPENAVER_SERVER_ONLY 與 Jinja 渲染結果，靜態 lint 掃不到。
+        assert SERVER_MODE_ANCHOR not in resp.text, (
+            "OPENAVER_SERVER_ONLY=1 且未設 OPENAVER_SYNOLOGY 時，"
+            ".settings-server-mode 不應出現在 /settings 渲染結果，實際出現"
+        )
