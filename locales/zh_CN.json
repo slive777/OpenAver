@@ -2182,7 +2182,7 @@
     "pin_failed": "无法确认密码，请再试一次",
     "nopassword": "这台服务器没有设密码，局域网上任何人都能操作",
     "forgot_synology": "到套件中心重新安装 OpenAver 会清除密码",
-    "forgot_linux": "在主机的 OpenAver 文件夹运行这行，再重启主机：venv/bin/python -c \"from core.access_auth import set_auth; set_auth(enabled=False, pin='')\"",
+    "forgot_linux": "在主机上运行这行，会关闭密码保护并自动重启服务：openaver reset-password",
     "forgot_desktop": "到那台电脑的设置页改",
     "cf_ready": "JavLibrary／FC2-javten 由这台电脑代为验证：已就绪",
     "cf_not_ready": "JavLibrary／FC2-javten 由这台电脑代为验证：未就绪（{reason}）",

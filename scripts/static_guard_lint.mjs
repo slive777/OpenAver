@@ -9402,8 +9402,9 @@ const RULES = [
     note: '[lint-guard 168e-T7-no-move-zombie] 有人把搬家占位字樣加回連線頁 → 使用者在出貨的 App 裡又看到「把本機片庫搬到伺服器的方法，之後補上」，以為有功能卻點不出東西',
   },
   {
-    file: 'locales/zh_TW.json', kind: 'required-string', pattern: /venv\/bin\/python -c .*set_auth\(enabled=False, pin=''\)/,
-    note: '[lint-guard 168e-T7-forgot-linux-command] zh_TW 的 forgot_linux 必含完整重設指令字串（與 docs/linux-server.md 同一條指令，人工對齊）；缺了 → 使用者照著貼上去跑卻沒真的關掉密碼，重啟後仍被擋在登入畫面',
+    file: 'locales/zh_TW.json', kind: 'required-string', pattern: /openaver reset-password/,
+    scope: /"forgot_linux":([^\n]*)/,
+    note: '[lint-guard 168e-T7-forgot-linux-command] zh_TW 的 forgot_linux 必含 openaver reset-password（與 docs/linux-server.md 人工對齊）；缺了 → 使用者照連線頁提示操作卻關不掉密碼、仍被擋在登入畫面',
   },
   // ---- [168e-T14] 連線頁「重試」鈕接線 ----
   {

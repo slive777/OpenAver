@@ -2182,7 +2182,7 @@
     "pin_failed": "Could not verify the password. Please try again",
     "nopassword": "This server has no password; anyone on the LAN can use it",
     "forgot_synology": "Reinstalling OpenAver from Package Center clears the password",
-    "forgot_linux": "Run this in the OpenAver folder on the server, then restart the server: venv/bin/python -c \"from core.access_auth import set_auth; set_auth(enabled=False, pin='')\"",
+    "forgot_linux": "Run this on the server host. It turns off password protection and restarts the service automatically: openaver reset-password",
     "forgot_desktop": "Change it on the Settings page of that computer",
     "cf_ready": "JavLibrary / FC2-javten verified by this computer: ready",
     "cf_not_ready": "JavLibrary / FC2-javten verified by this computer: not ready ({reason})",

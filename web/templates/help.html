@@ -52,11 +52,19 @@
                         <span x-show="!checkUpdateLoading">{{ t('help.hero.btn_check_update_idle') }}</span>
                     </button>
                     <!-- 更新結果 inline -->
+                    {% if is_headless_server and not is_synology %}
+                    <template x-if="!_bridgeMode && checkDone && !errorMsg && hasUpdate">
+                        <span class="text-success text-sm">
+                            <i class="bi bi-arrow-up-circle"></i> <span x-text="window.t('help.hero.server_update_available', { version: latestVersion })"></span> <code>openaver update</code>
+                        </span>
+                    </template>
+                    {% else %}
                     <template x-if="!_bridgeMode && checkDone && !errorMsg && hasUpdate">
                         <a :href="downloadUrl" target="_blank" rel="noopener noreferrer" class="text-success text-sm">
                             <i class="bi bi-download"></i> {{ t('help.hero.update_available_prefix') }} <span x-text="latestVersion"></span> {{ t('help.hero.update_available_suffix') }}
                         </a>
                     </template>
+                    {% endif %}
                     <template x-if="_bridgeMode && checkDone && !errorMsg && hasUpdate">
                         <a :href="downloadUrl" target="_blank" rel="noopener noreferrer" class="text-success text-sm">
                             <i class="bi bi-download"></i> {{ t('help.hero.client_update_available_prefix') }} <span x-text="latestVersion"></span> {{ t('help.hero.client_update_available_suffix') }}
