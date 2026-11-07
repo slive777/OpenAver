@@ -66,10 +66,10 @@ t() {
         ja:glibc_unknown) echo "❌ glibc バージョンを判定できません" ;;
         en:glibc_unknown) echo "❌ Could not determine the glibc version" ;;
 
-        zh-TW:root_reminder) echo "⚠️  目前以 root 執行；建議改用一般使用者帳號" ;;
-        zh-CN:root_reminder) echo "⚠️  当前以 root 执行；建议改用普通用户帐号" ;;
-        ja:root_reminder) echo "⚠️  root で実行中です。一般ユーザーでの実行を推奨します" ;;
-        en:root_reminder) echo "⚠️  Running as root; a normal user account is recommended" ;;
+        zh-TW:root_reminder) echo "⚠️  目前以 root 執行；之後寫出的 NFO、封面，你自己的帳號可能改不動，建議改用一般使用者帳號" ;;
+        zh-CN:root_reminder) echo "⚠️  当前以 root 执行；之后写出的 NFO、封面，你自己的帐号可能改不动，建议改用普通用户帐号" ;;
+        ja:root_reminder) echo "⚠️  root で実行中です。今後書き出される NFO やカバー画像を、ご自身のアカウントでは変更できなくなる場合があります。一般ユーザーでの実行を推奨します" ;;
+        en:root_reminder) echo "⚠️  Running as root; NFO files and covers written later may not be editable by your own account. A normal user account is recommended" ;;
 
         zh-TW:no_linux_asset_fmt) echo "❌ 這個版本（%s）沒有 Linux 版" ;;
         zh-CN:no_linux_asset_fmt) echo "❌ 这个版本（%s）没有 Linux 版" ;;
@@ -81,10 +81,10 @@ t() {
         ja:tarball_not_found_fmt) echo "❌ アーカイブが見つかりません：%s" ;;
         en:tarball_not_found_fmt) echo "❌ Tarball not found: %s" ;;
 
-        zh-TW:existing_install_refused_fmt) echo "❌ 偵測到 %s 已有安裝，這一版安裝程式目前只處理全新安裝、沒有動任何檔案" ;;
-        zh-CN:existing_install_refused_fmt) echo "❌ 检测到 %s 已有安装，这一版安装程序目前只处理全新安装、没有改动任何文件" ;;
-        ja:existing_install_refused_fmt) echo "❌ %s に既存インストールを検出したため、この版は新規のみ対応で、ファイルは一切触っていません" ;;
-        en:existing_install_refused_fmt) echo "❌ Existing install detected at %s; this installer version only handles fresh installs and left all files untouched" ;;
+        zh-TW:existing_install_refused_fmt) echo "❌ 偵測到 %s 已有新版安裝或未完成的安裝，這一版安裝程式還不能處理，沒有動任何檔案" ;;
+        zh-CN:existing_install_refused_fmt) echo "❌ 检测到 %s 已有新版安装或未完成的安装，这一版安装程序还不能处理，没有改动任何文件" ;;
+        ja:existing_install_refused_fmt) echo "❌ %s に新しい版のインストールまたは未完了のインストールを検出しました。この版のインストーラーでは処理できないため、ファイルは一切触っていません" ;;
+        en:existing_install_refused_fmt) echo "❌ %s already has a newer-layout or unfinished install; this installer version cannot handle it yet and left all files untouched" ;;
 
         zh-TW:download_failed) echo "❌ 下載失敗" ;;
         zh-CN:download_failed) echo "❌ 下载失败" ;;
@@ -105,6 +105,41 @@ t() {
         zh-CN:place_failed_fmt) echo "❌ 无法就位：%s" ;;
         ja:place_failed_fmt) echo "❌ 配置に失敗しました：%s" ;;
         en:place_failed_fmt) echo "❌ Failed to place: %s" ;;
+
+        zh-TW:retrofit_notice_fmt) echo "偵測到舊的手動安裝。output/ 保留（片庫與設定不會丟）；venv/ 與其他舊程式檔會搬到 ~/OpenAver/%s/，你自己放的檔不動；之後改用內附的 Python 執行。" ;;
+        zh-CN:retrofit_notice_fmt) echo "检测到旧的手动安装。output/ 保留（片库与设置不会丢）；venv/ 与其他旧程序文件会搬到 ~/OpenAver/%s/，你自己放的文件不动；之后改用内附的 Python 运行。" ;;
+        ja:retrofit_notice_fmt) echo "古い手動インストールを検出しました。output/ は保持されます（ライブラリと設定は失われません）。venv/ とその他の古いプログラムファイルは ~/OpenAver/%s/ へ移動します。ご自身で置いたファイルには触りません。今後は同梱の Python で動作します。" ;;
+        en:retrofit_notice_fmt) echo "An old manual install was detected. output/ is kept (your library and settings are not lost); venv/ and other old program files will be moved to ~/OpenAver/%s/ and files you put there yourself are left alone. It will then run on the bundled Python." ;;
+
+        zh-TW:retrofit_confirm_prompt) echo "要繼續改裝嗎？(y/N) " ;;
+        zh-CN:retrofit_confirm_prompt) echo "要继续改装吗？(y/N) " ;;
+        ja:retrofit_confirm_prompt) echo "続行して切り替えますか？(y/N) " ;;
+        en:retrofit_confirm_prompt) echo "Continue with the switch? (y/N) " ;;
+
+        zh-TW:retrofit_needs_yes) echo "❌ 偵測到舊的手動安裝，需要你確認才能改裝，但目前沒有終端機可以詢問，沒有動任何檔案。要同意的話，請加上環境變數 OPENAVER_YES=1（或參數 --yes）重新執行" ;;
+        zh-CN:retrofit_needs_yes) echo "❌ 检测到旧的手动安装，需要你确认才能改装，但当前没有终端可以询问，没有改动任何文件。如同意，请加上环境变量 OPENAVER_YES=1（或参数 --yes）重新运行" ;;
+        ja:retrofit_needs_yes) echo "❌ 古い手動インストールを検出しました。切り替えには確認が必要ですが、端末がなく確認できないため、ファイルは一切触っていません。同意する場合は環境変数 OPENAVER_YES=1（または --yes）を付けて再実行してください" ;;
+        en:retrofit_needs_yes) echo "❌ An old manual install was detected and switching needs your confirmation, but there is no terminal to ask on; no files were touched. To agree, rerun with OPENAVER_YES=1 (or --yes)" ;;
+
+        zh-TW:retrofit_done_fmt) echo "舊的程式檔都在 ~/OpenAver/%s/，確認沒問題可自行刪除" ;;
+        zh-CN:retrofit_done_fmt) echo "旧的程序文件都在 ~/OpenAver/%s/，确认没问题可自行删除" ;;
+        ja:retrofit_done_fmt) echo "古いプログラムファイルは ~/OpenAver/%s/ にあります。問題がなければご自身で削除してください" ;;
+        en:retrofit_done_fmt) echo "Old program files are in ~/OpenAver/%s/ - delete them yourself once you have confirmed everything works" ;;
+
+        zh-TW:archive_member_unexpected_fmt) echo "❌ 壓縮檔含有不該有的項目：%s" ;;
+        zh-CN:archive_member_unexpected_fmt) echo "❌ 压缩包含有不该有的项目：%s" ;;
+        ja:archive_member_unexpected_fmt) echo "❌ アーカイブに想定外の項目が含まれています：%s" ;;
+        en:archive_member_unexpected_fmt) echo "❌ Archive contains an unexpected entry: %s" ;;
+
+        zh-TW:extract_failed) echo "❌ 解壓縮失敗（可能是磁碟空間不足）" ;;
+        zh-CN:extract_failed) echo "❌ 解压缩失败（可能是磁盘空间不足）" ;;
+        ja:extract_failed) echo "❌ 展開に失敗しました（ディスク容量不足の可能性があります）" ;;
+        en:extract_failed) echo "❌ Extraction failed (the disk may be full)" ;;
+
+        zh-TW:running_foreign_no_tty) echo "❌ 偵測到舊的 OpenAver 服務還在執行，沒有終端機可以等你關閉。請先關閉它再重新執行安裝指令，沒有動任何檔案" ;;
+        zh-CN:running_foreign_no_tty) echo "❌ 检测到旧的 OpenAver 服务仍在运行，没有终端可以等你关闭。请先关闭它再重新运行安装命令，没有改动任何文件" ;;
+        ja:running_foreign_no_tty) echo "❌ 古い OpenAver サービスが実行中です。端末がなく待機できません。先に停止してからインストールコマンドを再実行してください。ファイルは一切触っていません" ;;
+        en:running_foreign_no_tty) echo "❌ An old OpenAver service is still running and there is no terminal to wait on. Stop it first, then rerun the install command; no files were touched" ;;
 
         zh-TW:local_bin_exists_fmt) echo "⚠️  ~/.local/bin/openaver 已存在且不是符號連結，略過：%s" ;;
         zh-CN:local_bin_exists_fmt) echo "⚠️  ~/.local/bin/openaver 已存在且不是符号链接，跳过：%s" ;;
@@ -290,19 +325,107 @@ detect_platform() {
 }
 
 _linux_cleanup_stage() {
-    if [ -z "${STAGE:-}" ]; then
-        return 0
+    if [ -n "${STAGE:-}" ] && [ -d "$STAGE" ]; then
+        case "$STAGE" in
+            "$INSTALL_DIR"/.stage-*)
+                rm -rf "$STAGE"
+                ;;
+        esac
     fi
-    if [ ! -d "$STAGE" ]; then
-        return 0
+    if [ "${INSTALL_DIR_CREATED:-0}" = "1" ]; then
+        rmdir "$INSTALL_DIR" 2>/dev/null
     fi
-    case "$STAGE" in
-        "$INSTALL_DIR"/.stage-*)
-            rm -rf "$STAGE"
-            ;;
-    esac
+    return 0
 }
 
+classify_install() {
+    local item=""
+    if [ -f "$INSTALL_DIR/app/core/version.py" ]; then
+        echo "upgrade"
+        return 0
+    fi
+    for item in app python openaver .prev; do
+        if [ -e "$INSTALL_DIR/$item" ] || [ -L "$INSTALL_DIR/$item" ]; then
+            echo "interrupted"
+            return 0
+        fi
+    done
+    if [ -e "$INSTALL_DIR/venv" ] || [ -L "$INSTALL_DIR/venv" ]; then
+        echo "retrofit"
+        return 0
+    fi
+    echo "fresh"
+}
+
+check_archive_members() {
+    local listing="" line="" norm="" first="" second="" ok=1
+    listing="$(tar tzf "$1")" || {
+        echo "$(t archive_invalid)" >&2
+        return 1
+    }
+    while IFS= read -r line; do
+        norm="$line"
+        while :; do
+            case "$norm" in
+                ./*) norm="${norm#./}" ;;
+                *) break ;;
+            esac
+        done
+        while :; do
+            case "$norm" in
+                */) norm="${norm%/}" ;;
+                *) break ;;
+            esac
+        done
+        case "$norm" in
+            ""|.) continue ;;
+        esac
+        ok=1
+        case "$norm" in
+            /*|..|../*|*/..|*/../*) ok=0 ;;
+        esac
+        first="${norm%%/*}"
+        if [ "$first" != "OpenAver" ]; then
+            ok=0
+        elif [ "$norm" != "$first" ]; then
+            second="${norm#*/}"
+            second="${second%%/*}"
+            case "$second" in
+                app|python|openaver) ;;
+                *) ok=0 ;;
+            esac
+        fi
+        if [ "$ok" -ne 1 ]; then
+            printf "$(t archive_member_unexpected_fmt)\n" "$line" >&2
+            return 1
+        fi
+    done <<EOF_MEMBERS
+$listing
+EOF_MEMBERS
+    return 0
+}
+
+find_foreign_service() {
+    local d="" pid="" cmd="" cwd=""
+    for d in /proc/[0-9]*; do
+        pid="${d#/proc/}"
+        if [ "$pid" = "$$" ]; then
+            continue
+        fi
+        cmd="$(tr '\0' ' ' 2>/dev/null < "$d/cmdline")" || continue
+        case "$cmd" in
+            *uvicorn*web.app:app*) ;;
+            *) continue ;;
+        esac
+        cwd="$(readlink "$d/cwd" 2>/dev/null)" || continue
+        case "$cwd" in
+            "$INSTALL_DIR"|"$INSTALL_DIR"/*) return 0 ;;
+        esac
+    done
+    return 1
+}
+
+OLD_LAYOUT_ITEMS=".coderabbit.yaml .coveragerc .gitattributes .github .gitignore AGENTS.md CHANGELOG.md CHANGELOG_ARCHIVE.md CODE_OF_CONDUCT.md CONTRIBUTING.md LICENSE OpenAver-Windows-Setup.bat README.md README_EN.md SECURITY.md build.py build_macos.py core dmm_prefix_table.json docs eslint.config.mjs install.ps1 install.sh locales maker_mapping.json package-lock.json package.json pyproject.toml pytest.ini requirements-test.txt requirements.txt run.sh scripts stylelint.config.js synology tests web windows venv"
 GLIBC_FLOOR=2.28
 install_linux() {
     set +e
@@ -318,8 +441,14 @@ install_linux() {
     local reply=""
     local do_autostart=1
     local local_bin=""
-    # STAGE must be global: EXIT trap runs after this function returns.
+    local install_kind=""
+    local OLD_DIR_NAME=""
+    local OLD_DIR=""
+    local curl_rc=0
+    local http_code=""
+    # STAGE and INSTALL_DIR_CREATED must be global: EXIT trap runs after this function returns.
     STAGE=""
+    INSTALL_DIR_CREATED=0
 
     if [ "${OPENAVER_YES:-}" = "1" ]; then
         ASSUME_YES=1
@@ -374,11 +503,24 @@ install_linux() {
         esac
     elif [ -n "$OPT_VERSION" ]; then
         echo "$(t checking_latest_version)"
-        RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$OPT_VERSION")" || {
-            # tags 404 and connect failures both land here via curl -f; prefer asset message for tags.
-            printf "$(t no_linux_asset_fmt)\n" "$OPT_VERSION" >&2
+        RELEASE_JSON="$(curl -sSL -w '\n%{http_code}' "https://api.github.com/repos/$REPO/releases/tags/$OPT_VERSION")" || curl_rc=$?
+        if [ "$curl_rc" -ne 0 ]; then
+            echo "$(t github_connect_failed)" >&2
             return 1
-        }
+        fi
+        http_code="$(printf '%s\n' "$RELEASE_JSON" | tail -n 1)"
+        RELEASE_JSON="$(printf '%s\n' "$RELEASE_JSON" | sed '$d')"
+        case "$http_code" in
+            2[0-9][0-9]) ;;
+            404)
+                printf "$(t no_linux_asset_fmt)\n" "$OPT_VERSION" >&2
+                return 1
+                ;;
+            *)
+                echo "$(t github_connect_failed)" >&2
+                return 1
+                ;;
+        esac
         VERSION_LABEL="$OPT_VERSION"
         DOWNLOAD_URL="$(printf '%s\n' "$RELEASE_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*Linux-${LINUX_ARCH}\\.tar\\.gz\"" | head -1 | cut -d'"' -f4)"
         if [ -z "$DOWNLOAD_URL" ]; then
@@ -399,20 +541,57 @@ install_linux() {
         fi
     fi
 
-    for item in app python openaver .prev venv; do
-        if [ -e "$INSTALL_DIR/$item" ] || [ -L "$INSTALL_DIR/$item" ]; then
+    install_kind="$(classify_install)"
+    case "$install_kind" in
+        upgrade)
             printf "$(t existing_install_refused_fmt)\n" "$INSTALL_DIR" >&2
             return 1
-        fi
-    done
+            ;;
+        interrupted)
+            printf "$(t existing_install_refused_fmt)\n" "$INSTALL_DIR" >&2
+            return 1
+            ;;
+        retrofit)
+            OLD_DIR_NAME=".old-install"
+            if [ -e "$INSTALL_DIR/$OLD_DIR_NAME" ] || [ -L "$INSTALL_DIR/$OLD_DIR_NAME" ]; then
+                OLD_DIR_NAME=".old-install-$(date +%Y%m%d-%H%M%S)"
+                if [ -e "$INSTALL_DIR/$OLD_DIR_NAME" ] || [ -L "$INSTALL_DIR/$OLD_DIR_NAME" ]; then
+                    OLD_DIR_NAME="$OLD_DIR_NAME-$$"
+                fi
+            fi
+            OLD_DIR="$INSTALL_DIR/$OLD_DIR_NAME"
+            printf "$(t retrofit_notice_fmt)\n" "$OLD_DIR_NAME"
+            if [ "$ASSUME_YES" -ne 1 ]; then
+                if { exec 3</dev/tty; } 2>/dev/null; then
+                    printf "%s" "$(t retrofit_confirm_prompt)"
+                    reply=""
+                    IFS= read -r reply <&3 || reply=""
+                    exec 3<&-
+                    case "$reply" in
+                        y|Y) ;;
+                        *)
+                            echo "$(t install_cancelled)"
+                            return 0
+                            ;;
+                    esac
+                else
+                    echo "$(t retrofit_needs_yes)" >&2
+                    return 1
+                fi
+            fi
+            ;;
+    esac
 
-    mkdir -p "$INSTALL_DIR" || return 1
-    stage_candidate="$INSTALL_DIR/.stage-$(date +%s)-$$"
-    mkdir "$stage_candidate" || return 1
-    STAGE="$stage_candidate"
     trap '_linux_cleanup_stage' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
+    if [ ! -d "$INSTALL_DIR" ]; then
+        mkdir -p "$INSTALL_DIR" || return 1
+        INSTALL_DIR_CREATED=1
+    fi
+    stage_candidate="$INSTALL_DIR/.stage-$(date +%s)-$$"
+    mkdir "$stage_candidate" || return 1
+    STAGE="$stage_candidate"
 
     if [ -n "$DOWNLOAD_URL" ]; then
         printf "$(t downloading_fmt)\n" "$VERSION_LABEL"
@@ -424,12 +603,9 @@ install_linux() {
     fi
 
     printf "$(t installing_to_fmt)\n" "$INSTALL_DIR"
-    if ! tar tzf "$TARBALL" >/dev/null; then
-        echo "$(t archive_invalid)" >&2
-        return 1
-    fi
+    check_archive_members "$TARBALL" || return 1
     if ! tar xzf "$TARBALL" -C "$STAGE"; then
-        echo "$(t archive_invalid)" >&2
+        echo "$(t extract_failed)" >&2
         return 1
     fi
     if [ ! -e "$STAGE/OpenAver/app" ] || [ ! -e "$STAGE/OpenAver/python" ] || \
@@ -442,6 +618,44 @@ install_linux() {
     if ! ( cd "$STAGE/OpenAver" && PYTHONDONTWRITEBYTECODE=1 python/bin/python3 app/scripts/verify_artifact_imports.py ); then
         echo "$(t verify_failed)" >&2
         return 1
+    fi
+
+    if find_foreign_service; then
+        if { exec 3</dev/tty; } 2>/dev/null; then
+            while find_foreign_service; do
+                echo ""
+                echo "$(t app_running_warning)"
+                echo "$(t app_running_close_continue_prompt)"
+                reply=""
+                IFS= read -r reply <&3 || reply="q"
+                case "$reply" in
+                    q|Q)
+                        exec 3<&-
+                        echo "$(t install_cancelled)"
+                        return 0
+                        ;;
+                esac
+            done
+            exec 3<&-
+        else
+            echo "$(t running_foreign_no_tty)" >&2
+            return 1
+        fi
+    fi
+
+    if [ "$install_kind" = "retrofit" ]; then
+        mkdir "$OLD_DIR" || {
+            printf "$(t place_failed_fmt)\n" ".old-install" >&2
+            return 1
+        }
+        for item in $OLD_LAYOUT_ITEMS; do
+            if [ -e "$INSTALL_DIR/$item" ] || [ -L "$INSTALL_DIR/$item" ]; then
+                if ! mv "$INSTALL_DIR/$item" "$OLD_DIR/"; then
+                    printf "$(t place_failed_fmt)\n" "$item" >&2
+                    return 1
+                fi
+            fi
+        done
     fi
 
     for item in app python openaver; do
@@ -469,6 +683,9 @@ install_linux() {
     esac
 
     echo "$(t install_complete)"
+    if [ "$install_kind" = "retrofit" ]; then
+        printf "$(t retrofit_done_fmt)\n" "$OLD_DIR_NAME"
+    fi
 
     do_autostart=1
     if { exec 3</dev/tty; } 2>/dev/null; then
