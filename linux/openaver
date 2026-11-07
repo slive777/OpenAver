@@ -810,7 +810,7 @@ main() {
             printf '%s\n' "$(t usage)" >&2
             exit 2
         fi
-        if ! script="$(curl -fsSL "https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh")" || [ -z "$script" ]; then
+        if ! script="$(curl -fsSL --connect-timeout 10 --max-time 30 "https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh")" || [ -z "$script" ]; then
             printf '%s\n' "$(t update_fetch_failed)" >&2
             exit 1
         fi

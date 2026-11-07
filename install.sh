@@ -607,7 +607,7 @@ install_linux() {
         esac
     elif [ -n "$OPT_VERSION" ]; then
         echo "$(t checking_latest_version)"
-        RELEASE_JSON="$(curl -sSL -w '\n%{http_code}' "https://api.github.com/repos/$REPO/releases/tags/$OPT_VERSION")" || curl_rc=$?
+        RELEASE_JSON="$(curl -sSL --connect-timeout 10 --max-time 30 -w '\n%{http_code}' "https://api.github.com/repos/$REPO/releases/tags/$OPT_VERSION")" || curl_rc=$?
         if [ "$curl_rc" -ne 0 ]; then
             echo "$(t github_connect_failed)" >&2
             return 1
@@ -633,7 +633,7 @@ install_linux() {
         fi
     else
         echo "$(t checking_latest_version)"
-        RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest")" || {
+        RELEASE_JSON="$(curl -fsSL --connect-timeout 10 --max-time 30 "https://api.github.com/repos/$REPO/releases/latest")" || {
             echo "$(t github_connect_failed)" >&2
             return 1
         }
@@ -699,7 +699,7 @@ install_linux() {
 
     if [ -n "$DOWNLOAD_URL" ]; then
         printf "$(t downloading_fmt)\n" "$VERSION_LABEL"
-        if ! curl -fSL --progress-bar "$DOWNLOAD_URL" -o "$STAGE/openaver.tar.gz"; then
+        if ! curl -fSL --progress-bar --connect-timeout 15 --max-time 3600 --speed-limit 1024 --speed-time 60 "$DOWNLOAD_URL" -o "$STAGE/openaver.tar.gz"; then
             echo "$(t download_failed)" >&2
             return 1
         fi
