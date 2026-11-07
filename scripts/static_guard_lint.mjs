@@ -2853,6 +2853,13 @@ const RULES = [
     kind: 'forbidden-string', pattern: /install\.(ps1|sh)/,
     note: `[168c-T1-installer-command-single-source] ${dir} 內另寫一份安裝指令 → 使用者在桌面殼按「執行更新」跑的腳本與本機版／伺服器版不同，更新動作無法預期（安裝指令只能放 core/self_update.py）`,
   })),
+  // ---- [194-T4a] bash 3.2 紀律（CD-194-12 #1；lint 不剝註解，註解裡寫出字面也紅）----
+  ...['install.sh', 'linux/openaver'].map((file) => ({
+    file,
+    kind: 'forbidden-string',
+    pattern: /declare -A|\$\{[^}]+,,\}|\$\{[^}]+\^\^\}|\bmapfile\b|\breadarray\b|&>>/,
+    note: `[lint-guard 194-T4a-bash32] ${file} 用了 bash 4+ 語法（關聯陣列／大小寫展開／mapfile／readarray／&>>）→ 使用者在 macOS 預設 bash 3.2 或舊 Linux 跑安裝／openaver 指令時直接語法錯誤，服務起不來`,
+  })),
   // L3 structure-count 對 .py 剝註解／docstring：註解裡的 save_client_settings( 不計。2 ＝ def 一次 ＋ _rmw 內唯一呼叫。
   {
     file: 'core/client_settings.py', kind: 'structure-count', pattern: /save_client_settings\(/, count: 2,
