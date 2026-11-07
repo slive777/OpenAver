@@ -24,7 +24,7 @@ import pywebview_api
 import window_state
 from core.logger import get_logger, setup_logging
 from core import client_settings
-from windows import cf_boot, restart, shell_boot, shell_sync, update_notice
+from windows import app_icon, cf_boot, restart, shell_boot, shell_sync, update_notice
 
 startup_trace.mark("modules_loaded")
 
@@ -59,6 +59,7 @@ if __name__ == '__main__':
     startup_trace.flush()
     restart.wait_for_parent_exit()
     shell_boot.install_webview_token_filter()
+    app_icon.set_windows_app_id()   # 須早於任何視窗
 
     saved = window_state.load_state()
     local_origin = 'http://localhost:8000'
@@ -109,7 +110,7 @@ if __name__ == '__main__':
         update_notice.start_background_check()
 
     try:
-        webview.start(startup, window)
+        webview.start(startup, window, icon=app_icon.icon_path(APP_DIR))
     finally:
         cf.stop()
         restart.spawn_if_requested()

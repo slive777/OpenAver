@@ -446,6 +446,7 @@ try {
     $Shortcut.TargetPath = "$InstallDir\OpenAver.bat"
     $Shortcut.WorkingDirectory = $InstallDir
     $Shortcut.Description = "OpenAver"
+    $Shortcut.IconLocation = "$InstallDir\app\web\static\openaver.ico,0"
     $Shortcut.Save()
     Write-Host $T.desktop_shortcut_created
 } catch {

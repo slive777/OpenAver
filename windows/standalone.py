@@ -30,7 +30,7 @@ import pywebview_api
 from tray import CMD_QUIT, DesktopLifecycle, NativeTrayIcon
 from core import client_settings
 from core.proxy_policy import current_settings
-from windows import cf_boot, cf_shell, cf_windows, restart, shell_boot, shell_sync, update_notice
+from windows import app_icon, cf_boot, cf_shell, cf_windows, restart, shell_boot, shell_sync, update_notice
 from windows.health_probe import (
     CLIENT_HOST,
     PROBE_OK,
@@ -552,7 +552,7 @@ def _setup_windows_lifecycle(window, jl_win, javten_win, saved, lan_listener) ->
             write_close_action=client_settings.set_close_action,
         )
         tray_icon = NativeTrayIcon(
-            Path(APP_DIR) / "web" / "static" / "favicon.png",
+            Path(APP_DIR) / "web" / "static" / "openaver.png",
             lifecycle.handle_tray_command,
             lifecycle.get_close_action,
         )
@@ -646,9 +646,9 @@ def _shutdown_and_maybe_restart(lifecycle):
 
 def _start_gui(startup, window):
     if sys.platform == 'darwin':
-        webview.start(startup, window)  # macOS 使用預設 (Cocoa/WebKit)
+        webview.start(startup, window, icon=app_icon.icon_path(APP_DIR))  # macOS 使用預設 (Cocoa/WebKit)
     else:
-        webview.start(startup, window, gui='edgechromium')  # Windows
+        webview.start(startup, window, gui='edgechromium', icon=app_icon.icon_path(APP_DIR))  # Windows
 
 
 def _make_cf_agent(cf_set, origin, token, server_remote, supported):
@@ -713,6 +713,7 @@ def main():
     startup_trace.flush()
     restart.wait_for_parent_exit()
     shell_boot.install_webview_token_filter()
+    app_icon.set_windows_app_id()   # 須早於任何視窗（含 WebView2 提示框與 CF 隱藏視窗）
 
     logger.info("正在啟動...")
 
@@ -822,9 +823,9 @@ def main():
     # 根據平台選擇 GUI 後端
     try:
         if sys.platform == 'darwin':
-            webview.start(startup, window)  # macOS 使用預設 (Cocoa/WebKit)
+            webview.start(startup, window, icon=app_icon.icon_path(APP_DIR))  # macOS 使用預設 (Cocoa/WebKit)
         else:
-            webview.start(startup, window, gui='edgechromium')  # Windows
+            webview.start(startup, window, gui='edgechromium', icon=app_icon.icon_path(APP_DIR))  # Windows
     finally:
         cf_agent.stop()
         _shutdown_and_maybe_restart(lifecycle)
