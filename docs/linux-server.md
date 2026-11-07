@@ -161,6 +161,7 @@ openaver update
 
 - 約 10 到 20 秒這段時間沒有服務，之後自動恢復，**瀏覽器不用重新登入**。
 - 設定、片庫、密碼都不會動（都在 `~/OpenAver/output/`）。
+- 換版這段（約一分鐘內）請不要中斷；按 `Ctrl-C` 也會被忽略，等它換完。
 - 換好之後如果新版起不來，會自動退回升級前的版本。
 - 已經是最新版時，會印「已是最新版本（x.y.z），沒有需要更新的」，什麼都不動。
 
@@ -192,6 +193,7 @@ openaver update vX.Y.Z
 - **啟動不了，或 `openaver status` 結束碼是 3** → 看日誌：`openaver log`，或直接打開 `~/OpenAver/logs/server.log`。
   如果是 port 被占，`openaver start` 會直接告訴你，照它說的 `openaver config port <n>` 換一個，再 `openaver start`。
   已登記開機自動啟動的話，port 被占時你看到的會是「啟動逾時，詳見 logs/server.log」，原因寫在 `server.log` 裡，處理方式一樣。
+- **RHEL 8、Rocky 8 這類系統** → 它們的 systemd 版本較舊，已登記開機自動啟動的服務日誌不會寫進 `logs/server.log`（檔案是空的）。RHEL 8 系列：服務日誌改用 `journalctl --user -u openaver` 看。
 - **登出或重開機之後服務停了** → 帳號沒有 linger，請用有管理權限的帳號執行一次：
 
   ```bash
@@ -222,6 +224,10 @@ openaver update vX.Y.Z
 
 - 舊的程式檔與 `venv/` 會搬到 `~/OpenAver/.old-install/`，確認沒問題可以自己刪。
 - `output/`（設定、片庫、封面）和你自己放在裡面的東西都不動。
+
+改裝後 port 從 8000 換成 49152，桌面 App 的連線網址與書籤要改成 `openaver url` 印的新網址。
+
+如果是 0.16 以前的舊手動安裝（`output/` 裡沒有 `.layout.json`），安裝器會拒絕改裝：請先用原本的手動方式更新到 0.16 以後並啟動一次，再改裝。
 
 **沒有終端機時**（腳本、自動化）它問不了，會直接拒絕。要同意的話加上 `OPENAVER_YES=1`：
 
@@ -316,6 +322,8 @@ venv/bin/python -c "from core.access_auth import set_auth; set_auth(enabled=Fals
 ---
 
 ## 附錄 B　Docker（實驗性，官方 image 規劃中）
+
+與一行安裝二擇一，不要兩個同時用同一個 `~/OpenAver/output`。
 
 > **先說結論：不想折騰的話，別用這段。**
 > 上面的 CLI 安裝功能完全一樣，而且步驟更少。

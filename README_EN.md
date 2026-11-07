@@ -43,7 +43,7 @@ Point OpenAver at the folder where you keep your videos and it turns them into a
 
 | Item | Details |
 |------|---------|
-| **Platform** | Windows 10/11 · macOS (Apple Silicon, M1 and later) · Linux x86_64 (server edition, used from a browser) |
+| **Platform** | Windows 10/11 · macOS (Apple Silicon, M1 and later) · Linux x86_64 (server edition, browser-based) |
 | **Install** | One-line command or double-click installer, no Docker, everything runs in the GUI |
 | **Inherit an existing collection** | Reads the NFO and cover images already sitting next to your videos — scanning never changes your files |
 | **Collection browsing** | Cover wall with stackable filters; actress wall sortable by cup size, age, height |
@@ -103,7 +103,7 @@ Download from [GitHub Releases](https://github.com/slive777/OpenAver/releases/la
 |----------|------|
 | **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` |
 | **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64.zip` |
-| **Linux x86_64** | `OpenAver-vX.X.X-Linux-x86_64.tar.gz` |
+| **Linux x86_64** | One-line install, see [guide](docs/linux-server.md) |
 
 > ⚠️ The manual ZIP needs one extra step to clear security restrictions — see the included document. macOS is Apple Silicon only.
 

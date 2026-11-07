@@ -524,9 +524,14 @@ main() {
             printf '%s\n' "$(t root_reminder)"
         fi
         if service_registered; then
-            rotate_server_log
+            if ! service_running; then
+                rotate_server_log
+            fi
             port="$(get_conf_port)"
-            user_systemctl start openaver.service
+            if ! user_systemctl start openaver.service; then
+                printf '%s\n' "$(t systemctl_failed)" >&2
+                exit 1
+            fi
             # health against conf port; no PIDFILE ownership in this branch for T4a
             for ((i = 0; i < 30; i++)); do
                 if health_ok "$port"; then

@@ -29,7 +29,7 @@ The installers expect a person at the keyboard:
 
 If you cannot answer prompts in your shell, ask the user to paste the command into their own terminal and tell you when it finishes.
 
-The Linux installer starts the service itself and prints the address (there is no desktop window and no overwrite prompt; its only question is whether to start on boot). Skip step 2, set `BASE` to `http://127.0.0.1:49152` (same machine as the host, no token needed), open the printed address in the user's browser, then continue from step 3. Details: [`linux-server.md`](linux-server.md).
+The Linux installer starts the service itself and prints the address (there is no desktop window and no overwrite prompt; a fresh install asks only whether to start on boot, while converting an old manual install or finding an old service still running asks for an extra confirmation). Skip step 2, set `BASE` to `http://127.0.0.1:49152` (same machine as the host, no token needed), open the printed address in the user's browser, then continue from step 3. Details: [`linux-server.md`](linux-server.md).
 
 Synology has no installer and no desktop window. Follow [`synology.md`](synology.md), skip step 2, set `BASE` to `http://<NAS address>:8765`, open that address in the user's browser, then continue from step 3.
 

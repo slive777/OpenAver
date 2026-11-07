@@ -34,6 +34,7 @@ def _make_fakebin(
     ldd_body: str = "ldd (Debian GLIBC 2.28-10) 2.28\n",
     ldd_rc: int = 0,
     glibc: str = "2.28",
+    long_bit: str = "64",
     curl_flag: Path,
     with_autostart_fakes: bool = False,
     tar_log: Path | None = None,
@@ -53,7 +54,7 @@ def _make_fakebin(
             '  n=$(( $(cat "$MV_COUNT_FILE" 2>/dev/null || echo 0) + 1 ))\n'
             '  echo "$n" > "$MV_COUNT_FILE"\n'
             f'  printf "%s\\t%s\\n" "$PPID" "$*" >> "{mv_log}"\n'
-            '  if [ "${MV_KILL_AT:-}" = "$n" ]; then kill -9 "$PPID"; exit 1; fi\n'
+            '  if [ "${MV_KILL_AT:-}" = "$n" ]; then kill -"${MV_SIGNAL:-9}" "$PPID"; [ -z "${MV_SIGNAL:-}" ] && exit 1; fi\n'
             "fi\n"
             f'exec {shutil.which("mv")} "$@"\n',
         )
@@ -92,6 +93,10 @@ def _make_fakebin(
         "#!/bin/bash\n"
         'if [ "${1:-}" = "GNU_LIBC_VERSION" ]; then\n'
         f'  printf "glibc {glibc}\\n"\n'
+        "  exit 0\n"
+        "fi\n"
+        'if [ "${1:-}" = "LONG_BIT" ]; then\n'
+        f'  printf "{long_bit}\\n"\n'
         "  exit 0\n"
         "fi\n"
         "exit 1\n",
@@ -289,8 +294,9 @@ def _combined(proc: subprocess.CompletedProcess[str]) -> str:
             "musl",
         ),
         ("glibc", {"glibc": "2.9"}, "2.9"),
+        ("long_bit", {"long_bit": "32"}, "x86_64"),
     ],
-    ids=["arch", "musl", "glibc"],
+    ids=["arch", "musl", "glibc", "long_bit"],
 )
 def test_unsupported_machine_stops_before_any_download_or_file(
     tmp_path: Path,
@@ -489,8 +495,9 @@ def test_retrofit_moves_only_known_old_files_and_keeps_user_files_and_data(
         ("extra_member", "OpenAver/extra"),
         ("extract_fails", "解壓縮失敗"),
         ("download_fails", "下載失敗"),
+        ("pre_layout", "0.16 以前的舊安裝"),
     ],
-    ids=["truncated", "extra_member", "extract_fails", "download_fails"],
+    ids=["truncated", "extra_member", "extract_fails", "download_fails", "pre_layout"],
 )
 def test_prepare_failure_leaves_tree_untouched(
     tmp_path: Path, stub_tarball: Path, output_template: Path, tampered_tars: dict, case: str, needle: str
@@ -507,9 +514,10 @@ def test_prepare_failure_leaves_tree_untouched(
         assert (tmp_path / "curl_called").exists()
         assert list((tmp_path / "home").rglob("*")) == []
         return
-    tarball = stub_tarball if case == "extract_fails" else tampered_tars[case]
+    tarball = tampered_tars[case] if case in tampered_tars else stub_tarball
+    pre = (lambda root: (root / "output" / ".layout.json").unlink()) if case == "pre_layout" else None
     proc, before, after, out = _legacy_run(
-        tmp_path, output_template, str(tarball), yes=True, tar_fail_extract=(case == "extract_fails")
+        tmp_path, output_template, str(tarball), yes=True, pre=pre, tar_fail_extract=(case == "extract_fails")
     )
     assert proc.returncode != 0, out
     assert needle in out
@@ -634,13 +642,15 @@ def _alive(pid: int) -> bool:
     return True
 
 
-def _spawn_swap(base: Path, tarball: Path, *, kill_at: int | None) -> tuple[subprocess.Popen, str, list[str]]:
+def _spawn_swap(base: Path, tarball: Path, *, kill_at: int | None, sig: str = "") -> tuple[subprocess.Popen, str, list[str]]:
     mv_log, count = base / "mv.log", base / "mv.count"
     for f in (mv_log, count):
         f.unlink(missing_ok=True)
     extra = {"OPENAVER_TARBALL": str(tarball), "MV_COUNT_FILE": str(count), **NO_START}
     if kill_at is not None:
         extra["MV_KILL_AT"] = str(kill_at)
+        if sig:
+            extra["MV_SIGNAL"] = sig
     env, _ = _install_env(base, {**OPTS, "mv_log": mv_log}, extra)
     proc = subprocess.Popen(
         ["bash", "-s", "--"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -650,8 +660,15 @@ def _spawn_swap(base: Path, tarball: Path, *, kill_at: int | None) -> tuple[subp
     return proc, out + err, (mv_log.read_text().splitlines() if mv_log.exists() else [])
 
 
-@pytest.mark.parametrize("case", ["truncated_while_service_runs", "prepare_fails_after_swap"])
-def test_failed_upgrade_restores_previous_install(tmp_path: Path, upgrade_tars: dict, case: str) -> None:
+@pytest.mark.parametrize("case", ["truncated_while_service_runs", "prepare_fails_after_swap", "retrofit_prepare_fails"])
+def test_failed_upgrade_restores_previous_install(
+    tmp_path: Path, upgrade_tars: dict, output_template: Path, case: str
+) -> None:
+    if case == "retrofit_prepare_fails":
+        proc, before, after, out = _legacy_run(tmp_path, output_template, str(upgrade_tars["bad"]), yes=True)
+        assert proc.returncode != 0 and "已還原" in out, out
+        assert after == before
+        return
     home = _install_old(tmp_path, upgrade_tars["old"])
     root = home / "OpenAver"
     running = case == "truncated_while_service_runs"
@@ -757,3 +774,13 @@ def test_rerun_without_tarball_after_half_placed_swap_is_not_called_latest(tmp_p
     assert "已是最新" not in out and proc.returncode == 0, out
     assert NEW_VER in (root / "python" / "bin" / "python3").read_text(encoding="utf-8")
     assert (root / "openaver").resolve().is_file() and len(list(root.glob(".prev-*"))) == 1
+
+
+def test_interrupt_signal_during_swap_is_ignored_and_swap_completes(tmp_path: Path, upgrade_tars: dict) -> None:
+    home = _install_old(tmp_path, upgrade_tars["old"])
+    proc, out, mvs = _spawn_swap(tmp_path, upgrade_tars["new"], kill_at=3, sig="INT")
+    root = home / "OpenAver"
+    assert proc.returncode == 0 and "請勿中斷" in out and len(mvs) == 6, (proc.returncode, out, mvs)
+    for item in ("app", "python"):
+        assert NEW_VER in next((root / item).rglob("version.py" if item == "app" else "python3")).read_text(encoding="utf-8")
+    assert (root / "openaver").resolve().is_file() and not list(root.glob(".prev*"))

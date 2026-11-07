@@ -101,15 +101,30 @@ t() {
         ja:upgrade_rolled_back) echo "❌ 今回は完了せず、以前のバージョンとサービス状態に戻しました。原因は上のメッセージか ~/OpenAver/logs/server.log を確認してください" ;;
         en:upgrade_rolled_back) echo "❌ This run did not finish; the previous version and service state were restored. See the messages above or ~/OpenAver/logs/server.log for the cause" ;;
 
-        zh-TW:rollback_incomplete_fmt) echo "❌ 還原沒有完全成功。請檢查 %s，舊版的檔案可能還在其中的 .prev 資料夾裡，請先不要刪除，處理好之後再重新執行安裝指令" ;;
-        zh-CN:rollback_incomplete_fmt) echo "❌ 还原没有完全成功。请检查 %s，旧版的文件可能还在其中的 .prev 文件夹里，请先不要删除，处理好之后再重新运行安装命令" ;;
-        ja:rollback_incomplete_fmt) echo "❌ 元に戻す処理が完全には成功しませんでした。%s を確認してください。古いバージョンのファイルがその中の .prev フォルダーに残っている可能性があります。削除せず、対処してからインストールコマンドを再実行してください" ;;
-        en:rollback_incomplete_fmt) echo "❌ The restore did not fully succeed. Check %s: the old version's files may still be in its .prev folder - do not delete it, fix things up, then rerun the install command" ;;
+        zh-TW:rollback_incomplete_fmt) echo "❌ 還原沒有完全成功。請檢查 %s，舊版的檔案可能還在其中的 .prev 或 .old-install 資料夾裡，請先不要刪除，處理好之後再重新執行安裝指令" ;;
+        zh-CN:rollback_incomplete_fmt) echo "❌ 还原没有完全成功。请检查 %s，旧版的文件可能还在其中的 .prev 或 .old-install 文件夹里，请先不要删除，处理好之后再重新运行安装命令" ;;
+        ja:rollback_incomplete_fmt) echo "❌ 元に戻す処理が完全には成功しませんでした。%s を確認してください。古いバージョンのファイルがその中の .prev または .old-install フォルダーに残っている可能性があります。削除せず、対処してからインストールコマンドを再実行してください" ;;
+        en:rollback_incomplete_fmt) echo "❌ The restore did not fully succeed. Check %s: the old version's files may still be in its .prev or .old-install folder - do not delete it, fix things up, then rerun the install command" ;;
 
         zh-TW:leftover_notice_fmt) echo "提示：~/OpenAver/ 裡有上次升級的殘留（%s），安裝程式不會動它們，確認沒問題可自行刪除" ;;
         zh-CN:leftover_notice_fmt) echo "提示：~/OpenAver/ 里有上次升级的残留（%s），安装程序不会动它们，确认没问题可自行删除" ;;
         ja:leftover_notice_fmt) echo "ヒント：~/OpenAver/ に前回のアップグレードの残骸があります（%s）。インストーラーは触りません。問題がなければご自身で削除してください" ;;
         en:leftover_notice_fmt) echo "Note: ~/OpenAver/ holds leftovers from a previous upgrade (%s). The installer leaves them alone - delete them yourself once you have confirmed everything works" ;;
+
+        zh-TW:swapping_notice) echo "正在換版，約需一分鐘，請勿中斷" ;;
+        zh-CN:swapping_notice) echo "正在换版，约需一分钟，请勿中断" ;;
+        ja:swapping_notice) echo "バージョンを切り替えています。約 1 分かかります。中断しないでください" ;;
+        en:swapping_notice) echo "Switching versions, this takes about a minute. Please do not interrupt" ;;
+
+        zh-TW:retrofit_pre_layout) echo "❌ 這是 0.16 以前的舊安裝，資料夾還沒升級成新版的資料版面，沒有動任何檔案。請先用原本的手動安裝方式把 OpenAver 更新到 0.16 以後並啟動一次，再執行這行改裝" ;;
+        zh-CN:retrofit_pre_layout) echo "❌ 这是 0.16 以前的旧安装，文件夹还没升级成新版的数据布局，没有改动任何文件。请先用原本的手动安装方式把 OpenAver 更新到 0.16 以后并启动一次，再运行这行改装" ;;
+        ja:retrofit_pre_layout) echo "❌ 0.16 より前の古いインストールで、フォルダーがまだ新しいデータ配置になっていません。ファイルは一切触っていません。先に従来の手動インストール方法で OpenAver を 0.16 以降に更新して一度起動してから、この切り替えコマンドを実行してください" ;;
+        en:retrofit_pre_layout) echo "❌ This is a pre-0.16 install whose folder has not been upgraded to the new data layout; no files were touched. First update OpenAver to 0.16 or later with your original manual method and start it once, then run this switch command again" ;;
+
+        zh-TW:already_latest_idle) echo "OpenAver 目前沒在執行：要開機自動啟動請執行 openaver autostart on，現在啟動請執行 openaver start" ;;
+        zh-CN:already_latest_idle) echo "OpenAver 当前没在运行：要开机自动启动请运行 openaver autostart on，现在启动请运行 openaver start" ;;
+        ja:already_latest_idle) echo "OpenAver は現在実行されていません。起動時に自動起動するには openaver autostart on、今すぐ起動するには openaver start を実行してください" ;;
+        en:already_latest_idle) echo "OpenAver is not running: run openaver autostart on to start it on boot, or openaver start to start it now" ;;
 
         zh-TW:download_failed) echo "❌ 下載失敗" ;;
         zh-CN:download_failed) echo "❌ 下载失败" ;;
@@ -299,6 +314,11 @@ detect_platform() {
             ;;
     esac
 
+    if [ "$(getconf LONG_BIT 2>/dev/null)" != "64" ]; then
+        printf "$(t arch_unsupported_fmt)\n" "$arch" >&2
+        return 1
+    fi
+
     ldd_out="$(ldd --version 2>&1)" || true
     ldd_lc="$(printf '%s' "$ldd_out" | tr '[:upper:]' '[:lower:]')"
     case "$ldd_lc" in
@@ -452,8 +472,9 @@ own_service_pids() {
 }
 
 find_foreign_service() {
-    local d="" pid="" cmd="" cwd="" own=""
+    local d="" pid="" cmd="" cwd="" own="" real=""
     own="$(own_service_pids | tr '\n' ' ')"
+    real="$(cd -P "$INSTALL_DIR" 2>/dev/null && pwd)" || real="$INSTALL_DIR"
     for d in /proc/[0-9]*; do
         pid="${d#/proc/}"
         if [ "$pid" = "$$" ]; then
@@ -469,10 +490,16 @@ find_foreign_service() {
         esac
         cwd="$(readlink "$d/cwd" 2>/dev/null)" || continue
         case "$cwd" in
-            "$INSTALL_DIR"|"$INSTALL_DIR"/*) return 0 ;;
+            "$INSTALL_DIR"|"$INSTALL_DIR"/*|"$real"|"$real"/*) return 0 ;;
         esac
     done
     return 1
+}
+
+swap_traps_restore() {
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap - HUP
 }
 
 # 只依本次跑自己記下的 OLD_MOVED／NEW_PLACED 還原（動態作用域：變數宣告在 install_linux）。
@@ -490,6 +517,12 @@ swap_rollback() {
     if [ "$PREV_MADE" = "1" ]; then
         rmdir "$INSTALL_DIR/.prev" || bad=1
     fi
+    for item in $RETRO_MOVED; do
+        mv "$OLD_DIR/$item" "$INSTALL_DIR/" || bad=1
+    done
+    if [ "$RETRO_DIR_MADE" = "1" ]; then
+        rmdir "$OLD_DIR" || bad=1
+    fi
     if [ "$AUTOSTART_TOUCHED" = "1" ]; then
         "$INSTALL_DIR/openaver" autostart on >/dev/null 2>&1 || bad=1
     fi
@@ -501,6 +534,7 @@ swap_rollback() {
     else
         echo "$(t upgrade_rolled_back)" >&2
     fi
+    swap_traps_restore
     return 0
 }
 
@@ -532,6 +566,8 @@ install_linux() {
     local STARTED_NEW=0
     local WAS_RUNNING=0
     local AUTOSTART_TOUCHED=0
+    local RETRO_MOVED=""
+    local RETRO_DIR_MADE=0
     local leftover_name=""
     local cur_ver=""
     local leftovers=""
@@ -651,11 +687,19 @@ install_linux() {
         cur_ver="$(sed -n 's/^__version__ *= *"\([^"]*\)".*/\1/p' "$INSTALL_DIR/app/core/version.py" 2>/dev/null | head -1)"
         if [ -n "$cur_ver" ] && [ "${VERSION_LABEL#v}" = "$cur_ver" ]; then
             printf "$(t already_latest_fmt)\n" "$cur_ver"
+            if [ ! -f "$HOME/.config/systemd/user/openaver.service" ] && ! "$INSTALL_DIR/openaver" status >/dev/null 2>&1; then
+                echo "$(t already_latest_idle)"
+            fi
             return 0
         fi
     fi
     case "$install_kind" in
         retrofit)
+            if [ -d "$INSTALL_DIR/output" ] && [ -n "$(ls -A "$INSTALL_DIR/output" 2>/dev/null)" ] && \
+               [ ! -e "$INSTALL_DIR/output/.layout.json" ]; then
+                echo "$(t retrofit_pre_layout)" >&2
+                return 1
+            fi
             OLD_DIR_NAME=".old-install"
             if [ -e "$INSTALL_DIR/$OLD_DIR_NAME" ] || [ -L "$INSTALL_DIR/$OLD_DIR_NAME" ]; then
                 OLD_DIR_NAME=".old-install-$(date +%Y%m%d-%H%M%S)"
@@ -755,16 +799,21 @@ install_linux() {
             printf "$(t place_failed_fmt)\n" ".old-install" >&2
             return 1
         }
+        RETRO_DIR_MADE=1
         for item in $OLD_LAYOUT_ITEMS; do
             if [ -e "$INSTALL_DIR/$item" ] || [ -L "$INSTALL_DIR/$item" ]; then
                 if ! mv "$INSTALL_DIR/$item" "$OLD_DIR/"; then
                     printf "$(t place_failed_fmt)\n" "$item" >&2
+                    swap_rollback
                     return 1
                 fi
+                RETRO_MOVED="$RETRO_MOVED $item"
             fi
         done
     fi
 
+    echo "$(t swapping_notice)"
+    trap '' INT HUP TERM
     if [ -e "$INSTALL_DIR/.prev" ] || [ -L "$INSTALL_DIR/.prev" ]; then
         leftover_name=".prev-$(date +%Y%m%d-%H%M%S)"
         if [ -e "$INSTALL_DIR/$leftover_name" ] || [ -L "$INSTALL_DIR/$leftover_name" ]; then
@@ -772,12 +821,14 @@ install_linux() {
         fi
         if ! mv "$INSTALL_DIR/.prev" "$INSTALL_DIR/$leftover_name"; then
             printf "$(t place_failed_fmt)\n" ".prev" >&2
+            swap_traps_restore
             return 1
         fi
     fi
     if [ "$WAS_RUNNING" = "1" ]; then
         if ! "$INSTALL_DIR/openaver" stop; then
             echo "$(t update_stop_failed)" >&2
+            swap_traps_restore
             return 1
         fi
     fi
@@ -830,6 +881,7 @@ install_linux() {
     if [ "$PREV_MADE" = "1" ]; then
         rm -rf "$INSTALL_DIR/.prev"
     fi
+    swap_traps_restore
 
     local_bin="$HOME/.local/bin"
     dest="$local_bin/openaver"

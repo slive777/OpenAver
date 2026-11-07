@@ -103,7 +103,7 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 |------|------|
 | **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` |
 | **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64.zip` |
-| **Linux x86_64** | `OpenAver-vX.X.X-Linux-x86_64.tar.gz` |
+| **Linux x86_64** | 請用一行安裝，見 [說明](docs/linux-server.md) |
 
 > ⚠️ 手動 ZIP 需多一步解除安全限制，詳見內附文件；macOS 限 Apple 晶片。
 
