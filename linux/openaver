@@ -720,14 +720,14 @@ main() {
     cmd_reset_password() {
         local port i st
         [ -f "$ROOT/output/.layout.json" ] || { printf '%s\n' "$(t reset_no_data)"; exit 0; }
-        if ! touch "$ROOT/output/.reset_access_auth" 2>/dev/null; then
-            printf '%s\n' "$(t reset_marker_failed)" >&2
-            exit 1
-        fi
         service_running
         st=$?
         if [ "$st" -eq 2 ]; then
             printf '%s\n' "$(t service_state_unknown)" >&2
+            exit 1
+        fi
+        if ! touch "$ROOT/output/.reset_access_auth" 2>/dev/null; then
+            printf '%s\n' "$(t reset_marker_failed)" >&2
             exit 1
         fi
         if [ "$st" -ne 0 ]; then

@@ -540,12 +540,14 @@ def test_reset_password_reports_unknown_service_state_instead_of_next_start(tmp_
     assert "下次啟動生效" not in r.stdout
     assert "密碼保護已關閉" not in r.stdout
     assert r.stderr.strip()
+    assert not (out / ".reset_access_auth").exists(), "狀態不明時不得留下重設標記，否則下次啟動會靜默關掉密碼"
 
     (fb / "rc_is-active").write_text("3", encoding="utf-8")
     (fb / "active_out").write_text("inactive\n", encoding="utf-8")
     r = _run_cli(home, cli, ["reset-password"], stub_out=stub_out, extra_env=env)
     assert r.returncode == 0
     assert "下次啟動生效" in r.stdout
+    assert (out / ".reset_access_auth").exists(), "服務未啟動時應留下標記，下次啟動才會生效"
 
 
 def test_start_does_not_report_started_when_port_answers_with_other_version_health(tmp_path):
