@@ -60,6 +60,26 @@ test('splitVisible：藏的是離線硬碟的片，沒有 src 的片視為可見
     assert.deepEqual(splitVisible(all, new Set()).visible.map((v) => v.number), all.map((v) => v.number));
 });
 
+test('hiddenNumberSet：同番號在可見硬碟還有一份就不進集合（大小寫視為同番號）；省略第二參數維持舊行為', () => {
+    const hidden = [
+        { number: 'ABC-001' },   // 另一份在可見硬碟（小寫）→ 排除
+        { number: 'def-002' },   // 只被藏 → 保留
+        { number: '' },          // 空番號略過
+        { number: 'ghi-003' },   // 可見端也有同番號 → 排除
+    ];
+    const visible = [
+        { number: 'abc-001' },
+        { number: 'GHI-003' },
+        { number: '' },
+        null,
+    ];
+    assert.deepEqual([...hiddenNumberSet(hidden, visible)], ['DEF-002']);
+    // 可見端為空陣列／未提供 → 與舊行為逐值相同
+    assert.deepEqual([...hiddenNumberSet(hidden, [])].sort(), ['ABC-001', 'DEF-002', 'GHI-003']);
+    assert.deepEqual([...hiddenNumberSet(hidden)].sort(), ['ABC-001', 'DEF-002', 'GHI-003']);
+    assert.deepEqual([...hiddenNumberSet(hidden, undefined)].sort(), ['ABC-001', 'DEF-002', 'GHI-003']);
+});
+
 // [lint-guard: node-justified] 求值型行為：footerNotice 完成句／按鈕／title 依組數×開關逐格正確；lint 無 JS 求值能力
 test('footerNotice：1／2／3 顆 × 隱藏開／關，句型、已隱藏 N 部與按鈕字樣逐格正確', () => {
     // 全接上

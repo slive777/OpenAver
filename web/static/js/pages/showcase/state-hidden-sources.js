@@ -49,7 +49,7 @@ export function stateHiddenSources() {
             _setVideos(visible);
             this.videoCount = _videos.length;
             this.hiddenCount = _allVideos.length - _videos.length;
-            this._hsHiddenNumbers = hiddenNumberSet(hidden);
+            this._hsHiddenNumbers = hiddenNumberSet(hidden, visible);
         },
 
         // 隱藏集合沒變就整段 no-op（applyFilterAndSort 會把頁碼重置為 1）；有變才重篩並收斂燈箱。

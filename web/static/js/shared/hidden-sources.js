@@ -41,13 +41,21 @@ export function splitVisible(all, hiddenIdx) {
     return { visible: visible, hidden: hidden };
 }
 
-/** 被藏片的大寫番號集合（空番號略過），供相似結果濾除。 */
-export function hiddenNumberSet(hiddenVideos) {
+/**
+ * 被藏片的大寫番號集合（空番號略過），供相似結果濾除；
+ * 傳入 visibleVideos 時，已連線硬碟上還有可見副本的番號不收（相似結果才不會少一部可播放的片）。
+ */
+export function hiddenNumberSet(hiddenVideos, visibleVideos) {
     var out = new Set();
     var list = hiddenVideos || [];
     for (var i = 0; i < list.length; i++) {
         var n = list[i] && list[i].number;
         if (n) out.add(String(n).toUpperCase());
+    }
+    var vis = visibleVideos || [];
+    for (var j = 0; j < vis.length; j++) {
+        var vn = vis[j] && vis[j].number;
+        if (vn) out.delete(String(vn).toUpperCase());
     }
     return out;
 }
