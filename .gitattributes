@@ -1,5 +1,6 @@
 *.sh text eol=lf
 *.command text eol=lf
+linux/openaver text eol=lf
 
 # 來源碼 / 樣式 / 模板 → 一律 LF
 *.py text eol=lf

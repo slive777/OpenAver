@@ -1,0 +1,880 @@
+#!/bin/bash
+main() {
+    SCRIPT="$(readlink -f "$0")"
+    ROOT="$(cd "$(dirname "$SCRIPT")/../.." && pwd)"
+    APP="$ROOT/app"
+    PY="$ROOT/python/bin/python3"
+    CONF="$ROOT/openaver.conf"
+    PIDFILE="$ROOT/run/openaver.pid"
+    LOGDIR="$ROOT/logs"
+    SERVERLOG="$LOGDIR/server.log"
+    DEFAULT_PORT=49152
+
+    detect_installer_lang() {
+        # CD-145b-8b：環境變數覆寫優先於系統語言，值不合法就忽略、退回系統判定。
+        # 先用 tr 正規化成小寫再比對（bash 3.2 相容，禁用 bash 4 大小寫展開），
+        # 讓 EN／Zh-TW 等與 PowerShell -in（大小寫不敏感）行為一致；回傳訊息表用的正規大小寫。
+        local _override
+        _override=$(printf '%s' "${OPENAVER_INSTALL_LANG:-}" | tr '[:upper:]' '[:lower:]')
+        case "$_override" in
+            zh-tw) echo "zh-TW"; return ;;
+            zh-cn) echo "zh-CN"; return ;;
+            ja)    echo "ja"; return ;;
+            en)    echo "en"; return ;;
+        esac
+
+        local _lc="${LC_ALL:-$LANG}"
+        case "$_lc" in
+            zh_TW*|zh_HK*|zh_MO*) echo "zh-TW" ;;
+            zh_CN*|zh_SG*)        echo "zh-CN" ;;
+            ja*)                   echo "ja" ;;
+            *)                      echo "en" ;;
+        esac
+    }
+
+    LANG_KEY="$(detect_installer_lang)"
+
+    t() {
+        case "${LANG_KEY}:$1" in
+            zh-TW:usage) echo "用法：openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off|update [vX.Y.Z]" ;;
+            zh-CN:usage) echo "用法：openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off|update [vX.Y.Z]" ;;
+            ja:usage) echo "使い方：openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off|update [vX.Y.Z]" ;;
+            en:usage) echo "Usage: openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off|update [vX.Y.Z]" ;;
+
+            zh-TW:home_invalid) echo "HOME 未設定或不合法，無法啟動" ;;
+            zh-CN:home_invalid) echo "HOME 未设置或不合法，无法启动" ;;
+            ja:home_invalid) echo "HOME が未設定または不正なため起動できません" ;;
+            en:home_invalid) echo "HOME is unset or invalid; cannot start" ;;
+
+            zh-TW:already_running) echo "OpenAver 已在執行" ;;
+            zh-CN:already_running) echo "OpenAver 已在运行" ;;
+            ja:already_running) echo "OpenAver は既に実行中です" ;;
+            en:already_running) echo "OpenAver is already running" ;;
+
+            zh-TW:started) echo "OpenAver 已啟動" ;;
+            zh-CN:started) echo "OpenAver 已启动" ;;
+            ja:started) echo "OpenAver を起動しました" ;;
+            en:started) echo "OpenAver started" ;;
+
+            zh-TW:not_running) echo "OpenAver 沒在執行" ;;
+            zh-CN:not_running) echo "OpenAver 没有在运行" ;;
+            ja:not_running) echo "OpenAver は実行されていません" ;;
+            en:not_running) echo "OpenAver is not running" ;;
+
+            zh-TW:stopped) echo "OpenAver 已停止" ;;
+            zh-CN:stopped) echo "OpenAver 已停止" ;;
+            ja:stopped) echo "OpenAver を停止しました" ;;
+            en:stopped) echo "OpenAver stopped" ;;
+
+            zh-TW:stale_pid_cleared) echo "殘留的 PID 檔已清除" ;;
+            zh-CN:stale_pid_cleared) echo "残留的 PID 文件已清除" ;;
+            ja:stale_pid_cleared) echo "残留していた PID ファイルを削除しました" ;;
+            en:stale_pid_cleared) echo "Stale PID file cleared" ;;
+
+            zh-TW:stop_failed) echo "無法停止 OpenAver，請查看 logs/server.log" ;;
+            zh-CN:stop_failed) echo "无法停止 OpenAver，请查看 logs/server.log" ;;
+            ja:stop_failed) echo "OpenAver を停止できません。logs/server.log を確認してください" ;;
+            en:stop_failed) echo "Could not stop OpenAver; see logs/server.log" ;;
+
+            zh-TW:status_running) echo "狀態：在跑" ;;
+            zh-CN:status_running) echo "状态：在跑" ;;
+            ja:status_running) echo "状態：実行中" ;;
+            en:status_running) echo "Status: running" ;;
+
+            zh-TW:status_stopped) echo "狀態：沒跑" ;;
+            zh-CN:status_stopped) echo "状态：没跑" ;;
+            ja:status_stopped) echo "状態：停止中" ;;
+            en:status_stopped) echo "Status: stopped" ;;
+
+            zh-TW:status_version_fmt) echo "版本：%s" ;;
+            zh-CN:status_version_fmt) echo "版本：%s" ;;
+            ja:status_version_fmt) echo "バージョン：%s" ;;
+            en:status_version_fmt) echo "Version: %s" ;;
+
+            zh-TW:status_service_yes) echo "服務：已登記" ;;
+            zh-CN:status_service_yes) echo "服务：已登记" ;;
+            ja:status_service_yes) echo "サービス：登録済み" ;;
+            en:status_service_yes) echo "Service: registered" ;;
+
+            zh-TW:status_service_no) echo "服務：未登記" ;;
+            zh-CN:status_service_no) echo "服务：未登记" ;;
+            ja:status_service_no) echo "サービス：未登録" ;;
+            en:status_service_no) echo "Service: not registered" ;;
+
+            zh-TW:status_port_fmt) echo "port：%s" ;;
+            zh-CN:status_port_fmt) echo "port：%s" ;;
+            ja:status_port_fmt) echo "port：%s" ;;
+            en:status_port_fmt) echo "port: %s" ;;
+
+            zh-TW:conf_bad_warning) echo "警告：openaver.conf 格式無法辨識，改用預設 port" ;;
+            zh-CN:conf_bad_warning) echo "警告：openaver.conf 格式无法识别，改用默认 port" ;;
+            ja:conf_bad_warning) echo "警告：openaver.conf の形式を認識できないため、既定の port を使います" ;;
+            en:conf_bad_warning) echo "Warning: openaver.conf is unreadable; using the default port" ;;
+
+            zh-TW:config_port_invalid) echo "port 必須是 1024 到 65535 的整數" ;;
+            zh-CN:config_port_invalid) echo "port 必须是 1024 到 65535 的整数" ;;
+            ja:config_port_invalid) echo "port は 1024 から 65535 の整数である必要があります" ;;
+            en:config_port_invalid) echo "port must be an integer from 1024 to 65535" ;;
+
+            zh-TW:config_port_saved) echo "已存下。重啟後生效：openaver restart" ;;
+            zh-CN:config_port_saved) echo "已存下。重启后生效：openaver restart" ;;
+            ja:config_port_saved) echo "保存しました。反映には openaver restart が必要です" ;;
+            en:config_port_saved) echo "Saved. Apply with: openaver restart" ;;
+
+            zh-TW:config_port_write_failed) echo "無法寫入 openaver.conf，port 沒有變更" ;;
+            zh-CN:config_port_write_failed) echo "无法写入 openaver.conf，port 没有变更" ;;
+            ja:config_port_write_failed) echo "openaver.conf に書き込めず、port は変更されていません" ;;
+            en:config_port_write_failed) echo "Could not write openaver.conf; port was not changed" ;;
+
+            zh-TW:url_hint) echo "桌面 App 側欄連線填這個網址" ;;
+            zh-CN:url_hint) echo "桌面 App 侧栏连线填这个网址" ;;
+            ja:url_hint) echo "デスクトップ App のサイドバー接続にこの URL を入力してください" ;;
+            en:url_hint) echo "Paste this URL into the desktop App sidebar Connect field" ;;
+
+            zh-TW:url_no_ip) echo "查不到區網 IP，請用 hostname -I 或 ip addr 自行確認" ;;
+            zh-CN:url_no_ip) echo "查不到局域网 IP，请用 hostname -I 或 ip addr 自行确认" ;;
+            ja:url_no_ip) echo "LAN IP を取得できません。hostname -I または ip addr で確認してください" ;;
+            en:url_no_ip) echo "Could not detect a LAN IP; check with hostname -I or ip addr" ;;
+
+            zh-TW:data_not_ready) echo "資料位置尚未就緒，詳見 logs/server.log" ;;
+            zh-CN:data_not_ready) echo "数据位置尚未就绪，详见 logs/server.log" ;;
+            ja:data_not_ready) echo "データ位置の準備ができていません。logs/server.log を確認してください" ;;
+            en:data_not_ready) echo "Data location is not ready; see logs/server.log" ;;
+
+            zh-TW:health_timeout) echo "啟動逾時，詳見 logs/server.log" ;;
+            zh-CN:health_timeout) echo "启动超时，详见 logs/server.log" ;;
+            ja:health_timeout) echo "起動がタイムアウトしました。logs/server.log を確認してください" ;;
+            en:health_timeout) echo "Startup timed out; see logs/server.log" ;;
+
+            zh-TW:python_missing) echo "找不到內附 Python，請重新安裝" ;;
+            zh-CN:python_missing) echo "找不到内附 Python，请重新安装" ;;
+            ja:python_missing) echo "同梱の Python が見つかりません。再インストールしてください" ;;
+            en:python_missing) echo "Bundled Python not found; please reinstall" ;;
+
+            zh-TW:prepare_failed) echo "_prepare 失敗" ;;
+            zh-CN:prepare_failed) echo "_prepare 失败" ;;
+            ja:prepare_failed) echo "_prepare に失敗しました" ;;
+            en:prepare_failed) echo "_prepare failed" ;;
+
+            zh-TW:root_reminder) echo "提醒：目前以 root 執行" ;;
+            zh-CN:root_reminder) echo "提醒：当前以 root 执行" ;;
+            ja:root_reminder) echo "注意：現在 root で実行しています" ;;
+            en:root_reminder) echo "Reminder: running as root" ;;
+
+            zh-TW:start_failed) echo "啟動失敗，詳見 logs/server.log" ;;
+            zh-CN:start_failed) echo "启动失败，详见 logs/server.log" ;;
+            ja:start_failed) echo "起動に失敗しました。logs/server.log を確認してください" ;;
+            en:start_failed) echo "Startup failed; see logs/server.log" ;;
+
+            zh-TW:port_changed_fmt) echo "設定已改為 %s，目前仍在 %s，執行 openaver restart 生效" ;;
+            zh-CN:port_changed_fmt) echo "设置已改为 %s，目前仍在 %s，执行 openaver restart 生效" ;;
+            ja:port_changed_fmt) echo "設定は %s に変更済みですが、現在は %s で動作中です。openaver restart で反映されます" ;;
+            en:port_changed_fmt) echo "Setting changed to %s, but the service is still on %s. Run openaver restart to apply" ;;
+
+            zh-TW:port_in_use_fmt) echo "port %s 被占用，OpenAver 沒有啟動。換一個 port：openaver config port <n>，再執行 openaver start" ;;
+            zh-CN:port_in_use_fmt) echo "port %s 被占用，OpenAver 没有启动。换一个 port：openaver config port <n>，再执行 openaver start" ;;
+            ja:port_in_use_fmt) echo "port %s は使用中のため OpenAver は起動しませんでした。別の port に変更：openaver config port <n>、その後 openaver start" ;;
+            en:port_in_use_fmt) echo "port %s is in use; OpenAver did not start. Pick another port: openaver config port <n>, then openaver start" ;;
+
+            zh-TW:reset_no_data) echo "沒有密碼可以重設（資料還沒建立過）" ;;
+            zh-CN:reset_no_data) echo "没有密码可以重置（数据还没建立过）" ;;
+            ja:reset_no_data) echo "リセットするパスワードがありません（データがまだ作成されていません）" ;;
+            en:reset_no_data) echo "No password to reset (no data has been created yet)" ;;
+
+            zh-TW:reset_marker_failed) echo "無法建立重設標記（output 目錄不可寫），密碼沒有被重設" ;;
+            zh-CN:reset_marker_failed) echo "无法建立重置标记（output 目录不可写），密码没有被重置" ;;
+            ja:reset_marker_failed) echo "リセット用マーカーを作成できません（output に書き込めません）。パスワードはリセットされていません" ;;
+            en:reset_marker_failed) echo "Could not create the reset marker (output is not writable); the password was not reset" ;;
+
+            zh-TW:reset_next_start) echo "已標記重設密碼，下次啟動生效（openaver start）" ;;
+            zh-CN:reset_next_start) echo "已标记重置密码，下次启动生效（openaver start）" ;;
+            ja:reset_next_start) echo "パスワードのリセットを予約しました。次回起動時に有効になります（openaver start）" ;;
+            en:reset_next_start) echo "Password reset is queued and takes effect on next start (openaver start)" ;;
+
+            zh-TW:reset_done) echo "密碼保護已關閉、所有裝置已登出" ;;
+            zh-CN:reset_done) echo "密码保护已关闭、所有设备已登出" ;;
+            ja:reset_done) echo "パスワード保護を解除し、すべての端末をログアウトしました" ;;
+            en:reset_done) echo "Password protection is off and all devices are signed out" ;;
+
+            zh-TW:reset_not_confirmed) echo "無法確認密碼已重設，請再執行一次 openaver reset-password" ;;
+            zh-CN:reset_not_confirmed) echo "无法确认密码已重置，请再执行一次 openaver reset-password" ;;
+            ja:reset_not_confirmed) echo "パスワードのリセットを確認できませんでした。もう一度 openaver reset-password を実行してください" ;;
+            en:reset_not_confirmed) echo "Could not confirm the password was reset; run openaver reset-password again" ;;
+
+            zh-TW:autostart_no_systemd) echo "這台機器的 systemd 使用者服務不可用，無法設定開機自動啟動；請改用 openaver start 手動啟動" ;;
+            zh-CN:autostart_no_systemd) echo "这台机器的 systemd 用户服务不可用，无法设置开机自动启动；请改用 openaver start 手动启动" ;;
+            ja:autostart_no_systemd) echo "systemd のユーザーサービスが使えないため、自動起動は設定できません。openaver start で手動起動してください" ;;
+            en:autostart_no_systemd) echo "systemd user services are unavailable here, so autostart cannot be set up; use openaver start instead" ;;
+
+            zh-TW:autostart_on_done) echo "已登記為 systemd 服務：異常結束會自動重啟，openaver start 會透過它啟動" ;;
+            zh-CN:autostart_on_done) echo "已登记为 systemd 服务：异常结束会自动重启，openaver start 会通过它启动" ;;
+            ja:autostart_on_done) echo "systemd サービスとして登録しました。異常終了時は自動で再起動し、openaver start はこれ経由で起動します" ;;
+            en:autostart_on_done) echo "Registered as a systemd service: it restarts after a crash, and openaver start now goes through it" ;;
+
+            zh-TW:autostart_off_done) echo "已取消開機自動啟動" ;;
+            zh-CN:autostart_off_done) echo "已取消开机自动启动" ;;
+            ja:autostart_off_done) echo "自動起動を解除しました" ;;
+            en:autostart_off_done) echo "Autostart is off" ;;
+
+            zh-TW:unit_write_failed) echo "無法寫入服務設定檔，開機自動啟動沒有設定" ;;
+            zh-CN:unit_write_failed) echo "无法写入服务配置文件，开机自动启动没有设置" ;;
+            ja:unit_write_failed) echo "サービス設定ファイルを書き込めず、自動起動は設定されていません" ;;
+            en:unit_write_failed) echo "Could not write the service unit file; autostart was not set up" ;;
+
+            zh-TW:systemctl_failed) echo "systemctl 操作失敗，請執行 systemctl --user status openaver.service 查看" ;;
+            zh-CN:systemctl_failed) echo "systemctl 操作失败，请执行 systemctl --user status openaver.service 查看" ;;
+            ja:systemctl_failed) echo "systemctl の操作に失敗しました。systemctl --user status openaver.service を確認してください" ;;
+            en:systemctl_failed) echo "systemctl failed; check systemctl --user status openaver.service" ;;
+
+            zh-TW:stop_service_failed) echo "無法透過 systemd 停止，舊服務可能仍在跑，請執行 systemctl --user status openaver.service" ;;
+            zh-CN:stop_service_failed) echo "无法通过 systemd 停止，旧服务可能仍在运行，请执行 systemctl --user status openaver.service" ;;
+            ja:stop_service_failed) echo "systemd 経由で停止できません。古いサービスが動いている可能性があります。systemctl --user status openaver.service を確認してください" ;;
+            en:stop_service_failed) echo "Could not stop via systemd; the old service may still be running. Check systemctl --user status openaver.service" ;;
+
+            zh-TW:linger_warn_fmt) echo "注意：服務已登記，但登出後會停止、重開機後不會自己起來。請用有管理權限的帳號執行一次：sudo loginctl enable-linger %s" ;;
+            zh-CN:linger_warn_fmt) echo "注意：服务已登记，但登出后会停止、重启后不会自己起来。请用有管理权限的账号执行一次：sudo loginctl enable-linger %s" ;;
+            ja:linger_warn_fmt) echo "注意：サービスは登録済みですが、ログアウトで停止し、再起動後も自動では起動しません。管理者権限のアカウントで一度実行してください：sudo loginctl enable-linger %s" ;;
+            en:linger_warn_fmt) echo "Note: the service is registered, but it stops at logout and will not start after a reboot. Run once from an account with admin rights: sudo loginctl enable-linger %s" ;;
+
+            zh-TW:service_state_unknown) echo "無法確認 OpenAver 服務的狀態（systemd 使用者管理員連不上），密碼尚未重設。請稍後再試，或先設定 XDG_RUNTIME_DIR=/run/user/<uid> 後再執行 openaver reset-password" ;;
+            zh-CN:service_state_unknown) echo "无法确认 OpenAver 服务的状态（systemd 用户管理器连不上），密码尚未重置。请稍后再试，或先设置 XDG_RUNTIME_DIR=/run/user/<uid> 后再执行 openaver reset-password" ;;
+            ja:service_state_unknown) echo "OpenAver サービスの状態を確認できません（systemd ユーザーマネージャーに接続できません）。パスワードはまだリセットされていません。しばらくしてから再試行するか、XDG_RUNTIME_DIR=/run/user/<uid> を設定して openaver reset-password を再実行してください" ;;
+            en:service_state_unknown) echo "Could not determine the OpenAver service state (the systemd user manager is unreachable); the password was NOT reset. Retry later, or set XDG_RUNTIME_DIR=/run/user/<uid> and run openaver reset-password again" ;;
+
+            zh-TW:unit_remove_failed) echo "無法刪除服務設定檔，開機自動啟動尚未完全取消" ;;
+            zh-CN:unit_remove_failed) echo "无法删除服务配置文件，开机自动启动尚未完全取消" ;;
+            ja:unit_remove_failed) echo "サービス設定ファイルを削除できず、自動起動は完全には解除されていません" ;;
+            en:unit_remove_failed) echo "Could not remove the service unit file; autostart is not fully turned off" ;;
+
+            zh-TW:update_fetch_failed) echo "無法取得安裝程式（請檢查網路），沒有動任何檔案" ;;
+            zh-CN:update_fetch_failed) echo "无法获取安装程序（请检查网络），没有改动任何文件" ;;
+            ja:update_fetch_failed) echo "インストーラーを取得できません（ネットワークを確認してください）。ファイルは一切触っていません" ;;
+            en:update_fetch_failed) echo "Could not fetch the installer (check your network); no files were touched" ;;
+
+            *) echo "[missing:$1]" ;;
+        esac
+    }
+
+    pid_is_ours() {
+        local cmd
+        cmd="$(tr '\0' ' ' < "/proc/$1/cmdline" 2>/dev/null)" || return 1
+        [[ "$cmd" == *uvicorn* && "$cmd" == *web.app:app* ]]
+    }
+
+    valid_port() {
+        case "$1" in ''|*[!0-9]*) return 1 ;; esac
+        [ "$1" -ge 1024 ] && [ "$1" -le 65535 ]
+    }
+
+    wait_gone() {
+        local i
+        for ((i = 0; i < $2; i++)); do
+            kill -0 "$1" 2>/dev/null || return 0
+            sleep 1
+        done
+        ! kill -0 "$1" 2>/dev/null
+    }
+
+    service_registered() {
+        [ -f "$HOME/.config/systemd/user/openaver.service" ]
+    }
+
+    user_systemctl() {
+        # su／lxc-attach 進來的 shell 沒有 XDG_RUNTIME_DIR，user manager 連不上；有目錄就補上。
+        if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -d "/run/user/$(id -u)" ]; then
+            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+        fi
+        systemctl --user "$@"
+    }
+
+    systemd_usable() {
+        [ -d /run/systemd/system ] || return 1
+        user_systemctl show-environment >/dev/null 2>&1
+    }
+
+    # 已登記看 systemd，否則看 PID 檔；status 與 reset-password 共用，不留兩份判定。
+    # 回 0＝在跑、1＝確定沒跑、2＝未知（已登記但 user manager 連不上等）。
+    service_running() {
+        local out
+        if service_registered; then
+            out="$(user_systemctl is-active openaver.service 2>/dev/null)"
+            case "$out" in
+                active|activating|reloading|deactivating) return 0 ;;
+                inactive|failed) return 1 ;;
+                *) return 2 ;;
+            esac
+        fi
+        daemon_running
+    }
+
+    linger_enabled() {
+        [ "$({ loginctl show-user "$1" -p Linger; } 2>/dev/null)" = "Linger=yes" ]
+    }
+
+    linger_try_enable() {
+        { loginctl enable-linger "$1"; } >/dev/null 2>&1 </dev/null && return 0
+        { sudo -n loginctl enable-linger "$1"; } >/dev/null 2>&1 </dev/null && return 0
+        return 1
+    }
+
+    linger_warn() {
+        printf "$(t linger_warn_fmt)\n" "$1"
+    }
+
+    # conf 存在但取不到合法 port=N（含非數字、超出範圍）→ 回 0（真）；檔不存在或合法 → 回 1。
+    # 獨立檢查，不靠 get_conf_port 在 $(...) 子 shell 裡的副作用。
+    conf_port_unreadable() {
+        local line p
+        [ -f "$CONF" ] || return 1
+        line="$(grep -E '^port=[0-9]+$' "$CONF" 2>/dev/null | head -1)"
+        if [ -n "$line" ]; then
+            p="${line#port=}"
+            if valid_port "$p"; then
+                return 1
+            fi
+        fi
+        return 0
+    }
+
+    get_conf_port() {
+        local p="$DEFAULT_PORT" line
+        if [ -f "$CONF" ]; then
+            line="$(grep -E '^port=[0-9]+$' "$CONF" 2>/dev/null | head -1)"
+            if [ -n "$line" ]; then
+                p="${line#port=}"
+                if valid_port "$p"; then
+                    echo "$p"
+                    return 0
+                fi
+            fi
+        fi
+        echo "$DEFAULT_PORT"
+    }
+
+    check_home_and_py() {
+        if [ -z "${HOME:-}" ] || [ "$HOME" = "/" ]; then
+            printf '%s\n' "$(t home_invalid)" >&2
+            return 1
+        fi
+        if [ ! -x "$PY" ]; then
+            printf '%s\n' "$(t python_missing)" >&2
+            return 1
+        fi
+        return 0
+    }
+
+    daemon_running() {
+        local pid
+        [ -f "$PIDFILE" ] || return 1
+        pid="$(cat "$PIDFILE" 2>/dev/null)" || return 1
+        [ -n "$pid" ] || return 1
+        kill -0 "$pid" 2>/dev/null && pid_is_ours "$pid"
+    }
+
+    get_version() {
+        local v
+        v="$(sed -n 's/^__version__ *= *"\([^"]*\)".*/\1/p' "$APP/core/version.py" 2>/dev/null | head -1)"
+        if [ -n "$v" ]; then
+            echo "$v"
+        else
+            echo "?"
+        fi
+    }
+
+    get_listening_port() {
+        local pid="$1" link target inode tcp line loc st ino hex_port
+        pid_is_ours "$pid" || return 1
+        for link in /proc/"$pid"/fd/*; do
+            target="$(readlink "$link" 2>/dev/null)" || continue
+            case "$target" in
+                socket:*)
+                    inode="$(printf '%s' "$target" | sed -n 's/^socket:\[\([0-9][0-9]*\)\]$/\1/p')"
+                    [ -n "$inode" ] || continue
+                    ;;
+                *) continue ;;
+            esac
+            for tcp in /proc/net/tcp /proc/net/tcp6; do
+                [ -r "$tcp" ] || continue
+                while read -r line; do
+                    # shellcheck disable=SC2086
+                    set -- $line
+                    loc="$2"
+                    st="$4"
+                    ino="${10}"
+                    [ "$st" = "0A" ] || continue
+                    [ "$ino" = "$inode" ] || continue
+                    hex_port="${loc##*:}"
+                    printf '%d\n' "0x$hex_port"
+                    return 0
+                done < "$tcp"
+            done
+        done
+        return 1
+    }
+
+    maybe_warn_port_changed() {
+        local conf_port="$1" pid listen
+        if service_registered; then
+            pid="$(user_systemctl show openaver.service -p MainPID 2>/dev/null | sed -n 's/^MainPID=\([0-9][0-9]*\)$/\1/p' | head -1)"
+            [ "${pid:-0}" -gt 0 ] 2>/dev/null || return 0
+        else
+            [ -f "$PIDFILE" ] || return 0
+            pid="$(cat "$PIDFILE" 2>/dev/null)" || return 0
+        fi
+        pid_is_ours "$pid" || return 0
+        listen="$(get_listening_port "$pid")" || return 0
+        [ -n "$listen" ] || return 0
+        if [ "$listen" != "$conf_port" ]; then
+            printf "$(t port_changed_fmt)\n" "$conf_port" "$listen"
+        fi
+    }
+
+    port_in_use() {
+        (echo >/dev/tcp/127.0.0.1/"$1") >/dev/null 2>&1
+    }
+
+    # 成功＝200 且內文（去空白後）含 "status":"ok" 與本份 __version__；別人的服務或別版 OpenAver 不算。
+    # 版本讀不出（get_version 回 ?）時退回只比 status:ok。
+    health_ok() {
+        local port="$1" line st="" body="" n=0 inbody=0 cr ver
+        cr="$(printf '\r')"
+        ver="$(get_version)"
+        # bash 對 /dev/tcp 連線失敗有時仍往 stderr 吐字；整段包住以免污染 start 輸出
+        if ! { exec 3<>/dev/tcp/127.0.0.1/"$port"; } 2>/dev/null; then
+            return 1
+        fi
+        printf 'GET /api/health HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' >&3
+        while IFS= read -r -t 2 line <&3 || [ -n "$line" ]; do
+            line="${line%"$cr"}"
+            if [ "$n" -eq 0 ]; then
+                st="$line"
+            elif [ "$inbody" -eq 1 ]; then
+                body="$body$line"
+            elif [ -z "$line" ]; then
+                inbody=1
+            fi
+            n=$((n + 1))
+        done
+        exec 3<&-
+        exec 3>&-
+        case "$st" in
+            *" 200 "*|*" 200") ;;
+            *) return 1 ;;
+        esac
+        body="$(printf '%s' "$body" | tr -d '[:space:]')"
+        case "$body" in
+            *'"status":"ok"'*) ;;
+            *) return 1 ;;
+        esac
+        [ "$ver" = "?" ] && return 0
+        case "$body" in
+            *'"version":"'"$ver"'"'*) return 0 ;;
+            *) return 1 ;;
+        esac
+    }
+
+    rotate_server_log() {
+        local sz
+        [ -f "$SERVERLOG" ] || return 0
+        sz="$(wc -c < "$SERVERLOG" | tr -d '[:space:]')"
+        if [ -n "$sz" ] && [ "$sz" -gt 20971520 ]; then
+            mv -f "$SERVERLOG" "$SERVERLOG.1"
+        fi
+    }
+
+    wait_healthy() {
+        local pid="$1" port="$2" i ec
+        for ((i = 0; i < 30; i++)); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+                wait "$pid" 2>/dev/null
+                ec=$?
+                rm -f "$PIDFILE"
+                if [ "$ec" -eq 78 ]; then
+                    printf '%s\n' "$(t data_not_ready)" >&2
+                else
+                    printf '%s\n' "$(t start_failed)" >&2
+                fi
+                return 1
+            fi
+            if health_ok "$port"; then
+                printf '%s\n' "$(t started)"
+                return 0
+            fi
+            sleep 1
+        done
+        printf '%s\n' "$(t health_timeout)" >&2
+        return 1
+    }
+
+    cmd_run() {
+        local port
+        check_home_and_py || exit 1
+        port="$(get_conf_port)"
+        export OPENAVER_DATA_DIR="$ROOT/output"
+        export OPENAVER_SERVER_ONLY=1
+        export PYTHONDONTWRITEBYTECODE=1
+        cd "$APP" || exit 1
+        exec "$PY" -m uvicorn web.app:app --host 0.0.0.0 --port "$port" --log-level info --timeout-graceful-shutdown 8
+    }
+
+    cmd_start() {
+        local port pid
+        check_home_and_py || exit 1
+        if [ "$(id -u)" -eq 0 ]; then
+            printf '%s\n' "$(t root_reminder)"
+        fi
+        if service_registered; then
+            if ! service_running; then
+                rotate_server_log
+            fi
+            port="$(get_conf_port)"
+            if ! user_systemctl start openaver.service; then
+                printf '%s\n' "$(t systemctl_failed)" >&2
+                exit 1
+            fi
+            # health against conf port; no PIDFILE ownership in this branch for T4a
+            for ((i = 0; i < 30; i++)); do
+                if health_ok "$port"; then
+                    printf '%s\n' "$(t started)"
+                    exit 0
+                fi
+                sleep 1
+            done
+            printf '%s\n' "$(t health_timeout)" >&2
+            exit 1
+        fi
+        if daemon_running; then
+            printf '%s\n' "$(t already_running)"
+            exit 0
+        fi
+        rotate_server_log
+        port="$(get_conf_port)"
+        if port_in_use "$port"; then
+            printf "$(t port_in_use_fmt)\n" "$port" >&2
+            exit 1
+        fi
+        mkdir -p "$LOGDIR" "$ROOT/run"
+        setsid nohup "$SCRIPT" run >> "$SERVERLOG" 2>&1 < /dev/null &
+        pid=$!
+        echo "$pid" > "$PIDFILE"
+        if wait_healthy "$pid" "$port"; then
+            exit 0
+        fi
+        exit 1
+    }
+
+    do_stop() {
+        local pid
+        if service_registered; then
+            if ! user_systemctl stop openaver.service; then
+                printf '%s\n' "$(t stop_service_failed)" >&2
+                return 1
+            fi
+            printf '%s\n' "$(t stopped)"
+            return 0
+        fi
+        if [ ! -f "$PIDFILE" ]; then
+            printf '%s\n' "$(t not_running)"
+            return 0
+        fi
+        pid="$(cat "$PIDFILE" 2>/dev/null)"
+        if ! pid_is_ours "$pid"; then
+            rm -f "$PIDFILE"
+            printf '%s\n' "$(t stale_pid_cleared)"
+            return 0
+        fi
+        kill "$pid" 2>/dev/null
+        if ! wait_gone "$pid" 20; then
+            kill -9 "$pid" 2>/dev/null
+            if ! wait_gone "$pid" 5; then
+                printf '%s\n' "$(t stop_failed)" >&2
+                return 1
+            fi
+        fi
+        rm -f "$PIDFILE"
+        printf '%s\n' "$(t stopped)"
+        return 0
+    }
+
+    cmd_status() {
+        local port ver running=0 pid listen
+        port="$(get_conf_port)"
+        ver="$(get_version)"
+        if service_running; then
+            running=1
+        fi
+        if [ "$running" -eq 1 ]; then
+            printf '%s\n' "$(t status_running)"
+        else
+            printf '%s\n' "$(t status_stopped)"
+        fi
+        printf "$(t status_version_fmt)\n" "$ver"
+        if service_registered; then
+            printf '%s\n' "$(t status_service_yes)"
+            linger_enabled "$(id -un)" || linger_warn "$(id -un)"
+        else
+            printf '%s\n' "$(t status_service_no)"
+        fi
+        printf "$(t status_port_fmt)\n" "$port"
+        if conf_port_unreadable; then
+            printf '%s\n' "$(t conf_bad_warning)"
+        fi
+        maybe_warn_port_changed "$port"
+        if [ "$running" -eq 1 ]; then
+            exit 0
+        fi
+        exit 3
+    }
+
+    cmd_log() {
+        mkdir -p "$LOGDIR"
+        exec tail -n 50 -F "$LOGDIR/debug.log" "$SERVERLOG"
+    }
+
+    detect_lan_ip() {
+        local ip
+        ip="$(ip -4 route get 1.1.1.1 2>/dev/null | tr ' ' '\n' | awk 'f{print;exit} /^src$/{f=1}')"
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+        ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+        return 1
+    }
+
+    cmd_url() {
+        local port ip
+        port="$(get_conf_port)"
+        if ip="$(detect_lan_ip)"; then
+            printf 'http://%s:%s\n' "$ip" "$port"
+            printf '%s\n' "$(t url_hint)"
+        else
+            printf '%s\n' "$(t url_no_ip)"
+        fi
+        maybe_warn_port_changed "$port"
+        exit 0
+    }
+
+    cmd_config() {
+        local n tmp
+        if [ "${1:-}" != "port" ]; then
+            printf '%s\n' "$(t usage)" >&2
+            exit 2
+        fi
+        n="${2:-}"
+        if ! valid_port "$n"; then
+            printf '%s\n' "$(t config_port_invalid)" >&2
+            exit 1
+        fi
+        tmp="$CONF.tmp.$$"
+        if ! { printf 'port=%s\n' "$n" > "$tmp"; } 2>/dev/null; then
+            rm -f "$tmp"
+            printf '%s\n' "$(t config_port_write_failed)" >&2
+            exit 1
+        fi
+        if ! mv -f "$tmp" "$CONF" 2>/dev/null; then
+            rm -f "$tmp"
+            printf '%s\n' "$(t config_port_write_failed)" >&2
+            exit 1
+        fi
+        printf '%s\n' "$(t config_port_saved)"
+        exit 0
+    }
+
+    # 成功判準：GET /api/access/settings 為 200 且內文（去空白後）含 "enabled":false；其餘一律當失敗。
+    access_auth_disabled() {
+        local port="$1" line st="" body="" n=0 inbody=0 cr
+        cr="$(printf '\r')"
+        if ! { exec 3<>/dev/tcp/127.0.0.1/"$port"; } 2>/dev/null; then
+            return 1
+        fi
+        printf 'GET /api/access/settings HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' >&3
+        while IFS= read -r -t 2 line <&3 || [ -n "$line" ]; do
+            line="${line%"$cr"}"
+            if [ "$n" -eq 0 ]; then
+                st="$line"
+            elif [ "$inbody" -eq 1 ]; then
+                body="$body$line"
+            elif [ -z "$line" ]; then
+                inbody=1
+            fi
+            n=$((n + 1))
+        done
+        exec 3<&-
+        exec 3>&-
+        case "$st" in
+            *" 200 "*|*" 200") ;;
+            *) return 1 ;;
+        esac
+        body="$(printf '%s' "$body" | tr -d '[:space:]')"
+        case "$body" in
+            *'"enabled":false'*) return 0 ;;
+            *) return 1 ;;
+        esac
+    }
+
+    cmd_reset_password() {
+        local port i st
+        [ -f "$ROOT/output/.layout.json" ] || { printf '%s\n' "$(t reset_no_data)"; exit 0; }
+        service_running
+        st=$?
+        if [ "$st" -eq 2 ]; then
+            printf '%s\n' "$(t service_state_unknown)" >&2
+            exit 1
+        fi
+        if ! touch "$ROOT/output/.reset_access_auth" 2>/dev/null; then
+            printf '%s\n' "$(t reset_marker_failed)" >&2
+            exit 1
+        fi
+        if [ "$st" -ne 0 ]; then
+            printf '%s\n' "$(t reset_next_start)"
+            exit 0
+        fi
+        do_stop || exit 1
+        ( cmd_start ) || exit 1
+        port="$(get_conf_port)"
+        for ((i = 0; i < 10; i++)); do
+            if access_auth_disabled "$port"; then
+                printf '%s\n' "$(t reset_done)"
+                exit 0
+            fi
+            sleep 1
+        done
+        printf '%s\n' "$(t reset_not_confirmed)" >&2
+        exit 1
+    }
+
+    cmd_autostart_on() {
+        local unitdir unit tmp user stopped_own=0
+        check_home_and_py || exit 1
+        systemd_usable || { printf '%s\n' "$(t autostart_no_systemd)"; exit 0; }
+        # 先前自管（PID 檔）在跑的服務要先收掉，否則登記後它脫離管理、還在對外服務。
+        if ! service_registered && daemon_running; then
+            do_stop || exit 1
+            stopped_own=1
+        fi
+        unitdir="$HOME/.config/systemd/user"
+        unit="$unitdir/openaver.service"
+        tmp="$unit.tmp.$$"
+        if ! { mkdir -p "$LOGDIR" "$unitdir" && printf '%s\n' \
+            '[Unit]' 'Description=OpenAver' '' \
+            '[Service]' 'Type=exec' 'ExecStart=%h/OpenAver/openaver run' \
+            'Restart=always' 'RestartSec=3' 'TimeoutStopSec=25' 'KillMode=mixed' \
+            'StandardOutput=append:%h/OpenAver/logs/server.log' 'StandardError=inherit' '' \
+            '[Install]' 'WantedBy=default.target' > "$tmp" && mv -f "$tmp" "$unit"; } 2>/dev/null; then
+            rm -f "$tmp"
+            printf '%s\n' "$(t unit_write_failed)" >&2
+            exit 1
+        fi
+        if ! user_systemctl daemon-reload >/dev/null 2>&1 || ! user_systemctl enable openaver.service >/dev/null 2>&1; then
+            printf '%s\n' "$(t systemctl_failed)" >&2
+            exit 1
+        fi
+        printf '%s\n' "$(t autostart_on_done)"
+        user="$(id -un)"
+        if ! linger_enabled "$user" && ! linger_try_enable "$user"; then
+            linger_warn "$user"
+        fi
+        if [ "$stopped_own" -eq 1 ]; then
+            ( cmd_start ) || exit 1
+        fi
+        exit 0
+    }
+
+    cmd_autostart_off() {
+        if service_registered; then
+            if ! user_systemctl disable --now openaver.service >/dev/null 2>&1; then
+                printf '%s\n' "$(t systemctl_failed)" >&2
+                exit 1
+            fi
+            if ! rm -f "$HOME/.config/systemd/user/openaver.service" 2>/dev/null; then
+                printf '%s\n' "$(t unit_remove_failed)" >&2
+                exit 1
+            fi
+            if ! user_systemctl daemon-reload >/dev/null 2>&1; then
+                printf '%s\n' "$(t systemctl_failed)" >&2
+                exit 1
+            fi
+        fi
+        printf '%s\n' "$(t autostart_off_done)"
+        exit 0
+    }
+
+    cmd_autostart() {
+        case "${1:-}" in
+            on) cmd_autostart_on ;;
+            off) cmd_autostart_off ;;
+            *)
+                printf '%s\n' "$(t usage)" >&2
+                exit 2
+                ;;
+        esac
+    }
+
+    cmd_prepare() {
+        local err
+        if [ ! -x "$PY" ]; then
+            printf '%s\n' "$(t python_missing)" >&2
+            exit 1
+        fi
+        err="$(OPENAVER_DATA_DIR="$ROOT/output" "$PY" "$APP/linux/prepare_server.py" 2>&1)" || {
+            printf '%s\n' "$err" >&2
+            printf '%s\n' "$(t prepare_failed)" >&2
+            exit 1
+        }
+        exit 0
+    }
+
+    cmd_update() {
+        local ver="${1:-}" script
+        if [ $# -gt 1 ]; then
+            printf '%s\n' "$(t usage)" >&2
+            exit 2
+        fi
+        if [ -n "$ver" ] && ! printf '%s\n' "$ver" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            printf '%s\n' "$(t usage)" >&2
+            exit 2
+        fi
+        if ! script="$(curl -fsSL --connect-timeout 10 --max-time 30 "https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh")" || [ -z "$script" ]; then
+            printf '%s\n' "$(t update_fetch_failed)" >&2
+            exit 1
+        fi
+        if [ -n "$ver" ]; then
+            exec bash -s -- --update --version "$ver" <<<"$script"
+        fi
+        exec bash -s -- --update <<<"$script"
+    }
+
+    case "${1:-}" in
+        run) cmd_run ;;
+        start) cmd_start ;;
+        stop) do_stop; exit $? ;;
+        restart)
+            if ! do_stop; then
+                exit 1
+            fi
+            cmd_start
+            ;;
+        status) cmd_status ;;
+        log) cmd_log ;;
+        url) cmd_url ;;
+        config) shift; cmd_config "$@" ;;
+        reset-password) cmd_reset_password ;;
+        autostart) shift; cmd_autostart "$@" ;;
+        _prepare) cmd_prepare ;;
+        update) shift; cmd_update "$@" ;;
+        ""|help|-h|--help)
+            printf '%s\n' "$(t usage)"
+            exit 0
+            ;;
+        *)
+            printf '%s\n' "$(t usage)" >&2
+            exit 2
+            ;;
+    esac
+}
+main "$@"; exit

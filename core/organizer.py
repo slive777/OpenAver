@@ -28,7 +28,7 @@ from core.ai_services.image_prep import read_exif_orientation, upright_focal_to_
 from core.focal import device_state, requires_face_detection
 from core.focal.subprocess_runner import run_detection
 from core.logger import get_logger
-from core.platform_info import is_synology, DSM_PERMISSION_HINT
+from core.platform_info import is_synology, is_headless_server, DSM_PERMISSION_HINT, LINUX_PERMISSION_HINT
 from core.proxy_policy import proxy_kwargs
 
 logger = get_logger(__name__)
@@ -1101,6 +1101,8 @@ def _permission_error_message() -> str:
     msg = '無法建立資料夾，請確認目標路徑的寫入權限'
     if is_synology():
         msg += '（' + DSM_PERMISSION_HINT + '）'
+    elif is_headless_server():
+        msg += '（' + LINUX_PERMISSION_HINT + '）'
     return msg
 
 

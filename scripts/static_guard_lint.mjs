@@ -2853,6 +2853,13 @@ const RULES = [
     kind: 'forbidden-string', pattern: /install\.(ps1|sh)/,
     note: `[168c-T1-installer-command-single-source] ${dir} 內另寫一份安裝指令 → 使用者在桌面殼按「執行更新」跑的腳本與本機版／伺服器版不同，更新動作無法預期（安裝指令只能放 core/self_update.py）`,
   })),
+  // ---- [194-T4a] bash 3.2 紀律（CD-194-12 #1；lint 不剝註解，註解裡寫出字面也紅）----
+  ...['install.sh', 'linux/openaver'].map((file) => ({
+    file,
+    kind: 'forbidden-string',
+    pattern: /declare -A|\$\{[^}]+,,\}|\$\{[^}]+\^\^\}|\bmapfile\b|\breadarray\b|&>>/,
+    note: `[lint-guard 194-T4a-bash32] ${file} 用了 bash 4+ 語法（關聯陣列／大小寫展開／mapfile／readarray／&>>）→ 使用者在 macOS 預設 bash 3.2 或舊 Linux 跑安裝／openaver 指令時直接語法錯誤，服務起不來`,
+  })),
   // L3 structure-count 對 .py 剝註解／docstring：註解裡的 save_client_settings( 不計。2 ＝ def 一次 ＋ _rmw 內唯一呼叫。
   {
     file: 'core/client_settings.py', kind: 'structure-count', pattern: /save_client_settings\(/, count: 2,
@@ -9402,8 +9409,9 @@ const RULES = [
     note: '[lint-guard 168e-T7-no-move-zombie] 有人把搬家占位字樣加回連線頁 → 使用者在出貨的 App 裡又看到「把本機片庫搬到伺服器的方法，之後補上」，以為有功能卻點不出東西',
   },
   {
-    file: 'locales/zh_TW.json', kind: 'required-string', pattern: /venv\/bin\/python -c .*set_auth\(enabled=False, pin=''\)/,
-    note: '[lint-guard 168e-T7-forgot-linux-command] zh_TW 的 forgot_linux 必含完整重設指令字串（與 docs/linux-server.md 同一條指令，人工對齊）；缺了 → 使用者照著貼上去跑卻沒真的關掉密碼，重啟後仍被擋在登入畫面',
+    file: 'locales/zh_TW.json', kind: 'required-string', pattern: /openaver reset-password/,
+    scope: /"forgot_linux":([^\n]*)/,
+    note: '[lint-guard 168e-T7-forgot-linux-command] zh_TW 的 forgot_linux 必含 openaver reset-password（與 docs/linux-server.md 人工對齊）；缺了 → 使用者照連線頁提示操作卻關不掉密碼、仍被擋在登入畫面',
   },
   // ---- [168e-T14] 連線頁「重試」鈕接線 ----
   {

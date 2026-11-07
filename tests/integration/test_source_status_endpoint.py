@@ -84,18 +84,20 @@ async def test_dod2_lifespan_yield_not_blocked(monkeypatch: pytest.MonkeyPatch) 
             sr._reprobe_task.cancel()
 
 
-@pytest.mark.parametrize("synology", [False, True])
-def test_no_permission_source_included_with_reason(monkeypatch: pytest.MonkeyPatch, synology: bool) -> None:
-    from core.platform_info import DSM_PERMISSION_HINT
+@pytest.mark.parametrize("synology,server_only", [(False, False), (True, False), (False, True)])
+def test_no_permission_source_included_with_reason(monkeypatch: pytest.MonkeyPatch, synology: bool, server_only: bool) -> None:
+    from core.platform_info import DSM_PERMISSION_HINT, LINUX_PERMISSION_HINT
 
     monkeypatch.setattr(sr, "get_snapshot", lambda: {"/denied": "no_permission", "/gone": "unreachable", "/ok": "ok"})
     monkeypatch.setattr(sr, "schedule_reprobe_if_stale", AsyncMock())
     monkeypatch.setattr("web.routers.showcase.is_synology", lambda: synology)
+    if server_only:
+        monkeypatch.setenv("OPENAVER_SERVER_ONLY", "1")
     data = TestClient(app, client=("127.0.0.1", 50000)).get("/api/showcase/source-status").json()
     denied = next(item for item in data if item["path"] == "/denied")
     assert denied["status"] == "no_permission"
     assert denied["reason"] == "no_permission"
-    assert denied["dsm_hint"] == (DSM_PERMISSION_HINT if synology else None)
+    assert denied["dsm_hint"] == (DSM_PERMISSION_HINT if synology else (LINUX_PERMISSION_HINT if server_only else None))
     gone = next(item for item in data if item["path"] == "/gone")
     assert gone["reason"] == "unreachable"
     assert gone["dsm_hint"] is None

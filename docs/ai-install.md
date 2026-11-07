@@ -18,6 +18,7 @@ Setup is complete when the user is looking at their own covers in the app: the l
 |---|---|
 | Windows x64 (PowerShell) | `irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 \| iex` |
 | macOS, Apple silicon only (Terminal) | `curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh \| bash` |
+| Linux x86_64 (Terminal, server edition) | `curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh \| bash` |
 
 The installer downloads the latest release and installs to `~/OpenAver` (`%USERPROFILE%\OpenAver` on Windows). On Windows it also creates a desktop shortcut. If OpenAver is already installed, the installer upgrades it and keeps the user's settings.
 
@@ -28,10 +29,9 @@ The installers expect a person at the keyboard:
 
 If you cannot answer prompts in your shell, ask the user to paste the command into their own terminal and tell you when it finishes.
 
-Other platforms have no installer and no desktop window. Follow the guide below, skip step 2, set `BASE` (Synology: `http://<NAS address>:8765`; Linux: the address from the guide), open that address in the user's browser, then continue from step 3:
+The Linux installer starts the service itself and prints the address (there is no desktop window and no overwrite prompt; a fresh install asks only whether to start on boot, while converting an old manual install or finding an old service still running asks for an extra confirmation). Skip step 2, set `BASE` to `http://127.0.0.1:<port>` (same machine as the host, no token needed), where `<port>` is the port in the address the installer printed (49152 unless the user changed it with `openaver config port`; `openaver url` prints it again), open the printed address in the user's browser, then continue from step 3. Details: [`linux-server.md`](linux-server.md).
 
-- Linux: [`linux-server.md`](linux-server.md)
-- Synology NAS: [`synology.md`](synology.md)
+Synology has no installer and no desktop window. Follow [`synology.md`](synology.md), skip step 2, set `BASE` to `http://<NAS address>:8765`, open that address in the user's browser, then continue from step 3.
 
 ## 2. Start the app
 

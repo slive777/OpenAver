@@ -48,7 +48,7 @@ from core.metatube.state import metatube_state as _mt_startup_state
 from core.access_auth import ensure_schema, load_snapshot, snapshot, verify_ticket
 from core import source_reachability
 from core import self_update
-from core.platform_info import is_synology
+from core.platform_info import is_headless_server, is_synology
 from core.desktop_env import desktop_kind
 from core import cf_handoff
 from core.loopback import is_loopback_host
@@ -79,10 +79,13 @@ def _maybe_notify_update(result: dict) -> None:
     latest = result.get("latest_version")
     cfg = load_config()
     if latest and latest != cfg.get("general", {}).get("last_notified_update_version", ""):
-        emit_notification(
-            "info", "notif.update_available",
-            message=f"v{latest}", url=result.get("download_url", ""),
-        )
+        if is_headless_server() and not is_synology():
+            emit_notification("info", "notif.update_available_server", message=f"v{latest}")
+        else:
+            emit_notification(
+                "info", "notif.update_available",
+                message=f"v{latest}", url=result.get("download_url", ""),
+            )
         def _remember(config: dict) -> None:
             config.setdefault("general", {})["last_notified_update_version"] = latest
         mutate_config(_remember)
@@ -195,7 +198,7 @@ async def lifespan(app: FastAPI):
 
     _pending = consume_pending_bootstrap_result()
     if _pending is not None:
-        if _pending.status == "finalized_legacy" and not is_synology():
+        if _pending.status == "finalized_legacy" and not is_headless_server():
             emit_notification("info", "notif.data_root_finalized", message=str(_pending.root))
         elif _pending.status == "recovered_existing":
             emit_notification("warn", "notif.data_root_recovered", message=str(_pending.root))
@@ -828,6 +831,7 @@ def get_common_context(request: Request) -> dict:
         "shell_mode": getattr(request.state, "shell_mode", None),
         "in_shell": bool(getattr(request.state, "shell_mode", None)),
         "is_synology": is_synology(),
+        "is_headless_server": is_headless_server(),
     }
 
 

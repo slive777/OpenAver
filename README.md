@@ -14,7 +14,7 @@ Jellyfin/Emby/Kodi. AI-operable REST API, 3,300+ tests, MIT. -->
   Windows/Mac 裝好就能用，免 Docker、免指令 · 以前整理好的片直接拿來逛，不必重新抓資料
 </p>
 
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-0078D6.svg)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6.svg)
 ![GitHub Release](https://img.shields.io/github/v/release/slive777/OpenAver)
 ![Downloads](https://img.shields.io/github/downloads/slive777/OpenAver/total?color=success)
 ![Stars](https://img.shields.io/github/stars/slive777/OpenAver)
@@ -27,11 +27,11 @@ Jellyfin/Emby/Kodi. AI-operable REST API, 3,300+ tests, MIT. -->
 
 **名字裡的 Open，意思是不綁死你：**
 
-- **進得來**：JavSP、MDCX、EverAver 整理過的收藏直接讀，不用重新抓資料。影片旁只要有資料檔（NFO，記著片名、女優、標籤）和封面圖，掃描就讀進來，檔案原封不動；Jellyfin／Emby 或其他寫標準 NFO＋封面的工具整理過的也行。
-- **出得去**：整理好的資料檔和封面，Jellyfin／Emby／Kodi 直接認得，接上電視就能播；哪天不用 OpenAver 了，資料都還在你自己的資料夾裡。
+- **進得來**：JavSP、MDCX、EverAver 整理過的收藏直接讀，不用重新抓資料。影片旁只要有資料檔（NFO，記著片名、女優、標籤）和封面圖，掃描就讀進來；Jellyfin／Emby 或其他寫標準 NFO＋封面的工具整理過的也行。
+- **出得去**：整理好的資料檔和封面，Jellyfin／Emby／Kodi 直接認得，哪天不用 OpenAver 了，資料都還在你自己的資料夾裡。
 - **原始碼公開**：MIT 授權、免費，誰都能看、能改。
 
-**預設不改、不搬、不刪你的影片。** 補資料只會在影片旁邊新增資料檔和圖。只有你按「整理」，才會依你定的規則改名或搬家，而且絕不刪除。程式在你自己的電腦跑，不用註冊。
+**預設不改、不搬、不刪你的影片。** 補資料只會在影片旁邊新增資料檔和圖。只有你按「整理」，才會依你定的規則改名或搬家，而且絕不刪除。
 
 **100% 本地運行** — 不蒐集資料、不上傳任何檔案資訊，網路請求僅用於刮削公開元數據。
 
@@ -43,7 +43,7 @@ Jellyfin/Emby/Kodi. AI-operable REST API, 3,300+ tests, MIT. -->
 
 | 項目 | 內容 |
 |------|------|
-| **平台** | Windows 10/11 · macOS（Apple 晶片 M1 之後） |
+| **平台** | Windows 10/11 · macOS（Apple 晶片 M1 之後） · Linux x86_64（伺服器版，瀏覽器操作） |
 | **安裝** | 一行指令或雙擊安裝，免 Docker，全程圖形介面 |
 | **接手既有收藏** | 影片旁已有的 NFO 和封面圖直接讀，掃描不改你的檔 |
 | **收藏瀏覽** | 封面牆可疊篩選；女優牆可依罩杯、年齡、身高排序 |
@@ -81,7 +81,7 @@ Jellyfin/Emby/Kodi. AI-operable REST API, 3,300+ tests, MIT. -->
 
 ### 一行安裝
 
-**macOS**（打開「終端機」貼上）:
+**macOS／Linux**（打開「終端機」貼上）:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh | bash
 ```
@@ -103,13 +103,13 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 |------|------|
 | **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` |
 | **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64.zip` |
+| **Linux x86_64** | 請用一行安裝，見 [說明](docs/linux-server.md) |
 
 > ⚠️ 手動 ZIP 需多一步解除安全限制，詳見內附文件；macOS 限 Apple 晶片。
 
 第一次打開會有新手導覽，帶你指定資料夾、按「更新片庫」，不必先讀文件。
 
-> 🐧 **Linux**：無官方安裝程式，可自架區網伺服器用瀏覽器操作，步驟見 [`docs/linux-server.md`](docs/linux-server.md)。
-
+> 🐧 **Linux**：貼同一行就能裝，用瀏覽器操作，可開機自動啟動，見 [`docs/linux-server.md`](docs/linux-server.md)。  
 > 🗄️ **Synology NAS**：手動安裝 `.spk`（beta），步驟見 [`docs/synology.md`](docs/synology.md)。
 
 ---
@@ -126,17 +126,15 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 
 ### 🎬 瀏覽：用封面逛、用女優找
 
-**播放軟體用檔名找片；這裡用封面、標籤、女優。**
-
 - **封面牆＋大圖**：點封面看劇照、標籤、女優資料，無碼片自動對準人臉裁切，不滿意可手動拖。
 - **收藏女優直接看到發行時年齡**：名字後面會多出像 `(28y)` 這樣的標示，她拍那部片當天的年齡。
 - **篩選可以一層層疊**：點女優、標籤、片商、導演、系列，只留下全部符合的片；用點的是精確比對，打字是模糊搜尋。
-- **橫式封面↔直式卡片一鍵切**：JAV 封面正面在右半邊，切成直式卡片一列放更多，純畫面變形。
+- **橫式封面↔直式卡片一鍵切**：JAV 封面正面在右半邊，切成直式卡片一列放更多。
 - **女優模式**：女優自己一面牆，資料卡含身高、罩杯、三圍、年齡、別名歷史，可排序可篩選。
 - **從自己的片庫補女優牆**：按 `+` 看「庫裡有誰、各幾片」清單，別名自動合併，點愛心加入。
 - **相似探索**：點魔杖，同類片圍著主圖，斷線也能看。
 - **整理完馬上看得到**：在搜尋頁整理成功的片直接飛進瀏覽頁；片庫連不到時，底部狀態列會寫出是哪一個。
-- **手機、平板也能逛**：設定裡切「伺服器」，同 Wi-Fi 用瀏覽器就能逛，用完切回「單機」關閉對外，介面為觸控重做。
+- **手機、平板也能逛**：設定裡切「伺服器」，同 Wi-Fi 用瀏覽器就能逛，用完切回「單機」關閉對外。
 - **離線也能逛**：設定頁一鍵匯出離線網頁，不開程式也能離線看。
 
 ### 🔍 搜尋：新片從這裡進來
@@ -216,8 +214,6 @@ curl http://localhost:<port>/api/capabilities
 
 > 💡 想在對話裡看到封面：**Codex App** 或 **Google Antigravity 2.0** 都支援內嵌顯示。
 
-> ⚡ 小模型也行：Gemini Flash、GPT mini、Claude Haiku 都能操作。
-
 > 🪄 **進階玩家彩蛋：FC2 自動找女優。** FC2 多數片沒女優標記，其中不少後來轉有碼出道。SQL 撈空片 → DeepFace 比對 Gfriends → `POST /api/user-tags` 寫回；50 行 Python 跑全庫，未識別的用 DBSCAN 分組。
 
 </details>
@@ -245,7 +241,7 @@ curl http://localhost:<port>/api/capabilities
 可以。NAS（Synology 套件或 Linux）或另一台電腦跑 OpenAver，桌面 App 側欄「連線」填網址和密碼。比瀏覽器多三件：用自己的播放器（讀得到 `.srt`）、JavLibrary／FC2-javten 的真人驗證、打開片所在資料夾。路徑不同就設對照表；主機需 0.17.7 以上。
 
 **電腦裡的片子可以用手機或平板逛嗎？**
-可以，同一 Wi-Fi 下設定裡打開「伺服器」，手機瀏覽器開網址就能逛，用完關掉不暴露外網。
+可以，同一 Wi-Fi 下設定裡打開「伺服器」，手機瀏覽器開網址就能逛。
 
 **如果內建的刮削來源（Scraper）失效了怎麼辦？**
 8 家會互相補位，一家失效，其他家還查得到。JavDB 另有 App 通道，被擋時多半仍查得到；也可接 Metatube，或請 AI 加來源。

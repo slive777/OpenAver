@@ -2182,7 +2182,7 @@
     "pin_failed": "パスワードを確認できませんでした。もう一度お試しください",
     "nopassword": "このサーバーにはパスワードが設定されておらず、LAN内の誰でも操作できます",
     "forgot_synology": "パッケージセンターで OpenAver を再インストールするとパスワードが消去されます",
-    "forgot_linux": "サーバーの OpenAver フォルダで次のコマンドを実行し、サーバーを再起動してください：venv/bin/python -c \"from core.access_auth import set_auth; set_auth(enabled=False, pin='')\"",
+    "forgot_linux": "サーバー本体で次のコマンドを実行してください。パスワード保護が解除され、サービスが自動で再起動されます：openaver reset-password",
     "forgot_desktop": "そのPCの設定ページで変更してください",
     "cf_ready": "JavLibrary／FC2-javten はこのPCが代わりに認証します：準備完了",
     "cf_not_ready": "JavLibrary／FC2-javten はこのPCが代わりに認証します：未準備（{reason}）",

@@ -59,7 +59,7 @@ from core.readonly_assets import _write_strm  # noqa: PLC2701 — .strm 重寫�
 from core.source_config import MAX_ENABLED_SOURCES
 from core.translate_service import OllamaTranslateService
 from core.cloud_translate import TranslateError
-from core.platform_info import is_synology
+from core.platform_info import is_synology, is_headless_server
 from core import cf_handoff
 from core.proxy_policy import cf_window_proxy_restart_needed, current_settings
 
@@ -241,12 +241,13 @@ def reset_config() -> dict:
     """恢復原廠設定 - 刪除 config.json"""
     try:
         # reset 與 toggle 交易共用鎖，防 reset 與併發 enable 交錯。
-        # Synology 必須維持 server_mode=true 與既有 listener；其他平台清除
-        # server_mode（defaults → false）後同步 stop，避免 runtime/persisted 分離。
+        # Synology 必須維持 server_mode=true 與既有 listener；Linux 伺服器版
+        # 亦同（OPENAVER_SERVER_ONLY=1）；其他平台清除 server_mode（defaults → false）
+        # 後同步 stop，避免 runtime/persisted 分離。
         from web.lan_listener import lan_listener
         with _server_mode_toggle_lock:
             reset_config_file()  # 鎖內 exists/unlink，無 TOCTOU（CD-66b-1）
-            if is_synology():
+            if is_headless_server():
                 mutate_config(lambda cfg: cfg.setdefault("general", {}).update({"server_mode": True}))
             else:
                 lan_listener.stop()
@@ -317,6 +318,9 @@ def update_general_field(field: str, request: GeneralFieldRequest, raw_request: 
         if field == "server_mode" and is_synology():
             return {"success": False, "reason": "synology_fixed",
                     "error": "Synology 版伺服器模式為固定值，無法變更"}
+        elif field == "server_mode" and is_headless_server():
+            return {"success": False, "reason": "server_fixed",
+                    "error": "伺服器版的伺服器模式為固定值，無法變更"}
 
         # server_mode 是主機決定，遠端連入的客人不得切換（spec「遠端自鎖不防護」的更乾淨版本）。
         # 僅允許 loopback 來源切換；fail-closed：client None → 視為非 loopback → 拒絕。
@@ -427,7 +431,7 @@ def get_lan_port(request: Request) -> dict:
     null → 顯示「listener_down」；IP 真的無法偵測 → lanIp null → 顯示「no_lan_ip」。
     """
     from web.lan_listener import lan_listener, get_lan_ip, is_public_exposure
-    if is_synology():
+    if is_headless_server():
         lan_port = request.scope["server"][1]
     else:
         running = lan_listener.is_running
