@@ -1,7 +1,7 @@
 """Build artifact auditor — assert Windows/macOS release ZIPs are clean.
 
 Usage:
-    python scripts/audit_build_artifact.py <zip-glob> --platform win|mac [--max-mb N] [--strict]
+    python scripts/audit_build_artifact.py <zip-glob> --platform win|mac|linux [--max-mb N] [--strict]
 
 Exit codes:
     0  — all checks passed (may still print WARN lines for warn-tier packages)
@@ -79,8 +79,11 @@ from __future__ import annotations
 import argparse
 import glob
 import re
+import struct
 import sys
+import tarfile
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 # Matches site-packages/curl_cffi-<ver>.dist-info/METADATA anywhere in the ZIP.
@@ -127,10 +130,17 @@ WARN_PKGS_ALL_PLATFORMS: frozenset[str] = frozenset(["uvloop", "langdetect"])
 # Packages that are VALID on macOS — do not warn/fail for them.
 MAC_RUNTIME_ALLOWLIST: frozenset[str] = frozenset(["uvloop"])
 
+# Desktop-window packages forbidden in Linux assets (TASK-194-T6a). Both
+# names are needed: pywebview wheels install a top-level webview/ dir
+# (only the dist-info is named pywebview-*), so blocking just one leaks.
+LINUX_EXTRA_HARD_FAIL_PKGS: frozenset[str] = frozenset(["pywebview", "webview"])
+
+GLIBC_FLOOR = (2, 28)
+
 
 def _get_warn_pkgs(platform: str) -> frozenset[str]:
     """Return the warn-tier set for the given platform."""
-    if platform == "mac":
+    if platform in ("mac", "linux"):
         return WARN_PKGS_ALL_PLATFORMS - MAC_RUNTIME_ALLOWLIST
     return WARN_PKGS_ALL_PLATFORMS
 
@@ -247,6 +257,200 @@ def _facefinder_check(zf: zipfile.ZipFile) -> list[str]:
     return messages
 
 
+@dataclass
+class _TarEntry:
+    """ZipInfo-shaped record (filename/file_size) for one tar member."""
+
+    filename: str
+    file_size: int
+
+
+class _TarView:
+    """Zip-like read-only view over a Linux .tar.gz asset.
+
+    Loaded in one streaming pass ("r|gz"): member names are normalized
+    (leading "./" removed, trailing "/" removed) and each member's kind
+    and linkname recorded; every site-packages *.dist-info/WHEEL full text
+    and the first 64 bytes of OpenAver/python/bin/python3.12 stay in
+    memory. No full extraction, no random seeks.
+    """
+
+    def __init__(self) -> None:
+        self._sizes: dict[str, int] = {}
+        self._kinds: dict[str, str] = {}
+        self._linknames: dict[str, str] = {}
+        self.wheel_texts: dict[str, str] = {}
+        self.py312_head: bytes | None = None
+
+    def infolist(self) -> list[_TarEntry]:
+        return [_TarEntry(name, size) for name, size in self._sizes.items()]
+
+    def namelist(self) -> list[str]:
+        return list(self._sizes.keys())
+
+    def getinfo(self, name: str) -> _TarEntry:
+        return _TarEntry(name, self._sizes[name])
+
+    def kind_of(self, name: str) -> str:
+        return self._kinds.get(name, "missing")
+
+    def linkname_of(self, name: str) -> str:
+        return self._linknames.get(name, "")
+
+
+def _load_tar_view(path: str | Path) -> _TarView:
+    """Read a .tar.gz asset into a _TarView in a single streaming pass."""
+    view = _TarView()
+    with tarfile.open(path, "r|gz") as tf:
+        for member in tf:
+            name = member.name.removeprefix("./")
+            if len(name) > 1:
+                name = name.rstrip("/")
+            if not name or name == ".":
+                continue
+            if member.issym():
+                view._kinds[name] = "symlink"
+                view._linknames[name] = member.linkname
+                view._sizes[name] = 0
+            elif member.isfile():
+                view._kinds[name] = "file"
+                view._sizes[name] = member.size
+                stream = tf.extractfile(member)
+                if "site-packages/" in name and name.endswith(".dist-info/WHEEL"):
+                    raw = stream.read() if stream is not None else b""
+                    view.wheel_texts[name] = raw.decode("utf-8", errors="replace")
+                elif name == "OpenAver/python/bin/python3.12":
+                    raw = stream.read(64) if stream is not None else b""
+                    view.py312_head = bytes(raw[:64])
+            else:
+                view._kinds[name] = "dir" if member.isdir() else "other"
+                view._sizes.setdefault(name, 0)
+    return view
+
+
+def _parse_manylinux_tag(platform_tag: str) -> tuple[int, int] | None:
+    """Map one platform tag to its glibc floor, or None if not manylinux."""
+    m = re.fullmatch(r"manylinux_(\d+)_(\d+)_\w+", platform_tag)
+    if m:
+        return (int(m.group(1)), int(m.group(2)))
+    if platform_tag.startswith("manylinux1_"):
+        return (2, 5)
+    if platform_tag.startswith("manylinux2010_"):
+        return (2, 12)
+    if platform_tag.startswith("manylinux2014_"):
+        return (2, 17)
+    return None
+
+
+def _wheel_glibc_floor(text: str) -> tuple[int, int] | None:
+    """Return a wheel's minimum manylinux glibc floor, None for pure-Python.
+
+    Raises ValueError (fail-closed) when the WHEEL has no Tag: lines, or
+    when it carries linux platform segments but none parse as manylinux.
+    """
+    tags = [ln.split("Tag:", 1)[1] for ln in text.splitlines() if ln.startswith("Tag:")]
+    if not tags:
+        raise ValueError("WHEEL has no Tag: lines")
+    floors: list[tuple[int, int]] = []
+    saw_linux = False
+    for tag in tags:
+        platform = tag.strip().split("-")[-1]
+        for segment in platform.split("."):
+            if "linux" not in segment:
+                continue
+            saw_linux = True
+            parsed = _parse_manylinux_tag(segment)
+            if parsed is not None:
+                floors.append(parsed)
+    if floors:
+        return min(floors)
+    if saw_linux:
+        raise ValueError(f"unparseable linux platform tag: {tags[-1].strip()}")
+    return None
+
+
+def _linux_deny_check(top_dirs: set[str]) -> list[str]:
+    """Return HARD-FAIL messages for desktop-window packages (linux only)."""
+    messages: list[str] = []
+    for pkg in sorted(LINUX_EXTRA_HARD_FAIL_PKGS):
+        if pkg in top_dirs:
+            messages.append(
+                f"[FAIL] HARD-FAIL: forbidden package '{pkg}' found in"
+                f" site-packages/ — desktop-window dep must not be in Linux asset"
+            )
+    return messages
+
+
+def _linux_glibc_check(view: _TarView, top_dirs: set[str]) -> list[str]:
+    """Return FAIL messages when a wheel needs glibc newer than GLIBC_FLOOR."""
+    messages: list[str] = []
+    unparsed: list[str] = []
+    floors: list[tuple[int, int]] = []
+    have_wheel = {
+        name.rsplit("/", 2)[-2]
+        for name in view.wheel_texts
+        if name.endswith(".dist-info/WHEEL")
+    }
+    for dist in sorted(n for n in top_dirs if n.endswith(".dist-info")):
+        if dist not in have_wheel:
+            unparsed.append(f"{dist}: missing WHEEL")
+    for name in sorted(view.wheel_texts):
+        try:
+            floor = _wheel_glibc_floor(view.wheel_texts[name])
+        except ValueError as exc:
+            unparsed.append(f"{name}: {exc}")
+            continue
+        if floor is not None:
+            floors.append(floor)
+    for item in unparsed:
+        messages.append(f"[FAIL] GLIBC: unparseable wheel ({item}) — fail-closed")
+    worst: tuple[int, int] = max(floors) if floors else (0, 0)
+    if worst > GLIBC_FLOOR:
+        messages.append(
+            f"[FAIL] GLIBC: worst wheel needs glibc {worst[0]}.{worst[1]}"
+            f" > floor {GLIBC_FLOOR[0]}.{GLIBC_FLOOR[1]}"
+        )
+    return messages
+
+
+def _linux_elf_check(view: _TarView, asset_name: str) -> list[str]:
+    """Return FAIL messages when the interpreter arch mismatches the asset."""
+    messages: list[str] = []
+    arch_match = re.search(r"-Linux-(x86_64|aarch64)\.tar\.gz$", asset_name)
+    if arch_match is None:
+        messages.append("[FAIL] ELF: cannot determine arch from asset name")
+        return messages
+    expected = 0x3E if arch_match.group(1) == "x86_64" else 0xB7
+    head = view.py312_head
+    if view.kind_of("OpenAver/python/bin/python3.12") != "file":
+        messages.append("[FAIL] ELF: OpenAver/python/bin/python3.12 is not a file")
+        return messages
+    if head is None or len(head) < 20 or head[:4] != b"\x7fELF":
+        messages.append("[FAIL] ELF: OpenAver/python/bin/python3.12 is not an ELF file")
+        return messages
+    machine = struct.unpack("<H", head[18:20])[0]
+    if machine != expected:
+        messages.append(
+            f"[FAIL] ELF: e_machine {machine:#x} != expected {expected:#x}"
+            f" for {arch_match.group(1)}"
+        )
+    if view.kind_of("OpenAver/python/bin/python3") == "missing":
+        messages.append("[FAIL] ELF: OpenAver/python/bin/python3 is missing")
+    return messages
+
+
+def _linux_layout_check(view: _TarView) -> list[str]:
+    """Return FAIL messages when the launcher layout is wrong (linux only)."""
+    messages: list[str] = []
+    if view.kind_of("OpenAver/openaver") != "symlink":
+        messages.append("[FAIL] LAYOUT: OpenAver/openaver must be a symlink")
+    elif view.linkname_of("OpenAver/openaver") != "app/linux/openaver":
+        messages.append("[FAIL] LAYOUT: OpenAver/openaver must point at app/linux/openaver")
+    if view.kind_of("OpenAver/app/linux/openaver") != "file":
+        messages.append("[FAIL] LAYOUT: OpenAver/app/linux/openaver must exist as a file")
+    return messages
+
+
 def audit(
     zip_path: str | Path,
     platform: str,
@@ -285,10 +489,26 @@ def audit(
     # ── Package scan ──────────────────────────────────────────────────────────
     warn_pkgs = _get_warn_pkgs(platform)
 
-    with zipfile.ZipFile(zip_path) as zf:
-        top_dirs = _site_packages_top_dirs(zf)
-        dist_info_msgs = _dist_info_check(zf, top_dirs)
-        facefinder_msgs = _facefinder_check(zf)
+    if platform == "linux":
+        try:
+            view = _load_tar_view(zip_path)
+        except Exception as exc:
+            messages.append(
+                f"[FAIL] TAR: cannot open {zip_path.name} as a gzip tar"
+                f" ({type(exc).__name__}) — not a valid Linux asset."
+            )
+            messages.append(
+                f"[RESULT] FAILED — {zip_path.name} did not pass artifact audit."
+            )
+            return (1, messages)
+        top_dirs = _site_packages_top_dirs(view)
+        dist_info_msgs = _dist_info_check(view, top_dirs)
+        facefinder_msgs = _facefinder_check(view)
+    else:
+        with zipfile.ZipFile(zip_path) as zf:
+            top_dirs = _site_packages_top_dirs(zf)
+            dist_info_msgs = _dist_info_check(zf, top_dirs)
+            facefinder_msgs = _facefinder_check(zf)
 
     messages.append(
         f"[INFO] Scanned {zip_path.name} — platform={platform},"
@@ -305,8 +525,22 @@ def audit(
         messages.extend(facefinder_msgs)
         failed = True
 
+    if platform == "linux":
+        for msgs in (
+            _linux_deny_check(top_dirs),
+            _linux_glibc_check(view, top_dirs),
+            _linux_elf_check(view, zip_path.name),
+            _linux_layout_check(view),
+        ):
+            if msgs:
+                messages.extend(msgs)
+                failed = True
+
     # Hard-fail tier
-    for pkg in sorted(HARD_FAIL_PKGS):
+    hard_fail = HARD_FAIL_PKGS
+    if platform == "linux":
+        hard_fail = hard_fail | LINUX_EXTRA_HARD_FAIL_PKGS
+    for pkg in sorted(hard_fail):
         if pkg in top_dirs:
             messages.append(
                 f"[FAIL] HARD-FAIL: forbidden package '{pkg}' found in"
@@ -376,9 +610,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--platform",
-        choices=["win", "mac"],
+        choices=["win", "mac", "linux"],
         required=True,
-        help="Target platform: win or mac. Affects uvloop warn/allowlist.",
+        help="Target platform: win, mac or linux. Affects uvloop warn/allowlist.",
     )
     parser.add_argument(
         "--max-mb",
