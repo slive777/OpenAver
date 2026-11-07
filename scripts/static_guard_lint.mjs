@@ -3860,6 +3860,14 @@ const RULES = [
     note: '[lint-guard:195-T6-search-card-play-wired] 結果卡播放鈕必須呼叫共用 playVideo(...)，否則桌面 App 按播放會跳去瀏覽器分頁',
   },
 
+  // 195-T11：燈箱 user tag 文字必須包進 <a class="lb-user-tag-link"> 並呼叫 searchFromMetadata。
+  // 只錨 <a> 開標籤，不錨整個 span——整個 span 範圍內的 HTML 註解會餵飽 required-string 而 fail-open（FE-GUARD-03）。
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', pattern: "searchFromMetadata(tag, 'tag')",
+    scope: /<a\b[^>]*\bclass="lb-user-tag-link"[^>]*>/,
+    note: '[lint-guard:195-T11-user-tag-click-wired] 燈箱 user tag 文字必須呼叫 searchFromMetadata(tag, \'tag\')，否則使用者點自己加的 tag 沒反應（其餘檢查照樣全綠）',
+  },
+
   // 120a-T1：.lb-full 原圖載不到時才會出現提示 pill。綁定必須是 img.lb-full 開標籤屬性
   // （tag-scan class-tag），不得用裸 required-string——註解裡同一句話會 fail-open（FE-GUARD-03）。
   {

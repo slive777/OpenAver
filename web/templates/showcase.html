@@ -1341,7 +1341,7 @@
                                 <!-- User tag badges with × remove button -->
                                 <template x-for="tag in (currentLightboxVideo?.user_tags || [])" :key="tag">
                                     <span class="lb-user-tag">
-                                        <span x-text="tag"></span>
+                                        <a href="#" class="lb-user-tag-link" @click.prevent="searchFromMetadata(tag, 'tag')"><span x-text="tag"></span></a>
                                         <button class="lb-tag-remove"
                                                 @click.stop="removeLbUserTag(tag)"
                                                 :title="tag">×</button>

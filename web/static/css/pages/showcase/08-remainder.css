@@ -611,6 +611,23 @@ body.sidebar-collapsed .showcase-footer {
     font-size: 0.6875rem;
 }
 
+/* user tag 文字連結 — 在 accent 實心底上，承襲字色 */
+.lb-user-tag-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.lb-user-tag-link:hover {
+    text-decoration: underline;
+}
+
+.lb-user-tag-link:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+    border-radius: var(--radius-sm);
+}
+
 /* × 刪除按鈕 */
 .lb-tag-remove {
     cursor: pointer;
