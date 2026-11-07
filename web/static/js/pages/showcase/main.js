@@ -23,6 +23,7 @@ import { stateLightboxPlot } from '@/showcase/state-lightbox-plot.js';
 import { stateLightboxSamples } from '@/showcase/state-lightbox-samples.js';
 import { stateSimilar }  from '@/showcase/state-similar.js';
 import { stateDelete }   from '@/showcase/state-delete.js';
+import { stateHiddenSources } from '@/showcase/state-hidden-sources.js';
 import { rescrapeState } from '@/shared/state-rescrape.js';
 import { toastState } from '@/shared/state-toast.js';
 import { mergeState } from '@/shared/merge-state.js';
@@ -42,6 +43,7 @@ window.showcaseState = function() {
         stateLightboxSamples.call(this),
         stateSimilar.call(this),
         stateDelete.call(this),
+        stateHiddenSources.call(this),
         rescrapeState.call(this),
         toastState.call(this),
     );

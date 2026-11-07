@@ -11,7 +11,7 @@
  * splice _videos 即影響 grid。
  */
 
-import { _videos } from '@/showcase/state-base.js';
+import { _videos, _allVideos } from '@/showcase/state-base.js';
 
 export function stateDelete() {
     return {
@@ -58,6 +58,10 @@ export function stateDelete() {
                 const data = await resp.json();
                 if (resp.ok) {
                     // splice by path（非 index）：用鎖定的 _pendingDeletePath 反查
+                    // 195b-T4：全庫也要同步移除，否則「隱藏未連線硬碟」切換時被刪的片會復活
+                    // （被藏的片不在 _videos，但刪的是可見那片；兩邊都以 path 反查，FE-ALPINE-14）。
+                    const allIdx = _allVideos.findIndex(v => v.path === path);
+                    if (allIdx >= 0) _allVideos.splice(allIdx, 1);
                     const idx = _videos.findIndex(v => v.path === path);
                     if (idx >= 0) {
                         _videos.splice(idx, 1);
@@ -65,6 +69,8 @@ export function stateDelete() {
                         // → 手動 decrement（控制 grid vs empty-state 顯示 + 總數）
                         if (this.videoCount > 0) this.videoCount -= 1;
                     }
+                    // 刪除請求在飛時該片可能已被藏：被藏數只能由全庫與可見數相減得出（賦值，不重篩、不動頁碼）
+                    this.hiddenCount = _allVideos.length - _videos.length;
                     this.applyFilterAndSort();
                     this.closeLightbox();
                     this.showToast(window.t('showcase.video.delete_success'), 'success');

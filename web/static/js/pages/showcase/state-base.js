@@ -28,6 +28,8 @@ import { computeActorAgesMap, singleActorAge } from '@/shared/actress-release-ag
 
 // F1: 大陣列移出 Alpine reactive scope — Alpine 不追蹤
 export var _videos = [];
+// 195b：全庫（含被「隱藏未連線硬碟」藏起來的片）；_videos ＝ 其可見子集（同一物件 ref）。
+export var _allVideos = [];
 export var _filteredVideos = [];
 export var _actresses = [];
 export var _filteredActresses = [];
@@ -36,6 +38,10 @@ export function _setActressesLoaded(v) { _actressesLoaded = v; }
 export function _setVideos(v) {
     _videos.length = 0;
     for (const item of (v || [])) _videos.push(item);
+}
+export function _setAllVideos(v) {
+    _allVideos.length = 0;
+    for (const item of (v || [])) _allVideos.push(item);
 }
 export function _setFilteredVideos(v) {
     _filteredVideos.length = 0;
@@ -203,12 +209,14 @@ export function _recomputeVideoBadges(video, enabledIds) {
 }
 
 /**
- * 121c-T3: 對 _videos 每一筆呼叫 _recomputeVideoBadges。enabledIds 只算一次。
+ * 121c-T3: 對全庫每一筆呼叫 _recomputeVideoBadges。enabledIds 只算一次。
+ * 195b-T4: 遍歷 _allVideos（含被「隱藏未連線硬碟」藏起來的片），
+ * 否則關掉開關或硬碟接回來時，那些片會沒有封面屬性標籤。
  */
 export function _recomputeAllBadges() {
     var enabledIds = _resolveCoverBadgeEnabledIds();
-    for (var i = 0; i < _videos.length; i++) {
-        _recomputeVideoBadges(_videos[i], enabledIds);
+    for (var i = 0; i < _allVideos.length; i++) {
+        _recomputeVideoBadges(_allVideos[i], enabledIds);
     }
 }
 
@@ -334,12 +342,6 @@ export function stateBase() {
 
         // --- 生命週期 ---
         async init() {
-            // TASK-142-T4: fire-and-forget 來源可達性；失敗靜默，不進 await 鏈。
-            fetch('/api/showcase/source-status')
-                .then(r => r.ok ? r.json() : [])
-                .then(list => { this.unreachableSources = Array.isArray(list) ? list : []; })
-                .catch(() => {});
-
             // 接入 page lifecycle：清理 lightbox timer 和 body class
             if (window.__registerPage) {
                 window.__registerPage({
@@ -366,12 +368,17 @@ export function stateBase() {
             this.restoreState();        // M2c: 先恢復狀態
             const savedPage = this.page;
 
+            // 195b-T4（CD-195-9）：來源可達性（原 TASK-142-T4 的 fire-and-forget）移入分片 _hsInit，
+            // 與 fetchVideos() 並行；開關為開時 await 最多 3 秒（逾時降級、晚到仍套用），為關時是已 resolved 的 promise。
+            const hsReady = this._hsInit();
+
             // TASK-138-T1（CD-C1）：提前啟動 hero 卡判斷，與 fetchVideos() 平行。
             // 保留 promise，稍後在 applyFilterAndSort 之前 await——不是 fire-and-forget。
             this._heroCardReconcilePending = true;   // CD-C5：init 作用域旗標，非持久化
             var heroCardPromise = this.showFavoriteActresses ? Promise.resolve() : this._reconcileHeroCard();  // 單行：pill-hero.test.mjs 以單行 regex 擷取本行並 eval，勿換行
 
             await this.fetchVideos();
+            await hsReady;              // 195b-T4：第一次交給牆之前，隱藏集合已就位（或已逾時降級）
             // 57e hotfix：fire-and-forget warm-up SimilarRankerCache，避免 magic icon 首次點擊 cold-start race。
             // 186-T6：讀 boosted_numbers（缺欄／失敗 → []）；仍 fire-and-forget，不拖慢 init。
             fetch('/api/similar/warmup')
@@ -414,6 +421,9 @@ export function stateBase() {
             // 129-T3 的回頁重算已提前到 restoreState 之後平行啟動（見上），此處不再呼叫
             this.page = savedPage;          // 恢復儲存的頁碼
             this.updatePagination();        // 單次分頁（會 clamp 超出範圍的頁碼）
+            // 195b-T4：init 窗口內（_heroCardReconcilePending）status 到達時 _hsRefresh 略過了燈箱收斂，這裡補做一次
+            // （需在 applyFilterAndSort 之後：收斂讀的是 _filteredVideos）。燈箱沒開時為 no-op。
+            if (this.hideUnreachable === true) this._hsConvergeLightbox();
 
             // Settle: 初次載入用 settle（不碰 opacity → 不閃）
             if (this.mode === 'grid') {
@@ -554,6 +564,7 @@ export function stateBase() {
             const cfg = window.__SHOWCASE_CONFIG__ || {};
             // TASK-133b-T2：嚴格 === true（FE-JS-01；宣告在 state-videos.js）
             this.showTableList = cfg.show_table_list === true;
+            this.hideUnreachable = cfg.hide_unreachable_sources === true;   // 195b-T4（宣告在 state-hidden-sources.js）
             const defaultSort = cfg.default_sort || 'date';
             const defaultOrder = cfg.default_order === 'ascending' ? 'asc' : 'desc';
             // T3.2 P2 fix: `??` 而非 `||` — Settings 允許 items_per_page=0（"全部"語意），

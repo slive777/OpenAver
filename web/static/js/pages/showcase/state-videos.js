@@ -6,7 +6,7 @@
  * 從 state-base.js import 共用大陣列（F1：移出 Alpine reactive scope）。
  */
 
-import { _videos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setFilteredVideos, _recomputeAllBadges, _recomputeCardActorAges } from '@/showcase/state-base.js';
+import { _videos, _allVideos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setAllVideos, _setFilteredVideos, _recomputeAllBadges, _recomputeCardActorAges } from '@/showcase/state-base.js';
 import { applyCellFocal } from '@/shared/focal-cell.js';
 import { openLocal } from '@/shared/open-local.js';
 import { notifyOpenResult } from '@/shared/bridge-notify.js';
@@ -46,6 +46,8 @@ export function stateVideos() {
                 const resp = await fetch('/api/showcase/videos');
                 if (!resp.ok) {
                     _videos.length = 0;
+                    _allVideos.length = 0;      // 195b-T4：全庫與被藏片數同步歸零
+                    this.hiddenCount = 0;
                     this.videoCount = 0;
                     _filteredVideos.length = 0;
                     this.filteredCount = 0;
@@ -55,6 +57,8 @@ export function stateVideos() {
                 const data = await resp.json();
                 if (!data.success) {
                     _videos.length = 0;
+                    _allVideos.length = 0;      // 195b-T4：全庫與被藏片數同步歸零
+                    this.hiddenCount = 0;
                     this.videoCount = 0;
                     _filteredVideos.length = 0;
                     this.filteredCount = 0;
@@ -69,13 +73,19 @@ export function stateVideos() {
                 // （_videos → _filteredVideos → paginatedVideos slice，皆同 ref），故初始化一處即涵蓋
                 // 初次載入/retry/翻頁/搜尋/排序；後端不回此欄位。補封面走 refreshVideoData reset。
                 vids.forEach(function (v) { if (v._imgLoaded === undefined) v._imgLoaded = false; if (v._coverRequested === undefined) v._coverRequested = false; });
-                _setVideos(vids);
+                // 195b-T4：全庫存 _allVideos；_videos ＝ 扣掉被「隱藏未連線硬碟」藏起來的片（同一物件 ref）。
+                // _recomputeVisible 不呼叫 applyFilterAndSort；下面 _setFilteredVideos 與其後 init/retry 的重篩接手。
+                _setAllVideos(vids);
+                this._hsSources = Array.isArray(data.sources) ? data.sources : [];
+                this._recomputeVisible();
                 this.videoCount = _videos.length;
                 _setFilteredVideos(_videos);
                 this.filteredCount = _filteredVideos.length;
             } catch (e) {
                 console.error('Failed to fetch videos:', e);
                 _videos.splice(0, _videos.length);
+                _allVideos.splice(0, _allVideos.length);    // 195b-T4
+                this.hiddenCount = 0;
                 this.videoCount = 0;
                 _filteredVideos.splice(0, _filteredVideos.length);
                 this.filteredCount = 0;

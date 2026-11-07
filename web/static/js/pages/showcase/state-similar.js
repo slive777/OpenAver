@@ -1735,7 +1735,14 @@ export function stateSimilar() {
         this.showToast(window.t('similar_mode.fetch_failed'), 'error');
         throw new Error('similar fetch failed: ' + resp.status);
       }
-      return resp.json();
+      const data = await resp.json();
+      // 195b-T4：濾掉被「隱藏未連線硬碟」藏起來的番號（相似模式不該推播不了的片）；其餘順序不變。
+      // _hsHiddenNumbers 為空（開關關／沒有離線）時原樣回傳，內容與今天逐值相同。
+      const hidden = this._hsHiddenNumbers;
+      if (hidden && hidden.size > 0 && data && Array.isArray(data.results)) {
+        data.results = data.results.filter(r => !hidden.has(String((r && r.number) || '').toUpperCase()));
+      }
+      return data;
     },
 
     /**

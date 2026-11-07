@@ -1467,7 +1467,8 @@
       "source_unreachable_list": "無法存取：{list}",
       "source_unreachable_count": "{n} 個位置無法存取",
       "source_no_permission_list": "沒有權限讀取：{list}",
-      "source_no_permission_count": "{n} 個位置沒有權限讀取"
+      "source_no_permission_count": "{n} 個位置沒有權限讀取",
+      "source_hide_save_failed": "「隱藏未連線硬碟」沒有存成功，已改回原本的顯示"
     },
     "nav": {
       "prev_page": "上一頁",
