@@ -7,8 +7,10 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import textwrap
 import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import pytest
@@ -122,10 +124,13 @@ def _run_cli(
     stub_out: Path | None = None,
     cwd: Path | None = None,
     timeout: float = 30,
+    extra_env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     env["HOME"] = str(home)
     env["OPENAVER_INSTALL_LANG"] = "zh-TW"
+    if extra_env:
+        env.update(extra_env)
     if stub_out is not None:
         env["STUB_OUT"] = str(stub_out)
     work = cwd if cwd is not None else home.parent / "elsewhere"
@@ -317,3 +322,227 @@ def test_url_and_status_warn_only_when_conf_port_differs_from_listening(tmp_path
         except subprocess.TimeoutExpired:
             pass
         _wait_gone(proc.pid)
+
+
+_FAKE_SYSTEMCTL = """#!/bin/bash
+D="$(dirname "$0")"
+echo "$*" >> "$D/systemctl.log"
+verb=""
+for a in "$@"; do case "$a" in -*) ;; *) verb="$a"; break ;; esac; done
+[ "$verb" = show ] && echo "MainPID=0"
+if [ "$verb" = is-active ]; then
+    if [ -f "$D/active_out" ]; then cat "$D/active_out"; else echo active; fi
+fi
+rc=0
+[ -f "$D/rc_$verb" ] && rc="$(cat "$D/rc_$verb")"
+exit "$rc"
+"""
+_FAKE_LOGINCTL = """#!/bin/bash
+D="$(dirname "$0")"
+echo "$*" >> "$D/loginctl.log"
+verb="$1"
+[ "$verb" = show-user ] && { cat "$D/linger" 2>/dev/null; exit 0; }
+rc=1
+[ -f "$D/rc_$verb" ] && rc="$(cat "$D/rc_$verb")"
+exit "$rc"
+"""
+_FAKE_SUDO = """#!/bin/bash
+D="$(dirname "$0")"
+echo "$*" >> "$D/sudo.log"
+rc=1
+[ -f "$D/rc_sudo" ] && rc="$(cat "$D/rc_sudo")"
+exit "$rc"
+"""
+
+
+def _fakebin(tmp_path: Path) -> tuple[Path, dict[str, str]]:
+    """PATH 前置 systemctl／loginctl／sudo 三個偽命令（缺一就會打到真正的 user manager）。"""
+    fb = tmp_path / "fakebin"
+    fb.mkdir(parents=True, exist_ok=True)
+    for name, body in (("systemctl", _FAKE_SYSTEMCTL), ("loginctl", _FAKE_LOGINCTL), ("sudo", _FAKE_SUDO)):
+        (fb / name).write_text(body, encoding="utf-8")
+        (fb / name).chmod(0o755)
+    (fb / "linger").write_text("Linger=yes\n", encoding="utf-8")
+    return fb, {"PATH": f"{fb}:{os.environ['PATH']}"}
+
+
+def _verbs(log: Path) -> list[str]:
+    out = []
+    for ln in log.read_text(encoding="utf-8").splitlines():
+        words = [w for w in ln.split() if not w.startswith("-")]
+        if words:
+            out.append(words[0])
+    return out
+
+
+_NEEDS_SYSTEMD = pytest.mark.skipif(
+    not Path("/run/systemd/system").is_dir(), reason="/run/systemd/system 不存在，無法走 systemd_usable 成功路徑"
+)
+
+
+def test_reset_password_without_layout_creates_nothing_and_explains(tmp_path):
+    home, cli, stub_out = _setup_tree(tmp_path)
+    _fb, env = _fakebin(tmp_path)
+    r = _run_cli(home, cli, ["reset-password"], stub_out=stub_out, extra_env=env)
+    assert r.returncode == 0, r.stderr
+    assert "沒有密碼可以重設" in r.stdout
+    assert not (home / "OpenAver" / "output").exists()
+
+
+def test_reset_password_with_layout_and_service_stopped_marks_for_next_start(tmp_path):
+    home, cli, stub_out = _setup_tree(tmp_path)
+    _fb, env = _fakebin(tmp_path)
+    out = home / "OpenAver" / "output"
+    out.mkdir()
+    (out / ".layout.json").write_text("{}", encoding="utf-8")
+    r = _run_cli(home, cli, ["reset-password"], stub_out=stub_out, extra_env=env)
+    assert r.returncode == 0, r.stderr
+    assert (out / ".reset_access_auth").exists()
+    assert "下次啟動生效" in r.stdout
+    assert not stub_out.exists(), "不該啟動服務"
+    assert not (home / "OpenAver" / "run" / "openaver.pid").exists()
+
+
+def test_autostart_on_without_usable_systemd_exits_zero_and_says_start(tmp_path):
+    home, cli, stub_out = _setup_tree(tmp_path)
+    fb, env = _fakebin(tmp_path)
+    (fb / "rc_show-environment").write_text("1", encoding="utf-8")
+    r = _run_cli(home, cli, ["autostart", "on"], stub_out=stub_out, extra_env=env)
+    assert r.returncode == 0, r.stderr
+    assert "改用 openaver start" in r.stdout
+    assert not (home / ".config" / "systemd" / "user" / "openaver.service").exists()
+
+
+@_NEEDS_SYSTEMD
+def test_autostart_on_writes_unit_with_required_fields(tmp_path):
+    home, cli, stub_out = _setup_tree(tmp_path)
+    fb, env = _fakebin(tmp_path)
+    r = _run_cli(home, cli, ["autostart", "on"], stub_out=stub_out, extra_env=env)
+    assert r.returncode == 0, r.stderr
+    unit = (home / ".config" / "systemd" / "user" / "openaver.service").read_text(encoding="utf-8")
+    lines = unit.splitlines()
+    for want in (
+        "[Unit]",
+        "Description=OpenAver",
+        "[Service]",
+        "Type=exec",
+        "ExecStart=%h/OpenAver/openaver run",
+        "Restart=always",
+        "RestartSec=3",
+        "TimeoutStopSec=25",
+        "KillMode=mixed",
+        "StandardOutput=append:%h/OpenAver/logs/server.log",
+        "StandardError=inherit",
+        "[Install]",
+        "WantedBy=default.target",
+    ):
+        assert want in lines, f"unit 缺整行 {want!r}"
+    assert "network-online" not in unit
+    assert not any(ln.startswith("After=") for ln in lines)
+    assert "enable openaver.service" in (fb / "systemctl.log").read_text(encoding="utf-8")
+
+
+@_NEEDS_SYSTEMD
+def test_autostart_linger_failure_is_reported_and_status_keeps_warning(tmp_path):
+    home, cli, stub_out = _setup_tree(tmp_path)
+    fb, env = _fakebin(tmp_path)
+    user = subprocess.run(["id", "-un"], capture_output=True, text=True, check=True).stdout.strip()
+    (fb / "linger").write_text("Linger=no\n", encoding="utf-8")
+    needle = f"sudo loginctl enable-linger {user}"
+
+    r = _run_cli(home, cli, ["autostart", "on"], stub_out=stub_out, extra_env=env)
+    assert r.returncode == 0, r.stderr
+    assert needle in r.stdout
+    assert f"enable-linger {user}" in (fb / "loginctl.log").read_text(encoding="utf-8")
+    assert f"-n loginctl enable-linger {user}" in (fb / "sudo.log").read_text(encoding="utf-8")
+
+    r = _run_cli(home, cli, ["status"], stub_out=stub_out, extra_env=env)
+    assert needle in r.stdout
+
+    (fb / "linger").write_text("Linger=yes\n", encoding="utf-8")
+    r = _run_cli(home, cli, ["status"], stub_out=stub_out, extra_env=env)
+    assert "enable-linger" not in r.stdout
+
+
+def test_stop_and_restart_report_systemctl_stop_failure(tmp_path):
+    home, cli, stub_out = _setup_tree(tmp_path)
+    fb, env = _fakebin(tmp_path)
+    unit_dir = home / ".config" / "systemd" / "user"
+    unit_dir.mkdir(parents=True)
+    (unit_dir / "openaver.service").write_text("[Unit]\n", encoding="utf-8")
+    (fb / "rc_stop").write_text("1", encoding="utf-8")
+
+    r = _run_cli(home, cli, ["stop"], stub_out=stub_out, extra_env=env)
+    assert r.returncode != 0
+    assert "OpenAver 已停止" not in r.stdout
+    assert r.stderr.strip()
+
+    r = _run_cli(home, cli, ["restart"], stub_out=stub_out, extra_env=env)
+    assert r.returncode != 0
+    assert "start" not in _verbs(fb / "systemctl.log"), "停不掉就不該進 start"
+
+    (fb / "rc_stop").write_text("0", encoding="utf-8")
+    r = _run_cli(home, cli, ["stop"], stub_out=stub_out, extra_env=env)
+    assert r.returncode == 0
+    assert "OpenAver 已停止" in r.stdout
+
+
+@_NEEDS_SYSTEMD
+def test_autostart_on_stops_self_managed_daemon_then_starts_via_systemd(tmp_path):
+    home, cli, stub_out = _setup_tree(tmp_path)
+    fb, env = _fakebin(tmp_path)
+    root = home / "OpenAver"
+
+    class _Ok(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), _Ok)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    (root / "openaver.conf").write_text(f"port={srv.server_address[1]}\n", encoding="utf-8")
+    pid = _spawn(OURS_SLEEP)
+    pidfile = root / "run" / "openaver.pid"
+    pidfile.write_text(str(pid), encoding="utf-8")
+    try:
+        r = _run_cli(home, cli, ["autostart", "on"], stub_out=stub_out, extra_env=env)
+        assert r.returncode == 0, r.stdout + r.stderr
+        assert _wait_gone(pid), "自管行程應被停掉，不能脫離管理"
+        assert not pidfile.exists()
+        assert "start" in _verbs(fb / "systemctl.log"), "停掉後應改由 systemd 啟動"
+    finally:
+        srv.shutdown()
+        try:
+            os.kill(pid, 9)
+        except ProcessLookupError:
+            pass
+        _wait_gone(pid)
+
+
+def test_reset_password_reports_unknown_service_state_instead_of_next_start(tmp_path):
+    home, cli, stub_out = _setup_tree(tmp_path)
+    fb, env = _fakebin(tmp_path)
+    unit_dir = home / ".config" / "systemd" / "user"
+    unit_dir.mkdir(parents=True)
+    (unit_dir / "openaver.service").write_text("[Unit]\n", encoding="utf-8")
+    out = home / "OpenAver" / "output"
+    out.mkdir()
+    (out / ".layout.json").write_text("{}", encoding="utf-8")
+    (fb / "rc_is-active").write_text("1", encoding="utf-8")
+    (fb / "active_out").write_text("", encoding="utf-8")
+
+    r = _run_cli(home, cli, ["reset-password"], stub_out=stub_out, extra_env=env)
+    assert r.returncode != 0
+    assert "下次啟動生效" not in r.stdout
+    assert "密碼保護已關閉" not in r.stdout
+    assert r.stderr.strip()
+
+    (fb / "rc_is-active").write_text("3", encoding="utf-8")
+    (fb / "active_out").write_text("inactive\n", encoding="utf-8")
+    r = _run_cli(home, cli, ["reset-password"], stub_out=stub_out, extra_env=env)
+    assert r.returncode == 0
+    assert "下次啟動生效" in r.stdout
