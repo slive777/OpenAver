@@ -36,10 +36,10 @@ main() {
 
     t() {
         case "${LANG_KEY}:$1" in
-            zh-TW:usage) echo "用法：openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off" ;;
-            zh-CN:usage) echo "用法：openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off" ;;
-            ja:usage) echo "使い方：openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off" ;;
-            en:usage) echo "Usage: openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off" ;;
+            zh-TW:usage) echo "用法：openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off|update [vX.Y.Z]" ;;
+            zh-CN:usage) echo "用法：openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off|update [vX.Y.Z]" ;;
+            ja:usage) echo "使い方：openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off|update [vX.Y.Z]" ;;
+            en:usage) echo "Usage: openaver run|start|stop|restart|status|log|url|config port|reset-password|autostart on|off|update [vX.Y.Z]" ;;
 
             zh-TW:home_invalid) echo "HOME 未設定或不合法，無法啟動" ;;
             zh-CN:home_invalid) echo "HOME 未设置或不合法，无法启动" ;;
@@ -245,6 +245,11 @@ main() {
             zh-CN:unit_remove_failed) echo "无法删除服务配置文件，开机自动启动尚未完全取消" ;;
             ja:unit_remove_failed) echo "サービス設定ファイルを削除できず、自動起動は完全には解除されていません" ;;
             en:unit_remove_failed) echo "Could not remove the service unit file; autostart is not fully turned off" ;;
+
+            zh-TW:update_fetch_failed) echo "無法取得安裝程式（請檢查網路），沒有動任何檔案" ;;
+            zh-CN:update_fetch_failed) echo "无法获取安装程序（请检查网络），没有改动任何文件" ;;
+            ja:update_fetch_failed) echo "インストーラーを取得できません（ネットワークを確認してください）。ファイルは一切触っていません" ;;
+            en:update_fetch_failed) echo "Could not fetch the installer (check your network); no files were touched" ;;
 
             *) echo "[missing:$1]" ;;
         esac
@@ -795,6 +800,26 @@ main() {
         exit 0
     }
 
+    cmd_update() {
+        local ver="${1:-}" script
+        if [ $# -gt 1 ]; then
+            printf '%s\n' "$(t usage)" >&2
+            exit 2
+        fi
+        if [ -n "$ver" ] && ! printf '%s\n' "$ver" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            printf '%s\n' "$(t usage)" >&2
+            exit 2
+        fi
+        if ! script="$(curl -fsSL "https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh")" || [ -z "$script" ]; then
+            printf '%s\n' "$(t update_fetch_failed)" >&2
+            exit 1
+        fi
+        if [ -n "$ver" ]; then
+            exec bash -s -- --update --version "$ver" <<<"$script"
+        fi
+        exec bash -s -- --update <<<"$script"
+    }
+
     case "${1:-}" in
         run) cmd_run ;;
         start) cmd_start ;;
@@ -812,6 +837,7 @@ main() {
         reset-password) cmd_reset_password ;;
         autostart) shift; cmd_autostart "$@" ;;
         _prepare) cmd_prepare ;;
+        update) shift; cmd_update "$@" ;;
         ""|help|-h|--help)
             printf '%s\n' "$(t usage)"
             exit 0

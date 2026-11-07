@@ -41,10 +41,10 @@ t() {
         ja:unsupported_os) echo "❌ このスクリプトは macOS と Linux のみ対応しています" ;;
         en:unsupported_os) echo "❌ This script only supports macOS and Linux" ;;
 
-        zh-TW:install_usage) echo "用法：bash install.sh [--version vX.Y.Z] [--yes]" ;;
-        zh-CN:install_usage) echo "用法：bash install.sh [--version vX.Y.Z] [--yes]" ;;
-        ja:install_usage) echo "使い方：bash install.sh [--version vX.Y.Z] [--yes]" ;;
-        en:install_usage) echo "Usage: bash install.sh [--version vX.Y.Z] [--yes]" ;;
+        zh-TW:install_usage) echo "用法：bash install.sh [--version vX.Y.Z] [--yes] [--update]" ;;
+        zh-CN:install_usage) echo "用法：bash install.sh [--version vX.Y.Z] [--yes] [--update]" ;;
+        ja:install_usage) echo "使い方：bash install.sh [--version vX.Y.Z] [--yes] [--update]" ;;
+        en:install_usage) echo "Usage: bash install.sh [--version vX.Y.Z] [--yes] [--update]" ;;
 
         zh-TW:arch_unsupported_fmt) echo "❌ 不支援的架構：%s" ;;
         zh-CN:arch_unsupported_fmt) echo "❌ 不支持的架构：%s" ;;
@@ -81,10 +81,35 @@ t() {
         ja:tarball_not_found_fmt) echo "❌ アーカイブが見つかりません：%s" ;;
         en:tarball_not_found_fmt) echo "❌ Tarball not found: %s" ;;
 
-        zh-TW:existing_install_refused_fmt) echo "❌ 偵測到 %s 已有新版安裝或未完成的安裝，這一版安裝程式還不能處理，沒有動任何檔案" ;;
-        zh-CN:existing_install_refused_fmt) echo "❌ 检测到 %s 已有新版安装或未完成的安装，这一版安装程序还不能处理，没有改动任何文件" ;;
-        ja:existing_install_refused_fmt) echo "❌ %s に新しい版のインストールまたは未完了のインストールを検出しました。この版のインストーラーでは処理できないため、ファイルは一切触っていません" ;;
-        en:existing_install_refused_fmt) echo "❌ %s already has a newer-layout or unfinished install; this installer version cannot handle it yet and left all files untouched" ;;
+        zh-TW:update_not_installed) echo "❌ 這台機器還沒有安裝 OpenAver，沒有動任何檔案。請直接執行安裝指令" ;;
+        zh-CN:update_not_installed) echo "❌ 这台机器还没有安装 OpenAver，没有改动任何文件。请直接运行安装命令" ;;
+        ja:update_not_installed) echo "❌ このマシンには OpenAver がインストールされていません。ファイルは一切触っていません。インストールコマンドを直接実行してください" ;;
+        en:update_not_installed) echo "❌ OpenAver is not installed on this machine; no files were touched. Run the install command instead" ;;
+
+        zh-TW:already_latest_fmt) echo "已是最新版本（%s），沒有需要更新的" ;;
+        zh-CN:already_latest_fmt) echo "已是最新版本（%s），没有需要更新的" ;;
+        ja:already_latest_fmt) echo "すでに最新バージョン（%s）です。更新するものはありません" ;;
+        en:already_latest_fmt) echo "Already up to date (%s); nothing to update" ;;
+
+        zh-TW:update_stop_failed) echo "❌ 無法停止目前執行中的 OpenAver，升級沒有進行，也沒有動任何檔案" ;;
+        zh-CN:update_stop_failed) echo "❌ 无法停止当前运行的 OpenAver，升级没有进行，也没有改动任何文件" ;;
+        ja:update_stop_failed) echo "❌ 実行中の OpenAver を停止できませんでした。アップグレードは行われず、ファイルも変更していません" ;;
+        en:update_stop_failed) echo "❌ Could not stop the running OpenAver; the upgrade did not proceed and no files were changed" ;;
+
+        zh-TW:upgrade_rolled_back) echo "❌ 這次沒有完成，已還原成這次之前的版本與服務狀態。原因請看上面的訊息，或 ~/OpenAver/logs/server.log" ;;
+        zh-CN:upgrade_rolled_back) echo "❌ 这次没有完成，已还原成这次之前的版本与服务状态。原因请看上面的信息，或 ~/OpenAver/logs/server.log" ;;
+        ja:upgrade_rolled_back) echo "❌ 今回は完了せず、以前のバージョンとサービス状態に戻しました。原因は上のメッセージか ~/OpenAver/logs/server.log を確認してください" ;;
+        en:upgrade_rolled_back) echo "❌ This run did not finish; the previous version and service state were restored. See the messages above or ~/OpenAver/logs/server.log for the cause" ;;
+
+        zh-TW:rollback_incomplete_fmt) echo "❌ 還原沒有完全成功。請檢查 %s，舊版的檔案可能還在其中的 .prev 資料夾裡，請先不要刪除，處理好之後再重新執行安裝指令" ;;
+        zh-CN:rollback_incomplete_fmt) echo "❌ 还原没有完全成功。请检查 %s，旧版的文件可能还在其中的 .prev 文件夹里，请先不要删除，处理好之后再重新运行安装命令" ;;
+        ja:rollback_incomplete_fmt) echo "❌ 元に戻す処理が完全には成功しませんでした。%s を確認してください。古いバージョンのファイルがその中の .prev フォルダーに残っている可能性があります。削除せず、対処してからインストールコマンドを再実行してください" ;;
+        en:rollback_incomplete_fmt) echo "❌ The restore did not fully succeed. Check %s: the old version's files may still be in its .prev folder - do not delete it, fix things up, then rerun the install command" ;;
+
+        zh-TW:leftover_notice_fmt) echo "提示：~/OpenAver/ 裡有上次升級的殘留（%s），安裝程式不會動它們，確認沒問題可自行刪除" ;;
+        zh-CN:leftover_notice_fmt) echo "提示：~/OpenAver/ 里有上次升级的残留（%s），安装程序不会动它们，确认没问题可自行删除" ;;
+        ja:leftover_notice_fmt) echo "ヒント：~/OpenAver/ に前回のアップグレードの残骸があります（%s）。インストーラーは触りません。問題がなければご自身で削除してください" ;;
+        en:leftover_notice_fmt) echo "Note: ~/OpenAver/ holds leftovers from a previous upgrade (%s). The installer leaves them alone - delete them yourself once you have confirmed everything works" ;;
 
         zh-TW:download_failed) echo "❌ 下載失敗" ;;
         zh-CN:download_failed) echo "❌ 下载失败" ;;
@@ -405,13 +430,38 @@ EOF_MEMBERS
     return 0
 }
 
+own_service_pids() {
+    local p=""
+    if [ -f "$INSTALL_DIR/run/openaver.pid" ]; then
+        p="$(cat "$INSTALL_DIR/run/openaver.pid" 2>/dev/null)"
+        case "$p" in
+            ""|*[!0-9]*) ;;
+            *) echo "$p" ;;
+        esac
+    fi
+    if [ -f "$HOME/.config/systemd/user/openaver.service" ]; then
+        if [ -z "${XDG_RUNTIME_DIR:-}" ] && [ -d "/run/user/$(id -u)" ]; then
+            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+        fi
+        p="$(systemctl --user show openaver.service -p MainPID 2>/dev/null | sed -n 's/^MainPID=\([0-9][0-9]*\)$/\1/p' | head -1)"
+        if [ -n "$p" ] && [ "$p" -gt 0 ] 2>/dev/null; then
+            echo "$p"
+        fi
+    fi
+    return 0
+}
+
 find_foreign_service() {
-    local d="" pid="" cmd="" cwd=""
+    local d="" pid="" cmd="" cwd="" own=""
+    own="$(own_service_pids | tr '\n' ' ')"
     for d in /proc/[0-9]*; do
         pid="${d#/proc/}"
         if [ "$pid" = "$$" ]; then
             continue
         fi
+        case " $own " in
+            *" $pid "*) continue ;;
+        esac
         cmd="$(tr '\0' ' ' 2>/dev/null < "$d/cmdline")" || continue
         case "$cmd" in
             *uvicorn*web.app:app*) ;;
@@ -423,6 +473,35 @@ find_foreign_service() {
         esac
     done
     return 1
+}
+
+# 只依本次跑自己記下的 OLD_MOVED／NEW_PLACED 還原（動態作用域：變數宣告在 install_linux）。
+swap_rollback() {
+    local item="" bad=0
+    if [ "$STARTED_NEW" = "1" ] && [ -x "$INSTALL_DIR/openaver" ]; then
+        "$INSTALL_DIR/openaver" stop >/dev/null 2>&1
+    fi
+    for item in $NEW_PLACED; do
+        rm -rf "$INSTALL_DIR/$item" || bad=1
+    done
+    for item in $OLD_MOVED; do
+        mv "$INSTALL_DIR/.prev/$item" "$INSTALL_DIR/" || bad=1
+    done
+    if [ "$PREV_MADE" = "1" ]; then
+        rmdir "$INSTALL_DIR/.prev" || bad=1
+    fi
+    if [ "$AUTOSTART_TOUCHED" = "1" ]; then
+        "$INSTALL_DIR/openaver" autostart on >/dev/null 2>&1 || bad=1
+    fi
+    if [ "$WAS_RUNNING" = "1" ]; then
+        "$INSTALL_DIR/openaver" start >/dev/null 2>&1 || bad=1
+    fi
+    if [ "$bad" -ne 0 ]; then
+        printf "$(t rollback_incomplete_fmt)\n" "$INSTALL_DIR" >&2
+    else
+        echo "$(t upgrade_rolled_back)" >&2
+    fi
+    return 0
 }
 
 OLD_LAYOUT_ITEMS=".coderabbit.yaml .coveragerc .gitattributes .github .gitignore AGENTS.md CHANGELOG.md CHANGELOG_ARCHIVE.md CODE_OF_CONDUCT.md CONTRIBUTING.md LICENSE OpenAver-Windows-Setup.bat README.md README_EN.md SECURITY.md build.py build_macos.py core dmm_prefix_table.json docs eslint.config.mjs install.ps1 install.sh locales maker_mapping.json package-lock.json package.json pyproject.toml pytest.ini requirements-test.txt requirements.txt run.sh scripts stylelint.config.js synology tests web windows venv"
@@ -446,6 +525,17 @@ install_linux() {
     local OLD_DIR=""
     local curl_rc=0
     local http_code=""
+    local OPT_UPDATE=0
+    local OLD_MOVED=""
+    local NEW_PLACED=""
+    local PREV_MADE=0
+    local STARTED_NEW=0
+    local WAS_RUNNING=0
+    local AUTOSTART_TOUCHED=0
+    local leftover_name=""
+    local cur_ver=""
+    local leftovers=""
+    local entry=""
     # STAGE and INSTALL_DIR_CREATED must be global: EXIT trap runs after this function returns.
     STAGE=""
     INSTALL_DIR_CREATED=0
@@ -457,6 +547,10 @@ install_linux() {
         case "$1" in
             --yes)
                 ASSUME_YES=1
+                shift
+                ;;
+            --update)
+                OPT_UPDATE=1
                 shift
                 ;;
             --version)
@@ -485,6 +579,16 @@ install_linux() {
     if [ "$(id -u)" -eq 0 ]; then
         echo "$(t root_reminder)"
     fi
+
+    install_kind="$(classify_install)"
+    case "$install_kind" in
+        fresh|retrofit)
+            if [ "$OPT_UPDATE" -eq 1 ]; then
+                echo "$(t update_not_installed)" >&2
+                return 1
+            fi
+            ;;
+    esac
 
     if [ -n "${OPENAVER_TARBALL:-}" ]; then
         case "$OPENAVER_TARBALL" in
@@ -541,16 +645,16 @@ install_linux() {
         fi
     fi
 
-    install_kind="$(classify_install)"
+    if [ "$install_kind" = "upgrade" ] && [ -z "$OPT_VERSION" ] && [ -z "${OPENAVER_TARBALL:-}" ] && \
+       [ -x "$INSTALL_DIR/python/bin/python3" ] && [ -L "$INSTALL_DIR/openaver" ] && [ -e "$INSTALL_DIR/openaver" ] && \
+       [ ! -e "$INSTALL_DIR/.prev" ] && [ ! -L "$INSTALL_DIR/.prev" ]; then
+        cur_ver="$(sed -n 's/^__version__ *= *"\([^"]*\)".*/\1/p' "$INSTALL_DIR/app/core/version.py" 2>/dev/null | head -1)"
+        if [ -n "$cur_ver" ] && [ "${VERSION_LABEL#v}" = "$cur_ver" ]; then
+            printf "$(t already_latest_fmt)\n" "$cur_ver"
+            return 0
+        fi
+    fi
     case "$install_kind" in
-        upgrade)
-            printf "$(t existing_install_refused_fmt)\n" "$INSTALL_DIR" >&2
-            return 1
-            ;;
-        interrupted)
-            printf "$(t existing_install_refused_fmt)\n" "$INSTALL_DIR" >&2
-            return 1
-            ;;
         retrofit)
             OLD_DIR_NAME=".old-install"
             if [ -e "$INSTALL_DIR/$OLD_DIR_NAME" ] || [ -L "$INSTALL_DIR/$OLD_DIR_NAME" ]; then
@@ -620,6 +724,9 @@ install_linux() {
         return 1
     fi
 
+    if [ -x "$INSTALL_DIR/openaver" ] && "$INSTALL_DIR/openaver" status >/dev/null 2>&1; then
+        WAS_RUNNING=1
+    fi
     if find_foreign_service; then
         if { exec 3</dev/tty; } 2>/dev/null; then
             while find_foreign_service; do
@@ -658,14 +765,71 @@ install_linux() {
         done
     fi
 
+    if [ -e "$INSTALL_DIR/.prev" ] || [ -L "$INSTALL_DIR/.prev" ]; then
+        leftover_name=".prev-$(date +%Y%m%d-%H%M%S)"
+        if [ -e "$INSTALL_DIR/$leftover_name" ] || [ -L "$INSTALL_DIR/$leftover_name" ]; then
+            leftover_name="$leftover_name-$$"
+        fi
+        if ! mv "$INSTALL_DIR/.prev" "$INSTALL_DIR/$leftover_name"; then
+            printf "$(t place_failed_fmt)\n" ".prev" >&2
+            return 1
+        fi
+    fi
+    if [ "$WAS_RUNNING" = "1" ]; then
+        if ! "$INSTALL_DIR/openaver" stop; then
+            echo "$(t update_stop_failed)" >&2
+            return 1
+        fi
+    fi
+    if ! mkdir "$INSTALL_DIR/.prev"; then
+        printf "$(t place_failed_fmt)\n" ".prev" >&2
+        swap_rollback
+        return 1
+    fi
+    PREV_MADE=1
+    for item in app python openaver; do
+        if [ -e "$INSTALL_DIR/$item" ] || [ -L "$INSTALL_DIR/$item" ]; then
+            if ! mv "$INSTALL_DIR/$item" "$INSTALL_DIR/.prev/"; then
+                printf "$(t place_failed_fmt)\n" "$item" >&2
+                swap_rollback
+                return 1
+            fi
+            OLD_MOVED="$OLD_MOVED $item"
+        fi
+    done
     for item in app python openaver; do
         if ! mv "$STAGE/OpenAver/$item" "$INSTALL_DIR/"; then
             printf "$(t place_failed_fmt)\n" "$item" >&2
+            swap_rollback
             return 1
         fi
+        NEW_PLACED="$NEW_PLACED $item"
     done
 
-    "$INSTALL_DIR/openaver" _prepare || return 1
+    "$INSTALL_DIR/openaver" _prepare || { swap_rollback; return 1; }
+
+    if [ "$install_kind" = "upgrade" ]; then
+        if [ -f "$HOME/.config/systemd/user/openaver.service" ]; then
+            AUTOSTART_TOUCHED=1
+            if ! "$INSTALL_DIR/openaver" autostart on; then
+                swap_rollback
+                return 1
+            fi
+        fi
+        if [ "${OPENAVER_INSTALL_NO_START:-}" != "1" ]; then
+            STARTED_NEW=1
+            if ! "$INSTALL_DIR/openaver" start; then
+                swap_rollback
+                return 1
+            fi
+            if [ "$WAS_RUNNING" != "1" ]; then
+                "$INSTALL_DIR/openaver" stop >/dev/null 2>&1
+            fi
+        fi
+    fi
+    if [ "$PREV_MADE" = "1" ]; then
+        rm -rf "$INSTALL_DIR/.prev"
+    fi
 
     local_bin="$HOME/.local/bin"
     dest="$local_bin/openaver"
@@ -685,6 +849,20 @@ install_linux() {
     echo "$(t install_complete)"
     if [ "$install_kind" = "retrofit" ]; then
         printf "$(t retrofit_done_fmt)\n" "$OLD_DIR_NAME"
+    fi
+    for entry in "$INSTALL_DIR"/.prev-* "$INSTALL_DIR"/.stage-*; do
+        if { [ -e "$entry" ] || [ -L "$entry" ]; } && [ "$entry" != "$STAGE" ]; then
+            leftovers="$leftovers ${entry##*/}"
+        fi
+    done
+    if [ -n "$leftovers" ]; then
+        printf "$(t leftover_notice_fmt)\n" "${leftovers# }"
+    fi
+    if [ "$install_kind" = "upgrade" ]; then
+        if [ "${OPENAVER_INSTALL_NO_START:-}" != "1" ]; then
+            "$INSTALL_DIR/openaver" url || return $?
+        fi
+        return 0
     fi
 
     do_autostart=1

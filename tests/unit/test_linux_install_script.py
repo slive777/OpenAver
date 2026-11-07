@@ -1,12 +1,15 @@
-"""TASK-194-T5a/T5b-i: install.sh Linux 分支（偵測擋下／全新安裝就位／舊手動安裝改裝／PREPARE 失敗）。"""
+"""TASK-194-T5a/T5b-i/T5b-ii: install.sh Linux 分支（偵測擋下／全新安裝就位／改裝／PREPARE 失敗／升級換位與還原）。"""
 
 from __future__ import annotations
 
 import hashlib
+import contextlib
 import io
 import json
 import os
+import re
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -35,8 +38,25 @@ def _make_fakebin(
     with_autostart_fakes: bool = False,
     tar_log: Path | None = None,
     tar_fail_extract: bool = False,
+    mv_log: Path | None = None,
+    curl_serves: Path | None = None,
+    curl_release: tuple[str, Path] | None = None,
 ) -> None:
     fakebin.mkdir(parents=True, exist_ok=True)
+    for stale in fakebin.iterdir():
+        stale.unlink()
+    if mv_log is not None:
+        _write_exec(
+            fakebin / "mv",
+            "#!/bin/bash\n"
+            'if [ -n "${MV_COUNT_FILE:-}" ]; then\n'
+            '  n=$(( $(cat "$MV_COUNT_FILE" 2>/dev/null || echo 0) + 1 ))\n'
+            '  echo "$n" > "$MV_COUNT_FILE"\n'
+            f'  printf "%s\\t%s\\n" "$PPID" "$*" >> "{mv_log}"\n'
+            '  if [ "${MV_KILL_AT:-}" = "$n" ]; then kill -9 "$PPID"; exit 1; fi\n'
+            "fi\n"
+            f'exec {shutil.which("mv")} "$@"\n',
+        )
     if tar_log is not None:
         fail = (
             'if [ "${1:-}" = "xzf" ]; then\n'
@@ -76,10 +96,30 @@ def _make_fakebin(
         "fi\n"
         "exit 1\n",
     )
+    serve = ""
+    if curl_serves is not None:
+        serve = (
+            'has=0; last=""\n'
+            'for a in "$@"; do [ "$a" = "-fsSL" ] && has=1; last="$a"; done\n'
+            'if [ "$has" = 1 ] && [ "$last" = '
+            '"https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh" ]; then\n'
+            f'  cat "{curl_serves}"; exit 0\n'
+            "fi\n"
+        )
+    if curl_release is not None:
+        tag, tarball = curl_release
+        serve += (
+            'out=""; prev=""\n'
+            'for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; last="$a"; done\n'
+            'if [ "$last" = "https://api.github.com/repos/slive777/OpenAver/releases/latest" ]; then\n'
+            f"  printf '{{\"tag_name\": \"v{tag}\", \"assets\": [{{\"browser_download_url\": "
+            f"\"https://dl.invalid/OpenAver-v{tag}-Linux-x86_64.tar.gz\"}}]}}\\n'; exit 0\n"
+            "fi\n"
+            f'case " $* " in *" https://dl.invalid/"*) cp "{tarball}" "$out"; exit 0 ;; esac\n'
+        )
     _write_exec(
         fakebin / "curl",
-        "#!/bin/bash\n"
-        f': > "{curl_flag}"\n'
+        "#!/bin/bash\n" + serve + f': > "{curl_flag}"\n'
         "exit 99\n",
     )
     if with_autostart_fakes:
@@ -192,6 +232,24 @@ def stub_tarball(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return out
 
 
+def _install_env(base: Path, fakebin_opts: dict, env_extra: dict[str, str] | None) -> tuple[dict, Path]:
+    home = base / "home"
+    home.mkdir(parents=True, exist_ok=True)
+    opts = dict(fakebin_opts)
+    opts["curl_flag"] = base / "curl_called"
+    _make_fakebin(base / "fakebin", **opts)
+    env = dict(os.environ)
+    env["HOME"] = str(home)
+    env["OPENAVER_INSTALL_LANG"] = "zh-TW"
+    env["PATH"] = f"{base / 'fakebin'}{os.pathsep}{env.get('PATH', '')}"
+    # Avoid inheriting a real tarball override from the parent environment.
+    for k in ("OPENAVER_TARBALL", "OPENAVER_INSTALL_NO_START", "OPENAVER_YES"):
+        env.pop(k, None)
+    if env_extra:
+        env.update(env_extra)
+    return env, home
+
+
 def _run_install(
     tmp_path: Path,
     *,
@@ -200,29 +258,10 @@ def _run_install(
     args: list[str] | None = None,
     timeout: float = 120,
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    fakebin = tmp_path / "fakebin"
-    curl_flag = tmp_path / "curl_called"
-    opts = dict(fakebin_opts)
-    opts["curl_flag"] = curl_flag
-    _make_fakebin(fakebin, **opts)
-
-    env = dict(os.environ)
-    env["HOME"] = str(home)
-    env["OPENAVER_INSTALL_LANG"] = "zh-TW"
-    env["PATH"] = f"{fakebin}{os.pathsep}{env.get('PATH', '')}"
-    # Avoid inheriting a real tarball override from the parent environment.
-    env.pop("OPENAVER_TARBALL", None)
-    env.pop("OPENAVER_INSTALL_NO_START", None)
-    env.pop("OPENAVER_YES", None)
-    if env_extra:
-        env.update(env_extra)
-
-    text = INSTALL_SH.read_text(encoding="utf-8")
+    env, home = _install_env(tmp_path, fakebin_opts, env_extra)
     proc = subprocess.run(
         ["bash", "-s", "--", *(args or [])],
-        input=text,
+        input=INSTALL_SH.read_text(encoding="utf-8"),
         env=env,
         capture_output=True,
         text=True,
@@ -487,3 +526,234 @@ def test_retrofit_without_confirmation_is_refused_and_tree_unchanged(
     assert "OPENAVER_YES=1" in out
     assert after == before
     assert not (tmp_path / "curl_called").exists()
+
+
+# ---- T5b-ii: 升級換位（SWAP／COMMIT／ROLLBACK）與 openaver update ----
+OLD_VER, NEW_VER = "0.0.1", "0.0.2"
+OPTS = {"glibc": "2.28", "with_autostart_fakes": True}
+NO_START = {"OPENAVER_INSTALL_NO_START": "1"}
+
+
+def _variant_tar(src: Path, dst: Path, *, version: str, prepare_fails: bool = False) -> Path:
+    with tarfile.open(src) as a, tarfile.open(dst, "w:gz") as b:
+        for m in a.getmembers():
+            data = a.extractfile(m).read() if m.isfile() else None
+            if m.name == "OpenAver/app/core/version.py":
+                data = re.sub(rb'(?m)^__version__ = "[^"]*"', f'__version__ = "{version}"'.encode(), data)
+            elif m.name == "OpenAver/python/bin/python3":
+                if prepare_fails:
+                    data = b'#!/bin/bash\ncase "${1:-}" in\n  *prepare_server.py) exit 1 ;;\n  *) exit 0 ;;\nesac\n'
+                data += f"# variant {version}\n".encode()
+            if data is None:
+                b.addfile(m)
+            else:
+                m.size = len(data)
+                b.addfile(m, io.BytesIO(data))
+    return dst
+
+
+@pytest.fixture(scope="module")
+def upgrade_tars(stub_tarball: Path, tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
+    d = tmp_path_factory.mktemp("t5bii-tars")
+    new = _variant_tar(stub_tarball, d / "new.tar.gz", version=NEW_VER)
+    return {
+        "old": _variant_tar(stub_tarball, d / "old.tar.gz", version=OLD_VER),
+        "new": new,
+        "bad": _variant_tar(stub_tarball, d / "bad.tar.gz", version=NEW_VER, prepare_fails=True),
+        "truncated": _tamper_tar(new, d / "truncated.tar.gz", "truncated"),
+    }
+
+
+def _install_old(base: Path, old_tar: Path) -> Path:
+    """Fresh-install the old version, then add data and user files that must never change."""
+    proc, home = _run_install(base, fakebin_opts=OPTS, env_extra={"OPENAVER_TARBALL": str(old_tar), **NO_START})
+    assert proc.returncode == 0, _combined(proc)
+    root = home / "OpenAver"
+    (root / "output" / "covers").mkdir(parents=True, exist_ok=True)
+    (root / "output" / "library.db").write_bytes(b"SQLite format 3\x00\xde\xad\xbe\xef")
+    (root / "output" / "_sentinel.txt").write_text("keep\n", encoding="utf-8")
+    (root / "output" / "covers" / "x.jpg").write_bytes(b"\xff\xd8jpeg")
+    (root / "media").mkdir()
+    (root / "media" / "movie.mp4").write_bytes(b"\x00fake-video\xff")
+    (root / "docker-compose.yml").write_text("services: {}\n", encoding="utf-8")
+    return home
+
+
+def _run_update(base: Path, tarball: Path) -> subprocess.CompletedProcess[str]:
+    env, home = _install_env(base, {**OPTS, "curl_serves": INSTALL_SH}, {"OPENAVER_TARBALL": str(tarball), **NO_START})
+    return subprocess.run(
+        [str(home / "OpenAver" / "openaver"), "update"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        start_new_session=True,
+        check=False,
+    )
+
+
+def _status(home: Path) -> subprocess.CompletedProcess[str]:
+    env = dict(os.environ, HOME=str(home), OPENAVER_INSTALL_LANG="zh-TW")
+    return subprocess.run([str(home / "OpenAver" / "openaver"), "status"], env=env, capture_output=True, text=True)
+
+
+def _top(rel: str) -> str:
+    parts = rel.split("/")
+    return parts[1] if parts[0] == "OpenAver" and len(parts) > 1 else ""
+
+
+def _prune(m: dict, drop: tuple[str, ...]) -> dict:
+    return {k: v for k, v in m.items() if not _top(k).startswith(drop)}
+
+
+def _subtree(m: dict, prefix: str) -> dict:
+    return {k[len(prefix):]: v for k, v in m.items() if k == prefix or k.startswith(prefix + "/")}
+
+
+@contextlib.contextmanager
+def _fake_service(cwd: Path, pidfile: Path | None = None):
+    """A uvicorn-looking process that is adopted by init, so a kill really makes it vanish."""
+    script = 'cd "$1" && exec -a "uvicorn web.app:app" sleep 300 </dev/null >/dev/null 2>&1 & echo $!'
+    out = subprocess.run(["bash", "-c", script, "_", str(cwd)], capture_output=True, text=True, timeout=10, check=True)
+    pid = int(out.stdout.strip())
+    try:
+        if pidfile is not None:
+            pidfile.parent.mkdir(parents=True, exist_ok=True)
+            pidfile.write_text(f"{pid}\n", encoding="utf-8")
+        yield pid
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pid, signal.SIGKILL)
+
+
+def _alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def _spawn_swap(base: Path, tarball: Path, *, kill_at: int | None) -> tuple[subprocess.Popen, str, list[str]]:
+    mv_log, count = base / "mv.log", base / "mv.count"
+    for f in (mv_log, count):
+        f.unlink(missing_ok=True)
+    extra = {"OPENAVER_TARBALL": str(tarball), "MV_COUNT_FILE": str(count), **NO_START}
+    if kill_at is not None:
+        extra["MV_KILL_AT"] = str(kill_at)
+    env, _ = _install_env(base, {**OPTS, "mv_log": mv_log}, extra)
+    proc = subprocess.Popen(
+        ["bash", "-s", "--"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=env, text=True, start_new_session=True,
+    )
+    out, err = proc.communicate(INSTALL_SH.read_text(encoding="utf-8"), timeout=120)
+    return proc, out + err, (mv_log.read_text().splitlines() if mv_log.exists() else [])
+
+
+@pytest.mark.parametrize("case", ["truncated_while_service_runs", "prepare_fails_after_swap"])
+def test_failed_upgrade_restores_previous_install(tmp_path: Path, upgrade_tars: dict, case: str) -> None:
+    home = _install_old(tmp_path, upgrade_tars["old"])
+    root = home / "OpenAver"
+    running = case == "truncated_while_service_runs"
+    with _fake_service(root / "app", root / "run" / "openaver.pid") if running else contextlib.nullcontext(0) as pid:
+        before = _manifest(home)
+        proc = _run_update(tmp_path, upgrade_tars["truncated" if running else "bad"])
+        out = _combined(proc)
+        assert proc.returncode != 0, out
+        assert ("壓縮檔內容無效" if running else "已還原") in out
+        assert _alive(pid) or not running, out
+        skip = () if running else ("logs", "run")
+        assert _prune(_manifest(home), skip) == _prune(before, skip)
+        assert not list(root.glob(".prev*")) and not list(root.glob(".stage-*"))
+        st = _status(home)
+        assert OLD_VER in st.stdout and st.returncode == (0 if running else 3)
+
+
+def test_upgrade_never_touches_data_or_user_files(tmp_path: Path, upgrade_tars: dict) -> None:
+    home = _install_old(tmp_path, upgrade_tars["old"])
+    root = home / "OpenAver"
+    before = _manifest(home)
+    cfg_before = json.loads((root / "output" / "config.json").read_text(encoding="utf-8"))
+    proc = _run_update(tmp_path, upgrade_tars["new"])
+    assert proc.returncode == 0, _combined(proc)
+    assert not (tmp_path / "curl_called").exists()
+    after = _manifest(home)
+    for rel, entry in before.items():
+        if _top(rel) in ("output", "media", "docker-compose.yml") and rel != "OpenAver/output/config.json":
+            assert after.get(rel) == entry, rel
+    cfg_after = json.loads((root / "output" / "config.json").read_text(encoding="utf-8"))
+    cfg_after["general"]["server_mode"] = cfg_before["general"]["server_mode"]
+    assert cfg_after == cfg_before
+    assert NEW_VER in (root / "app" / "core" / "version.py").read_text(encoding="utf-8")
+    assert NEW_VER in (root / "python" / "bin" / "python3").read_text(encoding="utf-8")
+    assert (root / "openaver").is_symlink() and not list(root.glob(".prev*"))
+    st = _status(home)
+    assert st.returncode == 3 and NEW_VER in st.stdout
+
+
+@pytest.mark.parametrize("k", range(1, 7), ids=[f"k{i}" for i in range(1, 7)])
+def test_rerun_after_killed_swap_renames_leftovers_and_deletes_nothing(tmp_path: Path, upgrade_tars: dict, k: int) -> None:
+    new = upgrade_tars["new"]
+    _install_old(tmp_path / "base", upgrade_tars["old"])
+    proc, out, mvs = _spawn_swap(tmp_path / "base", new, kill_at=None)
+    assert len(mvs) == 6, (mvs, out)
+    assert {ln.split("\t")[0] for ln in mvs} == {str(proc.pid)}, mvs
+    assert proc.returncode == 0, out
+
+    home = _install_old(tmp_path, upgrade_tars["old"])
+    proc, out, _ = _spawn_swap(tmp_path, new, kill_at=k)
+    assert proc.returncode == -9, out
+    killed = _manifest(home)
+    stages = {r.split("/")[1] for r in killed if r.startswith("OpenAver/.stage-")}
+    assert len(stages) == 1 and "OpenAver/.prev" in killed
+
+    proc, _ = _run_install(tmp_path, fakebin_opts=OPTS, env_extra={"OPENAVER_TARBALL": str(upgrade_tars["truncated"]), **NO_START})
+    assert proc.returncode != 0 and "壓縮檔內容無效" in _combined(proc)
+    assert _manifest(home) == killed
+
+    proc, _ = _run_install(tmp_path, fakebin_opts=OPTS, env_extra={"OPENAVER_TARBALL": str(new), **NO_START})
+    assert proc.returncode == 0, _combined(proc)
+    root, final = home / "OpenAver", _manifest(home)
+    assert NEW_VER in (root / "app" / "core" / "version.py").read_text(encoding="utf-8")
+    assert NEW_VER in (root / "python" / "bin" / "python3").read_text(encoding="utf-8")
+    assert (root / "openaver").is_symlink() and (root / "openaver").resolve().is_file()
+    prevs = sorted(p.name for p in root.glob(".prev-*"))
+    assert len(prevs) == 1 and not (root / ".prev").exists(), prevs
+    assert _subtree(final, f"OpenAver/{prevs[0]}") == _subtree(killed, "OpenAver/.prev")
+    (stage,) = stages
+    assert _subtree(final, f"OpenAver/{stage}") == _subtree(killed, f"OpenAver/{stage}")
+    drop = ("app", "python", "openaver", "run", "logs", ".prev", ".stage")
+    assert _prune(final, drop) == _prune(killed, drop)
+
+
+@pytest.mark.parametrize("case", ["ours_pidfile", "foreign"])
+def test_managed_service_is_stopped_for_upgrade_but_foreign_one_blocks(tmp_path: Path, upgrade_tars: dict, case: str) -> None:
+    home = _install_old(tmp_path, upgrade_tars["old"])
+    root = home / "OpenAver"
+    ours = case == "ours_pidfile"
+    with _fake_service(root / "app" if ours else root, root / "run" / "openaver.pid" if ours else None) as pid:
+        before = _manifest(home)
+        proc = _run_update(tmp_path, upgrade_tars["new"])
+        out = _combined(proc)
+        if ours:
+            assert proc.returncode == 0, out
+            assert not _alive(pid) and NEW_VER in (root / "app" / "core" / "version.py").read_text(encoding="utf-8")
+        else:
+            assert proc.returncode != 0 and "舊的 OpenAver 服務還在執行" in out
+            assert _alive(pid) and _manifest(home) == before
+
+
+@pytest.mark.parametrize("k", [5, 6], ids=["k5", "k6"])
+def test_rerun_without_tarball_after_half_placed_swap_is_not_called_latest(tmp_path: Path, upgrade_tars: dict, k: int) -> None:
+    new = upgrade_tars["new"]
+    home = _install_old(tmp_path, upgrade_tars["old"])
+    proc, out, _ = _spawn_swap(tmp_path, new, kill_at=k)
+    assert proc.returncode == -9, out
+    root = home / "OpenAver"
+    assert NEW_VER in (root / "app" / "core" / "version.py").read_text(encoding="utf-8")
+    assert not (root / "openaver").exists()
+    proc, _ = _run_install(tmp_path, fakebin_opts={**OPTS, "curl_release": (NEW_VER, new)}, env_extra=NO_START)
+    out = _combined(proc)
+    assert "已是最新" not in out and proc.returncode == 0, out
+    assert NEW_VER in (root / "python" / "bin" / "python3").read_text(encoding="utf-8")
+    assert (root / "openaver").resolve().is_file() and len(list(root.glob(".prev-*"))) == 1
