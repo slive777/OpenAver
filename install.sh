@@ -36,15 +36,95 @@ t() {
         ja:title_banner) echo "   OpenAver インストーラー" ;;
         en:title_banner) echo "   OpenAver Installer" ;;
 
-        zh-TW:macos_only_error) echo "❌ 此腳本僅支援 macOS" ;;
-        zh-CN:macos_only_error) echo "❌ 此脚本仅支持 macOS" ;;
-        ja:macos_only_error) echo "❌ このスクリプトは macOS にのみ対応しています" ;;
-        en:macos_only_error) echo "❌ This script only supports macOS" ;;
+        zh-TW:unsupported_os) echo "❌ 此腳本僅支援 macOS 與 Linux" ;;
+        zh-CN:unsupported_os) echo "❌ 此脚本仅支持 macOS 与 Linux" ;;
+        ja:unsupported_os) echo "❌ このスクリプトは macOS と Linux のみ対応しています" ;;
+        en:unsupported_os) echo "❌ This script only supports macOS and Linux" ;;
 
-        zh-TW:linux_not_packaged) echo "   Linux 目前沒有打包版本" ;;
-        zh-CN:linux_not_packaged) echo "   目前没有 Linux 打包版本" ;;
-        ja:linux_not_packaged) echo "   Linux 版のパッケージは現在提供されていません" ;;
-        en:linux_not_packaged) echo "   No packaged version is available for Linux yet" ;;
+        zh-TW:install_usage) echo "用法：bash install.sh [--version vX.Y.Z] [--yes]" ;;
+        zh-CN:install_usage) echo "用法：bash install.sh [--version vX.Y.Z] [--yes]" ;;
+        ja:install_usage) echo "使い方：bash install.sh [--version vX.Y.Z] [--yes]" ;;
+        en:install_usage) echo "Usage: bash install.sh [--version vX.Y.Z] [--yes]" ;;
+
+        zh-TW:arch_unsupported_fmt) echo "❌ 不支援的架構：%s" ;;
+        zh-CN:arch_unsupported_fmt) echo "❌ 不支持的架构：%s" ;;
+        ja:arch_unsupported_fmt) echo "❌ 未対応のアーキテクチャ：%s" ;;
+        en:arch_unsupported_fmt) echo "❌ Unsupported architecture: %s" ;;
+
+        zh-TW:libc_musl_unsupported) echo "❌ 不支援 musl（例如 Alpine）；請使用 glibc 發行版" ;;
+        zh-CN:libc_musl_unsupported) echo "❌ 不支持 musl（例如 Alpine）；请使用 glibc 发行版" ;;
+        ja:libc_musl_unsupported) echo "❌ musl は未対応です（Alpine など）。glibc ディストリビューションを使ってください" ;;
+        en:libc_musl_unsupported) echo "❌ musl is not supported (e.g. Alpine); please use a glibc-based distro" ;;
+
+        zh-TW:glibc_too_old_fmt) echo "❌ glibc 版本過舊（偵測到 %s，需要 %s 以上）" ;;
+        zh-CN:glibc_too_old_fmt) echo "❌ glibc 版本过旧（检测到 %s，需要 %s 以上）" ;;
+        ja:glibc_too_old_fmt) echo "❌ glibc が古すぎます（検出 %s、必要 %s 以上）" ;;
+        en:glibc_too_old_fmt) echo "❌ glibc is too old (detected %s, need %s or newer)" ;;
+
+        zh-TW:glibc_unknown) echo "❌ 無法判定 glibc 版本" ;;
+        zh-CN:glibc_unknown) echo "❌ 无法判定 glibc 版本" ;;
+        ja:glibc_unknown) echo "❌ glibc バージョンを判定できません" ;;
+        en:glibc_unknown) echo "❌ Could not determine the glibc version" ;;
+
+        zh-TW:root_reminder) echo "⚠️  目前以 root 執行；建議改用一般使用者帳號" ;;
+        zh-CN:root_reminder) echo "⚠️  当前以 root 执行；建议改用普通用户帐号" ;;
+        ja:root_reminder) echo "⚠️  root で実行中です。一般ユーザーでの実行を推奨します" ;;
+        en:root_reminder) echo "⚠️  Running as root; a normal user account is recommended" ;;
+
+        zh-TW:no_linux_asset_fmt) echo "❌ 這個版本（%s）沒有 Linux 版" ;;
+        zh-CN:no_linux_asset_fmt) echo "❌ 这个版本（%s）没有 Linux 版" ;;
+        ja:no_linux_asset_fmt) echo "❌ このバージョン（%s）には Linux 版がありません" ;;
+        en:no_linux_asset_fmt) echo "❌ This version (%s) has no Linux build" ;;
+
+        zh-TW:tarball_not_found_fmt) echo "❌ 找不到壓縮檔：%s" ;;
+        zh-CN:tarball_not_found_fmt) echo "❌ 找不到压缩包：%s" ;;
+        ja:tarball_not_found_fmt) echo "❌ アーカイブが見つかりません：%s" ;;
+        en:tarball_not_found_fmt) echo "❌ Tarball not found: %s" ;;
+
+        zh-TW:existing_install_refused_fmt) echo "❌ 偵測到 %s 已有安裝，這一版安裝程式目前只處理全新安裝、沒有動任何檔案" ;;
+        zh-CN:existing_install_refused_fmt) echo "❌ 检测到 %s 已有安装，这一版安装程序目前只处理全新安装、没有改动任何文件" ;;
+        ja:existing_install_refused_fmt) echo "❌ %s に既存インストールを検出したため、この版は新規のみ対応で、ファイルは一切触っていません" ;;
+        en:existing_install_refused_fmt) echo "❌ Existing install detected at %s; this installer version only handles fresh installs and left all files untouched" ;;
+
+        zh-TW:download_failed) echo "❌ 下載失敗" ;;
+        zh-CN:download_failed) echo "❌ 下载失败" ;;
+        ja:download_failed) echo "❌ ダウンロードに失敗しました" ;;
+        en:download_failed) echo "❌ Download failed" ;;
+
+        zh-TW:archive_invalid) echo "❌ 壓縮檔內容無效" ;;
+        zh-CN:archive_invalid) echo "❌ 压缩包内容无效" ;;
+        ja:archive_invalid) echo "❌ アーカイブの内容が無効です" ;;
+        en:archive_invalid) echo "❌ Archive contents are invalid" ;;
+
+        zh-TW:verify_failed) echo "❌ 安裝包自檢失敗" ;;
+        zh-CN:verify_failed) echo "❌ 安装包自检失败" ;;
+        ja:verify_failed) echo "❌ パッケージの自己検査に失敗しました" ;;
+        en:verify_failed) echo "❌ Package self-check failed" ;;
+
+        zh-TW:place_failed_fmt) echo "❌ 無法就位：%s" ;;
+        zh-CN:place_failed_fmt) echo "❌ 无法就位：%s" ;;
+        ja:place_failed_fmt) echo "❌ 配置に失敗しました：%s" ;;
+        en:place_failed_fmt) echo "❌ Failed to place: %s" ;;
+
+        zh-TW:local_bin_exists_fmt) echo "⚠️  ~/.local/bin/openaver 已存在且不是符號連結，略過：%s" ;;
+        zh-CN:local_bin_exists_fmt) echo "⚠️  ~/.local/bin/openaver 已存在且不是符号链接，跳过：%s" ;;
+        ja:local_bin_exists_fmt) echo "⚠️  ~/.local/bin/openaver が既にありシンボリックリンクではないためスキップ：%s" ;;
+        en:local_bin_exists_fmt) echo "⚠️  ~/.local/bin/openaver already exists and is not a symlink, skipping: %s" ;;
+
+        zh-TW:local_bin_path_hint) echo "提示：請把 ~/.local/bin 加入 PATH" ;;
+        zh-CN:local_bin_path_hint) echo "提示：请把 ~/.local/bin 加入 PATH" ;;
+        ja:local_bin_path_hint) echo "ヒント：~/.local/bin を PATH に追加してください" ;;
+        en:local_bin_path_hint) echo "Hint: add ~/.local/bin to your PATH" ;;
+
+        zh-TW:ask_autostart) echo "要設定開機自動啟動嗎？(Y/n) " ;;
+        zh-CN:ask_autostart) echo "要设置开机自动启动吗？(Y/n) " ;;
+        ja:ask_autostart) echo "起動時に自動起動しますか？(Y/n) " ;;
+        en:ask_autostart) echo "Enable start on boot? (Y/n) " ;;
+
+        zh-TW:no_tty_default) echo "沒有終端機，預設開啟自動啟動" ;;
+        zh-CN:no_tty_default) echo "没有终端机，默认开启自动启动" ;;
+        ja:no_tty_default) echo "端末がないため、自動起動を既定で有効にします" ;;
+        en:no_tty_default) echo "No terminal available; enabling autostart by default" ;;
 
         zh-TW:apple_silicon_only) echo "❌ 目前僅支援 Apple Silicon (M1/M2/M3/M4)" ;;
         zh-CN:apple_silicon_only) echo "❌ 目前仅支持 Apple Silicon (M1/M2/M3/M4)" ;;
@@ -145,6 +225,276 @@ t() {
     esac
 }
 
+detect_platform() {
+    local arch ldd_out ldd_lc ver maj min fmaj fmin raw
+
+    arch="$(uname -m)"
+    case "$arch" in
+        x86_64|aarch64)
+            LINUX_ARCH="$arch"
+            ;;
+        *)
+            printf "$(t arch_unsupported_fmt)\n" "$arch" >&2
+            return 1
+            ;;
+    esac
+
+    ldd_out="$(ldd --version 2>&1)" || true
+    ldd_lc="$(printf '%s' "$ldd_out" | tr '[:upper:]' '[:lower:]')"
+    case "$ldd_lc" in
+        *musl*)
+            echo "$(t libc_musl_unsupported)" >&2
+            return 1
+            ;;
+    esac
+    for raw in /lib/ld-musl-*; do
+        if [ -e "$raw" ] || [ -L "$raw" ]; then
+            echo "$(t libc_musl_unsupported)" >&2
+            return 1
+        fi
+        break
+    done
+
+    ver="$(getconf GNU_LIBC_VERSION 2>/dev/null)" || {
+        echo "$(t glibc_unknown)" >&2
+        return 1
+    }
+    case "$ver" in
+        glibc\ *)
+            ver="${ver#glibc }"
+            ;;
+        *)
+            echo "$(t glibc_unknown)" >&2
+            return 1
+            ;;
+    esac
+    maj="${ver%%.*}"
+    min="${ver#*.}"
+    min="${min%%.*}"
+    case "$maj" in ''|*[!0-9]*) echo "$(t glibc_unknown)" >&2; return 1 ;; esac
+    case "$min" in ''|*[!0-9]*) echo "$(t glibc_unknown)" >&2; return 1 ;; esac
+    fmaj="${GLIBC_FLOOR%%.*}"
+    fmin="${GLIBC_FLOOR#*.}"
+    if [ "$maj" -gt "$fmaj" ]; then
+        return 0
+    fi
+    if [ "$maj" -lt "$fmaj" ]; then
+        printf "$(t glibc_too_old_fmt)\n" "$ver" "$GLIBC_FLOOR" >&2
+        return 1
+    fi
+    if [ "$min" -ge "$fmin" ]; then
+        return 0
+    fi
+    printf "$(t glibc_too_old_fmt)\n" "$ver" "$GLIBC_FLOOR" >&2
+    return 1
+}
+
+_linux_cleanup_stage() {
+    if [ -z "${STAGE:-}" ]; then
+        return 0
+    fi
+    if [ ! -d "$STAGE" ]; then
+        return 0
+    fi
+    case "$STAGE" in
+        "$INSTALL_DIR"/.stage-*)
+            rm -rf "$STAGE"
+            ;;
+    esac
+}
+
+GLIBC_FLOOR=2.28
+install_linux() {
+    set +e
+    local ASSUME_YES=0
+    local OPT_VERSION=""
+    local TARBALL=""
+    local DOWNLOAD_URL=""
+    local RELEASE_JSON=""
+    local VERSION_LABEL=""
+    local stage_candidate=""
+    local item=""
+    local dest=""
+    local reply=""
+    local do_autostart=1
+    local local_bin=""
+    # STAGE must be global: EXIT trap runs after this function returns.
+    STAGE=""
+
+    if [ "${OPENAVER_YES:-}" = "1" ]; then
+        ASSUME_YES=1
+    fi
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --yes)
+                ASSUME_YES=1
+                shift
+                ;;
+            --version)
+                if [ -z "${2:-}" ]; then
+                    echo "$(t install_usage)" >&2
+                    return 2
+                fi
+                OPT_VERSION="$2"
+                shift 2
+                ;;
+            *)
+                echo "$(t install_usage)" >&2
+                return 2
+                ;;
+        esac
+    done
+    if [ -n "$OPT_VERSION" ]; then
+        if ! printf '%s\n' "$OPT_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "$(t install_usage)" >&2
+            return 2
+        fi
+    fi
+
+    detect_platform || return 1
+
+    if [ "$(id -u)" -eq 0 ]; then
+        echo "$(t root_reminder)"
+    fi
+
+    if [ -n "${OPENAVER_TARBALL:-}" ]; then
+        case "$OPENAVER_TARBALL" in
+            http://*|https://*)
+                DOWNLOAD_URL="$OPENAVER_TARBALL"
+                VERSION_LABEL="$OPENAVER_TARBALL"
+                ;;
+            *)
+                if [ ! -f "$OPENAVER_TARBALL" ]; then
+                    printf "$(t tarball_not_found_fmt)\n" "$OPENAVER_TARBALL" >&2
+                    return 1
+                fi
+                TARBALL="$OPENAVER_TARBALL"
+                VERSION_LABEL="$OPENAVER_TARBALL"
+                ;;
+        esac
+    elif [ -n "$OPT_VERSION" ]; then
+        echo "$(t checking_latest_version)"
+        RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$OPT_VERSION")" || {
+            # tags 404 and connect failures both land here via curl -f; prefer asset message for tags.
+            printf "$(t no_linux_asset_fmt)\n" "$OPT_VERSION" >&2
+            return 1
+        }
+        VERSION_LABEL="$OPT_VERSION"
+        DOWNLOAD_URL="$(printf '%s\n' "$RELEASE_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*Linux-${LINUX_ARCH}\\.tar\\.gz\"" | head -1 | cut -d'"' -f4)"
+        if [ -z "$DOWNLOAD_URL" ]; then
+            printf "$(t no_linux_asset_fmt)\n" "$OPT_VERSION" >&2
+            return 1
+        fi
+    else
+        echo "$(t checking_latest_version)"
+        RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest")" || {
+            echo "$(t github_connect_failed)" >&2
+            return 1
+        }
+        VERSION_LABEL="$(printf '%s\n' "$RELEASE_JSON" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)"
+        DOWNLOAD_URL="$(printf '%s\n' "$RELEASE_JSON" | grep -o "\"browser_download_url\": *\"[^\"]*Linux-${LINUX_ARCH}\\.tar\\.gz\"" | head -1 | cut -d'"' -f4)"
+        if [ -z "$DOWNLOAD_URL" ]; then
+            printf "$(t no_linux_asset_fmt)\n" "${VERSION_LABEL:-latest}" >&2
+            return 1
+        fi
+    fi
+
+    for item in app python openaver .prev venv; do
+        if [ -e "$INSTALL_DIR/$item" ] || [ -L "$INSTALL_DIR/$item" ]; then
+            printf "$(t existing_install_refused_fmt)\n" "$INSTALL_DIR" >&2
+            return 1
+        fi
+    done
+
+    mkdir -p "$INSTALL_DIR" || return 1
+    stage_candidate="$INSTALL_DIR/.stage-$(date +%s)-$$"
+    mkdir "$stage_candidate" || return 1
+    STAGE="$stage_candidate"
+    trap '_linux_cleanup_stage' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+
+    if [ -n "$DOWNLOAD_URL" ]; then
+        printf "$(t downloading_fmt)\n" "$VERSION_LABEL"
+        if ! curl -fSL --progress-bar "$DOWNLOAD_URL" -o "$STAGE/openaver.tar.gz"; then
+            echo "$(t download_failed)" >&2
+            return 1
+        fi
+        TARBALL="$STAGE/openaver.tar.gz"
+    fi
+
+    printf "$(t installing_to_fmt)\n" "$INSTALL_DIR"
+    if ! tar tzf "$TARBALL" >/dev/null; then
+        echo "$(t archive_invalid)" >&2
+        return 1
+    fi
+    if ! tar xzf "$TARBALL" -C "$STAGE"; then
+        echo "$(t archive_invalid)" >&2
+        return 1
+    fi
+    if [ ! -e "$STAGE/OpenAver/app" ] || [ ! -e "$STAGE/OpenAver/python" ] || \
+       { [ ! -e "$STAGE/OpenAver/openaver" ] && [ ! -L "$STAGE/OpenAver/openaver" ]; } || \
+       [ ! -f "$STAGE/OpenAver/app/core/version.py" ]; then
+        echo "$(t archive_invalid)" >&2
+        return 1
+    fi
+
+    if ! ( cd "$STAGE/OpenAver" && PYTHONDONTWRITEBYTECODE=1 python/bin/python3 app/scripts/verify_artifact_imports.py ); then
+        echo "$(t verify_failed)" >&2
+        return 1
+    fi
+
+    for item in app python openaver; do
+        if ! mv "$STAGE/OpenAver/$item" "$INSTALL_DIR/"; then
+            printf "$(t place_failed_fmt)\n" "$item" >&2
+            return 1
+        fi
+    done
+
+    "$INSTALL_DIR/openaver" _prepare || return 1
+
+    local_bin="$HOME/.local/bin"
+    dest="$local_bin/openaver"
+    if [ -L "$dest" ]; then
+        ln -sfn "$INSTALL_DIR/openaver" "$dest" || return 1
+    elif [ -e "$dest" ]; then
+        printf "$(t local_bin_exists_fmt)\n" "$dest"
+    else
+        mkdir -p "$local_bin" || return 1
+        ln -s "$INSTALL_DIR/openaver" "$dest" || return 1
+    fi
+    case ":$PATH:" in
+        *":$local_bin:"*) ;;
+        *) echo "$(t local_bin_path_hint)" ;;
+    esac
+
+    echo "$(t install_complete)"
+
+    do_autostart=1
+    if { exec 3</dev/tty; } 2>/dev/null; then
+        printf "%s" "$(t ask_autostart)"
+        IFS= read -r reply <&3 || reply=""
+        exec 3<&-
+        case "$reply" in
+            n|N) do_autostart=0 ;;
+        esac
+    else
+        echo "$(t no_tty_default)"
+    fi
+    if [ "$do_autostart" -eq 1 ]; then
+        "$INSTALL_DIR/openaver" autostart on || return $?
+    else
+        "$INSTALL_DIR/openaver" autostart off || return $?
+    fi
+
+    if [ "${OPENAVER_INSTALL_NO_START:-}" != "1" ]; then
+        "$INSTALL_DIR/openaver" start || return $?
+        "$INSTALL_DIR/openaver" url || return $?
+    fi
+
+    return 0
+}
+
 echo ""
 echo "=============================="
 echo "$(t title_banner)"
@@ -152,11 +502,11 @@ echo "=============================="
 echo ""
 
 # --- 偵測 OS ---
-if [[ "$(uname)" != "Darwin" ]]; then
-    echo "$(t macos_only_error)"
-    echo "$(t linux_not_packaged)"
-    exit 1
-fi
+case "$(uname)" in
+    Darwin) ;;
+    Linux) install_linux "$@"; exit $? ;;
+    *) echo "$(t unsupported_os)" >&2; exit 1 ;;
+esac
 
 # --- 偵測架構 ---
 ARCH=$(uname -m)
