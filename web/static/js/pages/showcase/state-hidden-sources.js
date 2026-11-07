@@ -13,7 +13,7 @@
  */
 
 import { _videos, _allVideos, _filteredVideos, _setVideos } from '@/showcase/state-base.js';
-import { computeHiddenIndexes, isHiddenVideo, splitVisible, hiddenNumberSet } from '@/shared/hidden-sources.js';
+import { computeHiddenIndexes, isHiddenVideo, splitVisible, hiddenNumberSet, footerNotice } from '@/shared/hidden-sources.js';
 
 // 首屏最多等 source-status 這麼久（開關為開時）；逾時只是不再等，請求不取消、晚到的回應照樣套用。
 const STATUS_TIMEOUT_MS = 3000;
@@ -35,6 +35,9 @@ export function stateHiddenSources() {
         _hsSources: [],                 // 最近一次 /api/showcase/videos 的 sources
         _hsOfflineKeys: [],             // 最近一次 source-status 中 reason==='unreachable' 各項 members 合併
         _hsHiddenNumbers: new Set(),    // 被藏片的大寫番號（相似結果濾除用）
+        _hsVisibilityHandler: null,     // visibilitychange handler（FE-ALPINE-06）
+        _hsFocusHandler: null,          // window focus handler
+        _hsPageshowHandler: null,       // pageshow（頁面存活期只掛一次，cleanup 不拆）
 
         // 由 hideUnreachable／_hsSources／_hsOfflineKeys 算出可見清單與片數；不呼叫 applyFilterAndSort。
         _recomputeVisible() {
@@ -68,7 +71,7 @@ export function stateHiddenSources() {
                 const run = (async () => {
                     let list = null;
                     try {
-                        const resp = await fetch('/api/showcase/source-status');
+                        const resp = await fetch('/api/showcase/source-status' + (opts && opts.recheck ? '?recheck=1' : ''));
                         if (resp.ok) {
                             const data = await resp.json();
                             if (Array.isArray(data)) list = data;
@@ -99,6 +102,7 @@ export function stateHiddenSources() {
 
         // init() 呼叫：開關為關 ⇒ fire-and-forget（今天的路徑）；為開 ⇒ 回逾時降級 promise 讓 init 最多等 3 秒。
         _hsInit() {
+            this._hsBindRecheck();
             if (this.hideUnreachable !== true) {
                 this._hsFetchStatus();
                 return Promise.resolve();
@@ -144,6 +148,45 @@ export function stateHiddenSources() {
                 this._hsRefresh();
             }
             this.showToast(window.t('showcase.status.source_hide_save_failed'), 'error');
+        },
+
+        // 模板多次呼叫：純讀、無副作用。
+        hsNotice() {
+            return footerNotice(this.unreachableSources, this.hideUnreachable, this.hiddenCount, window.t);
+        },
+
+        // 切回視窗重驗：I-4 同輪／在飛去重；document.hidden 單獨一行（mutation M1）。
+        _hsRecheck() {
+            if (document.hidden === true) return;
+            if (this._hsStatusInFlight) return;
+            this._hsFetchStatus({ recheck: true });
+        },
+
+        // 冪等：已綁 visibility／focus 就 return；pageshow 頁面存活期只掛一次、cleanup 不拆（FE-TIMING-14）。
+        _hsBindRecheck() {
+            if (this._hsVisibilityHandler) return;
+            this._hsVisibilityHandler = () => { this._hsRecheck(); };
+            this._hsFocusHandler = () => { this._hsRecheck(); };
+            document.addEventListener('visibilitychange', this._hsVisibilityHandler);
+            window.addEventListener('focus', this._hsFocusHandler);
+            if (!this._hsPageshowHandler) {
+                this._hsPageshowHandler = (event) => {
+                    if (event && event.persisted === true) this._hsBindRecheck();
+                };
+                window.addEventListener('pageshow', this._hsPageshowHandler);
+            }
+        },
+
+        // 拆 visibility／focus；handler 欄位設回 null。pageshow 不拆。
+        _hsUnbindRecheck() {
+            if (this._hsVisibilityHandler) {
+                document.removeEventListener('visibilitychange', this._hsVisibilityHandler);
+                this._hsVisibilityHandler = null;
+            }
+            if (this._hsFocusHandler) {
+                window.removeEventListener('focus', this._hsFocusHandler);
+                this._hsFocusHandler = null;
+            }
         },
 
     };

@@ -46,6 +46,7 @@ const { stateLightbox } = await import('../state-lightbox.js');
 const { stateSimilar } = await import('../state-similar.js');
 const { stateDelete } = await import('../state-delete.js');
 const { stateHiddenSources } = await import('../state-hidden-sources.js');
+const { footerNotice } = await import('@/shared/hidden-sources.js');
 
 const SOURCES = ['D:\\電影', 'E:\\FC2'];
 const OFFLINE_D = [{ reason: 'unreachable', display: 'D:', members: ['D:\\電影'] }];
@@ -289,16 +290,27 @@ async function runInit({ onVideosServed, gate, status = OFFLINE_D, drive, setup 
         if (url === '/api/actress-aliases' || url === '/api/tag-aliases') return jsonResp({ groups: [] });
         return jsonResp({});
     });
-    const prevReg = globalThis.window.__registerPage, prevAdd = globalThis.window.addEventListener;
+    const prevReg = globalThis.window.__registerPage;
+    const prevWinAdd = globalThis.window.addEventListener;
+    const prevWinRemove = globalThis.window.removeEventListener;
+    const prevDocAdd = globalThis.document.addEventListener;
+    const prevDocRemove = globalThis.document.removeEventListener;
     globalThis.window.__registerPage = () => {};
+    // 195b-T5：_hsInit 開頭會 _hsBindRecheck()；既有 O-a／O-b 不關心事件，掛空殼即可
     globalThis.window.addEventListener = () => {};
+    globalThis.window.removeEventListener = () => {};
+    globalThis.document.addEventListener = () => {};
+    globalThis.document.removeEventListener = () => {};
     try {
         await drive(c, snaps);
     } finally {
         gate.flush();   // FE-GUARD-39：一律放行，不讓掛住的 promise 卡死 node --test
         fx.restore();
         globalThis.window.__registerPage = prevReg;
-        globalThis.window.addEventListener = prevAdd;
+        globalThis.window.addEventListener = prevWinAdd;
+        globalThis.window.removeEventListener = prevWinRemove;
+        globalThis.document.addEventListener = prevDocAdd;
+        globalThis.document.removeEventListener = prevDocRemove;
     }
 }
 
@@ -392,5 +404,277 @@ test('hsSetHide：PUT 失敗（reject／success:false）→ 畫面還原且只�
         assert.deepEqual(paths(_videos), wall, failure + '：內容與順序還原');
         assert.equal(c.hiddenCount, 0);
         assert.deepEqual(c.toasts, [{ msg: 'showcase.status.source_hide_save_failed', kind: 'error' }], failure);
+    }
+});
+
+// ── 8. 195b-T5：切回視窗重驗（B／C／D）────────────────────────────────
+
+/** 假事件樞紐：把 handler 存進 Map，fire 同步呼叫。 */
+function makeEventHub() {
+    const byTarget = new Map();
+    const keyOf = (target) => target;
+    return {
+        add(target, type, fn) {
+            let byType = byTarget.get(keyOf(target));
+            if (!byType) { byType = new Map(); byTarget.set(keyOf(target), byType); }
+            let set = byType.get(type);
+            if (!set) { set = new Set(); byType.set(type, set); }
+            set.add(fn);
+        },
+        remove(target, type, fn) {
+            const byType = byTarget.get(keyOf(target));
+            if (!byType) return;
+            const set = byType.get(type);
+            if (set) set.delete(fn);
+        },
+        fire(target, type, ev = {}) {
+            const byType = byTarget.get(keyOf(target));
+            if (!byType) return;
+            const set = byType.get(type);
+            if (!set) return;
+            for (const fn of [...set]) fn(ev);
+        },
+        install() {
+            const doc = globalThis.document;
+            const win = globalThis.window;
+            const prev = {
+                docAdd: doc.addEventListener,
+                docRemove: doc.removeEventListener,
+                winAdd: win.addEventListener,
+                winRemove: win.removeEventListener,
+                hiddenDesc: Object.getOwnPropertyDescriptor(doc, 'hidden'),
+            };
+            const hub = this;
+            doc.addEventListener = (type, fn) => hub.add(doc, type, fn);
+            doc.removeEventListener = (type, fn) => hub.remove(doc, type, fn);
+            win.addEventListener = (type, fn) => hub.add(win, type, fn);
+            win.removeEventListener = (type, fn) => hub.remove(win, type, fn);
+            return () => {
+                doc.addEventListener = prev.docAdd;
+                doc.removeEventListener = prev.docRemove;
+                win.addEventListener = prev.winAdd;
+                win.removeEventListener = prev.winRemove;
+                if (prev.hiddenDesc) Object.defineProperty(doc, 'hidden', prev.hiddenDesc);
+                else delete doc.hidden;
+            };
+        },
+    };
+}
+
+function setDocumentHidden(value) {
+    Object.defineProperty(globalThis.document, 'hidden', {
+        configurable: true,
+        enumerable: true,
+        get() { return value; },
+    });
+}
+
+function isStatusUrl(url) {
+    return String(url).startsWith('/api/showcase/source-status');
+}
+
+// [lint-guard: node-justified] 求值型時序：同輪去重／在飛不重送／hidden 不送；lint 無事件求值能力
+test('切回視窗：同輪兩個事件只送一次、在飛不重送、頁面隱藏不送', async () => {
+    resetModule(fixture());
+    const c = makeComponent();
+    c._hsSources = SOURCES;
+    const hub = makeEventHub();
+    const uninstall = hub.install();
+    setDocumentHidden(false);
+    const gates = [];
+    const fx = stubFetch(async (url) => {
+        if (!isStatusUrl(url)) return jsonResp({});
+        const g = makeGate();
+        gates.push(g);
+        await g.promise;
+        return jsonResp(OFFLINE_D);
+    });
+    try {
+        c._hsBindRecheck();
+
+        // 同輪 visibilitychange + focus → 恰 1 次（斷言在 await 之前）
+        hub.fire(globalThis.document, 'visibilitychange');
+        hub.fire(globalThis.window, 'focus');
+        assert.equal(fx.calls.filter((x) => isStatusUrl(x.url)).length, 1, '同輪兩事件只送一次');
+
+        // 在飛不重送
+        hub.fire(globalThis.document, 'visibilitychange');
+        hub.fire(globalThis.window, 'focus');
+        assert.equal(fx.calls.filter((x) => isStatusUrl(x.url)).length, 1, '在飛再觸發仍一次');
+
+        // 放行後可再送（不是永久鎖死）
+        gates.forEach((g) => g.flush());
+        await tickMicro();
+        hub.fire(globalThis.document, 'visibilitychange');
+        hub.fire(globalThis.window, 'focus');
+        assert.equal(fx.calls.filter((x) => isStatusUrl(x.url)).length, 2, '回來後再觸發可再送');
+        gates.forEach((g) => g.flush());
+        await tickMicro();
+
+        // document.hidden === true → 兩事件皆 0 次新增
+        const before = fx.calls.filter((x) => isStatusUrl(x.url)).length;
+        setDocumentHidden(true);
+        hub.fire(globalThis.document, 'visibilitychange');
+        hub.fire(globalThis.window, 'focus');
+        assert.equal(
+            fx.calls.filter((x) => isStatusUrl(x.url)).length,
+            before,
+            'hidden 時兩事件皆不送',
+        );
+    } finally {
+        gates.forEach((g) => g.flush());
+        await tickMicro();
+        fx.restore();
+        uninstall();
+    }
+});
+
+// [lint-guard: node-justified] 求值型：切回後套用結果＋晚到仍套用；假 fetch 忽略 signal（FE-GUARD-40）
+test('切回視窗：伺服器回全部接上 → 提示清空、被藏的片回到牆上（晚到回應仍被套用）', async () => {
+    async function runOnce({ delayRecheck }) {
+        resetModule(fixture());
+        const c = makeComponent();
+        c._hsSources = SOURCES;
+        c.hideUnreachable = true;
+        const hub = makeEventHub();
+        const uninstall = hub.install();
+        setDocumentHidden(false);
+        const urls = [];
+        let recheckGate = null;
+        const fx = stubFetch(async (url) => {
+            const u = String(url);
+            if (!isStatusUrl(u)) return putOk();
+            urls.push(u);
+            if (u.includes('recheck=1')) {
+                if (delayRecheck) {
+                    recheckGate = makeGate();
+                    await recheckGate.promise;
+                }
+                return jsonResp([]);
+            }
+            return jsonResp(OFFLINE_D);
+        });
+        try {
+            // 第一次離線經真的 _hsFetchStatus 套用（不手塞 _hsOfflineKeys）
+            await c._hsFetchStatus();
+            assert.ok(!urls[0].includes('recheck=1'), '第一次 URL 不含 recheck=1');
+            assert.deepEqual(c.unreachableSources, OFFLINE_D);
+            assert.equal(c.hiddenCount, 3);
+            assert.deepEqual(numbers(_videos), ['BBB-002', 'CCC-003', 'EEE-005']);
+
+            c._hsBindRecheck();
+            hub.fire(globalThis.document, 'visibilitychange');
+            hub.fire(globalThis.window, 'focus');
+            assert.equal(urls.length, 2, '切回送出第二次');
+            assert.ok(urls[1].includes('recheck=1'), '切回那次 URL 含 recheck=1');
+
+            if (delayRecheck) {
+                // 在飛期間再 dispatch → calls 不增加
+                hub.fire(globalThis.document, 'visibilitychange');
+                hub.fire(globalThis.window, 'focus');
+                assert.equal(urls.length, 2, '晚到在飛期間不重送');
+                recheckGate.flush();
+            }
+            await tickMicro();
+
+            assert.deepEqual(c.unreachableSources, []);
+            assert.equal(c.hiddenCount, 0);
+            assert.deepEqual(numbers(_videos), numbers(fixture()), '被藏的片回到牆上且順序＝全庫');
+            assert.deepEqual(
+                footerNotice(c.unreachableSources, c.hideUnreachable, c.hiddenCount, (k) => k),
+                { offline: null, permission: null },
+            );
+        } finally {
+            if (recheckGate) recheckGate.flush();
+            await tickMicro();
+            fx.restore();
+            uninstall();
+        }
+    }
+
+    await runOnce({ delayRecheck: true });    // 晚到仍被套用
+    await runOnce({ delayRecheck: false });   // 立即回對照（證明測試不空轉）
+});
+
+// [lint-guard: node-justified] 求值型：cleanup 拆 listener＋pageshow(persisted) 重綁；必須走真 init／cleanup
+test('cleanup 後切回視窗不再送請求；bfcache 還原後重新生效', async () => {
+    resetModule([]);
+    const hub = makeEventHub();
+    const uninstall = hub.install();
+    setDocumentHidden(false);
+    let cleanup = null;
+    const prevReg = globalThis.window.__registerPage;
+    globalThis.window.__registerPage = (h) => { cleanup = h.cleanup; };
+
+    const c = makeComponent({
+        mode: 'list',
+        _resetPicker() {},
+        restoreState() { this.hideUnreachable = true; },
+        applyFilterAndSort() { _setFilteredVideos(_videos); this.filteredCount = _filteredVideos.length; },
+        updatePagination() {}, $watch() {}, loadActresses() {}, _reconcileHeroCard() {},
+        init: base.stateBase.call({ $persist: (o) => ({ as: () => o }) }).init,
+    });
+
+    const statusGates = [];
+    const fx = stubFetch(async (url) => {
+        if (url === '/api/showcase/videos') {
+            return jsonResp({ success: true, videos: fixture(), sources: SOURCES });
+        }
+        if (isStatusUrl(url)) {
+            const g = makeGate();
+            statusGates.push(g);
+            await g.promise;
+            return jsonResp(OFFLINE_D);
+        }
+        if (url === '/api/cover-badges/manifest') return jsonResp([]);
+        if (url === '/api/actress-aliases' || url === '/api/tag-aliases') return jsonResp({ groups: [] });
+        if (url === '/api/similar/warmup') return jsonResp({ boosted_numbers: [] });
+        return jsonResp({});
+    });
+
+    try {
+        const done = c.init();
+        await tickMicro();
+        // 放行 init 的 source-status，讓 init 走完
+        statusGates.forEach((g) => g.flush());
+        await done;
+        await tickMicro();
+
+        const countStatus = () => fx.calls.filter((x) => isStatusUrl(x.url)).length;
+        const afterInit = countStatus();
+        assert.ok(afterInit >= 1, 'init 至少打過一次 source-status');
+        assert.ok(typeof cleanup === 'function', '真的 init 必須經 __registerPage 註冊 cleanup');
+
+        // 對照：cleanup 前事件會送
+        hub.fire(globalThis.document, 'visibilitychange');
+        hub.fire(globalThis.window, 'focus');
+        assert.equal(countStatus(), afterInit + 1, 'cleanup 前切回會送');
+        statusGates.forEach((g) => g.flush());
+        await tickMicro();
+
+        // 走真的 cleanup（含 state-base 最前的 _hsUnbindRecheck）
+        cleanup();
+        const afterCleanup = countStatus();
+        hub.fire(globalThis.document, 'visibilitychange');
+        hub.fire(globalThis.window, 'focus');
+        assert.equal(countStatus(), afterCleanup, 'cleanup 後兩事件零次');
+
+        hub.fire(globalThis.window, 'pageshow', { persisted: false });
+        hub.fire(globalThis.document, 'visibilitychange');
+        hub.fire(globalThis.window, 'focus');
+        assert.equal(countStatus(), afterCleanup, 'pageshow{persisted:false} 仍零次');
+
+        hub.fire(globalThis.window, 'pageshow', { persisted: true });
+        hub.fire(globalThis.document, 'visibilitychange');
+        hub.fire(globalThis.window, 'focus');
+        assert.equal(countStatus(), afterCleanup + 1, 'pageshow{persisted:true} 後事件恢復送出');
+        statusGates.forEach((g) => g.flush());
+        await tickMicro();
+    } finally {
+        statusGates.forEach((g) => g.flush());
+        await tickMicro();
+        fx.restore();
+        globalThis.window.__registerPage = prevReg;
+        uninstall();
     }
 });

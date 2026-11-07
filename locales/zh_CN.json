@@ -1437,8 +1437,6 @@
       "pill_actresses_prefix": "符合",
       "pill_actresses_middle": "个条件的",
       "pill_actresses_suffix": "位",
-      "source_unreachable_list": "无法访问：{list}",
-      "source_unreachable_count": "{n} 个位置无法访问",
       "source_no_permission_list": "没有权限读取：{list}",
       "source_no_permission_count": "{n} 个位置没有权限读取"
     },

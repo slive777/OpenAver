@@ -1331,10 +1331,22 @@ const RULES = [
   // ---- [TestStatePageCloakGuard] div.state-page 全 x-cloak（tag-scan class-tag multi） ----
   {
     file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
-    tagName: 'div', className: 'state-page', multi: true, expectedCount: 6,
+    tagName: 'div', className: 'state-page', multi: true, expectedCount: 7,
     required: ['x-cloak'],
-    note: '[TestStatePageCloakGuard] test_showcase_state_pages_cloaked — showcase.html 6 個 div.state-page 皆 x-cloak（116a-T4 新增「有收藏但篩選後為零」分支，5→6；不變式不變：每一個都要 x-cloak）',
+    note: '[TestStatePageCloakGuard] test_showcase_state_pages_cloaked — showcase.html 7 個 div.state-page 皆 x-cloak（195b-T5 新增「全部被藏」分支，6→7；不變式不變：每一個都要 x-cloak）',
   },
+  // 195b-T5：footer 來源開關按鈕接線（tag 開標籤錨定，不得用裸 required-string）
+  {
+    file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
+    tagName: 'button', className: 'footer-source-toggle',
+    required: [
+      'type="button"',
+      '@click="hsSetHide(!hideUnreachable)"',
+      ':aria-pressed="hideUnreachable"',
+    ],
+    note: '[195b-T5] .footer-source-toggle 開標籤必須含 type=button、@click=hsSetHide(!hideUnreachable)、:aria-pressed=hideUnreachable',
+  },
+
   {
     file: 'web/templates/search.html', kind: 'tag-scan', mode: 'class-tag',
     tagName: 'div', className: 'state-page', multi: true, expectedCount: 3,

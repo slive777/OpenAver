@@ -346,6 +346,7 @@ export function stateBase() {
             if (window.__registerPage) {
                 window.__registerPage({
                     cleanup: () => {
+                        this._hsUnbindRecheck();       // 195b-T5：最前拆切回視窗 listener（後面任一行拋錯都不得漏拆）
                         this._animGeneration++;       // B13: 使 pending deferred callback 失效
                         this._lightboxGeneration++;   // B19: invalidate pending $nextTick lightbox callbacks
                         if (this.lightboxCloseTimer) clearTimeout(this.lightboxCloseTimer);  // F2: cleanup delayed clear timer

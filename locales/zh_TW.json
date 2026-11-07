@@ -1314,7 +1314,8 @@
       "loading": "載入影片列表中...",
       "empty": "片庫還沒有影片",
       "generate_action": "前往片庫管理",
-      "retry": "重試"
+      "retry": "重試",
+      "all_hidden": "所有影片都在未連線的硬碟上"
     },
     "error": {
       "server_error": "伺服器錯誤 ({status})",
@@ -1464,10 +1465,13 @@
       "pill_actresses_prefix": "符合",
       "pill_actresses_middle": "個條件的",
       "pill_actresses_suffix": "位",
-      "source_unreachable_list": "無法存取：{list}",
-      "source_unreachable_count": "{n} 個位置無法存取",
       "source_no_permission_list": "沒有權限讀取：{list}",
       "source_no_permission_count": "{n} 個位置沒有權限讀取",
+      "source_offline_list": "{list} 沒有連線",
+      "source_offline_count": "{n} 顆硬碟沒有連線",
+      "source_offline_hidden": "・已隱藏 {n} 部",
+      "source_hide_btn": "隱藏",
+      "source_show_btn": "顯示",
       "source_hide_save_failed": "「隱藏未連線硬碟」沒有存成功，已改回原本的顯示"
     },
     "nav": {
