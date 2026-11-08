@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - 設定頁 AI 標籤的「測試」鈕換了另一張樣本圖：新詞表下舊的樣本圖會標不到任何字，把其實能用的模型誤判成「不能用」。
+- Linux 伺服器版：片庫放在 `/mnt/nas`、`/mnt/backup` 這類 `/mnt/` 底下的資料夾時，片子的路徑會被記錯，封面、播放、整理都找不到檔案；現在會照原路徑記錄。
 
 ### 已知限制
 - LTX 只看檔名；串流站下載後被改過名、檔名裡已經沒有 LTX 的片認不出來。

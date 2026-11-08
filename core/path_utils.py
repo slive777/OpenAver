@@ -343,10 +343,13 @@ def to_file_uri(fs_path: str, path_mappings: dict = None) -> str:
         return f"file:///{abs_path}"
 
     # WSL mount 路徑：/mnt/c/... → C:/...
-    if abs_path.startswith('/mnt/') and len(abs_path) > 5:
-        drive = abs_path[5].upper()
-        rest = abs_path[6:] if len(abs_path) > 6 else ''
-        return f"file:///{drive}:{rest}"
+    # 只認 /mnt/<單一字母>（後接 / 或結尾），且只在 WSL／Windows（Windows 維持修前行為，
+    # 讓 WSL 時期留下的 /mnt/c 設定仍對得上 C:）；純 Linux／Mac 的 /mnt/nas、/mnt/d 是
+    # 一般掛載點，保留原路徑（否則 /mnt/backup → B:ackup 反解不回來）。
+    if CURRENT_ENV in ('wsl', 'windows'):
+        m = re.match(r'^/mnt/([A-Za-z])(/.*)?$', abs_path)
+        if m:
+            return f"file:///{m.group(1).upper()}:{m.group(2) or ''}"
 
     # UNC 路徑：//server/share/... → file://///server/share/...
     # 需要使用 file:/// + //path 格式，與 scan_file() 產生的格式一致

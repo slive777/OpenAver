@@ -2167,15 +2167,27 @@ class TestApplyPathMapping:
         out = _apply_path_mapping('/mnt/z/115/x.mp4', {'/mnt/z/115/': '/vol'})
         assert out == '/vol/x.mp4'
 
-    def test_cross_namespace_windows_prefix_matches_wsl_source(self):
+    @pytest.mark.parametrize('env', ['wsl', 'windows'])
+    def test_cross_namespace_windows_prefix_matches_wsl_source(self, monkeypatch, env):
         """Codex P1: a Windows-DISPLAY prefix ('C:\\115', as pathToDisplay prefills)
         must match a WSL-NATIVE source ('/mnt/c/115/x.mp4') — both converge to
         file:///C:/115 in URI space. Raw-string compare would have silently missed
-        and written the un-mapped source. Host-independent (green on Linux CI + WSL:
-        to_file_uri's /mnt & drive-letter branches are not env-gated)."""
+        and written the un-mapped source. The /mnt/<letter> branch only applies on
+        WSL／Windows (pure Linux /mnt/c is an ordinary mount point)."""
+        from core import path_utils
         from core.readonly_assets import _apply_path_mapping
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', env)
         out = _apply_path_mapping('/mnt/c/115/x.mp4', {'C:\\115': '/volume1'})
         assert out == '/volume1/x.mp4'
+
+    def test_windows_keeps_wsl_era_mnt_mapping_key(self, monkeypatch):
+        """WSL 時期留下的 strm 對應鍵 '/mnt/c/影片'，換到原生 Windows 後仍要對得上
+        'C:\\影片\\x.mp4'；對不上會把未對應的 Windows 路徑靜默寫進 .strm。"""
+        from core import path_utils
+        from core.readonly_assets import _apply_path_mapping
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        out = _apply_path_mapping('C:\\影片\\x.mp4', {'/mnt/c/影片': '/volume1/movie'})
+        assert out == '/volume1/movie/x.mp4'
 
 
 class TestWriteStrm:

@@ -246,9 +246,10 @@ class TestE10PathCanonicalization:
     做完整 canonicalization，確保不同形式的同一檔案產生相同 DB key。
     """
 
-    def test_canonicalizes_mnt_uri_to_drive_uri(self):
+    def test_canonicalizes_mnt_uri_to_drive_uri(self, monkeypatch):
         """file:///mnt/c/X 與 file:///C:/X 應該產生相同 canonical key（WSL 路徑）"""
         from web.routers.collection import _normalize_to_uri
+        monkeypatch.setattr("core.path_utils.CURRENT_ENV", "wsl")
         canon1 = _normalize_to_uri("file:///mnt/c/test.mp4")
         canon2 = _normalize_to_uri("file:///C:/test.mp4")
         # 兩種輸入應該映射到同一 canonical 形式

@@ -151,10 +151,31 @@ class TestToFileUri:
 
 
     # --- WSL mount 路徑 ---
-    def test_wsl_mount_c(self):
-        """/mnt/c 路徑"""
-        result = path_utils.to_file_uri('/mnt/c/Videos/test.mp4')
-        assert result == 'file:///C:/Videos/test.mp4'
+    @pytest.mark.parametrize('fs_path, expected', [
+        ('/mnt/c/Videos/test.mp4', 'file:///C:/Videos/test.mp4'),
+        ('/mnt/d', 'file:///D:'),
+        # WSL 裡自己掛的 /mnt/<多字母> 不是磁碟代號
+        ('/mnt/nas/av/test.mp4', 'file:////mnt/nas/av/test.mp4'),
+    ])
+    @pytest.mark.parametrize('env', ['wsl', 'windows'])
+    def test_wsl_mount_drive_letter_only(self, monkeypatch, env, fs_path, expected):
+        """WSL／Windows：只有 /mnt/<單一字母> 才是 Windows 磁碟（Windows 上是 WSL 時期的舊設定）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', env)
+        assert path_utils.to_file_uri(fs_path) == expected
+
+    @pytest.mark.parametrize('env', ['linux', 'mac'])
+    @pytest.mark.parametrize('fs_path', [
+        '/mnt/backup/av/test.mp4',
+        '/mnt/nas/av/test.mp4',
+        '/mnt/d/av/test.mp4',
+        '/mnt/c/Videos/test.mp4',
+    ])
+    def test_non_wsl_mnt_path_round_trips(self, monkeypatch, env, fs_path):
+        """Linux／Mac：片庫在 /mnt 底下，轉成 URI 再轉回來必須是原路徑（不得變成 B:ackup/...）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', env)
+        uri = path_utils.to_file_uri(fs_path)
+        assert uri == 'file:///' + fs_path
+        assert path_utils.uri_to_fs_path(uri) == fs_path
 
 
     # --- UNC 路徑（網路路徑） ---

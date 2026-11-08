@@ -214,6 +214,7 @@ class TestShowcaseDirectoryFiltering:
 
     def test_wsl_mount_path_filtering(self, client, temp_db, monkeypatch):
         """WSL /mnt/c/ 設定值能正確匹配 DB 中的 file:///C:/ URI"""
+        monkeypatch.setattr("core.path_utils.CURRENT_ENV", "wsl")
         repo = VideoRepository(temp_db)
         repo.upsert_batch([
             Video(
