@@ -1734,7 +1734,9 @@ _TOOLS: list[dict] = [
         "name": "ai_tags_vocab",
         "description": (
             "取 AI 標籤的詞表（內建字＋使用者自訂字）。助理自己看海報判讀時，只准從這份挑字，並寫顯示名 name。"
-            "內建字帶 group，每個字都有 definition（判讀標準）。不修改任何資料。"
+            "內建字帶 group，每個字都有 definition（判讀標準）。"
+            "個別內建字帶 hidden: true（目前只有「全裸」）：判讀時可當出口，但寫回時不要寫進 user tags，user_tags 端點不會替你擋。"
+            "不修改任何資料。"
         ),
         "side_effect": False,
         "method": "GET",
@@ -1745,7 +1747,7 @@ _TOOLS: list[dict] = [
             "required": [],
         },
         "output_schema": {
-            "items": "[{name, source, group?, definition}] — name 是顯示名（寫回 user tag 用這個；助理自己判讀寫回前，要先讀該片刮削標籤 tags 與 tag_alias_crud_read 的別名組，同一組的字就跳過，user_tags 端點不會幫你去重）；source 為 builtin（內建）或 custom（使用者自訂）；group 只有內建字才有",
+            "items": "[{name, source, group?, definition, hidden?}] — name 是顯示名（寫回 user tag 用這個；助理自己判讀寫回前，要先讀該片刮削標籤 tags 與 tag_alias_crud_read 的別名組，同一組的字就跳過，user_tags 端點不會幫你去重）；source 為 builtin（內建）或 custom（使用者自訂）；group 只有內建字才有；hidden 只有被隱藏的內建字才有，值恆為 true（寫回時跳過這種字）",
         },
         "retry_safe": True,
         "_example_template": "curl '{base}/api/ai/tags/vocab'",
