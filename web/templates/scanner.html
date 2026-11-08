@@ -792,7 +792,7 @@
                 <span x-text="window.t('scanner.stats.missing_enrich_confirm_title')"></span>
             </h3>
             <p class="fluent-modal-body">
-                <span x-text="window.t('scanner.stats.missing_enrich_confirm_body_prefix')"></span><strong x-text="missingItems.length"></strong><span x-text="window.t('scanner.stats.missing_enrich_confirm_body_middle')"></span><strong x-text="Math.ceil(missingItems.length / 20 * 2)"></strong><span x-text="window.t('scanner.stats.missing_enrich_confirm_body_suffix')"></span>
+                <span x-text="window.t('scanner.stats.missing_enrich_confirm_body_prefix')"></span><strong x-text="missingItems.length"></strong><span x-text="window.t('scanner.stats.missing_enrich_confirm_body_middle')"></span><strong x-text="missingEstimateMinutes"></strong><span x-text="window.t('scanner.stats.missing_enrich_confirm_body_suffix')"></span>
             </p>
             <div class="modal-action fluent-modal-actions">
                 <button type="button" class="btn btn-ghost" @click="cancelLargeMissingEnrich()">

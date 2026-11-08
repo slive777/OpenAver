@@ -1826,7 +1826,7 @@ class TestProduceSourceMixedStats:
                 return None
             return basename.replace(".mp4", "").upper()
 
-        def fake_search_jav(number, source="auto", javbus_lang=None):
+        def fake_search_jav(number, source="auto", javbus_lang=None, **_kw):
             if "NOSCRAPE" in number:
                 return None
             return {"number": number, "title": "T", "cover": "", "actors": [], "tags": [],
@@ -2266,7 +2266,7 @@ class TestWriteMovieAssetsStrmDrift:
 
 def _e2e_search_jav_factory():
     """Return a search_jav stub yielding per-number meta (cover + 1 sample)."""
-    def fake_search_jav(number, source="auto", javbus_lang=None):
+    def fake_search_jav(number, source="auto", javbus_lang=None, **_kw):
         return {
             'number': number,
             'title': f'Title {number}',
@@ -2566,7 +2566,7 @@ class TestWriteMovieAssetsContainment:
         repo.get_all.return_value = []
         files = [{'path': str(source_dir / self.FILENAME), 'size': 1_000_000, 'mtime': 1.0, 'nfo_mtime': 0.0}]
 
-        def fake_search_jav(number, source="auto", javbus_lang=None):
+        def fake_search_jav(number, source="auto", javbus_lang=None, **_kw):
             meta = {
                 'number': number,
                 'title': 'Normal Title',
@@ -3723,7 +3723,7 @@ class TestResolveIngestPlan:
             MockVS.return_value.find_cover_image.return_value = cover_path
             meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
 
-        mock_search.assert_called_once_with('SRC-001', source='auto', javbus_lang=None)
+        mock_search.assert_called_once_with('SRC-001', source='auto', javbus_lang=None, first_hit=True)
         assert cover_strategy == ('copy', cover_path, {'poster': None, 'fanart': None})
 
     # -- P2 fix (round-3 review 2026-07-21): ingest scrape-fallback honors the
@@ -3802,6 +3802,22 @@ class TestResolveIngestPlan:
         MockVS.return_value.find_cover_image.assert_not_called()
         assert cover_strategy == ('download', 'http://x/new.jpg')
         assert meta['sample_images'] == []
+
+    def test_rescrape_auto_source_does_not_use_first_hit(self, tmp_path):
+        """R1: 燈箱 ⚙ 進階重刮不可被誤改成只問第一家，否則拿不到現況真相。"""
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+
+        with patch(
+            'core.readonly_producer.search_jav',
+            return_value={'number': 'SRC-001', 'title': 'T', 'cover': 'http://x/new.jpg'},
+        ) as mock_search, patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = str(tmp_path / 'local.jpg')
+            resolve_ingest_plan(str(video), 'SRC-001', {}, action='rescrape')
+
+        assert mock_search.call_count == 1
+        assert mock_search.call_args.kwargs.get('first_hit') is not True
 
 
     # -- TASK-104-T3: rescrape scraper_data / source candidate widening ------

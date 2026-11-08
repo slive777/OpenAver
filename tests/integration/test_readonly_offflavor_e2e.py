@@ -80,7 +80,7 @@ _FAKE_IMG_BYTES = b"\xff\xd8\xff\xe0FAKE-IMG"
 _UNSCRAPEABLE_PREFIX = "NOHIT-"
 
 
-def _fake_search_jav(number, source="auto", javbus_lang=None):
+def _fake_search_jav(number, source="auto", javbus_lang=None, **_kw):
     """Return a scraped-meta dict per number. NO network.
 
     `NOHIT-*` 回 None ＝ 線上查不到（樁列那條路）。
@@ -692,7 +692,7 @@ def test_incremental_idempotent(tmp_path, monkeypatch, client, parse_sse_events)
 # is kept as-is.
 # ---------------------------------------------------------------------------
 
-def _fake_search_jav_round1(number, source="auto", javbus_lang=None):
+def _fake_search_jav_round1(number, source="auto", javbus_lang=None, **_kw):
     """Round 1: title A. sample_images kept in the fixture for realism but
     unused post-T2 (see reconciliation note above — bulk produce never
     downloads samples)."""
@@ -712,7 +712,7 @@ def _fake_search_jav_round1(number, source="auto", javbus_lang=None):
     }
 
 
-def _fake_search_jav_round2(number, source="auto", javbus_lang=None):
+def _fake_search_jav_round2(number, source="auto", javbus_lang=None, **_kw):
     """Round 2: DIFFERENT title (maker corrected it). sample_images count
     dropped in the fixture too but is unused post-T2 (see note above)."""
     return {
