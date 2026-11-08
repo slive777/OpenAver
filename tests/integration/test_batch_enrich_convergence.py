@@ -354,3 +354,251 @@ class TestBatchEnrichConvergence:
         assert done_events[0]["summary"]["failed"] == 0
 
 
+# ── TASK-197-T2：一鍵補完「從 0」首擊 ─────────────────────────────────────────
+
+
+def _first_hit_card(number: str) -> dict:
+    """完整 card dict（真實 to_legacy_dict 鍵集合：不含 original_title）。"""
+    return {
+        "number": number,
+        "title": "外站完整標題",
+        "actors": ["女優A", "女優B"],
+        "cover": "https://example.com/cover.jpg",
+        "date": "2024-06-01",
+        "maker": "IDEA POCKET",
+        "director": "監督X",
+        "series": "系列Y",
+        "label": "LABEL-Z",
+        "tags": ["巨乳", "美少女", "戲服"],
+        "sample_images": [],
+        "duration": 150,
+        "url": f"https://example.com/{number}",
+        "source": "dmm",
+    }
+
+
+def _from_zero_shell(path_uri: str, number: str, *, stem: str, cover_path: str = "") -> Video:
+    """從 0 的殼：duration／original_title 空、tags 非空、title＝檔名佔位。"""
+    return Video(
+        path=path_uri,
+        number=number,
+        title=stem,
+        original_title="",
+        actresses=[],
+        maker="",
+        director="",
+        series="",
+        label="",
+        tags=["既有標籤"],
+        sample_images=[],
+        duration=None,
+        cover_path=cover_path,
+        release_date="",
+        nfo_mtime=0.0,
+        scrape_attempted_at=0.0,
+        output_dir="",
+    )
+
+
+class TestBatchEnrichFirstHit:
+    """CD-197-1／2／11：router → enricher → search_jav(first_hit) 接線。"""
+
+    def test_no_nfo_item_adopts_whole_first_hit_card(
+        self, client, tmp_path, mocker,
+    ):
+        """(a) category=nfo → 整包採用；真的跑 search_jav(first_hit=True) 補鍵。"""
+        import xml.etree.ElementTree as ET
+
+        from core.scraper import search_jav as real_search_jav
+
+        number = "ABC-123"
+        stem = "ABC-123-C"  # 檔名帶 -C；DB number 不含 -C
+        video_path = write_video_file(tmp_path, stem)
+        path_uri = to_file_uri(str(video_path))
+        video = _from_zero_shell(path_uri, number, stem=stem, cover_path="/fake/cover.jpg")
+        db_path = make_tmp_db(tmp_path, [video])
+
+        card = _first_hit_card(number)
+        assert "original_title" not in card
+
+        search_kwargs: list = []
+
+        def _spy_search_jav(*args, **kwargs):
+            search_kwargs.append(kwargs)
+            return real_search_jav(*args, **kwargs)
+
+        def _smart(*_a, **_kw):
+            # 每次現造，避免 pop/_setdefault 污染
+            c = _first_hit_card(number)
+            c["_mode"] = "exact"
+            return [c]
+
+        mocker.patch("core.enricher.search_jav", side_effect=_spy_search_jav)
+        mocker.patch("core.scraper.smart_search", side_effect=_smart)
+        mocker.patch("core.scraper.is_uncensored_mode_effective", return_value=False)
+        mocker.patch("core.scraper.load_config", return_value={})
+        # 實作前 first_hit 被忽略會落到 fan-out；隔離外站，讓 RED 落在值斷言
+        mocker.patch("core.scraper.get_enabled_source_ids", return_value=[])
+
+        with patch_dual_get_db_path(db_path):
+            resp = client.post("/api/batch-enrich", json={
+                "items": [{
+                    "file_path": path_uri,
+                    "number": number,
+                    "category": "nfo",
+                }],
+                "mode": "fill_missing",
+                "write_nfo": True,
+                "write_cover": False,
+            })
+
+        assert resp.status_code == 200
+        items = result_items(resp.text)
+        assert len(items) == 1
+        assert items[0]["success"] is True
+
+        assert search_kwargs, "enricher.search_jav 應被呼叫"
+        assert search_kwargs[0].get("first_hit") is True
+
+        nfo_path = video_path.with_suffix(".nfo")
+        assert nfo_path.exists()
+        root = ET.parse(nfo_path).getroot()
+        assert root.findtext("runtime") == "150"
+        assert root.findtext("website") == f"https://example.com/{number}"
+        assert root.findtext("originaltitle") == "外站完整標題"
+        genres = [e.text for e in root.findall("genre")]
+        tags = [e.text for e in root.findall("tag")]
+        all_labels = set(genres) | set(tags)
+        for t in ("巨乳", "美少女", "戲服"):
+            assert t in all_labels
+        assert "中文字幕" in all_labels
+
+    @pytest.mark.parametrize(
+        "mode,category,expect_first_hit",
+        [
+            ("fill_missing", "both", True),
+            ("fill_missing", "cover", False),
+            ("fill_missing", None, False),
+            ("fill_missing", "garbage", False),
+            ("refresh_full", "both", False),
+        ],
+        ids=[
+            "fill_missing_both",
+            "fill_missing_cover",
+            "fill_missing_omitted",
+            "fill_missing_garbage",
+            "refresh_full_both",
+        ],
+    )
+    def test_dispatch_only_for_no_nfo_categories(
+        self, client, tmp_path, mocker, mode, category, expect_first_hit,
+    ):
+        """(b) 只有 fill_missing＋{both,nfo} 才改寫 mode／first_hit。"""
+        import xml.etree.ElementTree as ET
+
+        from core.enricher import enrich_single as real_enrich_single
+
+        number = "DSP-001"
+        stem = "DSP-001"
+        video_path = write_video_file(tmp_path, stem)
+        path_uri = to_file_uri(str(video_path))
+        # 八欄齊、duration／original_title 空、tags 非空——fill_missing 不會補 runtime
+        video = Video(
+            path=path_uri,
+            number=number,
+            title="既有標題",
+            original_title="",
+            actresses=["女優A"],
+            maker="SOD",
+            director="テスト監督",
+            series="テストシリーズ",
+            label="LABEL",
+            tags=["タグ"],
+            sample_images=[],
+            duration=None,
+            cover_path="",
+            release_date="2024-01-01",
+            nfo_mtime=0.0,
+            scrape_attempted_at=0.0,
+            output_dir="",
+        )
+        db_path = make_tmp_db(tmp_path, [video])
+
+        card = _first_hit_card(number)
+        enrich_calls: list = []
+
+        def _spy_enrich(*args, **kwargs):
+            enrich_calls.append(kwargs)
+            return real_enrich_single(*args, **kwargs)
+
+        mocker.patch("web.routers.scraper.enrich_single", side_effect=_spy_enrich)
+        mocker.patch("web.routers.scraper.search_jav", return_value=card)
+        mocker.patch("core.enricher.search_jav", return_value=card)
+
+        item = {"file_path": path_uri, "number": number}
+        if category is not None:
+            item["category"] = category
+
+        with patch_dual_get_db_path(db_path):
+            resp = client.post("/api/batch-enrich", json={
+                "items": [item],
+                "mode": mode,
+                "write_nfo": True,
+                "write_cover": False,
+            })
+
+        assert resp.status_code == 200
+        assert enrich_calls, "enrich_single 應被呼叫"
+        # 實作前未傳 first_hit → None；bool(None) is False，讓「預期 False」的 row 先綠
+        got_first_hit = bool(enrich_calls[0].get("first_hit"))
+        assert got_first_hit is expect_first_hit
+        if expect_first_hit:
+            assert enrich_calls[0].get("mode") == "refresh_full"
+        else:
+            assert enrich_calls[0].get("mode") == mode
+
+        nfo_path = video_path.with_suffix(".nfo")
+        if mode == "fill_missing" and not expect_first_hit and nfo_path.exists():
+            root = ET.parse(nfo_path).getroot()
+            runtime = root.findtext("runtime")
+            assert runtime in (None, ""), (
+                f"fill_missing 不得寫入殼沒有的 runtime，實際={runtime!r}"
+            )
+
+    def test_no_nfo_not_found_converges(self, client, tmp_path, mocker):
+        """(c) category=nfo ＋ 查無 → not_found 收斂，missing-check 不再列出。"""
+        number = "NFH-001"
+        stem = "NFH-001"
+        video_path = write_video_file(tmp_path, stem)
+        path_uri = to_file_uri(str(video_path))
+        video = _from_zero_shell(path_uri, number, stem=stem, cover_path="")
+        db_path = make_tmp_db(tmp_path, [video])
+
+        # autouse 已 stub search_jav=None；明確再設一次
+        mocker.patch("core.enricher.search_jav", return_value=None)
+
+        assert path_uri in missing_check_paths(client, db_path)
+
+        with patch_dual_get_db_path(db_path):
+            resp = client.post("/api/batch-enrich", json={
+                "items": [{
+                    "file_path": path_uri,
+                    "number": number,
+                    "category": "nfo",
+                }],
+                "mode": "fill_missing",
+                "write_nfo": True,
+                "write_cover": False,
+            })
+
+        assert resp.status_code == 200
+        items = result_items(resp.text)
+        assert len(items) == 1
+        assert items[0]["success"] is False
+        assert items[0]["reason"] == "not_found"
+
+        attempted = read_scrape_attempted_at(db_path, path_uri)
+        assert attempted > 0
+
+        assert path_uri not in missing_check_paths(client, db_path)
+

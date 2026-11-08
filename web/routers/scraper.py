@@ -428,6 +428,19 @@ class BatchEnrichItem(BaseModel):
     number: str
     source: Optional[str] = None       # per-item override（優先於 batch default）
     javbus_lang: Optional[str] = None  # per-item override
+    category: Optional[str] = None     # missing-check 分類；未知值退回舊行為（不用 Literal）
+
+
+# 產出 category 的地方：web/routers/scanner.py::check_missing
+# both＝沒 NFO 也沒封面、nfo＝沒 NFO 有封面；cover＝有 NFO 只缺封面（不進首擊）
+FIRST_HIT_CATEGORIES = frozenset({"both", "nfo"})
+
+
+def _enrich_dispatch(request_mode: str, category: Optional[str]) -> tuple[str, bool]:
+    """fill_missing ＋ 從 0 → refresh_full＋first_hit；其餘原樣（CD-197-1）。"""
+    if request_mode == "fill_missing" and category in FIRST_HIT_CATEGORIES:
+        return "refresh_full", True
+    return request_mode, False
 
 
 class BatchEnrichRequest(BaseModel):
@@ -1243,6 +1256,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
 
                 try:
                     loop = asyncio.get_running_loop()
+                    _mode, _first_hit = _enrich_dispatch(request.mode, item.category)
 
                     # scraper cache（只對 refresh_full pre-fetch）
                     cached_data = None
@@ -1265,7 +1279,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         enrich_single,
                         file_path=item.file_path,
                         number=item.number,
-                        mode=request.mode,
+                        mode=_mode,
                         write_nfo=request.write_nfo,
                         write_cover=request.write_cover,
                         write_extrafanart=request.write_extrafanart,
@@ -1274,7 +1288,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         source=effective_source if effective_source != "auto" else None,
                         javbus_lang=effective_lang,
                         scraper_data=cached_data,
-                        path_mappings=_ro_mappings,
+                        path_mappings=_ro_mappings, first_hit=_first_hit,
                     )
                     result = await loop.run_in_executor(None, _en_ctx.run, _enrich)
                     result_dict = asdict(result)

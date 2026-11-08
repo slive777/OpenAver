@@ -547,7 +547,7 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
     javbus_lang: Optional[str] = None,
     scraper_data: Optional[dict] = None,
     path_mappings: dict = None,
-    preserve_title: bool = False, nfo_title_format: str = '[{num}]{title}', skip_format_check: bool = False,
+    preserve_title: bool = False, nfo_title_format: str = '[{num}]{title}', skip_format_check: bool = False, first_hit: bool = False,
 ) -> EnrichResult:
     _empty = EnrichResult(
         success=False,
@@ -590,7 +590,7 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
     if mode == "refresh_full":
         if scraper_data is None:
             scraper_data = search_jav(number,
-                                      source=source or 'auto', javbus_lang=javbus_lang, skip_format_check=skip_format_check)
+                                      source=source or 'auto', javbus_lang=javbus_lang, skip_format_check=skip_format_check, first_hit=first_hit)
         if not scraper_data:
             repo.update_scrape_attempted_at(to_file_uri(fs_path_for_db), time.time())  # db-ns-ok: fs_path_for_db, DB round-trip value, no reverse mapping applied
             _empty.error = f"找不到 {number} 的資料"
