@@ -363,6 +363,29 @@
       "wishlist_already_owned": "이 영화는 이미 당신의 라이브러리에 있습니다",
       "wishlist_added_offscreen": "북마크에 추가됨"
     },
+    "image": {
+      "too_large": "이미지가 너무 큽니다 (최대 8MB)",
+      "unsupported": "JPG, PNG, WEBP만 지원합니다",
+      "unreachable": "avscan에 현재 연결할 수 없습니다",
+      "rate_limited": "avscan이 잠시 기다려 달라고 요청했습니다. 약 {seconds}초 후에 다시 시도할 수 있습니다",
+      "drag_hint": "영상 캡처나 커버로 번호 찾기 (avscan.cc)",
+      "one_at_a_time": "한 번에 한 장만 조회할 수 있습니다",
+      "btn_title": "영상 캡처나 커버로 번호 찾기 (avscan.cc)",
+      "thumb_alt": "내 이미지",
+      "searching": "avscan으로 번호를 찾는 중…",
+      "your_image": "내 이미지",
+      "match": {
+        "title": "유사도",
+        "cover": "커버",
+        "no_clear_hit": "명확한 일치 결과가 없습니다. 직접 확인해 주세요",
+        "retry_hint": "더 선명하고 워터마크가 없는 영상 캡처나 커버로 다시 시도해 보세요",
+        "source_link": "avscan"
+      },
+      "not_found": {
+        "hint": "avscan이 이 번호를 인식했지만 검색 출처에는 없습니다",
+        "search_cta": "이 번호로 검색"
+      }
+    },
     "duplicate": {
       "title": "파일 중복",
       "body": "대상 파일이 이미 존재합니다. 계속 진행하면 기존 파일을 덮어씁니다:",
@@ -844,13 +867,18 @@
       "cover_badges_label": "커버 속성 태그",
       "cover_badges_note": "커버 왼쪽 상단에 중국어 자막/무자막/4K 등의 태그 표시 (표시만 영향, 태그 자체는 변경 안 됨)",
       "cover_badges_legend": "＊AI: 무자막 크랙 (AI 알고리즘으로 코드를 제거), LEAK: 무자막 유출 (마스터 파일 유출)",
+      "cover_badges_legend_ltx": "LTX: 차세대 AI 모자이크 제거, 화질이 유출판에 가까움",
       "cover_badges_help_aria": "커버 속성 태그 설명",
       "show_table_list_label": "표 및 목록 보기",
       "show_table_list_note": "켜면 브라우징 페이지 오른쪽 상단에 표와 목록 두 가지 보기 방식이 추가됩니다. 기본적으로 커버와 포스터만 표시됩니다.",
       "show_table_list_help_aria": "표 및 목록 보기 설명",
+      "hide_unreachable_sources_label": "연결되지 않은 드라이브 숨기기",
+      "hide_unreachable_sources_note": "드라이브가 연결되어 있지 않거나 클라우드 드라이브 연결이 끊겼을 때는 해당 드라이브의 영상을 일단 표시하지 않습니다. 다시 연결하면 자동으로 나타납니다. 영상이나 기록은 삭제되지 않습니다.",
+      "hide_unreachable_sources_help_aria": "연결되지 않은 드라이브 숨기기 설명",
       "cover_badge": {
         "subtitle": "중국어 자막",
         "cracked": "암호 없는 해독 (AI 알고리즘 디마스킹)",
+        "ltx": "LTX (차세대 AI 모자이크 제거)",
         "leaked": "암호 없는 유출 (마스터 테이프 유출)",
         "4k": "4K",
         "vr": "VR"
@@ -1260,6 +1288,7 @@
     "jl_cf_timeout": "Cloudflare 인증 시간 초과",
     "cf_shell_lost": "인증 창이 응답하지 않습니다. 새로고침 후 다시 시도하십시오.",
     "update_available": "OpenAver 새 버전이 있습니다",
+    "update_available_server": "OpenAver 새 버전이 있습니다. 호스트에서 openaver update를 실행해 주세요",
     "auto_organize_summary": "예약 정리",
     "auto_organize_aborted": "예약 정리 중지됨",
     "auto_organize_folder_not_set": "정기 정리: 정리할 폴더가 설정되지 않았습니다",
@@ -1287,7 +1316,8 @@
       "loading": "영상 목록을 불러오는 중...",
       "empty": "라이브러리에 영상이 없습니다",
       "generate_action": "라이브러리 관리로 이동",
-      "retry": "재시도"
+      "retry": "재시도",
+      "all_hidden": "모든 영상이 연결되지 않은 드라이브에 있습니다"
     },
     "error": {
       "server_error": "서버 오류 ({status})",
@@ -1438,7 +1468,13 @@
       "pill_actresses_middle": "조건의",
       "pill_actresses_suffix": "위",
       "source_no_permission_list": "읽기 권한 없음: {list}",
-      "source_no_permission_count": "{n} 위치에 읽기 권한이 없습니다"
+      "source_no_permission_count": "{n} 위치에 읽기 권한이 없습니다",
+      "source_offline_list": "{list} 연결 안 됨",
+      "source_offline_count": "드라이브 {n}개 연결 안 됨",
+      "source_offline_hidden": "・{n}편 숨김",
+      "source_hide_btn": "숨기기",
+      "source_show_btn": "표시",
+      "source_hide_save_failed": "\"연결되지 않은 드라이브 숨기기\"를 저장하지 못했습니다. 이전 표시로 되돌렸습니다"
     },
     "nav": {
       "prev_page": "이전 페이지",
@@ -1642,6 +1678,7 @@
       "btn_check_update_idle": "업데이트 확인",
       "update_available_prefix": "새 버전",
       "update_available_suffix": "사용 가능",
+      "server_update_available": "새 버전 v{version} 있음: 호스트에서 실행",
       "up_to_date": "최신 버전입니다",
       "client_up_to_date": "이 컴퓨터의 OpenAver는 최신 버전입니다",
       "client_update_available_prefix": "새 버전이 있습니다",

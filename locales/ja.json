@@ -363,6 +363,29 @@
       "wishlist_already_owned": "この作品はすでにあなたのライブラリにあります",
       "wishlist_added_offscreen": "ブックマークに追加しました"
     },
+    "image": {
+      "too_large": "画像が大きすぎます（上限 8MB）",
+      "unsupported": "対応形式は JPG、PNG、WEBP のみです",
+      "unreachable": "avscan に現在接続できません",
+      "rate_limited": "avscan から少し待つよう求められました。約 {seconds} 秒後に再試行できます",
+      "drag_hint": "動画のスクリーンショットやカバーから品番を調べる（avscan.cc）",
+      "one_at_a_time": "一度に調べられるのは1枚だけです",
+      "btn_title": "動画のスクリーンショットやカバーから品番を調べる（avscan.cc）",
+      "thumb_alt": "あなたの画像",
+      "searching": "avscan で品番を調べています…",
+      "your_image": "あなたの画像",
+      "match": {
+        "title": "類似度",
+        "cover": "カバー",
+        "no_clear_hit": "はっきりした一致はありません。ご自身で確認してください",
+        "retry_hint": "より鮮明で透かしのない動画のスクリーンショットかカバーに替えて、もう一度お試しください",
+        "source_link": "avscan"
+      },
+      "not_found": {
+        "hint": "avscan はこの品番を認識しましたが、検索ソースには見つかりませんでした",
+        "search_cta": "この品番で検索"
+      }
+    },
     "duplicate": {
       "title": "ファイルが重複しています",
       "body": "対象ファイルはすでに存在します。続行すると上書きされます：",
@@ -844,13 +867,18 @@
       "cover_badges_label": "カバーの属性バッジ",
       "cover_badges_note": "カバーの左上に「字幕」「無修正」「4K」などのバッジを表示します（表示のみ。タグ自体は変更しません）",
       "cover_badges_legend": "＊AI：AI による無修正化、LEAK：無修正マスターの流出",
+      "cover_badges_legend_ltx": "LTX：次世代 AI による無修正化、画質は流出版に近い",
       "cover_badges_help_aria": "カバー属性バッジの説明",
       "show_table_list_label": "表とリスト表示",
       "show_table_list_note": "オンにすると、ブラウズページ右上に表とリストの2つの表示形式が追加されます。デフォルトでは表紙とポスターのみです。",
       "show_table_list_help_aria": "表とリスト表示の説明",
+      "hide_unreachable_sources_label": "未接続のドライブを隠す",
+      "hide_unreachable_sources_note": "ドライブが接続されていない、またはクラウドドライブが切断されているときは、そこにある作品をいったん表示しません。接続し直すと自動的に表示されます。作品や記録が削除されることはありません。",
+      "hide_unreachable_sources_help_aria": "未接続ドライブを隠す設定の説明",
       "cover_badge": {
         "subtitle": "中国語字幕",
         "cracked": "AI 無修正化",
+        "ltx": "LTX（次世代 AI 無修正化）",
         "leaked": "無修正マスター流出",
         "4k": "4K",
         "vr": "VR"
@@ -1260,6 +1288,7 @@
     "jl_cf_timeout": "JavLibrary CF認証タイムアウト",
     "cf_shell_lost": "認証ウィンドウが応答しません。再読み込みしてからもう一度お試しください",
     "update_available": "OpenAver の新しいバージョンがあります",
+    "update_available_server": "OpenAver の新しいバージョンがあります。ホストで openaver update を実行してください",
     "auto_organize_summary": "定期整理",
     "auto_organize_aborted": "定期整理を中止しました",
     "auto_organize_folder_not_set": "定期整理：整理待ちフォルダが未設定です",
@@ -1287,7 +1316,8 @@
       "loading": "動画リストを読み込み中...",
       "empty": "ライブラリにまだ動画がありません",
       "generate_action": "ライブラリ管理へ",
-      "retry": "再試行"
+      "retry": "再試行",
+      "all_hidden": "すべての動画が未接続のドライブにあります"
     },
     "error": {
       "server_error": "サーバーエラー ({status})",
@@ -1438,7 +1468,13 @@
       "pill_actresses_middle": "件に一致：",
       "pill_actresses_suffix": "人",
       "source_no_permission_list": "読み取り権限がありません：{list}",
-      "source_no_permission_count": "{n} 件の場所に読み取り権限がありません"
+      "source_no_permission_count": "{n} 件の場所に読み取り権限がありません",
+      "source_offline_list": "{list} は接続されていません",
+      "source_offline_count": "{n} 台のドライブが未接続です",
+      "source_offline_hidden": "・{n} 本を非表示",
+      "source_hide_btn": "隠す",
+      "source_show_btn": "表示",
+      "source_hide_save_failed": "「未接続のドライブを隠す」を保存できませんでした。元の表示に戻しました"
     },
     "nav": {
       "prev_page": "前のページ",
@@ -1642,6 +1678,7 @@
       "btn_check_update_idle": "アップデートを確認",
       "update_available_prefix": "新バージョン",
       "update_available_suffix": "利用可能",
+      "server_update_available": "新バージョン v{version} があります：ホストで実行",
       "up_to_date": "最新バージョンです",
       "client_up_to_date": "このPCの OpenAver は最新です",
       "client_update_available_prefix": "このPCに新バージョン",

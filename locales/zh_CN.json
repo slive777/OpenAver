@@ -363,6 +363,29 @@
       "wishlist_already_owned": "这部片已经在你的片库里",
       "wishlist_added_offscreen": "已加入书签"
     },
+    "image": {
+      "too_large": "图片太大（上限 8MB）",
+      "unsupported": "只支持 JPG、PNG、WEBP",
+      "unreachable": "avscan 目前连不上",
+      "rate_limited": "avscan 要求稍等几秒，约 {seconds} 秒后可再试",
+      "drag_hint": "用视频截图或封面查番号（avscan.cc）",
+      "one_at_a_time": "一次只查一张",
+      "btn_title": "用视频截图或封面查番号（avscan.cc）",
+      "thumb_alt": "你的图",
+      "searching": "正在用 avscan 查番号…",
+      "your_image": "你的图",
+      "match": {
+        "title": "相似度",
+        "cover": "封面",
+        "no_clear_hit": "没有明确命中，请自己核对一下",
+        "retry_hint": "换一张更清晰、没有水印的视频截图或封面再试",
+        "source_link": "avscan"
+      },
+      "not_found": {
+        "hint": "avscan 认出了这个番号，但搜索来源里没有它",
+        "search_cta": "用这个番号搜索"
+      }
+    },
     "duplicate": {
       "title": "文件重复",
       "body": "目标文件已存在，继续会覆盖原有文件：",
@@ -844,13 +867,18 @@
       "cover_badges_label": "封面属性标签",
       "cover_badges_note": "在封面左上角显示中文字幕／无码／4K 等标签（只影响显示，不改标签本身）",
       "cover_badges_legend": "＊AI：无码破解（AI 算法去码），LEAK：无码流出（母带外流）",
+      "cover_badges_legend_ltx": "LTX：新一代 AI 去码，画质接近流出版",
       "cover_badges_help_aria": "封面属性标签说明",
       "show_table_list_label": "显示表格与清单",
       "show_table_list_note": "开启后，浏览页右上角会多出表格与清单两种呈现。默认只有封面与海报。",
       "show_table_list_help_aria": "显示表格与清单说明",
+      "hide_unreachable_sources_label": "隐藏未连接硬盘",
+      "hide_unreachable_sources_note": "硬盘没插或云盘断线时，先不显示那上面的片；接回来就会自动出现。不会删除任何片或记录。",
+      "hide_unreachable_sources_help_aria": "隐藏未连接硬盘说明",
       "cover_badge": {
         "subtitle": "中文字幕",
         "cracked": "无码破解（AI 算法去码）",
+        "ltx": "LTX（新一代 AI 去码）",
         "leaked": "无码流出（母带外流）",
         "4k": "4K",
         "vr": "VR"
@@ -1260,6 +1288,7 @@
     "jl_cf_timeout": "JavLibrary CF 验证超时",
     "cf_shell_lost": "验证窗口没有响应，请刷新后再试",
     "update_available": "OpenAver 有新版本",
+    "update_available_server": "OpenAver 有新版本，请在主机执行 openaver update",
     "auto_organize_summary": "定时整理",
     "auto_organize_aborted": "定时整理已中止",
     "auto_organize_folder_not_set": "定时整理：还没设置待整理文件夹",
@@ -1287,7 +1316,8 @@
       "loading": "加载视频列表中...",
       "empty": "片库还没有视频",
       "generate_action": "前往片库管理",
-      "retry": "重试"
+      "retry": "重试",
+      "all_hidden": "所有视频都在未连接的硬盘上"
     },
     "error": {
       "server_error": "服务器错误 ({status})",
@@ -1438,7 +1468,13 @@
       "pill_actresses_middle": "个条件的",
       "pill_actresses_suffix": "位",
       "source_no_permission_list": "没有权限读取：{list}",
-      "source_no_permission_count": "{n} 个位置没有权限读取"
+      "source_no_permission_count": "{n} 个位置没有权限读取",
+      "source_offline_list": "{list} 没有连接",
+      "source_offline_count": "{n} 块硬盘没有连接",
+      "source_offline_hidden": "・已隐藏 {n} 部",
+      "source_hide_btn": "隐藏",
+      "source_show_btn": "显示",
+      "source_hide_save_failed": "「隐藏未连接硬盘」没有保存成功，已改回原来的显示"
     },
     "nav": {
       "prev_page": "上一页",
@@ -1642,6 +1678,7 @@
       "btn_check_update_idle": "检查更新",
       "update_available_prefix": "新版本",
       "update_available_suffix": "可用",
+      "server_update_available": "有新版 v{version}：在主机上执行",
       "up_to_date": "已是最新版本",
       "client_up_to_date": "这台电脑的 OpenAver 已是最新",
       "client_update_available_prefix": "这台电脑有新版",

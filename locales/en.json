@@ -363,6 +363,29 @@
       "wishlist_already_owned": "This title is already in your library",
       "wishlist_added_offscreen": "Added to Wishlist"
     },
+    "image": {
+      "too_large": "Image is too large (max 8MB)",
+      "unsupported": "Only JPG, PNG and WEBP are supported",
+      "unreachable": "Can't reach avscan right now",
+      "rate_limited": "avscan asks you to wait a few seconds. Try again in about {seconds} s",
+      "drag_hint": "Find the ID from a video screenshot or cover (avscan.cc)",
+      "one_at_a_time": "One image at a time",
+      "btn_title": "Find the ID from a video screenshot or cover (avscan.cc)",
+      "thumb_alt": "Your image",
+      "searching": "Looking up the ID with avscan…",
+      "your_image": "Your image",
+      "match": {
+        "title": "Similarity",
+        "cover": "Cover",
+        "no_clear_hit": "No clear match — please check it yourself",
+        "retry_hint": "Try again with a clearer video screenshot or cover without watermarks",
+        "source_link": "avscan"
+      },
+      "not_found": {
+        "hint": "avscan recognized this ID, but none of your search sources has it",
+        "search_cta": "Search by this ID"
+      }
+    },
     "duplicate": {
       "title": "Duplicate File",
       "body": "The target file already exists. Continuing will overwrite it:",
@@ -844,13 +867,18 @@
       "cover_badges_label": "Cover attribute badges",
       "cover_badges_note": "Show badges such as Subtitled / Uncensored / 4K in the top-left corner of covers (display only — your tags are not changed)",
       "cover_badges_legend": "* AI: AI-decensored, LEAK: leaked uncensored master",
+      "cover_badges_legend_ltx": "LTX: next-gen AI decensoring, quality close to leaked releases",
       "cover_badges_help_aria": "About cover attribute badges",
       "show_table_list_label": "Table & list views",
       "show_table_list_note": "When enabled, the Showcase page's top-right corner gains table and list views in addition to the defaults (cover and poster only).",
       "show_table_list_help_aria": "About table & list views",
+      "hide_unreachable_sources_label": "Hide disconnected drives",
+      "hide_unreachable_sources_note": "When a drive is unplugged or a cloud drive is offline, the videos on it are hidden for now and reappear automatically once it is back. No videos or records are deleted.",
+      "hide_unreachable_sources_help_aria": "About hiding disconnected drives",
       "cover_badge": {
         "subtitle": "Subtitled",
         "cracked": "AI-decensored",
+        "ltx": "LTX (next-gen AI decensoring)",
         "leaked": "Leaked uncensored",
         "4k": "4K",
         "vr": "VR"
@@ -1260,6 +1288,7 @@
     "jl_cf_timeout": "JavLibrary CF challenge timed out",
     "cf_shell_lost": "The verification window is not responding. Please refresh and try again",
     "update_available": "A new version of OpenAver is available",
+    "update_available_server": "A new version of OpenAver is available. Run openaver update on the host",
     "auto_organize_summary": "Scheduled Organize",
     "auto_organize_aborted": "Scheduled organize aborted",
     "auto_organize_folder_not_set": "Scheduled organize: inbox folder not set yet",
@@ -1287,7 +1316,8 @@
       "loading": "Loading video list...",
       "empty": "No videos in your library yet",
       "generate_action": "Go to Library Manager",
-      "retry": "Retry"
+      "retry": "Retry",
+      "all_hidden": "All videos are on disconnected drives"
     },
     "error": {
       "server_error": "Server error ({status})",
@@ -1438,7 +1468,13 @@
       "pill_actresses_middle": "filters —",
       "pill_actresses_suffix": "actresses",
       "source_no_permission_list": "No permission to read: {list}",
-      "source_no_permission_count": "{n} location(s) without read permission"
+      "source_no_permission_count": "{n} location(s) without read permission",
+      "source_offline_list": "{list} not connected",
+      "source_offline_count": "{n} drive(s) disconnected",
+      "source_offline_hidden": "・{n} hidden",
+      "source_hide_btn": "Hide",
+      "source_show_btn": "Show",
+      "source_hide_save_failed": "Couldn't save \"Hide disconnected drives\". Switched back to the previous display"
     },
     "nav": {
       "prev_page": "Previous",
@@ -1642,6 +1678,7 @@
       "btn_check_update_idle": "Check for Updates",
       "update_available_prefix": "New version",
       "update_available_suffix": "available",
+      "server_update_available": "New version v{version} available — run this on the host:",
       "up_to_date": "You are up to date",
       "client_up_to_date": "OpenAver on this computer is up to date",
       "client_update_available_prefix": "This computer has a new version",

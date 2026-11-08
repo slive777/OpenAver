@@ -561,7 +561,7 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
 
 ### Steps
 
-1. **[MCP] 認證關閉時 Help 頁沒有多出任何東西**：`browser_navigate` → `/help`
+1. **[MCP] 認證關閉時 Help 頁沒有多出任何東西**：`browser_navigate` → `/help`（dev 已開密碼保護時此步 N/A——Help 頁本來就會有 Agent Token）
    - **驗**：頁面文字**不含** `Agent Token`、DOM **不含** `oav_`（AC8：PIN 未開時 Help 頁與現況逐位元組相同）
 2. **[MCP] 設定頁的控制組是單列不是直向堆疊**：`browser_navigate` → `/settings`，找到伺服器模式膠囊旁的「需要密碼才能連線」
    - **驗**：控制組高度約 28px 量級（**不是** 80px 的三行堆疊）、PIN 欄是四格密碼樣式（**不是**瀏覽器預設的 332px 寬 input）
@@ -1167,7 +1167,7 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
       （`showcase.rescrape.preserve_title`），**預設勾選**
     - **完成**：按左上 ✗ 或 Esc 關閉，**不按確認 ✓**（避免寫入）
     - 若外部來源查無結果、或標題剛好相同（勾選不出現）→ 記錄實際情況，不算 FAIL
-13. **[MCP] 說明頁批次搜尋 help 文字**：`/help` 找 `help.batch.add_folder` 對應段落
+13. **[MCP] 說明頁批次搜尋 help 文字**：`/help` →「使用手冊」分頁展開章節（0.18.12 起說明頁改三分頁，原 `help.batch.add_folder` 段落搬進手冊章節），找「拖入資料夾：只讀這一層…」那句
     - **驗**：文字包含「只讀這一層」／「不往子資料夾找」的措辭（不是舊版「批次搜尋整個
       資料夾（含子目錄）」），且不是 raw i18n key
 
@@ -1235,6 +1235,73 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 
 - 搜尋空狀態顯示舊文字（含子資料夾）或 raw key → locales 未同步
 - 設定頁密碼區塊出現 raw key → `settings.access_auth.*` 缺 key
+
+---
+
+## US21: 說明頁三分頁＋捲動舞台 ＋ 隱藏未連線硬碟 ＋ 點標籤篩選 ＋ 以圖查番號 ＋ LTX 膠囊 ＋ 多語系／窄螢幕（v0.18.12 ~ v0.18.16 新增）
+
+**故事**：主人打開說明頁，看到「建立片庫／整理與改名／使用手冊」三個分頁；前兩個分頁用捲動帶動的假畫面舞台逐步示範，手冊分頁有常見問題與 12 章。瀏覽頁在硬碟拔掉時底部出現提示與「隱藏／顯示」鈕。點燈箱裡自己加的標籤文字會直接篩選。搜尋框旁多一顆「以圖查番號」。設定頁的封面屬性標籤多一顆 LTX 膠囊。全站五語系都沒有露出 raw key，390px 不橫向捲動。
+
+### Setup
+
+- Dev server 已啟動。**全程唯讀**：不按設定頁「儲存」、不按 AI 區任何「測試／補完全庫／全部重建」（會呼叫付費雲端 API）、不真送圖片、不整理、不補完。
+- 起始 locale = `zh-TW`；步驟 9 會用 `.locale-toggle-btn` 循環切換語系，**結束必須切回 `zh-TW`**（循環順序 繁→简→あ→EN→한→繁，每按一次會 `PUT /api/config/general/locale` 並重載）。
+- 開始前 `cp output/config.json <暫存>`，結束 `cmp`，不同就還原。
+- `browser_resize` 先設 1280x900（MCP 瀏覽器重啟後視窗會回到窄尺寸，會看到手機版頂欄）。
+
+### Steps
+
+1. **[MCP] 說明頁三分頁**：`/help` → 依序點 `#helpTabLibrary`、`#helpTabOrganize`、`#helpTabManual`
+   - **驗**：網址 hash 跟著變（`#library`／`#organize`／`#manual`），`[data-help-panel]` 一次只顯示一個；頁面文字無 raw key；`document.documentElement.scrollWidth <= innerWidth`
+   - **驗**：使用手冊分頁有 5 條常見問題＋章節共 17 個 `details`，點 `summary` 可展開（不改任何資料）
+2. **[MCP] 說明頁舞台隨捲動前進**（`innerWidth >= 1024`）：點「建立片庫」→ 用 `browser_run_code` 的 `page.mouse.wheel(0, 450)` 往下捲
+   - **驗**：舞台下方步驟列由 `1 / 4` 走到 `4 / 4`，`.hs-dot[aria-current="step"]` 跟著換；「整理與改名」分頁同樣 `1 / 4 → 4 / 4`；最後一步有「前往…」按鈕
+   - ⚠️ 頁面本身是 window 捲動；用 `window.scrollTo` 在舞台上無效時改用滑鼠滾輪
+3. **[MCP] 新手引導四步＋連到說明頁**：`/scanner?tutorial=restart` → 連點 `#tutorialNext` 到 `4 / 4` → 點 `a[data-tutorial-go]`
+   - **驗**：落在 `/help#organize`，`[data-help-panel="organize"]` 為唯一顯示；`GET /api/tutorial-status` 仍 `completed:true`（已完成者重看不改旗標）
+4. **[MCP] 隱藏未連線硬碟：設定頁開關**：`/settings` →「瀏覽顯示」→ `form.hideUnreachableSources` 的 checkbox「隱藏未連線硬碟」存在、預設關、旁有「？」說明鈕
+   - **驗**：只看不儲存（離開頁面若跳 `beforeunload` 對話框代表表單被改髒，需 `browser_handle_dialog` accept）
+5. **[MCP] 隱藏未連線硬碟：瀏覽頁底部提示**（硬碟拔掉在 dev 難造 → 用路由攔截模擬，**不改 config**）：
+   - `browser_run_code`：`page.route('**/api/showcase/source-status*', …fulfill([{path:'/home/slive/avtest', display:'avtest-disk', status:'unreachable', reason:'unreachable', members:['/home/slive/avtest']}]))`，並 `page.route('**/api/config/gallery/hide-unreachable-sources', …fulfill({success:true}))` 攔掉寫入；`goto('/showcase')`
+   - **驗**：底部出現「avtest-disk 沒有連線」＋ `.footer-source-toggle`「隱藏」；點它 → 牆清空、顯示「所有影片都在未連線的硬碟上」、底部變「…已隱藏 2,102 部／顯示」；再點「顯示」回原狀
+   - **驗**：`GET /api/config` 的 `gallery.hide_unreachable_sources` 沒被改動（寫入被攔）
+   - ⚠️ 須用 `page.locator('.footer-source-toggle')`；`getByRole('button',{name:'隱藏'})` 在此頁定位不到
+6. **[MCP] 點燈箱裡自己加的標籤文字就篩選**：`/showcase` → 開第一張卡燈箱 → 點 `a.lb-user-tag-link`（例如「LTX」）
+   - **驗**：燈箱關閉、搜尋框出現同名 pill、牆縮成符合的片；點 `×`（`.lb-tag-remove`）才是刪標籤（**不點**，會寫 DB）
+7. **[MCP] 搜尋框純數字後點女優／標籤自動清掉那段數字**：`/showcase` 搜尋框打 `920` → 開燈箱 → 點任一 `a.lb-tag`
+   - **驗**：搜尋框清空、只剩該標籤 pill
+   - 收尾：清掉 pill（`localStorage.removeItem('showcase_state')`）避免殘留到下個場景
+8. **[MCP] 以圖查番號入口與按鈕交替**：`/search` → `#btnImageSearch`（aria-label 含「avscan.cc」）可見；`#searchQuery` 打字後該鈕隱藏、出現 `#btnClear`；清空後鈕回來
+   - **驗**：隱藏的 `#imgSearchFileInput` 存在
+   - **不做**：選檔／拖圖／貼圖會真送到 avscan.cc → 移 **[人工]**（見步驟 12）
+   - ⚠️ Playwright MCP 的 file chooser 對本頁在 headless 下曾使 MCP server 斷線，勿用
+9. **[MCP] 封面屬性標籤 LTX 膠囊**：`/settings` →「瀏覽顯示」→ `button.source-pill--action` 含 `LTX`，預設 `aria-pressed="true"`；說明文字含「LTX：新一代 AI 去碼」
+   - **驗**：點一下 `aria-pressed` 變 `false`、再點回 `true`；**不儲存**（離頁會跳 beforeunload，需 accept）
+   - **驗**：`/showcase` 上有 LTX 標籤的片（例如 IPZZ-920）封面只顯示「LTX」，不同時顯示「AI」
+10. **[MCP] 五語系無 raw key（至少 ko、en）**：在 `/settings` 用 `.locale-toggle-btn` 切到 한 → 逐一點 `#settingsTabSources`、`#settingsTabScraping`、`#settingsTabGallery`、`#settingsTabSystem`、`#settingsTabAi`、`#aiTabTranslate`、`#aiTabSimilar`、`#aiTabFaces`、`#aiTabTags`；再開 `/help`（三分頁＋展開章節）、`/search`、`/showcase`、`/scanner`、`/insights`；換 EN 重做一次；最後切回 繁
+    - **驗**：`document.body.innerText` 以 `/\b[a-z][a-z0-9_]*(\.[a-z0-9_]+){1,}\b/g` 掃不到 key 形字串（排除副檔名／網域／版號 `v0.18.x`）；`<html lang>` 為 `ko`／`en`；ko 的設定頁與說明頁 `[\u4e00-\u9fff]` 計數為 0（說明手冊的範例檔名與 `{title}` 範例資料除外）
+    - **結束**：`.locale-toggle-btn` 回到 `繁`，`cmp output/config.json` 與起始相同
+11. **[MCP] 窄螢幕不橫向捲動**：`browser_resize` 390x844 → `/help`（三分頁各一）、`/settings`（五個主分頁各一）、`/showcase`、`/search`、`/scanner`、`/insights`
+    - **驗**：`document.documentElement.scrollWidth <= innerWidth`；說明頁在窄螢幕走文字版（舞台 `.hs-stage` 不顯示）
+    - 已知：`/scanner` 的離線網頁路徑列在 390px 被卡片裁切（設定連結看不到），不橫向捲動頁面但屬視覺瑕疵；`/insights` 年表表頭格在容器內橫向捲動
+12. **[人工] 以圖查番號實送**：`/search` 點圖片鈕選一張影片截圖／封面（或拖圖、Ctrl+V 貼圖）→ 輸入框內出現小縮圖、查詢中樣式 → 比對列顯示候選番號與相似度；✕ 可撤掉；先打字再選圖會先撤掉文字搜尋的在飛請求（需真連 avscan.cc）
+13. **[人工] 隱藏未連線硬碟真機**：掛一顆外接硬碟／NAS 掃進片庫 → 設定頁開「隱藏未連線硬碟」並儲存 → 拔掉硬碟 → 瀏覽頁牆上該碟的片消失、相似結果不再出現其番號（但另一顆已連線硬碟上還有同番號時不被濾掉）；切回視窗自動重新檢查
+14. **[人工] AI 標籤詞表（付費 API）**：設定頁 AI 標籤「測試」鈕（用新樣本圖）、補完全庫後 LTX 片自動多一個「LTX」標籤且算無碼破解；內建詞表 30 詞、「全裸」只給模型參考不寫回片上（會花費用／寫 DB，且 dev 這支燈箱裡舊的「全裸」使用者標籤是詞表更新前寫入的，不代表新流程寫回）
+15. **[人工] Linux 伺服器版畫面**（0.18.14）：僅 Linux 伺服器版／headless 環境可驗；dev 只需確認設定頁伺服器列「LAN 伺服器未啟動…」說明不壞
+
+### 完成後 state
+
+- `output/config.json` 與起始 `cmp` 相同；locale 回 `zh-TW`；`localStorage.showcase_state` 已清；瀏覽器視窗還原 1280 寬
+
+### Regression 偵測點
+
+- 說明頁舞台步驟列不前進／`aria-current="step"` 沒跟著換 → 捲動引擎或 `help-tabs.js` 壞
+- 說明頁窄螢幕出現橫向捲動或舞台在 390px 仍顯示 → `help-stage.css` media query 壞
+- 底部提示「沒有連線」出現但「隱藏」按了牆沒清空／片數不變 → `state-hidden-sources.js` 的 `_hsRefresh` 壞
+- 點燈箱自己加的標籤文字只關燈箱、搜尋框沒 pill → `lb-user-tag-link` 沒接線
+- 搜尋框 `920` 後點標籤，數字還在 → `digits-only-search.js` 壞
+- 設定頁露出 `settings.gallery.hide_unreachable…`／`settings.ai.tags…` 等 key → 該語系檔漏 key
+- `.locale-toggle-btn` 沒回 `繁` 就收工 → 之後的場景全在別的語系下跑
 
 ---
 
