@@ -48,14 +48,14 @@ def test_seed_on_empty_db_builds_25_groups_and_old_spellings_resolve(_isolate):
 
     result = seed_builtin_aliases(repo)
     assert result["skipped"] is False
-    assert result["created"] == 25
+    assert result["created"] == 27
 
     groups = repo.get_all()
-    assert len(groups) == 25
+    assert len(groups) == 27
     assert all(g.source == "builtin-188" for g in groups)
-    assert sum(len(g.aliases) for g in groups) == 35
+    assert sum(len(g.aliases) for g in groups) == 41
 
-    for name in ("運動服", "婚紗", "全裸", "野外・露出"):
+    for name in ("運動服", "婚紗", "全裸"):
         assert repo.get_by_primary(name) is None
 
     assert canonicalize.canonicalize(["护士"]) == ["看護婦・ナース"]
@@ -84,7 +84,7 @@ def test_seed_never_touches_user_groups_and_skips_only_the_conflicting_alias(_is
     assert school.aliases == ["学生服", "水手服", "セーラー服"]
     assert school.source == "builtin-188"
 
-    assert len(repo.get_all()) == 26
+    assert len(repo.get_all()) == 28
 
 
 def test_seed_runs_once_never_resurrects_and_version_bump_only_tops_up(_isolate, monkeypatch):

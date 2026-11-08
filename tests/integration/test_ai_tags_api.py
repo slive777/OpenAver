@@ -232,3 +232,44 @@ def test_vocab_write_error_codes_map_to_http_status(client, env, case):
     resp = client.delete(f"/api/ai/tags/vocab/{builtin.name}")
     assert resp.status_code == 400
     assert resp.json()["reason"] == "builtin"
+
+
+def test_vocab_endpoint_marks_only_hidden_word(client, env):
+    """GET /vocab：30 項、只有全裸帶 hidden、撞名自訂詞只出現一列。"""
+    import json as _json
+
+    resp = client.get("/api/ai/tags/vocab")
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert len(items) == 30
+    hidden_items = [i for i in items if i["name"] == "全裸"]
+    assert len(hidden_items) == 1
+    assert hidden_items[0]["hidden"] is True
+    assert hidden_items[0]["source"] == "builtin"
+    for item in items:
+        assert "model_name" not in item
+        if item["name"] != "全裸":
+            assert "hidden" not in item
+
+    resp = client.delete("/api/ai/tags/vocab/全裸")
+    assert resp.status_code == 400
+    assert resp.json()["reason"] == "builtin"
+
+    (env / "ai_tag_vocab.json").write_text(
+        _json.dumps(
+            {
+                "version": 1,
+                "items": [
+                    {"name": "靴子", "definition": "x"},
+                    {"name": "好字", "definition": "y"},
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    items = client.get("/api/ai/tags/vocab").json()["items"]
+    boots = [i for i in items if i["name"] == "靴子"]
+    assert len(boots) == 1
+    assert boots[0]["source"] == "builtin"
+    assert any(i["name"] == "好字" for i in items)

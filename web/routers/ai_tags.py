@@ -135,6 +135,8 @@ def _vocab_item_payload(item) -> dict:
     }
     if item.source == "builtin":
         row["group"] = item.group
+    if getattr(item, "hidden", False):
+        row["hidden"] = True
     return row
 
 
