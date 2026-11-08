@@ -481,7 +481,7 @@ def resolve_ingest_plan(
         elif source and source not in (None, 'auto'):
             meta = search_jav_single_source(number, source, javbus_lang=javbus_lang)
         else:
-            meta = search_jav(number, source="auto", javbus_lang=javbus_lang)
+            meta = search_jav(number, source="auto", javbus_lang=javbus_lang, first_hit=True)
 
         nfo_thumb = root.findtext('thumb') if valid_nfo else None
         cover_fs = VideoScanner().find_cover_image(src_fs_path, nfo_thumb=nfo_thumb)
