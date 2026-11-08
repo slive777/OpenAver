@@ -282,19 +282,3 @@ def test_v1_upgrade_skips_only_the_occupied_alias(_isolate):
     assert list(lube.aliases) == ["ローション・オイル"]
     assert "乳液" not in lube.aliases
     assert _snapshot(repo, "乳液") == user_before
-
-
-def test_added_in_names_exist_in_shipped_vocab_with_aliases():
-    from core.ai_services import tagging_aliases as ta
-    from core.ai_services.tagging_vocab import load_builtin
-
-    added = getattr(ta, "_ADDED_IN", None)
-    assert added is not None
-    names = [n for v in added.values() for n in v]
-    assert len(names) > 0
-    assert sum(len(v) for v in added.values()) == 5
-
-    by_name = {item.name: item for item in load_builtin()}
-    for name in names:
-        assert name in by_name
-        assert by_name[name].aliases

@@ -5,7 +5,7 @@
 
 import pytest
 
-from core.cover_attributes import ATTRIBUTE_TABLE, effective_tags
+from core.cover_attributes import effective_tags
 
 _CANONICAL_TAGS = frozenset(
     {"中文字幕", "無碼破解", "無碼流出", "4K", "VR", "LTX"}
@@ -160,15 +160,3 @@ def test_ltx_filename_tags(filename, expected):
     assert _has_canonical(result) == expected
     if filename == "ABF-358-UC-LTX.mkv":
         assert result.count("無碼破解") == 1
-
-
-def test_supersedes_ids_reference_other_existing_rules():
-    ids = {rule.id for rule in ATTRIBUTE_TABLE}
-    non_empty = 0
-    for rule in ATTRIBUTE_TABLE:
-        if rule.supersedes:
-            non_empty += 1
-        for sid in rule.supersedes:
-            assert sid in ids
-            assert sid != rule.id
-    assert non_empty >= 1

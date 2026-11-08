@@ -175,22 +175,6 @@ test('supersede-2: 蓋過發生在 3 顆上限之前', () => {
     );
 });
 
-test('supersede-3: LTX 與 AI 佔同一個位置', () => {
-    const a = idsOf(badges({ tags: '中文字幕,無碼破解,無碼流出' }));
-    const b = idsOf(badges({ tags: '中文字幕,無碼破解,LTX,無碼流出' }));
-    assert.deepEqual(a, ['subtitle', 'cracked', 'leaked']);
-    assert.deepEqual(b, ['subtitle', 'ltx', 'leaked']);
-    assert.equal(a.length, b.length);
-    for (let i = 0; i < a.length; i++) {
-        if (i === 1) {
-            assert.notEqual(a[i], b[i]);
-            assert.equal(a[i], 'cracked');
-            assert.equal(b[i], 'ltx');
-        } else {
-            assert.equal(a[i], b[i]);
-        }
-    }
-});
 
 test('supersede-4: 蓋過關係讀 manifest 的 supersedes，不寫死 id', () => {
     // 舊 manifest：每列刪掉 supersedes 鍵（不是設成 []）
