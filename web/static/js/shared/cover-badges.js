@@ -28,6 +28,23 @@ export function resolveEnabledIds(manifest, coverBadgesCfg) {
 }
 
 /**
+ * 收集 matched 規則宣告的 supersedes id 集合。
+ * supersedes 缺鍵或非陣列視為 []（FE-JS-01）。
+ * @param {Array} rules
+ * @returns {Set}
+ */
+function _supersededIds(rules) {
+    var ids = new Set();
+    for (var i = 0; i < rules.length; i++) {
+        var sup = Array.isArray(rules[i].supersedes) ? rules[i].supersedes : [];
+        for (var k = 0; k < sup.length; k++) {
+            ids.add(sup[k]);
+        }
+    }
+    return ids;
+}
+
+/**
  * @param {Object|null|undefined} video
  * @param {Array|*} manifest
  * @param {Object} tagToGroup
@@ -56,6 +73,8 @@ export function computeBadges(video, manifest, tagToGroup, enabledIds) {
             matched.push(rule);
         }
     }
+    var superseded = _supersededIds(matched);
+    matched = matched.filter(function (r) { return !superseded.has(r.id); });
     matched.sort(function (a, b) { return a.display_order - b.display_order; });
     return matched.slice(0, 3).map(function (r) {
         return { id: r.id, display_name: r.display_name };
