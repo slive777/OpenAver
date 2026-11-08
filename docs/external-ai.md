@@ -666,7 +666,7 @@ Speed and errors: globally at most 1 image every 5 seconds (screen and assistant
 
 ## AI tags（AI 標籤）
 
-AI tags need **no endpoint to host** and have **no consistency test**. OpenAver (or you, the assistant) looks at a video's poster and picks words from a fixed vocabulary; the picked words are saved as the video's user tags. Only what is visible on the poster counts: the person's clothing, legs, body shape and the setting. The vocabulary is fixed: 29 built-in words plus the user's own custom words.
+AI tags need **no endpoint to host** and have **no consistency test**. OpenAver (or you, the assistant) looks at a video's poster and picks words from a fixed vocabulary; the picked words are saved as the video's user tags. Only what is visible on the poster counts: the person's clothing, legs, body shape and the setting. The vocabulary is fixed: 30 built-in words plus the user's own custom words. One built-in word, 全裸, is hidden: it is there for the model to pick when the poster fits it, but OpenAver's own AI tagging never writes it onto a video; see below for what you should do when you write tags back yourself.
 
 There are two ways to use it.
 
@@ -691,6 +691,7 @@ curl -s "$OA/api/ai/tags/vocab"
 
 - `name` is the display name. When you write tags back, write exactly this `name` and nothing else.
 - `source` is `builtin` or `custom`. Built-in items also carry `group`. Every item has a `definition`: the standard to judge by.
+- Exactly one built-in item carries `"hidden": true` (全裸). The other items have no `hidden` key at all. When you judge a poster yourself you may use a hidden word as an exit (a fully nude poster fits it better than forcing it into another word), but do **not** write it back as a tag.
 - This reads only; nothing is changed.
 
 #### Add or remove a custom word (ask the user first)
@@ -725,6 +726,7 @@ curl -s -X POST "$OA/api/user-tags" -H "Content-Type: application/json" -d '{"fi
 
 - Always send `"ai_tagged": true`, even when `add` is empty. It means "this video has been looked at", so the user's count of videos not yet done goes down.
 - Only write display names that exist in the vocabulary.
+- Skip any item with `"hidden": true`: judge with it if you want, but leave it out of `add`. `POST /api/user-tags` does not block it for you.
 - If the tags did not change, the NFO is not rewritten. Without the `ai_tagged` field the call behaves exactly as before.
 - The reply has the usual `success`, `user_tags`, `nfo_updated` and `readonly_no_output`.
 

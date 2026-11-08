@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
@@ -93,6 +94,51 @@ def test_vocab_names_map_to_display_names_and_drop_unknown():
     bare_prompt = build_system_prompt(bare)
     assert '- 「無說明字」' in bare_prompt
     assert '- 「無說明字」 ＝' not in bare_prompt
+
+    assert to_display_names(
+        ["戀腿癖", "迷你裙", "走光", "野外・露出", "制服"], load_builtin()
+    ) == ["校服"]
+    lines = build_system_prompt(load_builtin()).splitlines()
+    assert any(line.startswith("- 「全裸」") for line in lines)
+    prompt_text = build_system_prompt(load_builtin())
+    assert "owner" not in prompt_text
+    assert "DMM 分類" not in prompt_text
+
+
+@pytest.mark.parametrize(
+    "reply_tags, expect_added",
+    [
+        pytest.param(["全裸"], [], id="hidden_only"),
+        pytest.param(["全裸", "制服"], ["校服"], id="hidden_plus_uniform"),
+        pytest.param(["全裸", "制服"], ["校服"], id="hidden_first"),
+    ],
+)
+def test_hidden_word_never_lands_but_run_still_counts(
+    tmp_path, monkeypatch, reply_tags, expect_added, request
+):
+    """模型看得到全裸、片上不落地；濾完照走寫入、記跑過。"""
+    from core.ai_services.tagging import tag_video
+
+    vocab = list(load_builtin())
+    if request.node.callspec.id == "hidden_first":
+        vocab = sorted(vocab, key=lambda i: i.name != "全裸")
+    reply = json.dumps(
+        {"tags": [{"tag": tag, "confidence": "high"} for tag in reply_tags]},
+        ensure_ascii=False,
+    )
+    repo, file_uri, mp4, nfo, config = _make_tag_env(
+        tmp_path, monkeypatch, vocab=vocab
+    )
+    assert repo.get_ai_tagged_at(file_uri) is None
+    stub, calls = _make_vision_stub(reply)
+    outcome = asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
+    assert len(calls) == 1
+    assert outcome.added == expect_added
+    assert "全裸" not in outcome.added
+    user_tags = repo.get_by_path(file_uri).user_tags
+    assert "全裸" not in user_tags
+    assert set(["★4", *expect_added]) <= set(user_tags)
+    assert repo.get_ai_tagged_at(file_uri) is not None
 
 
 def test_resolve_vision_conn_table():

@@ -1,6 +1,6 @@
 """檔名後綴 → 屬性 tag 的單一資料來源，加上合併／去重純函式。
 
-表是 5 個 id，`-UC` 不是獨立列：id 為 subtitle / cracked / leaked / 4k / vr，
+表的列數不固定，`-UC` 不是獨立列：id 有 subtitle / cracked / ltx / leaked / 4k / vr，
 `-UC` / `-CU` 是 subtitle 與 cracked 共用的 token。
 「無碼」（片商本身無碼）不在本表。
 """
@@ -26,6 +26,10 @@ class AttributeRule:
     i18n_key: str
     source: str
     tokens: tuple[str, ...] = ()
+    supersedes: tuple[str, ...] = ()
+
+
+_LTX_TOKENS = ("-ltx", "_ltx", ".ltx")
 
 
 ATTRIBUTE_TABLE: tuple[AttributeRule, ...] = (
@@ -47,7 +51,18 @@ ATTRIBUTE_TABLE: tuple[AttributeRule, ...] = (
         display_order=2,
         i18n_key="settings.gallery.cover_badge.cracked",
         source="filename_token",
-        tokens=("-U", "_U", "umr", "破解", "克破", "-UC", "-CU"),
+        tokens=("-U", "_U", "umr", "破解", "克破", "-UC", "-CU") + _LTX_TOKENS,
+    ),
+    AttributeRule(
+        id="ltx",
+        canonical_tag="LTX",
+        display_name="LTX",
+        match_aliases=("LTX",),
+        display_order=2,
+        i18n_key="settings.gallery.cover_badge.ltx",
+        source="filename_token",
+        tokens=_LTX_TOKENS,
+        supersedes=("cracked",),
     ),
     AttributeRule(
         id="leaked",
@@ -84,7 +99,7 @@ ATTRIBUTE_TABLE: tuple[AttributeRule, ...] = (
 
 def _compile_token(token: str) -> re.Pattern[str]:
     escaped = re.escape(token.lower())
-    if token[:1] in "-_":
+    if token[:1] in "-_.":
         return re.compile(escaped + _PREFIXED_RIGHT)
     return re.compile(_BARE_LEFT + escaped + _BARE_RIGHT)
 
@@ -108,6 +123,7 @@ _MANIFEST_KEYS = (
     "match_aliases",
     "display_order",
     "i18n_key",
+    "supersedes",
 )
 
 

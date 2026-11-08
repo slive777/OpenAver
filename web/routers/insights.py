@@ -75,7 +75,7 @@ def _build_alias_lookup(records) -> dict[str, tuple[str, list[str]]]:
 def _merge_badge_alias_manifest(
     tag_lookup: dict[str, tuple[str, list[str]]],
 ) -> dict[str, tuple[str, list[str]]]:
-    """將 cover-badge 的 5 組別名合併進 tag_lookup（CD-156-11 使用者別名群組優先權）。"""
+    """將 cover-badge 的別名合併進 tag_lookup（CD-156-11 使用者別名群組優先權）。"""
     user_tag_lookup = dict(tag_lookup)
     merged: dict[str, tuple[str, list[str]]] = dict(tag_lookup)
 

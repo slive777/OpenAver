@@ -30,6 +30,7 @@ class VocabItem:
     definition: str
     model_name: str
     aliases: tuple[str, ...] = ()
+    hidden: bool = False
 
 
 class VocabError(Exception):
@@ -61,6 +62,7 @@ def load_builtin() -> list[VocabItem]:
                 definition=row["def"],
                 model_name=row["model_name"],
                 aliases=tuple(aliases),
+                hidden=bool(row.get("hidden", False)),
             )
         )
     _builtin_cache = items
@@ -128,8 +130,30 @@ def load_custom() -> list[VocabItem]:
     return _load_custom(strict=False)
 
 
+_warned_custom_collisions: set[str] = set()
+
+
 def merged() -> list[VocabItem]:
-    return [*load_builtin(), *load_custom()]
+    return [*load_builtin(), *_custom_without_collisions()]
+
+
+def _custom_without_collisions() -> list[VocabItem]:
+    builtin_names: set[str] = set()
+    for item in load_builtin():
+        builtin_names.add(item.name)
+        builtin_names.add(item.model_name)
+    out: list[VocabItem] = []
+    for custom in load_custom():
+        if custom.name in builtin_names:
+            if custom.name not in _warned_custom_collisions:
+                _warned_custom_collisions.add(custom.name)
+                logger.warning(
+                    "ai_tag_vocab: custom %r collides with builtin, builtin wins",
+                    custom.name,
+                )
+            continue
+        out.append(custom)
+    return out
 
 
 def _has_control_char(text: str) -> bool:

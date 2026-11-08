@@ -867,6 +867,7 @@
       "cover_badges_label": "封面屬性標籤",
       "cover_badges_note": "在封面左上角顯示中文字幕／無碼／4K 等標籤（只影響顯示，不改標籤本身）",
       "cover_badges_legend": "＊AI：無碼破解（AI 演算法去碼），LEAK：無碼流出（母帶外流）",
+      "cover_badges_legend_ltx": "LTX：新一代 AI 去碼，畫質接近流出版",
       "cover_badges_help_aria": "封面屬性標籤說明",
       "show_table_list_label": "顯示表格與清單",
       "show_table_list_note": "開啟後，瀏覽頁右上角會多出表格與清單兩種呈現。預設只有封面與海報。",
@@ -877,6 +878,7 @@
       "cover_badge": {
         "subtitle": "中文字幕",
         "cracked": "無碼破解（AI 演算法去馬）",
+        "ltx": "LTX（新一代 AI 去碼）",
         "leaked": "無碼流出（母帶外流）",
         "4k": "4K",
         "vr": "VR"

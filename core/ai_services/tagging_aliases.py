@@ -1,4 +1,4 @@
-"""Builtin tag-alias seed (TASK-188b-T4 / CD-188b-7)."""
+"""Builtin tag-alias seed (TASK-188b-T4 / CD-188b-7 / TASK-196-T2)."""
 
 from __future__ import annotations
 
@@ -6,9 +6,10 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-SEED_VERSION = 1
+SEED_VERSION = 2
 SOURCE = "builtin-188"
 _META_KEY = "ai_tags.alias_seed_version"
+_ADDED_IN: dict[int, frozenset[str]] = {2: frozenset({"女醫", "過膝襪", "靴子", "雙馬尾", "潤滑油"})}
 
 
 def _read_marker(repo) -> int:
@@ -62,14 +63,14 @@ def _top_up(repo, owner, item) -> int:
     return n
 
 
-def _seed_one(repo, item, top_up_only: bool) -> tuple[int, int]:
+def _seed_one(repo, item, create_only: bool) -> tuple[int, int]:
     owner = repo.get_by_primary(item.name) or repo.find_by_alias(item.name)
     if owner is not None:
+        if create_only:
+            return 0, 0
         if owner.source != SOURCE or owner.primary_name != item.name:
             return 0, 0
         return 0, _top_up(repo, owner, item)
-    if top_up_only:
-        return 0, 0
     free = [a for a in item.aliases if not _occupied(repo, a)]
     if not free:
         return 0, 0
@@ -90,15 +91,23 @@ def seed_builtin_aliases(repo=None) -> dict:
 
     if repo is None:
         repo = TagAliasRepository()
-    if _read_marker(repo) >= SEED_VERSION:
+    marker = _read_marker(repo)
+    if marker >= SEED_VERSION:
         return {"skipped": True, "created": 0, "topped_up": 0}
-    top_up_only = _read_marker(repo) > 0
+    only = None if marker == 0 else {
+        name
+        for v, names in _ADDED_IN.items()
+        if marker < v <= SEED_VERSION
+        for name in names
+    }
     created = 0
     topped_up = 0
     for item in load_builtin():
         if not item.aliases:
             continue
-        c, t = _seed_one(repo, item, top_up_only)
+        if only is not None and item.name not in only:
+            continue
+        c, t = _seed_one(repo, item, create_only=only is not None)
         created += c
         topped_up += t
     if created or topped_up:

@@ -12,6 +12,8 @@ import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from core import readonly_assets, readonly_paths
 from core.cover_attributes import ATTRIBUTE_TABLE, effective_tags
 from core.database import VideoRepository, init_db
@@ -371,3 +373,16 @@ def test_b03_no_token_equivalent_to_identity_effective_tags(tmp_path):
 # ── 邊界 5（videos.tags 寫入點粗顆粒守衛）────────────────────────────────────
 
 
+@pytest.mark.parametrize(
+    "filename",
+    ["SNIS-542-U.ltx.mp4", "SNIS-542_LTX.mp4"],
+)
+def test_ltx_attribute_subset_identical_across_four_paths(tmp_path, filename):
+    expected = {"無碼破解", "LTX"}
+    number = "SNIS-542"
+    subsets = _four_attr_subsets(tmp_path, filename, number=number)
+    assert subsets["organize"] == expected
+    assert subsets["scan"] == expected
+    assert subsets["enrich"] == expected
+    assert subsets["readonly"] == expected
+    assert subsets["organize"] == subsets["scan"] == subsets["enrich"] == subsets["readonly"]

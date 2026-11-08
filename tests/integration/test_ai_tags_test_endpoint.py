@@ -81,6 +81,7 @@ def test_masked_api_key_resolves_to_stored_key(monkeypatch, case):
         "bad_response",
         "refused",
         "no_tags",
+        "hidden_only",
         "ok",
         "not_configured",
     ],
@@ -106,6 +107,9 @@ def test_outcomes_name_what_the_user_should_fix(monkeypatch, case):
         if case == "no_tags":
             # 空 tags 陣列 → unusable/no_tags（樣本圖 0 字）
             return '{"tags":[]}'
+        if case == "hidden_only":
+            # 只回 hidden 詞 → 濾完為空 → unusable/no_tags（測試鈕不顯示全裸）
+            return '{"tags":[{"tag":"全裸","confidence":"high"}]}'
         if case == "ok":
             # 命中詞表 model_name → ok，tags 為顯示名
             item = load_builtin()[0]
@@ -153,6 +157,8 @@ def test_outcomes_name_what_the_user_should_fix(monkeypatch, case):
     elif case == "refused":
         assert body == {"ok": False, "outcome": "unusable", "detail": "refused"}
     elif case == "no_tags":
+        assert body == {"ok": False, "outcome": "unusable", "detail": "no_tags"}
+    elif case == "hidden_only":
         assert body == {"ok": False, "outcome": "unusable", "detail": "no_tags"}
     elif case == "ok":
         item = load_builtin()[0]

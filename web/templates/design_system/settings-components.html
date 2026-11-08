@@ -851,7 +851,7 @@
     <p class="ds-desc">
         設定頁「封面屬性標籤」那一列，資料來自 <code>/api/cover-badges/manifest</code>。
         顯示的是<strong>封面上會出現的短名</strong>（WYSIWYG），不是全名。
-        <strong>這五顆是固定的屬性開關、不可拖曳排序</strong>（與來源膠囊的語意差異）。
+        <strong>這幾顆是固定的屬性開關、不可拖曳排序</strong>（與來源膠囊的語意差異）。
         關閉態三訊號：虛線 ＋ ⊘ ＋ 刪除線。刪除線靠 <code>settings.css</code> 的
         <code>#ds-settings-components .settings-attr-pills</code> scope 覆寫加回來
         （<code>.source-pill--action</code> 預設會取消刪除線）。
@@ -867,6 +867,10 @@
             <button type="button" class="source-pill source-pill--action" data-enabled="true">
                 <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
                 <span class="pill-name">AI</span>
+            </button>
+            <button type="button" class="source-pill source-pill--action" data-enabled="true">
+                <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+                <span class="pill-name">LTX</span>
             </button>
             <button type="button" class="source-pill source-pill--action" data-enabled="false">
                 <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>

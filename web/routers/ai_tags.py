@@ -135,6 +135,8 @@ def _vocab_item_payload(item) -> dict:
     }
     if item.source == "builtin":
         row["group"] = item.group
+    if getattr(item, "hidden", False):
+        row["hidden"] = True
     return row
 
 
@@ -159,7 +161,7 @@ def _poster_bytes(file_path: str):
 def _tags_sample_uri() -> str:
     global _cache_tags
     if _cache_tags is None:
-        path = get_project_root() / "web/static/img/demo/sone-103.jpg"
+        path = get_project_root() / "web/static/img/showcase/sc-11.jpg"
         uri = poster_to_data_uri(str(path), "default", "")
         if uri is None:
             raise FileNotFoundError(f"tags sample unreadable: {path}")

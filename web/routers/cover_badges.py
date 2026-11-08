@@ -21,6 +21,7 @@ class CoverBadgeRule(BaseModel):
     match_aliases: List[str]
     display_order: int
     i18n_key: str
+    supersedes: List[str] = []
 
 
 @router.get("/manifest", response_model=List[CoverBadgeRule])

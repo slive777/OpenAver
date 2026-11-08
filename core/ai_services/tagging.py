@@ -285,7 +285,9 @@ async def _ask_model(prep: _Prepared, vision_fn) -> tuple[list[str], bool]:
         return [], True
     if parsed.status == "bad":
         raise TaggingFailure("bad_response", detail="bad_json")
-    return to_display_names(parsed.tags, prep.vocab), False
+    names = to_display_names(parsed.tags, prep.vocab)
+    hidden = {item.name for item in prep.vocab if item.hidden}
+    return [n for n in names if n not in hidden], False
 
 
 def _make_add_filter(names: list[str]):
