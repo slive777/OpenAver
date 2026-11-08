@@ -11,6 +11,14 @@ export function didEnrichSomething(event) {
         || (event.fields_filled?.length > 0) || event.extrafanart_written > 0);
 }
 
+// 單位是秒／部，依據 spec §2.4
+const SEC_NO_NFO = 1;
+// 單位是秒／部，依據 spec §2.4
+const SEC_COVER_ONLY = 10;
+export function estimateEnrichMinutes(noNfoCount, coverOnlyCount) {
+    return Math.ceil((noNfoCount * SEC_NO_NFO + coverOnlyCount * SEC_COVER_ONLY) / 60);
+}
+
 export function stateBatch() {
     return {
         // ===== T10: Missing NFO/Cover Enrich =====
@@ -73,6 +81,7 @@ export function stateBatch() {
             }
             return '<i class="bi bi-file-earmark-plus"></i> ' + window.t('scanner.stats.missing_enrich_idle');
         },
+        get missingEstimateMinutes() { return estimateEnrichMinutes(this.missingBothCount + this.missingNfoCount, this.missingCoverCount); },
 
         // ===== T10: Missing NFO/Cover Enrich Methods =====
         async checkMissing() {
