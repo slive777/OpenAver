@@ -3,10 +3,12 @@
 對應卡片「本 task 特有邊界」16 條，每條至少一條斷言，不抽樣。
 """
 
-from core.cover_attributes import effective_tags
+import pytest
+
+from core.cover_attributes import ATTRIBUTE_TABLE, effective_tags
 
 _CANONICAL_TAGS = frozenset(
-    {"中文字幕", "無碼破解", "無碼流出", "4K", "VR"}
+    {"中文字幕", "無碼破解", "無碼流出", "4K", "VR", "LTX"}
 )
 
 
@@ -135,3 +137,38 @@ def test_b11c_dedup_key_strips_whitespace():
 
 # ── 邊界 16 ─────────────────────────────────────────────────────────────────
 
+
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [
+        ("SNIS-542_LTX.mp4", {"無碼破解", "LTX"}),
+        ("第一會所新片@SIS001@SNIS-542_LTX.mp4", {"無碼破解", "LTX"}),
+        ("SNIS-576-LTX.mp4", {"無碼破解", "LTX"}),
+        ("MIDV-123-LTX-C.mp4", {"無碼破解", "LTX", "中文字幕"}),
+        ("IPX-750-LTX-4K.mp4", {"無碼破解", "LTX", "4K"}),
+        ("SNIS-542-U.ltx.mp4", {"無碼破解", "LTX"}),
+        ("snis-542-ltx.mp4", {"無碼破解", "LTX"}),
+        ("ABF-358-UC-LTX.mkv", {"中文字幕", "無碼破解", "LTX"}),
+        ("LTX-123.mp4", set()),
+        ("SNIS-542-LTXA.mp4", set()),
+        ("SNIS-542-L.mp4", set()),
+        ("SNIS-542-LC.mp4", set()),
+    ],
+)
+def test_ltx_filename_tags(filename, expected):
+    result = effective_tags(filename, [])
+    assert _has_canonical(result) == expected
+    if filename == "ABF-358-UC-LTX.mkv":
+        assert result.count("無碼破解") == 1
+
+
+def test_supersedes_ids_reference_other_existing_rules():
+    ids = {rule.id for rule in ATTRIBUTE_TABLE}
+    non_empty = 0
+    for rule in ATTRIBUTE_TABLE:
+        if rule.supersedes:
+            non_empty += 1
+        for sid in rule.supersedes:
+            assert sid in ids
+            assert sid != rule.id
+    assert non_empty >= 1
