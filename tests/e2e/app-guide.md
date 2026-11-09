@@ -1,4 +1,4 @@
-# OpenAver App 操作指南（AI + Playwright MCP 用）
+# OpenAver App 操作指南（AI + `playwright-cli` 用）
 
 > 跑 e2e-scenarios.md 前先讀本文件。描述各頁面的操作方式和注意事項。
 
@@ -139,7 +139,7 @@ document.querySelectorAll('.info-row').forEach(row => {
 - 掃描資料夾列表（已設定的路徑）
 - 「更新片庫」按鈕觸發掃描 + HTML 生成
 - 快取影片數顯示
-- **加入資料夾需要 PyWebView file dialog，Playwright MCP 無法觸發**
+- **加入資料夾需要 PyWebView file dialog，瀏覽器自動化無法觸發**
 
 ---
 
@@ -155,9 +155,9 @@ curl -s http://localhost:8000/api/capabilities | jq .
 
 ---
 
-## Playwright MCP 限制
+## 瀏覽器自動化（`playwright-cli`）限制
 
-| 功能 | MCP 可做 | 需人工 |
+| 功能 | AI 可做 | 需人工 |
 |------|:---:|:---:|
 | 頁面導航、點擊、填表、鍵盤 | ✓ | |
 | 截圖、snapshot、讀 DOM | ✓ | |

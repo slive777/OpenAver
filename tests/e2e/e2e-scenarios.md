@@ -1,6 +1,6 @@
 # E2E 用戶旅程劇本（v2 — 2026-05-14 align 後）
 
-> 純文字劇本，**人類用瀏覽器手動 / AI 用 Playwright MCP** 皆可照跑。
+> 純文字劇本，**人類用瀏覽器手動 / AI 用 `playwright-cli` skill** 皆可照跑。
 > 對應 spec：`feature/59-onboarding-help-polish/spec-59.md` §8 + plan-59c.md
 > **AI 首次操作前先讀 `app-guide.md`**（同目錄）了解各頁面操作方式。
 
@@ -14,14 +14,17 @@
 source venv/bin/activate && uvicorn web.app:app --host 127.0.0.1 --port 8000
 ```
 
-### Playwright MCP Server 選擇
+### AI 驅動：`playwright-cli` skill
 
-| Server | 用途 | 啟動方式 |
-|--------|------|---------|
-| `playwright`（headless） | Clean state 跑（無 cache）；CI-like 一致性；建議 US1–US4 用 | 已在 MCP config |
-| `playwright-cdp`（CDP attach） | 視覺確認、需看動畫（US3 constellation / US5 photo enrichment）；共享 Chrome 已登入狀態 | Chrome 啟動加 `--remote-debugging-port=9222` |
+步驟裡的指令名是 `playwright-cli` 的子指令（例：`click` → `#tutorialNext` ＝ `playwright-cli -s=e2e click '#tutorialNext'`）。`click`／`fill` 吃 snapshot 的 ref，也吃 CSS selector。
 
-**Risk-2 — Cache 黏性**：CDP attach 模式會沿用 Chrome ESM module map cache；改 JS 模組後 e2e 跑前用 Incognito 視窗或切 headless server。
+- **每個驅動帶自己的 `-s=<名>`**，在 scratchpad 當 cwd 跑（snapshot／截圖會寫進 `cwd/.playwright-cli/`）；收尾 `close`。
+- 預設 headless chrome（1280×720、in-memory profile，每次 `open` 都是乾淨狀態）。要接使用者看得到的 Chrome：`attach --cdp=http://<host>:9222`（Chrome 啟動加 `--remote-debugging-port=9222`）。
+- `wait_for` 沒有對應子指令，用 `run-code`：等元素 `async page => page.waitForSelector('#x.active', {timeout: 3000})`、等網址 `page.waitForURL('**/help', {timeout: 3000})`、等秒數 `page.waitForTimeout(2000)`。
+- `run-code` 每次呼叫的 Node 端狀態（`globalThis`、`page.route`）不保留；要跨步驟的 stub 寫在同一次 `run-code` 裡。
+- `[MCP]` 標記沿用舊名，意思是「AI 可驅動」；`[人工]` 一律由使用者驗。
+
+**Risk-2 — Cache 黏性**：attach 到使用者 Chrome 會沿用 ESM module map cache；改 JS 模組後 e2e 跑前用 Incognito 視窗或改用 headless。
 
 ### 執行時機
 
@@ -50,7 +53,7 @@ source venv/bin/activate && uvicorn web.app:app --host 127.0.0.1 --port 8000
 ### Setup
 
 - Dev server 已啟動於 `http://localhost:8000`
-- 清 tutorial flag（browser_evaluate）：
+- 清 tutorial flag（eval）：
   ```js
   localStorage.removeItem('openaver_tutorial_completed');
   ```
@@ -59,37 +62,37 @@ source venv/bin/activate && uvicorn web.app:app --host 127.0.0.1 --port 8000
 
 ### Steps
 
-1. `browser_navigate` → `http://localhost:8000/scanner`
-2. `browser_wait_for` selector=`#tutorialOverlay.active` timeout=3s
-3. `browser_snapshot` 驗：
+1. `goto` → `http://localhost:8000/scanner`
+2. `wait_for` selector=`#tutorialOverlay.active` timeout=3s
+3. `snapshot` 驗：
    - `#tutorialOverlay` 存在且有 `.active` class
    - `#btnSelectFolder` 在頁面上（spotlight 模式靠 CSS box-shadow punch-out 命中此元素）
    - `#tutorialProgress` 文字含 `1 / 4`
-4. `browser_click` → `#tutorialNext`；`browser_wait_for` `#tutorialProgress` text contains `2 / 4`
-5. `browser_snapshot` 驗 `#btnGenerate` 在 viewport 內（step 2 spotlight 命中更新片庫按鈕）
-6. `browser_click` → `#tutorialNext`；驗進度 `3 / 4`（**v0.15.15 起 step 3 改指向 `#btnGenerate` 本身**，不再指 sidebar Scanner 連結）：
-   - `browser_snapshot` 驗 `#btnGenerate` 仍在 spotlight 命中範圍（與 step 2 同一顆按鈕）
+4. `click` → `#tutorialNext`；`wait_for` `#tutorialProgress` text contains `2 / 4`
+5. `snapshot` 驗 `#btnGenerate` 在 viewport 內（step 2 spotlight 命中更新片庫按鈕）
+6. `click` → `#tutorialNext`；驗進度 `3 / 4`（**v0.15.15 起 step 3 改指向 `#btnGenerate` 本身**，不再指 sidebar Scanner 連結）：
+   - `snapshot` 驗 `#btnGenerate` 仍在 spotlight 命中範圍（與 step 2 同一顆按鈕）
    - **驗**：提示卡內含 `.tutorial-mock-card`，其中 `.nfo-badge` 文字同時含 `13` 與 `11`（固定假數字，見 `tutorial-step3-card.js` CD-146a-3：不讀真實片庫）
-   - **驗**：`.tutorial-mock-card .btn-nfo-update` 存在且帶 `disabled` — `browser_click` 該鈕**不應**觸發任何網路請求（`browser_network_requests` 比對點擊前後無新增 `/api/enrich` 類請求），純示意圖不可點
+   - **驗**：`.tutorial-mock-card .btn-nfo-update` 存在且帶 `disabled` — `click` 該鈕**不應**觸發任何網路請求（`requests` 比對點擊前後無新增 `/api/enrich` 類請求），純示意圖不可點
    - **驗**：提示文字（`tutorial.flow.s3_content`）講明「只補封面和資料，不會改名，也不會搬動你的檔案；用其他工具整理過的片會直接收進來，不重抓」
-7. `browser_click` → `#tutorialNext`；驗進度 `4 / 4`、sidebar `a[href="/showcase"]` outline、`#tutorialNext` innerText 變為 `tutorial.done` 翻譯（如「完成」/「Done」）；`#tutorialContent` 內有且僅有一顆 `a[data-tutorial-go]`，`href` 為 `/help#organize`（底線、強調色）
-8. `browser_click` → `a[data-tutorial-go]`；`browser_wait_for` URL = `/help#organize` timeout=3s
+7. `click` → `#tutorialNext`；驗進度 `4 / 4`、sidebar `a[href="/showcase"]` outline、`#tutorialNext` innerText 變為 `tutorial.done` 翻譯（如「完成」/「Done」）；`#tutorialContent` 內有且僅有一顆 `a[data-tutorial-go]`，`href` 為 `/help#organize`（底線、強調色）
+8. `click` → `a[data-tutorial-go]`；`wait_for` URL = `/help#organize` timeout=3s
    - **驗**：說明頁落在「整理與改名」分頁（`[data-help-panel="organize"]` 顯示、其餘兩個隱藏）
 9. `GET /api/tutorial-status` 預期 `{"completed": true}`（點連結一律先寫旗標再換頁）
-10. `browser_navigate` → `http://localhost:8000/scanner`；`browser_wait_for` 2s；驗 `#tutorialOverlay` 不存在（回片庫管理不再被打擾）；`browser_evaluate` → `localStorage.getItem('openaver_tutorial_completed')` 預期 `=== 'true'`
-11. **H1 Help verify**：`browser_click` → `#sidebar a[href="/help"]`；`browser_wait_for` URL = `/help` timeout=3s
+10. `goto` → `http://localhost:8000/scanner`；`wait_for` 2s；驗 `#tutorialOverlay` 不存在（回片庫管理不再被打擾）；`eval` → `localStorage.getItem('openaver_tutorial_completed')` 預期 `=== 'true'`
+11. **H1 Help verify**：`click` → `#sidebar a[href="/help"]`；`wait_for` URL = `/help` timeout=3s
     - **驗**：`h2.card-title` 至少 1 個存在且 innerText **不含** `help.` 字串（無 raw i18n key）
     - **驗**：`.terminal-copy-btn` 可見（curl 複製按鈕 render 正常）
 
 **Tutorial Restart 分支**：
-- `browser_navigate` → `http://localhost:8000/scanner?tutorial=restart`
-- `browser_wait_for` `#tutorialOverlay.active` timeout=2s
+- `goto` → `http://localhost:8000/scanner?tutorial=restart`
+- `wait_for` `#tutorialOverlay.active` timeout=2s
 - 驗 `#tutorialProgress` 從 `1 / 4` 開始（重播一律從 step 1）
 
 **重整後不自動觸發驗證**：
-- `browser_navigate` 重新整理 `http://localhost:8000/scanner`
-- `browser_wait_for` 2s（等可能的 auto-trigger）
-- `browser_snapshot` 驗 `#tutorialOverlay` 不存在或 `:not(.active)`
+- `goto` 重新整理 `http://localhost:8000/scanner`
+- `wait_for` 2s（等可能的 auto-trigger）
+- `snapshot` 驗 `#tutorialOverlay` 不存在或 `:not(.active)`
 
 ### 完成後 state
 
@@ -126,7 +129,7 @@ N/A — tutorial flow 是 browser-only，無需 PyWebView picker。Step 4（show
 - 該路徑須在 Settings → favorite folder 或 Scanner tracked directory 內
 - 該番號尚未存在於 DB：
   ```js
-  // browser_evaluate
+  // eval
   fetch('/api/search/local-status?numbers=SONE-205').then(r => r.json())
   // 預期 {"SONE-205":{"exists":false}}
   ```
@@ -135,10 +138,10 @@ N/A — tutorial flow 是 browser-only，無需 PyWebView picker。Step 4（show
 
 ### Steps
 
-1. `browser_navigate` → `http://localhost:8000/search`
-2. `browser_type` 番號 `SONE-205` 至搜尋輸入框，`browser_press_key` `Enter`
-3. `browser_wait_for` selector=`#resultCard` (x-show pageState === 'result') timeout=15s
-4. **Sub-A — Detail card render 驗收**：`browser_snapshot` 驗
+1. `goto` → `http://localhost:8000/search`
+2. `type` 番號 `SONE-205` 至搜尋輸入框，`press` `Enter`
+3. `wait_for` selector=`#resultCard` (x-show pageState === 'result') timeout=15s
+4. **Sub-A — Detail card render 驗收**：`snapshot` 驗
    - `#resultCard` 內含封面 `<img>` 已載入（`naturalWidth > 0`）
    - 番號 text 含 `SONE-205`、女優欄位非空、片商欄位非空
    - 多來源指示器（如 source badge）至少 1 個
@@ -146,37 +149,37 @@ N/A — tutorial flow 是 browser-only，無需 PyWebView picker。Step 4（show
    - **5a. 進 file-list 模式（明確操作）**：
      - 先確認 Settings → favorite folder 已指向放有 fixture mp4 的目錄；若未設定或目錄為空 → **skip US2 並記錄原因**
      - **清空 Search state**（step 1-4 已停在 `pageState === 'result'`，`#btnFavorite` 只在 `#emptyState` 顯示）：
-       - `browser_click` → `#btnClear`（`search.html:288`，`x-show="hasContent"`，`@click="clearAll()"`）；或
-       - `browser_evaluate` `() => Alpine.$data(document.querySelector('[x-data*="search"]')).clearAll()` 直接清狀態
-     - `browser_wait_for` `#emptyState` 可見（`pageState === 'empty'`，`search.html:306`）
-     - `browser_click` → `#btnFavorite`（`search.html:316`，`@click="loadFavorite()"`；按鈕在 `#emptyState` 內，必須先清空 result state 才能命中）
+       - `click` → `#btnClear`（`search.html:288`，`x-show="hasContent"`，`@click="clearAll()"`）；或
+       - `eval` `() => Alpine.$data(document.querySelector('[x-data*="search"]')).clearAll()` 直接清狀態
+     - `wait_for` `#emptyState` 可見（`pageState === 'empty'`，`search.html:306`）
+     - `click` → `#btnFavorite`（`search.html:316`，`@click="loadFavorite()"`；按鈕在 `#emptyState` 內，必須先清空 result state 才能命中）
      - PyWebView/files/drop 是另一條進場路徑（`setFileList()`），browser e2e 不適用
-     - `browser_wait_for` `#btnSearchAll` 可見（`search.html:758`，`x-show="listMode === 'file'"`）+ fileList 顯示 fixture
-   - **5b. 先跑 searchAll**：`browser_click` → `#btnSearchAll`（`searchAll()`，`state/batch.js:140`）
-   - `browser_wait_for` `#batchProgress` 出現（searchAll SSE 進行中）
-   - `browser_wait_for` `#batchProgress` 消失 timeout=60s（searchAll 完成，每個 file 取得 `searched=true` + `searchResults`）
+     - `wait_for` `#btnSearchAll` 可見（`search.html:758`，`x-show="listMode === 'file'"`）+ fileList 顯示 fixture
+   - **5b. 先跑 searchAll**：`click` → `#btnSearchAll`（`searchAll()`，`state/batch.js:140`）
+   - `wait_for` `#batchProgress` 出現（searchAll SSE 進行中）
+   - `wait_for` `#batchProgress` 消失 timeout=60s（searchAll 完成，每個 file 取得 `searched=true` + `searchResults`）
    - **5c. 跑 scrapeAll**（gate 在 `scrapeAll()` 內判，不是 button disabled）：
      - `#btnScrapeAll` 的 `:disabled` 綁的是 `isScrapeAllProcessing`（`search.html:777`），不是「有沒有可整理檔」— 該 button 在 5b 完成後仍可點，但若 fileList 無可整理檔則 click 後直接 toast
-     - **驗 fileList 至少一筆**：`browser_evaluate` `() => Alpine.$data(document.querySelector('[x-data*="search"]')).fileList.filter(f => f.searched && f.searchResults?.length > 0 && !f.scraped).length`，預期 `>= 1`（對應 `batch.js:336-338` `scrapableFiles` filter）
-     - `browser_click` → `#btnScrapeAll`（`scrapeAll()`，搬移檔案 + 改名 + 建目錄）
+     - **驗 fileList 至少一筆**：`eval` `() => Alpine.$data(document.querySelector('[x-data*="search"]')).fileList.filter(f => f.searched && f.searchResults?.length > 0 && !f.scraped).length`，預期 `>= 1`（對應 `batch.js:336-338` `scrapableFiles` filter）
+     - `click` → `#btnScrapeAll`（`scrapeAll()`，搬移檔案 + 改名 + 建目錄）
    - **失敗模式提示**：跳過 5b 或 fileList 無 searchResults，點 #btnScrapeAll 會 toast `search.toast.no_scrapable_files`（`state/batch.js:341`）
-   - `browser_wait_for` `#scrapeProgress` 出現（整理 SSE 進行中；`#batchProgress` 是 searchAll 用，不通用）
-   - `browser_wait_for` `#scrapeProgress` 消失 timeout=60s（整理 SSE 完成）
+   - `wait_for` `#scrapeProgress` 出現（整理 SSE 進行中；`#batchProgress` 是 searchAll 用，不通用）
+   - `wait_for` `#scrapeProgress` 消失 timeout=60s（整理 SSE 完成）
 6. **GhostFly + DB sync 觀察**：
    - 整理觸發後 `[data-search-ghost]` 元素於 DOM 短暫出現（飛行中）→ 動畫結束後自動移除
-   - `browser_wait_for` `#sidebar-showcase-link.pulse-once` timeout=5s（一圈停止；`base.html:537,541`）
-   - **驗 db_sync_status**：`browser_evaluate` 取最後一筆 organize response：
+   - `wait_for` `#sidebar-showcase-link.pulse-once` timeout=5s（一圈停止；`base.html:537,541`）
+   - **驗 db_sync_status**：`eval` 取最後一筆 organize response：
      ```js
      // batch.js:94 處設 result.db_sync_status；無公開 API 觀測，靠 _handleDbSyncFeedback toast
      // 改驗 toast：page console 應印 [GhostFly] 或 toast text 含 "已整理"
      ```
-7. `browser_navigate` → `/showcase`；驗剛整理的片出現在 grid（搜尋框輸入 `SONE-205` 應命中 1 筆）
+7. `goto` → `/showcase`；驗剛整理的片出現在 grid（搜尋框輸入 `SONE-205` 應命中 1 筆）
 8. **Sub-B — 多筆 query 導航**（**獨立 sub-flow，與 organize 流分開跑**；條件 `N >= 2`）：
-   - `browser_navigate` → `/search`，搜 `SSIS`（預期多筆）
+   - `goto` → `/search`，搜 `SSIS`（預期多筆）
    - 切到 Detail mode（按 `A` 鍵或點切換按鈕）；驗 navIndicator 顯示 `1/N`，`N >= 2`
-   - `browser_press_key` `Tab` 或 click 非搜尋框元素以 blur（方向鍵在搜尋框 focus 時不觸發）
-   - `browser_press_key` `ArrowRight` → 驗番號改變、indicator `2/N`
-   - `browser_press_key` `ArrowLeft` → 回 `1/N`
+   - `press` `Tab` 或 click 非搜尋框元素以 blur（方向鍵在搜尋框 focus 時不觸發）
+   - `press` `ArrowRight` → 驗番號改變、indicator `2/N`
+   - `press` `ArrowLeft` → 回 `1/N`
    - 驗 Sample Gallery 全程未開啟（無 `.sample-gallery.show` 之類）
 
 ### 完成後 state
@@ -208,36 +211,36 @@ N/A — tutorial flow 是 browser-only，無需 PyWebView picker。Step 4（show
 
 - Showcase 已有至少 10 部影片（依 `videoCount` 計）
 - DB 已建好 metadata（cover_url / actresses / tags 完整）
-- 清 similar mode 殘留：`browser_evaluate` 設 `Alpine.store?` 或直接重整頁面
+- 清 similar mode 殘留：`eval` 設 `Alpine.store?` 或直接重整頁面
 - 清 lightbox 殘留：URL 無 `?id=` 等深連結參數
 
 ### Steps
 
-1. `browser_navigate` → `http://localhost:8000/showcase`
-2. `browser_wait_for` selector=`[x-for="(video, index) in paginatedVideos"]` 渲染（or wait for first card `.av-card-preview:not(.hero-card)` 出現）timeout=5s
+1. `goto` → `http://localhost:8000/showcase`
+2. `wait_for` selector=`[x-for="(video, index) in paginatedVideos"]` 渲染（or wait for first card `.av-card-preview:not(.hero-card)` 出現）timeout=5s
    - **驗**：grid 內卡片數 > 0、總數顯示（`videoCount` text 或 grid item count）
 3. **翻頁驗收**：點 `.pager-btn`（next 箭頭 `›`，`showcase.html:1227`）
-   - `browser_wait_for` page 變化（page indicator 更新或 selected option 改變）
+   - `wait_for` page 變化（page indicator 更新或 selected option 改變）
    - **驗**：卡片內容與第 1 頁不同（取第 1 張卡片 number text 對比）
-4. **進 Lightbox**：`browser_click` 任一卡片封面（`.av-card-preview:not(.hero-card)` 內 `<img>` 或封面區）
-   - `browser_wait_for` selector=`.showcase-lightbox.show` timeout=2s（`showcase.html:517-518`，`lightboxOpen` 為 true 時加 `.show`）
+4. **進 Lightbox**：`click` 任一卡片封面（`.av-card-preview:not(.hero-card)` 內 `<img>` 或封面區）
+   - `wait_for` selector=`.showcase-lightbox.show` timeout=2s（`showcase.html:517-518`，`lightboxOpen` 為 true 時加 `.show`）
 5. **鍵盤導航**：
-   - `browser_press_key` `ArrowRight` → 驗番號 / 封面更新（lightbox 內主圖換片）
-   - `browser_press_key` `ArrowLeft` → 回前一片
-   - `browser_press_key` `Escape` → 驗 `.showcase-lightbox` 失去 `.show` class（lightbox 關閉）
+   - `press` `ArrowRight` → 驗番號 / 封面更新（lightbox 內主圖換片）
+   - `press` `ArrowLeft` → 回前一片
+   - `press` `Escape` → 驗 `.showcase-lightbox` 失去 `.show` class（lightbox 關閉）
 6. **魔杖進入相似探索**：重開 lightbox（重複 step 4）
-   - `browser_click` → `.lightbox-similar-btn`（`showcase.html:532`，內含 `<i class="bi bi-magic">`）
-   - `browser_wait_for` selector=`.similar-stage` 可見且 `similarModeOpen === true` timeout=3s（`state-similar.js:75`）
+   - `click` → `.lightbox-similar-btn`（`showcase.html:532`，內含 `<i class="bi bi-magic">`）
+   - `wait_for` selector=`.similar-stage` 可見且 `similarModeOpen === true` timeout=3s（`state-similar.js:75`）
 7. **Constellation 動畫驗收**：
    - **驗**：`.similar-stage-inner` 渲染、`.similar-rail` 至少 1 條非 `.rail--hidden`（`showcase.html:1072`）
    - **驗**：周圍有相似片 card（plan 預期 8 張）
-8. **鑽入（slip-through）**：`browser_click` 任一相似片 card
-   - `browser_wait_for` 主圖更新（封面飛中央）
+8. **鑽入（slip-through）**：`click` 任一相似片 card
+   - `wait_for` 主圖更新（封面飛中央）
    - **驗**：仍在 similar mode（`.similar-stage` 仍可見），不是退回 Lightbox
-9. **退出 similar mode 而非整個 Lightbox**：`browser_press_key` `Escape`
+9. **退出 similar mode 而非整個 Lightbox**：`press` `Escape`
    - **驗**：`.similar-stage` 消失 / `similarModeOpen === false`
    - **驗**：`.showcase-lightbox.show` 仍存在（lightbox 主體還在）
-10. `browser_press_key` `Escape` 再一次 → 驗 lightbox 完全關閉
+10. `press` `Escape` 再一次 → 驗 lightbox 完全關閉
 
 ### 完成後 state
 
@@ -273,26 +276,26 @@ N/A — Showcase / Lightbox / 魔杖 探索 完整 browser-only。
        -d '{"primary_name":"女僕","aliases":["メイド","maid"]}'
   ```
 - Showcase 有對應 tag 的影片（至少 1 部 tags 含「メイド」，但**不**含「女僕」）
-- 清空 Showcase 搜尋框（`browser_evaluate $store...` 或重整）
+- 清空 Showcase 搜尋框（`eval $store...` 或重整）
 
 ### Steps
 
-1. `browser_navigate` → `http://localhost:8000/showcase`
-2. `browser_wait_for` `filteredCount` 顯示初始總數（`showcase.html:1170` `<b x-text="filteredCount">`）
-3. `browser_click` Showcase 搜尋框（`x-model="search"`，`showcase.html:72`）
-4. `browser_type` `女僕`（中文 primary）
-5. `browser_wait_for` alias 展開觸發：grid 重新 filter
+1. `goto` → `http://localhost:8000/showcase`
+2. `wait_for` `filteredCount` 顯示初始總數（`showcase.html:1170` `<b x-text="filteredCount">`）
+3. `click` Showcase 搜尋框（`x-model="search"`，`showcase.html:72`）
+4. `type` `女僕`（中文 primary）
+5. `wait_for` alias 展開觸發：grid 重新 filter
    - **驗**：`filteredCount` 變化（包含 alias 命中結果）
    - **驗**：含「メイド」tag 的影片出現（雖然搜尋框是中文）
-6. `browser_evaluate` 確認 `_tagToGroup` 雙向 map 已載入：
+6. `eval` 確認 `_tagToGroup` 雙向 map 已載入：
    ```js
    // Alpine store 或 window-level state；可透過 fetch 確認 API 同步
    fetch('/api/tag-aliases').then(r => r.json())
    ```
 7. **點 tag chip 進一步篩選**：在任一影片卡片內找 `.lb-tag` 或 grid tag chip（`@click.prevent.stop="searchFromMetadata(tag.trim(), 'tag')"`，`showcase.html:378`）
-   - `browser_click` 其中一個 tag chip
+   - `click` 其中一個 tag chip
    - **驗**：搜尋框 `x-model="search"` 更新為 chip 文字、grid 再次 filter
-8. **清除搜尋驗收**：清空搜尋框（`browser_type` 空字串或 `browser_press_key` `Escape` if cleared on ESC）
+8. **清除搜尋驗收**：清空搜尋框（`type` 空字串或 `press` `Escape` if cleared on ESC）
    - **驗**：`filteredCount` 回到 step 2 初始總數、所有影片回來
 
 ### 完成後 state
@@ -330,19 +333,19 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
 
 ### Steps
 
-1. `browser_navigate` → `http://localhost:8000/search`
-2. `browser_type` `三上悠亜` 至搜尋框、`browser_press_key` `Enter`
-3. `browser_wait_for` 搜尋結果出現；驗女優欄位含 `三上悠亜`
+1. `goto` → `http://localhost:8000/search`
+2. `type` `三上悠亜` 至搜尋框、`press` `Enter`
+3. `wait_for` 搜尋結果出現；驗女優欄位含 `三上悠亜`
 4. **加最愛**：找 actress favorite heart（`search.html:132-143`，`.bi-heart` → `.bi-heart-fill` 切換）
-   - `browser_click` heart icon（`x-show="actressProfile && !actressProfile?.is_favorite"`）
-   - `browser_wait_for` heart 變為 `.bi-heart-fill`（`is_favorite === true`）
+   - `click` heart icon（`x-show="actressProfile && !actressProfile?.is_favorite"`）
+   - `wait_for` heart 變為 `.bi-heart-fill`（`is_favorite === true`）
    - **驗**：`fetch('/api/actresses/三上悠亜').then(r => r.json())` 回傳 `is_favorite === true`
-5. `browser_navigate` → `http://localhost:8000/showcase`
+5. `goto` → `http://localhost:8000/showcase`
 6. **切到女優模式**：點女優模式 toggle（`showcase.html:57,63` `@click="...toggleActressMode()"`）
-   - `browser_wait_for` `showFavoriteActresses === true`（`state-actress.js:14`）
+   - `wait_for` `showFavoriteActresses === true`（`state-actress.js:14`）
    - **驗**：actress grid 渲染（女優卡片代替影片卡片）
-7. **點女優卡開 actress lightbox**：`browser_click` 任一女優卡（如 `三上悠亜`）
-   - `browser_wait_for` `.actress-lightbox-meta` 可見（`showcase.html:582`）
+7. **點女優卡開 actress lightbox**：`click` 任一女優卡（如 `三上悠亜`）
+   - `wait_for` `.actress-lightbox-meta` 可見（`showcase.html:582`）
    - **驗**：女優 metadata 渲染、影片清單可見
 8. **換頭像（alias 本地候選）**：找「換頭像」按鈕 / `manage_photo_path` 入口
    - 點換頭像 → 預期跳本地候選清單 modal（**PyWebView 例外**：folder picker 為原生 API，瀏覽器無法觸發 → 改驗 alias 展開後候選列表的 UI 渲染，不驗 picker 本身）
@@ -384,55 +387,55 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
 - DB 有至少 1 部影片（US6 step 6 驗 Scanner 頁時用得到）
 - 清 tutorial flag（確保 tutorial 可在 step 8 重播）：
   ```js
-  // browser_evaluate
+  // eval
   localStorage.removeItem('openaver_tutorial_completed');
   ```
 
 ### Steps
 
-1. `browser_navigate` → `http://localhost:8000/settings`；`browser_wait_for` `.locale-toggle-btn` 可見 timeout=3s
+1. `goto` → `http://localhost:8000/settings`；`wait_for` `.locale-toggle-btn` 可見 timeout=3s
    - **驗**：`.locale-toggle-btn` innerText 為 `繁`（目前 locale = zh-TW）
-2. **切換 zh-TW → zh-CN**：`browser_click` → `.locale-toggle-btn`
-   - `browser_wait_for` 頁面 reload 完成（URL 仍 `/settings`）timeout=5s
-   - `browser_snapshot` 驗：
+2. **切換 zh-TW → zh-CN**：`click` → `.locale-toggle-btn`
+   - `wait_for` 頁面 reload 完成（URL 仍 `/settings`）timeout=5s
+   - `snapshot` 驗：
      - `.locale-toggle-btn` innerText 為 `简`（locale 已切換）
      - sidebar `a[href="/showcase"]` 文字**不含** `sidebar.showcase`（無 raw key）
      - 頁面標題區文字非 `settings.` 開頭字串
-3. **切換 zh-CN → ja**：`browser_click` → `.locale-toggle-btn`
-   - `browser_wait_for` 頁面 reload 完成 timeout=5s
+3. **切換 zh-CN → ja**：`click` → `.locale-toggle-btn`
+   - `wait_for` 頁面 reload 完成 timeout=5s
    - **驗**：`.locale-toggle-btn` innerText 為 `あ`
    - **驗**：sidebar 任一 `a[href]` innerText **不含** `sidebar.` 字串（無 raw key）
-4. **切換 ja → en**：`browser_click` → `.locale-toggle-btn`
-   - `browser_wait_for` 頁面 reload 完成 timeout=5s
+4. **切換 ja → en**：`click` → `.locale-toggle-btn`
+   - `wait_for` 頁面 reload 完成 timeout=5s
    - **驗**：`.locale-toggle-btn` innerText 為 `EN`
    - **驗**：`#saveBtn`（settings.html:762）文字不含 `settings.action.` 字串
-4b. **切換 en → ko**：`browser_click` → `.locale-toggle-btn`
-   - `browser_wait_for` 頁面 reload 完成 timeout=5s
+4b. **切換 en → ko**：`click` → `.locale-toggle-btn`
+   - `wait_for` 頁面 reload 完成 timeout=5s
    - **驗**：`.locale-toggle-btn` innerText 為 `한`
    - **驗**：sidebar 任一 `a[href]` innerText **不含** `sidebar.` 字串（無 raw key）
-5. **切換 ko → zh-TW（回到繁體）**：`browser_click` → `.locale-toggle-btn`
-   - `browser_wait_for` 頁面 reload timeout=5s
+5. **切換 ko → zh-TW（回到繁體）**：`click` → `.locale-toggle-btn`
+   - `wait_for` 頁面 reload timeout=5s
    - **驗**：`.locale-toggle-btn` innerText 回到 `繁`
 6. **Dark/Light mode 切換**：
-   - `browser_click` → `.theme-toggle-btn`（settings.html:40；`@click="toggleThemeWithTransition()"`）
-   - `browser_wait_for` 1s（過場動畫）
+   - `click` → `.theme-toggle-btn`（settings.html:40；`@click="toggleThemeWithTransition()"`）
+   - `wait_for` 1s（過場動畫）
    - **驗**：`html` element 的 `data-theme` attribute 切換（light → dim 或 dim → light）
-   - `browser_navigate` 重新整理 `http://localhost:8000/settings`
-   - `browser_wait_for` `.theme-toggle-btn` 可見 timeout=3s
+   - `goto` 重新整理 `http://localhost:8000/settings`
+   - `wait_for` `.theme-toggle-btn` 可見 timeout=3s
    - **驗**：`html[data-theme]` 保留上次切換後的值（重載後不 fallback）
-7. **Scanner 頁 locale 驗收**：`browser_navigate` → `http://localhost:8000/scanner`
-   - `browser_wait_for` `#btnGenerate` 可見 timeout=3s
+7. **Scanner 頁 locale 驗收**：`goto` → `http://localhost:8000/scanner`
+   - `wait_for` `#btnGenerate` 可見 timeout=3s
    - **驗**：`#btnGenerate` innerText **不含** `scanner.` 字串（無 raw i18n key）
    - **驗**：頁面任何可見文字**不含** `tutorial.` 字串（在覆蓋 overlay 未開啟的情況下）
-8. **Help 頁 locale 驗收**：`browser_navigate` → `http://localhost:8000/help`
-   - `browser_wait_for` `h2.card-title` 至少 1 個 timeout=3s
+8. **Help 頁 locale 驗收**：`goto` → `http://localhost:8000/help`
+   - `wait_for` `h2.card-title` 至少 1 個 timeout=3s
    - **驗**：所有 `h2.card-title` innerText **不含** `help.` 字串（help.html Hero/card 均為 Jinja 渲染，非 raw key）
    - **驗**：`.terminal-copy-btn` 可見（curl copy 按鈕 render 正常，help.html:71）
-9. **Tutorial 文案 locale 驗收**：`browser_navigate` → `http://localhost:8000/scanner?tutorial=restart`
-   - `browser_wait_for` `#tutorialOverlay.active` timeout=3s
+9. **Tutorial 文案 locale 驗收**：`goto` → `http://localhost:8000/scanner?tutorial=restart`
+   - `wait_for` `#tutorialOverlay.active` timeout=3s
    - **驗**：`#tutorialTitle`（tutorial.js:97）innerText **不含** `tutorial.flow.s1_title` 字串（當前 locale 應有翻譯顯示，非 raw key）
    - **驗**：`#tutorialProgress` 文字格式正確（含 `/`，如 `1 / 4`）
-   - `browser_click` → `#tutorialClose` 關閉 tutorial（由 `tutorial.js` 動態建立，行號易漂移）
+   - `click` → `#tutorialClose` 關閉 tutorial（由 `tutorial.js` 動態建立，行號易漂移）
 
 ### 完成後 state
 
@@ -475,25 +478,25 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
 
 ### Steps
 
-1. **修改命名格式**：`browser_navigate` → `http://localhost:8000/settings`
-   - `browser_wait_for` `#filenameFormat` 可見（settings.html:546）timeout=3s
-   - `browser_triple_click`（或 `browser_click` + Ctrl+A）→ 清空 `#filenameFormat` 輸入框
-   - `browser_type` → `#filenameFormat` 輸入自訂格式字串：`[{num}] {title}`
-   - `browser_click` → `#saveBtn`（settings.html:762；`@submit.prevent="saveConfig"`）
-   - `browser_wait_for` `.toast.toast-end` 可見 timeout=3s（settings.html:823；`_toast.visible`）
+1. **修改命名格式**：`goto` → `http://localhost:8000/settings`
+   - `wait_for` `#filenameFormat` 可見（settings.html:546）timeout=3s
+   - `fill <selector> ""`（或 `click` + Ctrl+A）→ 清空 `#filenameFormat` 輸入框
+   - `type` → `#filenameFormat` 輸入自訂格式字串：`[{num}] {title}`
+   - `click` → `#saveBtn`（settings.html:762；`@submit.prevent="saveConfig"`）
+   - `wait_for` `.toast.toast-end` 可見 timeout=3s（settings.html:823；`_toast.visible`）
    - **驗**：toast `alert` 含 class `alert-success`（非 `alert-error`）
 2. **翻譯開關切換**：
-   - `browser_wait_for` `#translateEnabled` 可見（settings.html:198）timeout=3s
-   - `browser_evaluate` 取目前狀態：`document.getElementById('translateEnabled').checked`（記下初始值 `true`/`false`）
-   - `browser_click` → `#translateEnabled`（toggle checkbox）
+   - `wait_for` `#translateEnabled` 可見（settings.html:198）timeout=3s
+   - `eval` 取目前狀態：`document.getElementById('translateEnabled').checked`（記下初始值 `true`/`false`）
+   - `click` → `#translateEnabled`（toggle checkbox）
    - **驗**：`document.getElementById('translateEnabled').checked` 值翻轉
-   - `browser_click` → `#saveBtn`；`browser_wait_for` toast timeout=3s；**驗** `alert-success`
-   - `browser_navigate` 重新整理 `http://localhost:8000/settings`
-   - `browser_wait_for` `#translateEnabled` 可見 timeout=3s
+   - `click` → `#saveBtn`；`wait_for` toast timeout=3s；**驗** `alert-success`
+   - `goto` 重新整理 `http://localhost:8000/settings`
+   - `wait_for` `#translateEnabled` 可見 timeout=3s
    - **驗**：`#translateEnabled` checked 狀態與切換後一致（設定保留）
    - （測試完還原：再 toggle 一次回原始狀態 + save）
 3. **刮削一片驗自訂命名格式**：兩種路徑擇一執行：
-   - **路徑 A（UI flow）**：`browser_navigate` → `http://localhost:8000/search`；用 favorite-folder / tracked dir 載入 fixture（PyWebView picker 例外），依 US2 step 5 的 file-list 三段（searchAll → 等 #batchProgress → scrapeAll → 等 #scrapeProgress）走完
+   - **路徑 A（UI flow）**：`goto` → `http://localhost:8000/search`；用 favorite-folder / tracked dir 載入 fixture（PyWebView picker 例外），依 US2 step 5 的 file-list 三段（searchAll → 等 #batchProgress → scrapeAll → 等 #scrapeProgress）走完
    - **路徑 B（API curl，最短驗收）**：`POST /api/scrape-single`（`web/routers/scraper.py:50`，會呼 `organize_file()` 真實搬移 + 改名；對比之下 `/api/enrich-single` 只補 metadata 不改檔名，不適用）：
      ```bash
      curl -s -X POST http://localhost:8000/api/scrape-single \
@@ -503,23 +506,23 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
      ```
    - **驗**：兩條路徑都需確認檔名套用自訂格式：
      ```js
-     // browser_evaluate（path A 完成後）
+     // eval（path A 完成後）
      fetch('/api/search/local-status?numbers=<番號>').then(r => r.json())
      // 預期 exists: true
      ```
      或 path B response 的 `new_filename` 字串符合 Settings 設定的 `filenameFormat` template
-4. **Tag Alias 新增**：`browser_navigate` → `http://localhost:8000/scanner`
-   - `browser_wait_for` `#tagAliasCard` 可見（scanner.html:394）timeout=3s
-   - 若 `#tagAliasCard` 卡片折疊（`.tagAliasCardCollapsed === true`）：`browser_click` → `#tagAliasCard .card-title`（點 header 展開；scanner.html:397）
-   - `browser_wait_for` `.tag-alias-wall`（scanner.html:461）或 `.actress-alias-body`（scanner.html:430）可見
-   - `browser_type` `アクション` → `.actress-alias-body input[x-model="tagAliasInput"]`（scanner.html:435）
-   - `browser_click` → `.actress-alias-body button[\\@click="addTagAliasGroup()"]`（scanner.html:440）
-   - `browser_wait_for` `.tag-alias-wall` 出現新 chip timeout=3s
+4. **Tag Alias 新增**：`goto` → `http://localhost:8000/scanner`
+   - `wait_for` `#tagAliasCard` 可見（scanner.html:394）timeout=3s
+   - 若 `#tagAliasCard` 卡片折疊（`.tagAliasCardCollapsed === true`）：`click` → `#tagAliasCard .card-title`（點 header 展開；scanner.html:397）
+   - `wait_for` `.tag-alias-wall`（scanner.html:461）或 `.actress-alias-body`（scanner.html:430）可見
+   - `type` `アクション` → `.actress-alias-body input[x-model="tagAliasInput"]`（scanner.html:435）
+   - `click` → `.actress-alias-body button[\\@click="addTagAliasGroup()"]`（scanner.html:440）
+   - `wait_for` `.tag-alias-wall` 出現新 chip timeout=3s
    - **驗**：`.tag-alias-wall` 內含 `アクション` 文字的 alias chip 出現
-5. **Help curl 複製**：`browser_navigate` → `http://localhost:8000/help`
-   - `browser_wait_for` `.terminal-copy-btn` 可見（help.html:71）timeout=3s
-   - `browser_click` → `.terminal-copy-btn`（`@click="copyCurlCommand()"`）
-   - **驗**：`browser_evaluate` 取剪貼簿內容：
+5. **Help curl 複製**：`goto` → `http://localhost:8000/help`
+   - `wait_for` `.terminal-copy-btn` 可見（help.html:71）timeout=3s
+   - `click` → `.terminal-copy-btn`（`@click="copyCurlCommand()"`）
+   - **驗**：`eval` 取剪貼簿內容：
      ```js
      navigator.clipboard.readText().then(t => t)
      ```
@@ -561,17 +564,17 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
 
 ### Steps
 
-1. **[MCP] 認證關閉時 Help 頁沒有多出任何東西**：`browser_navigate` → `/help`（dev 已開密碼保護時此步 N/A——Help 頁本來就會有 Agent Token）
+1. **[MCP] 認證關閉時 Help 頁沒有多出任何東西**：`goto` → `/help`（dev 已開密碼保護時此步 N/A——Help 頁本來就會有 Agent Token）
    - **驗**：頁面文字**不含** `Agent Token`、DOM **不含** `oav_`（AC8：PIN 未開時 Help 頁與現況逐位元組相同）
-2. **[MCP] 設定頁的控制組是單列不是直向堆疊**：`browser_navigate` → `/settings`，找到伺服器模式膠囊旁的「需要密碼才能連線」
+2. **[MCP] 設定頁的控制組是單列不是直向堆疊**：`goto` → `/settings`，找到伺服器模式膠囊旁的「需要密碼才能連線」
    - **驗**：控制組高度約 28px 量級（**不是** 80px 的三行堆疊）、PIN 欄是四格密碼樣式（**不是**瀏覽器預設的 332px 寬 input）
    - **驗**：兩個密碼輸入框都有 `autocapitalize="off"`（手機鍵盤自動大寫會造成靜默鎖死）
 3. **[MCP] 設密碼**：勾選 → 輸入 4 位英數（例 `aB3x`）→ 儲存
    - **驗**：出現「密碼設定已儲存」；欄位顯示為遮罩 ＋ 眼睛鈕可切換真值（**真值只給本機**）
    - **驗**：打英文（不是數字）時儲存鈕是**可按的**（0.13.7 修過：寫死 4 位數字會讓英文密碼得到一顆永遠按不下去的灰按鈕）
-4. **[MCP] 自己這台永不被要求密碼**：`browser_navigate` → `/`、`/settings`、`/showcase`
+4. **[MCP] 自己這台永不被要求密碼**：`goto` → `/`、`/settings`、`/showcase`
    - **驗**：三頁都正常顯示，沒有偽裝頁（AC2；loopback 免密碼）
-5. **[MCP] Help 頁出現 agent 區塊**：`browser_navigate` → `/help`
+5. **[MCP] Help 頁出現 agent 區塊**：`goto` → `/help`
    - **驗**：出現 `Agent Token` 標題、眼睛鈕、複製鈕、一行含 `Authorization: Bearer` 的 curl 範例、以及 SSE 已知限制那句
    - **驗**：**沒有**「重新產生」按鈕（114b-T8 拔除；作廢路徑只有「到設定頁重存密碼」一條）
    - **驗**：眼睛遮罩狀態下按複製，剪貼簿拿到的是**真值不是遮罩字串**（需 CDP attach 模式，headless 剪貼簿常被 block）
@@ -892,7 +895,7 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
    - **驗**：`.wishlist-panel` 顯示、`.wishlist-grid` 內卡片數與 `GET /api/wishlist` 的筆數一致
    - **驗**：搜尋框、空狀態、結果卡（`#emptyState` / `#resultCard` / `#loadingState`）都**不顯示**（`listMode === 'wishlist'` 互斥閘）
    - **驗**：`#wishlistToggleBtn` 上的角標數字（`.mode-toggle-badge`）與清單筆數一致
-2. **[MCP] 卡片內容與「放了幾天」**：`browser_snapshot` 看牆上任一張卡
+2. **[MCP] 卡片內容與「放了幾天」**：`snapshot` 看牆上任一張卡
    - **驗**：卡片露番號（`.av-num`）與女優（`.av-actress`）、hover 區塊有標題
    - **驗**：若該筆 `created_at` 夠久（依 `classifyWishlistAging()` 判，14 天／30 天兩道門檻），卡片右上有 `.wishlist-aging` 標籤讀「N 天前加入」；未達 14 天不顯示（**驗**至少一個 stage1、一個 stage2 各出現一次，或記錄「本次資料全落在同一 stage」）
    - **已知例外**（`wishlist-aging.js`）：`release_date` 在未來（預售片）時無論放了多久都強制 stage 0（不顯示 aging 標籤）——實測本機資料裡放了 68 天的一筆因為是預售片而**不**顯示標籤，這是設計行為，不是 regression，別誤判
@@ -900,8 +903,8 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
    - **驗**：`.wishlist-lightbox` 取得 `.show` class、大圖 `<img>` 顯示（或 `.cover-error-placeholder` 破圖占位，兩者擇一，不可雙秀或雙無）
    - **驗**：燈箱有「開原站」（`source_url` 非空時才出現）與「移除書籤」兩顆下游動作鈕（**只看存在，不按移除那顆**）
    - ⚠️ **選 nav 按鈕陷阱（實測踩過）**：一般搜尋結果燈箱與書籤燈箱**共用同一組 class**（`.lightbox-nav-prev`／`.lightbox-nav-next`），`document.querySelector('.lightbox-nav-next')` 在兩個燈箱都存在的 DOM 裡會抓到**第一個**（通常是關著的那個），click 沒有任何效果也不報錯。務必先 `document.querySelector('.wishlist-lightbox').querySelector('.lightbox-nav-next')` 縮限範圍
-   - `browser_click` 右箭頭（`wishlistLightboxIndex < length-1` 時可見）→ **驗**大圖換成下一筆、番號跟著換（實測：`.wishlist-lightbox img` 的 `alt` 從 `SNOS-365` 變 `MIDV-960`，index 0→1；讀值前留一個 evaluate tick，click 與讀值同一次 `browser_evaluate` 呼叫內可能搶在 Alpine reactive 更新之前）
-   - `browser_click` 左箭頭回到上一筆 → **驗**回到 step 3 開的那張卡的番號（往返一致，不錯位）
+   - `click` 右箭頭（`wishlistLightboxIndex < length-1` 時可見）→ **驗**大圖換成下一筆、番號跟著換（實測：`.wishlist-lightbox img` 的 `alt` 從 `SNOS-365` 變 `MIDV-960`，index 0→1；讀值前留一個 evaluate tick，click 與讀值同一次 `eval` 呼叫內可能搶在 Alpine reactive 更新之前）
+   - `click` 左箭頭回到上一筆 → **驗**回到 step 3 開的那張卡的番號（往返一致，不錯位）
 4. **[MCP] 關閉燈箱三條路**：分別測試 `.lightbox-close` 按鈕、點遮罩空白處（`@click="closeWishlistLightbox()"`）、`Escape` 鍵（若有綁）
    - **驗**：三種都能關閉，關閉後 `.wishlist-lightbox` 失去 `.show`，牆與搜尋列狀態未被清空
 5. **[MCP] 切回搜尋結果分頁**：點放大鏡那顆 `.mode-toggle-btn`
@@ -939,18 +942,18 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 
 ### Steps
 
-1. **[MCP] 預設只有一顆封面／海報切換鈕**：`/showcase` → `browser_snapshot` 工具列
+1. **[MCP] 預設只有一顆封面／海報切換鈕**：`/showcase` → `snapshot` 工具列
    - **驗**：`show_table_list` 預設關（`config.json` 目前 `gallery.show_table_list` 未設或 `false`）時，`.showcase-toolbar` 只出現**一顆**不帶下拉的圖示鈕（無 `.toolbar-dropdown-wrap` 包住的模式鈕），沒有「表格／清單」選項
-2. **[MCP] 點一下原地切封面／海報**：`browser_click` 該鈕
+2. **[MCP] 點一下原地切封面／海報**：`click` 該鈕
    - **驗**：`.showcase-grid` 加上 `shape-poster` class、卡片變直式（與 US9 step 6 的直式海報**同一份**卡型，`A` 鍵循環行為在 US9 已涵蓋，這裡只驗**唯一按鈕**觸發同一效果）
    - **驗**：按鈕 icon 與 `title` 同步切換（`bi-person-badge` ↔ `bi-person-vcard`，`title` 讀出目前模式）
    - **驗**：切換是原地變形不是整面淡出淡入（`.av-card-preview` 在切換期間 `opacity` 全程 ≥ 0.95，複用 US9 的驗法）
    - 再點一次切回完整封面，**驗**牆面與按鈕 icon 都還原
 3. **[MCP] 設定頁開關（不儲存）**：`/settings` → 切到「瀏覽顯示」分頁 → 找到「顯示表格與清單」那一列的 checkbox（`x-model="form.showTableList"`）
    - **驗**：checkbox 目前狀態與 `GET /api/config` 的 `gallery.show_table_list` 一致（預設應為未勾）
-   - `browser_click` 勾選 → **驗**：checkbox 變勾選（純前端 `x-model`，此時尚未送出）
+   - `click` 勾選 → **驗**：checkbox 變勾選（純前端 `x-model`，此時尚未送出）
    - 旁邊 `?` 說明鈕（`.help-popover-btn`）點開 → **驗**：`.help-popover` 顯示說明文字
-   - **不按儲存**，直接 `browser_navigate` 離開設定頁（狀態捨棄，`config.json` 不變）
+   - **不按儲存**，直接 `goto` 離開設定頁（狀態捨棄，`config.json` 不變）
 4. **[人工，需要能保存設定]** 實際按下設定頁儲存、開啟「顯示表格與清單」→ 回 `/showcase` 驗工具列的模式鈕變回下拉選單（四條：完整封面／直式海報／表格／清單，對照 US9 step 6 選單），確認完再切回關閉並儲存還原——因為這一步會真的動 `config.json`，本輪 MCP 執行跳過，留給人工或下一輪有 disposable config 的環境驗證。
 
 ### 完成後 state
@@ -973,28 +976,28 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 
 ### Setup
 
-- Dev server 已啟動；`/search` 清空搜尋狀態回到 `#emptyState`（`browser_click` `#btnClear` 或 `clearAll()`）。
+- Dev server 已啟動；`/search` 清空搜尋狀態回到 `#emptyState`（`click` `#btnClear` 或 `clearAll()`）。
 - **定時整理開關屬於「切換再還原」允許範圍**（面板的 enable checkbox 點擊即時 POST `/api/search/auto-organize/config`，非經「儲存」按鈕）：可以開了再關回去，**但絕不按「立即執行」**（`runNow()` 會真的觸發掃描整理，搬動 dev DB 對應資料夾裡的檔案）。
 - 目前 dev 環境 `general.favorite_folder` 為空字串（未設定）——步驟 3 的「已設定」分支與「未被追蹤」警示在本環境**驗不到**，用 [人工] 標注，需要換一個「已設定待整理資料夾但該資料夾不在 片庫管理 tracked directories」的環境才能重現。
 
 ### Steps
 
-1. **[MCP] 空狀態四行說明**：`browser_snapshot` `#emptyState .empty-explainer`
+1. **[MCP] 空狀態四行說明**：`snapshot` `#emptyState .empty-explainer`
    - **驗**：第一行讀 `search.empty.explain_add`（加入／拖入先查資料）
    - **驗**：`favoriteConfigured()` 為 false 時（本環境現況）顯示「待整理」未設定那一行（`search.empty.explain_favorite_unset`），**不**顯示已設定那一行
    - **驗**：🕘 定時整理那一行（`search.empty.explain_auto_organize`）恆顯示，不看設定狀態
    - **驗**：`namingPreviewReady()` 為 true 時，最後一行 `<code>` 內容是**真實算出來的檔名範例**（非空字串、非原樣未替換的 `{}` token），並帶「改規則 → 設定」連結（`href="/settings#filenameFormat"`）
-2. **[MCP] 命名範例與設定頁「同一份算法」**：記錄 step 1 的 `<code>` 文字 → `browser_navigate` `/settings#filenameFormat` → 找 `.folder-preview.naming-preview .preview-text`（設定頁「預覽」列；進入後自動切到「整理與命名」分頁）
+2. **[MCP] 命名範例與設定頁「同一份算法」**：記錄 step 1 的 `<code>` 文字 → `goto` `/settings#filenameFormat` → 找 `.folder-preview.naming-preview .preview-text`（設定頁「預覽」列；進入後自動切到「整理與命名」分頁）
    - ⚠️ **實測訂正**：兩處呼叫的是同一個 `buildNamingPreview()` 純函式（`shared/naming-preview.js`），但**代入的 token 值不同**——搜尋頁空狀態代入的是**變數名稱本身**（`window.t('settings.var.'+name)`，例如「女優」「番號」「片商」，實測輸出 `女優/[番號][片商] 女優-標題後綴.mp4`），設定頁代入的是**固定範例資料**（`SSNI-618`／`三上悠亞`／`SOD` 等，實測輸出 `三上悠亞/[SSNI-618][SOD] 三上悠亞-絕對領域-4k.mp4`）。**不是逐字相同**，「同一份程式碼」指的是算法／token 替換邏輯共用，不是輸出字串共用——原始草稿假設「兩邊文字逐字相同」是錯的，已依實測訂正。
    - **驗**：兩處的**結構**一致——資料夾層（`createFolder` 開時才有）＋ `[num][maker]` ＋ `actor-title` ＋ `suffix` ＋ `.mp4`，token 出現的相對順序與括號包法相同，只有代入值不同
    - **驗**：在設定頁把「建立資料夾」關掉 → 設定頁預覽的資料夾層消失；回搜尋頁空狀態（不重整，`appConfig` 需重新載入或觀察下次進頁）→ 命名範例前綴的資料夾層也應消失（同一份 `scraper.create_folder` 設定值）
-3. **[MCP] 定時整理面板開合**：回 `/search` 空狀態 → `browser_click` `#btnAutoOrganize`
+3. **[MCP] 定時整理面板開合**：回 `/search` 空狀態 → `click` `#btnAutoOrganize`
    - **驗**：`.auto-organize-panel` 展開，欄位：啟用開關（checkbox）、「立即執行」按鈕（`:disabled` 在 `!folderIsSet`）、目前解析路徑（`.auto-organize-panel__path`）、警語（`.auto-organize-panel__warning`）
-   - **驗**：面板開啟只發一個 `/api/search/auto-organize/status` 請求（`browser_network_requests` 確認未重複打）
-4. **[MCP][切換再還原，需先設好待整理資料夾] 啟用開關**：⚠️ **實測訂正**——checkbox 的 `:disabled` 綁的是 `loading || (!folderIsSet && !enabled)`：本機 dev 環境 `search.favorite_folder` 是空字串（`folderIsSet === false`）且目前 `enabled === false`，兩個條件同時成立 ⇒ checkbox **一開始就是 disabled**，點擊沒有任何反應、也不會發任何 `POST` 請求（實測 `browser_network_requests` 在點擊前後完全相同，只有 step 3 那筆 `status`）。這一步**只有在已經設定待整理資料夾（`folderIsSet === true`）的環境才能做**：
-   - 記錄目前 `enabled` 狀態 → `browser_click` 勾選 checkbox
+   - **驗**：面板開啟只發一個 `/api/search/auto-organize/status` 請求（`requests` 確認未重複打）
+4. **[MCP][切換再還原，需先設好待整理資料夾] 啟用開關**：⚠️ **實測訂正**——checkbox 的 `:disabled` 綁的是 `loading || (!folderIsSet && !enabled)`：本機 dev 環境 `search.favorite_folder` 是空字串（`folderIsSet === false`）且目前 `enabled === false`，兩個條件同時成立 ⇒ checkbox **一開始就是 disabled**，點擊沒有任何反應、也不會發任何 `POST` 請求（實測 `requests` 在點擊前後完全相同，只有 step 3 那筆 `status`）。這一步**只有在已經設定待整理資料夾（`folderIsSet === true`）的環境才能做**：
+   - 記錄目前 `enabled` 狀態 → `click` 勾選 checkbox
    - **驗**：checkbox 變勾選、按鈕 `:class` 從 `btn-outline` 變 `btn-accent`（`#btnAutoOrganize` 本身）
-   - `browser_network_requests` 驗有一筆 `POST /api/search/auto-organize/config` body `{"enabled":true}` 且回應 `success`
+   - `requests` 驗有一筆 `POST /api/search/auto-organize/config` body `{"enabled":true}` 且回應 `success`
    - **還原**：再點一次 checkbox 關閉，驗證恢復 `btn-outline` 且再打一次 POST `{"enabled":false}` 成功；`GET /api/config` 確認 `auto_organize.enabled` 回到 `false`
    - 本輪 dev 環境無待整理資料夾 → **SKIPPED**（checkbox disabled，無法點擊；不是 bug，是設計行為：沒有資料夾就不該能開定時整理）
 5. **[人工]** 待整理資料夾**已設定但不在片庫管理追蹤清單**時的琥珀色提醒：需要先把 `general.favorite_folder` 設成一個不在 `scanner.directories` 內的路徑（真的寫 config，本輪不做）→ 驗空狀態「待整理」那行後面多一句 `search.empty.explain_favorite_untracked`（琥珀色）；再把該路徑加進片庫管理追蹤清單 → 驗那句提醒消失
@@ -1056,7 +1059,7 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 
 ### Steps
 
-1. **[MCP] 逐頁量測 `.main-content` 左邊界**：對 `/search`、`/showcase`、`/settings`、`/scanner`、`/help` 五頁依序 `browser_navigate` → `browser_evaluate`：
+1. **[MCP] 逐頁量測 `.main-content` 左邊界**：對 `/search`、`/showcase`、`/settings`、`/scanner`、`/help` 五頁依序 `goto` → `eval`：
    ```js
    () => document.querySelector('.main-content')?.getBoundingClientRect().left
    ```
@@ -1065,9 +1068,9 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
    - **驗**：與 step 1 的 `.main-content` 內容起點（`left + padding-left`，實測 `84`）**相等**（或差在 1px 內）——四頁**實測皆為 `84`，PASS**
    - ⚠️ **`/search` 不用這個方法測**：`.spotlight-search` 是**置中**的搜尋框（實測 `left ≈ 373`，視窗置中，非貼左），不是貼左的工具列，跟其他四頁的比較基準不同源，勉強比較會誤判成錯位；`#emptyState` 內容區本身仍走 `.main-content` 同一個 padding token（實測 `108` = `84 + 24`，那多出的 24 是 `#emptyState` 自己的置中/内距設計，不是本 US 要驗的目標）
    - ⚠️ **`.showcase-toolbar` 不能直接拿來跟 `.showcase-grid` 比**：桌面（≥1024px）下 `.showcase-toolbar` 走**既有的**「B floating」浮動玻璃卡設計（`fluent-materials.css` Rule 13b，`margin-inline: var(--layer-inset)`，兩側都內縮，實測 `left = 108 = 84 + 24`），這是**先於 0.15.15、獨立的既有設計**（浮動工具列離頁面邊緣有意留白），**不是**本版左邊緣對齊修復的目標、也不是 regression——別把這個 24px 誤判成沒對齊
-3. **[MCP] 平板寬度只出現一種導覽**：`browser_resize` 到 `992` 與 `1023` 兩個寬度分別檢查
+3. **[MCP] 平板寬度只出現一種導覽**：`resize` 到 `992` 與 `1023` 兩個寬度分別檢查
    - **驗**：側欄（`#sidebar`）與手機頂欄（`.mobile-topbar` 或等效 class）**不同時出現**——過去 992~1023 這段兩者會同時出現
-4. **[MCP] 平板／手機上瀏覽頁工具列與設定頁頁首不被頂欄蓋住**：`browser_resize` 到 `390`（手機）與 `1023`（平板上緣）分別測 `/showcase` 與 `/settings`
+4. **[MCP] 平板／手機上瀏覽頁工具列與設定頁頁首不被頂欄蓋住**：`resize` 到 `390`（手機）與 `1023`（平板上緣）分別測 `/showcase` 與 `/settings`
    - **驗**：`/settings` 在 390px 下 `.settings-header` 的 `getComputedStyle().position === 'static'`，捲動後跟著頁面捲走、不再釘在頂欄下（190a 起刻意改行為）；768～1023px 仍 `position:sticky` 且 `top === 64`。
    - ⚠️ **`.showcase-toolbar` 在 ≤480px 預設是收合的**（`showcase.css` 註解「sticky→fixed 移出文件流」），390px 下 `top` 實測是負值（`-73`，捲出畫面外），**這不是 bug**——手機頂欄的搜尋圖示鈕（`.navbar-search-btn`）點開後才會展開，展開後（`.showcase-toolbar.mobile-toolbar-open`）實測 `top === 64`，同樣緊貼頂欄下緣，**PASS**。別在收合狀態下直接斷言 `top >= 64` 會誤判成蓋住
    - 1023px（平板上緣）下兩頁皆 `top === 64`，**PASS**
@@ -1143,7 +1146,7 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
      `insights.no_data`（全庫本來就沒資料）文字不同
    - 若挑不到這種年份組合 → `N/A(precondition)`，記錄嘗試過的年份
 8. **[MCP] bfcache 回退**：從 `/insights` 點 sidebar 導到 `/showcase`，再用瀏覽器上一頁
-   （`browser_navigate_back` 或等效）回 `/insights`
+   （`go-back` 或等效）回 `/insights`
    - **驗**：圖表仍渲染（不是白頁或卡在載入中）
 9. **[MCP] Showcase 燈箱顯示發行時年齡**：`/showcase` 開一張有收藏女優（且該女優有生日）
    的卡片燈箱，讀 `.lb-actress-core` 或女優名那一行
@@ -1247,22 +1250,22 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 - Dev server 已啟動。**全程唯讀**：不按設定頁「儲存」、不按 AI 區任何「測試／補完全庫／全部重建」（會呼叫付費雲端 API）、不真送圖片、不整理、不補完。
 - 起始 locale = `zh-TW`；步驟 9 會用 `.locale-toggle-btn` 循環切換語系，**結束必須切回 `zh-TW`**（循環順序 繁→简→あ→EN→한→繁，每按一次會 `PUT /api/config/general/locale` 並重載）。
 - 開始前 `cp output/config.json <暫存>`，結束 `cmp`，不同就還原。
-- `browser_resize` 先設 1280x900（MCP 瀏覽器重啟後視窗會回到窄尺寸，會看到手機版頂欄）。
+- `resize` 先設 1280x900（MCP 瀏覽器重啟後視窗會回到窄尺寸，會看到手機版頂欄）。
 
 ### Steps
 
 1. **[MCP] 說明頁三分頁**：`/help` → 依序點 `#helpTabLibrary`、`#helpTabOrganize`、`#helpTabManual`
    - **驗**：網址 hash 跟著變（`#library`／`#organize`／`#manual`），`[data-help-panel]` 一次只顯示一個；頁面文字無 raw key；`document.documentElement.scrollWidth <= innerWidth`
    - **驗**：使用手冊分頁有 5 條常見問題＋章節共 17 個 `details`，點 `summary` 可展開（不改任何資料）
-2. **[MCP] 說明頁舞台隨捲動前進**（`innerWidth >= 1024`）：點「建立片庫」→ 用 `browser_run_code` 的 `page.mouse.wheel(0, 450)` 往下捲
+2. **[MCP] 說明頁舞台隨捲動前進**（`innerWidth >= 1024`）：點「建立片庫」→ 用 `run-code` 的 `page.mouse.wheel(0, 450)` 往下捲
    - **驗**：舞台下方步驟列由 `1 / 4` 走到 `4 / 4`，`.hs-dot[aria-current="step"]` 跟著換；「整理與改名」分頁同樣 `1 / 4 → 4 / 4`；最後一步有「前往…」按鈕
    - ⚠️ 頁面本身是 window 捲動；用 `window.scrollTo` 在舞台上無效時改用滑鼠滾輪
 3. **[MCP] 新手引導四步＋連到說明頁**：`/scanner?tutorial=restart` → 連點 `#tutorialNext` 到 `4 / 4` → 點 `a[data-tutorial-go]`
    - **驗**：落在 `/help#organize`，`[data-help-panel="organize"]` 為唯一顯示；`GET /api/tutorial-status` 仍 `completed:true`（已完成者重看不改旗標）
 4. **[MCP] 隱藏未連線硬碟：設定頁開關**：`/settings` →「瀏覽顯示」→ `form.hideUnreachableSources` 的 checkbox「隱藏未連線硬碟」存在、預設關、旁有「？」說明鈕
-   - **驗**：只看不儲存（離開頁面若跳 `beforeunload` 對話框代表表單被改髒，需 `browser_handle_dialog` accept）
+   - **驗**：只看不儲存（離開頁面若跳 `beforeunload` 對話框代表表單被改髒，需 `dialog-accept` accept）
 5. **[MCP] 隱藏未連線硬碟：瀏覽頁底部提示**（硬碟拔掉在 dev 難造 → 用路由攔截模擬，**不改 config**）：
-   - `browser_run_code`：`page.route('**/api/showcase/source-status*', …fulfill([{path:'/home/slive/avtest', display:'avtest-disk', status:'unreachable', reason:'unreachable', members:['/home/slive/avtest']}]))`，並 `page.route('**/api/config/gallery/hide-unreachable-sources', …fulfill({success:true}))` 攔掉寫入；`goto('/showcase')`
+   - `run-code`：`page.route('**/api/showcase/source-status*', …fulfill([{path:'/home/slive/avtest', display:'avtest-disk', status:'unreachable', reason:'unreachable', members:['/home/slive/avtest']}]))`，並 `page.route('**/api/config/gallery/hide-unreachable-sources', …fulfill({success:true}))` 攔掉寫入；`goto('/showcase')`
    - **驗**：底部出現「avtest-disk 沒有連線」＋ `.footer-source-toggle`「隱藏」；點它 → 牆清空、顯示「所有影片都在未連線的硬碟上」、底部變「…已隱藏 2,102 部／顯示」；再點「顯示」回原狀
    - **驗**：`GET /api/config` 的 `gallery.hide_unreachable_sources` 沒被改動（寫入被攔）
    - ⚠️ 須用 `page.locator('.footer-source-toggle')`；`getByRole('button',{name:'隱藏'})` 在此頁定位不到
@@ -1274,14 +1277,14 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 8. **[MCP] 以圖查番號入口與按鈕交替**：`/search` → `#btnImageSearch`（aria-label 含「avscan.cc」）可見；`#searchQuery` 打字後該鈕隱藏、出現 `#btnClear`；清空後鈕回來
    - **驗**：隱藏的 `#imgSearchFileInput` 存在
    - **不做**：選檔／拖圖／貼圖會真送到 avscan.cc → 移 **[人工]**（見步驟 12）
-   - ⚠️ Playwright MCP 的 file chooser 對本頁在 headless 下曾使 MCP server 斷線，勿用
+   - ⚠️ 勿在本頁觸發 file chooser（MCP 時代在 headless 下曾讓驅動斷線；`playwright-cli` 未驗過）
 9. **[MCP] 封面屬性標籤 LTX 膠囊**：`/settings` →「瀏覽顯示」→ `button.source-pill--action` 含 `LTX`，預設 `aria-pressed="true"`；說明文字含「LTX：新一代 AI 去碼」
    - **驗**：點一下 `aria-pressed` 變 `false`、再點回 `true`；**不儲存**（離頁會跳 beforeunload，需 accept）
    - **驗**：`/showcase` 上有 LTX 標籤的片（例如 IPZZ-920）封面只顯示「LTX」，不同時顯示「AI」
 10. **[MCP] 五語系無 raw key（至少 ko、en）**：在 `/settings` 用 `.locale-toggle-btn` 切到 한 → 逐一點 `#settingsTabSources`、`#settingsTabScraping`、`#settingsTabGallery`、`#settingsTabSystem`、`#settingsTabAi`、`#aiTabTranslate`、`#aiTabSimilar`、`#aiTabFaces`、`#aiTabTags`；再開 `/help`（三分頁＋展開章節）、`/search`、`/showcase`、`/scanner`、`/insights`；換 EN 重做一次；最後切回 繁
     - **驗**：`document.body.innerText` 以 `/\b[a-z][a-z0-9_]*(\.[a-z0-9_]+){1,}\b/g` 掃不到 key 形字串（排除副檔名／網域／版號 `v0.18.x`）；`<html lang>` 為 `ko`／`en`；ko 的設定頁與說明頁 `[\u4e00-\u9fff]` 計數為 0（說明手冊的範例檔名與 `{title}` 範例資料除外）
     - **結束**：`.locale-toggle-btn` 回到 `繁`，`cmp output/config.json` 與起始相同
-11. **[MCP] 窄螢幕不橫向捲動**：`browser_resize` 390x844 → `/help`（三分頁各一）、`/settings`（五個主分頁各一）、`/showcase`、`/search`、`/scanner`、`/insights`
+11. **[MCP] 窄螢幕不橫向捲動**：`resize` 390x844 → `/help`（三分頁各一）、`/settings`（五個主分頁各一）、`/showcase`、`/search`、`/scanner`、`/insights`
     - **驗**：`document.documentElement.scrollWidth <= innerWidth`；說明頁在窄螢幕走文字版（舞台 `.hs-stage` 不顯示）
     - 已知：`/scanner` 的離線網頁路徑列在 390px 被卡片裁切（設定連結看不到），不橫向捲動頁面但屬視覺瑕疵；`/insights` 年表表頭格在容器內橫向捲動
 12. **[人工] 以圖查番號實送**：`/search` 點圖片鈕選一張影片截圖／封面（或拖圖、Ctrl+V 貼圖）→ 輸入框內出現小縮圖、查詢中樣式 → 比對列顯示候選番號與相似度；✕ 可撤掉；先打字再選圖會先撤掉文字搜尋的在飛請求（需真連 avscan.cc）

@@ -69,6 +69,8 @@ web/static/css/tailwind.css
 
 # Playwright MCP
 .playwright-mcp/
+# playwright-cli（snapshot／截圖寫在 cwd 底下）
+.playwright-cli/
 
 # Codex
 .codex
