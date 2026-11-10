@@ -98,7 +98,7 @@ jobs:
         shell: pwsh
         # 無 --skip：clr/pythonnet 在真 windows runner 原生解 .NET 正常。
         # --skip 僅 WSL-interop workaround，baking 進 CI＝重造 fail-open 盲區（spec-97）。
-        run: '& dist/verify/OpenAver/python/python.exe scripts/verify_artifact_imports.py'
+        run: '& dist/verify/OpenAver/python/python.exe scripts/verify_artifact_imports.py --strict'
 
       - name: Upload to Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -136,10 +136,10 @@ jobs:
       - name: Build macOS package
         run: python build_macos.py
 
-      # mac 首次掛 audit（spec-97 G-4）：--max-mb 60（mac baseline ~49MB、uvloop
-      # 合法，不可照搬 win 48，CD-97-6）。dist-info 靜態檢查兩平台皆帶入（T3）。
+      # mac audit：v0.18.17 mac ZIP 53MB＋pymediainfo universal2 wheel 壓縮增量約 7MB
+      # （plan 預估，T6 以真成品實測）≈ 60MB，上限 68。dist-info 靜態檢查兩平台皆帶入（T3）。
       - name: Run artifact audit
-        run: python scripts/audit_build_artifact.py "dist/*-macOS-*.zip" --platform mac --max-mb 60 --strict
+        run: python scripts/audit_build_artifact.py "dist/*-macOS-*.zip" --platform mac --max-mb 68 --strict
 
       - name: Prepare artifact
         run: |
@@ -152,7 +152,7 @@ jobs:
         # chmod 防禦：zip 若丟失 exec bit 不阻斷 sweep（本步驟只驗 import，非 exec bit）。
         run: |
           chmod +x dist/artifact/OpenAver/python/bin/python3 || true
-          dist/artifact/OpenAver/python/bin/python3 scripts/verify_artifact_imports.py
+          dist/artifact/OpenAver/python/bin/python3 scripts/verify_artifact_imports.py --strict
 
       - name: Upload artifact
         uses: actions/upload-artifact@v5
@@ -278,7 +278,7 @@ jobs:
       - name: Runtime import sweep (shipped python3)
         run: |
           cd "$SMOKE_HOME/OpenAver"
-          python/bin/python3 app/scripts/verify_artifact_imports.py
+          python/bin/python3 app/scripts/verify_artifact_imports.py --strict
 
       - name: Boot smoke (openaver run + /api/health)
         run: |

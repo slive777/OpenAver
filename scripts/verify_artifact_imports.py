@@ -17,12 +17,13 @@ Why this guard exists (spec-97 G-2):
     build (wired into CI as a release gate — see build.yml verify jobs).
 
 Usage:
-    <artifact>/python/python.exe scripts/verify_artifact_imports.py [--skip pkg ...]
+    <artifact>/python/python.exe scripts/verify_artifact_imports.py [--skip pkg ...] [--strict]
 
 Exit codes:
     0 — every discovered top-level package imported cleanly.
     1 — at least one import failed (list printed), OR no site-packages was found
-        on sys.path (guards against a false-green run on the wrong interpreter).
+        on sys.path (guards against a false-green run on the wrong interpreter),
+        OR ``--strict`` and pymediainfo's native library failed ``can_parse()``.
 """
 
 from __future__ import annotations
@@ -155,6 +156,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Top-level module name to skip (repeatable). Use only for a "
         "documented platform-specific special case; prints a SKIP line.",
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Also require pymediainfo.MediaInfo.can_parse() (build/CI only). "
+        "Without this flag a missing native library prints [WARN] and exits 0.",
+    )
     args = parser.parse_args(argv)
     skip = set(args.skip)
 
@@ -211,7 +218,23 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    return 1 if fails else 0
+    if fails:
+        return 1
+
+    # pymediainfo：import 成功不代表原生庫載得起來（BE-BUILD-03）。
+    # import 放函式內 + try/except，維持本腳本 stdlib-only 預設路徑。
+    try:
+        from pymediainfo import MediaInfo as _MediaInfo
+    except ImportError as exc:
+        print(f"FAIL  pymediainfo: ImportError: {exc}")
+        return 1
+    if not _MediaInfo.can_parse():
+        msg = "pymediainfo.MediaInfo.can_parse() is False — native libmediainfo unavailable"
+        if args.strict:
+            print(f"FAIL  {msg}")
+            return 1
+        print(f"[WARN] {msg}")
+    return 0
 
 
 if __name__ == "__main__":
