@@ -151,7 +151,8 @@ def _serialize_group(group, path_mappings: dict, enabled: bool = False, probe=No
     以 `group.members[0]`（part-1，group_rows 已依 part_number 升冪排序）的
     `_serialize_video()` 結果為基底，只在**真的多段時**覆寫 `size`（各段 size_bytes 加總，`or 0`
     是必要防禦——`Video.from_row()` 對 DB NULL 不做防禦，size_bytes 可能是 None）
-    與新增 `part_tokens`。其餘欄位（含 `duration`）逐字取 part-1，不做欄位級 merge。
+    與新增 `part_tokens`。多段時 `duration` 改回來源片長（`source_duration`），
+    `media_duration_min` 清成 null——第一段實際長度不是整組片長，避免前端誤用。
     單檔片：members==[v]、part_tokens==[]，輸出與今天 `_serialize_video(v, ...)`
     逐鍵逐值相同，只多 `part_tokens: []` 一個新鍵（AC-4）。
     probe 對應 members[0].path（與序列化基底同一段）。
@@ -162,6 +163,8 @@ def _serialize_group(group, path_mappings: dict, enabled: bool = False, probe=No
     # 只有真的多段時才加總，`or 0` 的 NULL 防禦留在那條路上（T2 review P3）。
     if len(group.members) > 1:
         base['size'] = sum(m.size_bytes or 0 for m in group.members)
+        base['duration'] = base['source_duration']
+        base['media_duration_min'] = None
     base['part_tokens'] = group.part_tokens
     return base
 

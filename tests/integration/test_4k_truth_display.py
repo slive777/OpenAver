@@ -171,57 +171,81 @@ def test_db_to_sidecar_nfo_keeps_source_4k_genre(tmp_path):
         "probe_ok",
         "key_mismatch",
         "never_probed",
+        "multipart",
     ],
 )
 def test_duration_prefers_probe_and_falls_back_to_source(client, tmp_path, mocker, case):
-    """片長：探針 ok 用實際分鐘；key 不符／未讀過退回來源；source_duration 恆為來源。"""
+    """片長：探針 ok 用實際分鐘；key 不符／未讀過退回來源；分集多段維持來源；source_duration 恆為來源。"""
     video_dir = tmp_path / "videos"
     video_dir.mkdir()
-    uri = to_file_uri(str(video_dir / f"DUR-{case}.mp4"), {})
     db_path = tmp_path / f"dur_{case}.db"
     init_db(db_path)
     repo = VideoRepository(db_path)
     mtime, size = 1700000100.0, 2_000_000
-    _seed_video(
-        repo,
-        path=uri,
-        number=f"DUR-{case}",
-        tags=["巨乳"],
-        duration=120,
-        mtime=mtime,
-        size_bytes=size,
-    )
 
-    if case == "probe_ok":
-        assert repo.update_media_probe(
-            uri, _ok_probe(duration_ms=7_380_000), mtime, size
-        ) is True
-        expect_duration = 123
-        expect_tier = "FHD"
-    elif case == "key_mismatch":
-        assert repo.update_media_probe(
-            uri, _ok_probe(duration_ms=7_380_000), mtime, size
-        ) is True
-        # upsert 改 mtime：探針欄保留、key 對不上（真實流程，不用 raw SQL）
-        repo.upsert(
-            Video(
-                path=uri,
-                number=f"DUR-{case}",
-                title="Truth Title",
-                actresses=["女優A"],
-                maker="Truth Maker",
-                release_date="2024-01-01",
-                tags=["巨乳"],
-                duration=120,
-                size_bytes=size,
-                mtime=mtime + 99.0,
-            )
+    if case == "multipart":
+        # 同資料夾同 stem 的 cd1/cd2 → group_rows 合成一張卡；第一段 probe 60 分不得蓋掉來源 120
+        uri = to_file_uri(str(video_dir / "DUR-MP-cd1.mp4"), {})
+        uri2 = to_file_uri(str(video_dir / "DUR-MP-cd2.mp4"), {})
+        _seed_video(
+            repo, path=uri, number="DUR-MP", tags=["巨乳"],
+            duration=120, mtime=mtime, size_bytes=size,
         )
+        _seed_video(
+            repo, path=uri2, number="DUR-MP", tags=["巨乳"],
+            duration=120, mtime=mtime + 1.0, size_bytes=size,
+        )
+        assert repo.update_media_probe(
+            uri, _ok_probe(duration_ms=3_600_000), mtime, size
+        ) is True
         expect_duration = 120
-        expect_tier = None
+        expect_tier = "FHD"
+        expect_media_duration_min = None
     else:
-        expect_duration = 120
-        expect_tier = None
+        uri = to_file_uri(str(video_dir / f"DUR-{case}.mp4"), {})
+        _seed_video(
+            repo,
+            path=uri,
+            number=f"DUR-{case}",
+            tags=["巨乳"],
+            duration=120,
+            mtime=mtime,
+            size_bytes=size,
+        )
+
+        if case == "probe_ok":
+            assert repo.update_media_probe(
+                uri, _ok_probe(duration_ms=7_380_000), mtime, size
+            ) is True
+            expect_duration = 123
+            expect_tier = "FHD"
+            expect_media_duration_min = 123
+        elif case == "key_mismatch":
+            assert repo.update_media_probe(
+                uri, _ok_probe(duration_ms=7_380_000), mtime, size
+            ) is True
+            # upsert 改 mtime：探針欄保留、key 對不上（真實流程，不用 raw SQL）
+            repo.upsert(
+                Video(
+                    path=uri,
+                    number=f"DUR-{case}",
+                    title="Truth Title",
+                    actresses=["女優A"],
+                    maker="Truth Maker",
+                    release_date="2024-01-01",
+                    tags=["巨乳"],
+                    duration=120,
+                    size_bytes=size,
+                    mtime=mtime + 99.0,
+                )
+            )
+            expect_duration = 120
+            expect_tier = None
+            expect_media_duration_min = None
+        else:
+            expect_duration = 120
+            expect_tier = None
+            expect_media_duration_min = None
 
     config = _showcase_config(video_dir)
     mocker.patch("web.routers.showcase.get_db_path", return_value=db_path)
@@ -230,9 +254,12 @@ def test_duration_prefers_probe_and_falls_back_to_source(client, tmp_path, mocke
     resp = client.get("/api/showcase/videos")
     assert resp.status_code == 200
     item = next(v for v in resp.json()["videos"] if v["path"] == uri)
+    if case == "multipart":
+        assert item.get("part_tokens") == ["cd1", "cd2"]
     assert item.get("source_duration") == 120
     assert item.get("duration") == expect_duration
     assert item.get("resolution_tier") == expect_tier
+    assert item.get("media_duration_min") == expect_media_duration_min
 
 
 @pytest.mark.parametrize("sink", ["insights", "tags_top"])

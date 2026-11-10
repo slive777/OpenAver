@@ -515,7 +515,7 @@ _TOOLS: list[dict] = [
                 "media_container": "TEXT — 容器格式",
                 "media_audio_langs": "TEXT — 音軌語言 JSON array",
                 "media_subtitle_langs": "TEXT — 字幕語言 JSON array",
-                "media_truncated": "INTEGER — 是否截斷讀取（0/1）",
+                "media_truncated": "INTEGER — 檔案本身是否為截斷（不完整）的影片檔（0/1）",
             },
         },
 
