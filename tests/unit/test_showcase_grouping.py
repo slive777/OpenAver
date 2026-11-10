@@ -167,6 +167,9 @@ class TestAC4BaselineFixtureComparison:
             #   has_plot —— 187b CD-187b-1.3 新增，無條件輸出 bool（NULL→false；FE-ALPINE-06）
             #   src —— 195b T2 新增，有來源歸屬時才輸出；行為由 tests/integration/test_api_showcase.py
             #          的 src 歸屬測試守著，不歸本 baseline 管
+            #   resolution_tier / media_width / media_height / media_codec /
+            #   media_duration_min / source_duration —— 198a 新增、無條件輸出；
+            #   行為由 tests/integration/test_4k_truth_display.py 守
             assert actual_v.get("user_rating") == 0, (
                 f"單檔片 {path} 的 user_rating 在 baseline fixture 情境下必為 0，"
                 f"實際 {actual_v.get('user_rating')}"
@@ -182,7 +185,11 @@ class TestAC4BaselineFixtureComparison:
             )
             extra_keys = (
                 set(actual_v.keys()) - set(expected_v.keys())
-                - {"part_tokens", "user_rating", "needs_translate", "has_plot", "src"}
+                - {
+                    "part_tokens", "user_rating", "needs_translate", "has_plot", "src",
+                    "resolution_tier", "media_width", "media_height", "media_codec",
+                    "media_duration_min", "source_duration",
+                }
             )
             assert not extra_keys, f"多出非預期 key: {extra_keys}（path={path}）"
 

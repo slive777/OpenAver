@@ -8,6 +8,7 @@ Tags API Router — /api/tags
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
+from core.cover_attributes import is_source_4k_tag
 from core.database import get_connection, get_db_path, init_db
 from core.logger import get_logger
 
@@ -31,7 +32,7 @@ def get_top_tags(
         with get_connection(db_path) as conn:
             cur = conn.cursor()
 
-            # top N tags（套 min_count + limit）
+            # 先取回全部符合 min_count 的 tag（不加 LIMIT），Python 端剔除來源 4K 後再切
             cur.execute(
                 """
                 SELECT je.value AS tag, COUNT(*) AS cnt
@@ -40,21 +41,24 @@ def get_top_tags(
                 GROUP BY je.value
                 HAVING cnt >= ?
                 ORDER BY cnt DESC, je.value ASC
-                LIMIT ?
                 """,
-                (min_count, limit),
+                (min_count,),
             )
-            items = [{"tag": row[0], "count": row[1]} for row in cur.fetchall()]
+            items = [
+                {"tag": row[0], "count": row[1]}
+                for row in cur.fetchall()
+                if not is_source_4k_tag(row[0])
+            ][:limit]
 
-            # total unique（不套 min_count）
+            # total unique（不套 min_count；同樣剔除來源 4K）
             cur.execute(
                 """
-                SELECT COUNT(DISTINCT je.value) AS total
+                SELECT DISTINCT je.value AS tag
                 FROM videos, json_each(videos.tags) AS je
                 WHERE je.value IS NOT NULL AND je.value != ''
                 """
             )
-            total = cur.fetchone()[0]
+            total = sum(1 for row in cur.fetchall() if not is_source_4k_tag(row[0]))
 
         return {
             "success": True,

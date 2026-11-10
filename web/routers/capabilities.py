@@ -447,7 +447,10 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "collection_sql",
-        "description": "Read-only SQL 查詢收藏資料庫，可自由組合 SELECT/JOIN/GROUP BY/WHERE",
+        "description": (
+            "Read-only SQL 查詢收藏資料庫，可自由組合 SELECT/JOIN/GROUP BY/WHERE。"
+            " tags 可能含來源 4K（描述作品），檔案真相看 `media_height`。"
+        ),
         "method": "POST",
         "path": "/api/collection/sql",
         "input_schema": {
@@ -776,7 +779,7 @@ _TOOLS: list[dict] = [
     {
         "name": "showcase_videos",
         "description": (
-            "列出當前 Showcase 設定資料夾下「所有」影片，每筆含 25 欄位 enrich 過的完整 metadata。"
+            "列出當前 Showcase 設定資料夾下「所有」影片，每筆含 31 欄位 enrich 過的完整 metadata。"
             " ⚠️ **分集片（`-cd1`/`-part2`…）一組只回一筆**（feature/122）：同資料夾同主幹的各段"
             "合併成單一 item，`path` 是**段號最小的那一段**（通常是 cd1，但不保證 cd1 存在）、"
             "`size` 是各段加總、`part_tokens` 列出段別。"
@@ -801,7 +804,7 @@ _TOOLS: list[dict] = [
             "total": "integer — videos 陣列長度",
             "videos": {
                 "type": "array",
-                "description": "影片清單；每筆 item 為 25 欄位 dict（分集片一組一筆）",
+                "description": "影片清單；每筆 item 為 31 欄位 dict（分集片一組一筆）",
                 "item_fields": {
                     "path": "string — file:/// URI（DB key 格式，可作為 showcase_video 查詢輸入）",
                     "title": "string",
@@ -810,13 +813,16 @@ _TOOLS: list[dict] = [
                     "actresses": "string — ⚠️ 逗號分隔字串，**不是** array（例：'女優A,女優B'）",
                     "maker": "string",
                     "release_date": "string — YYYY-MM-DD（可能為空字串）",
-                    "tags": "string — ⚠️ 逗號分隔字串，**不是** array",
+                    "tags": (
+                        "string — ⚠️ 逗號分隔字串，**不是** array；"
+                        "來源 4K 類標籤不出現（作品屬性，非檔案；檔案真相看 `resolution_tier`）"
+                    ),
                     "size": "integer — 檔案 bytes；分集片為各段加總",
                     "cover_url": "string — 後端代理 URL（/api/gallery/image?path=...），可直接 <img> 顯示",
                     "cover_full_url": "string — 恆為原圖代理 URL（不受縮圖快取開關影響）",
                     "mtime": "integer — Unix timestamp（秒）",
                     "director": "string",
-                    "duration": "integer | null — 分鐘；null 時前端隱藏",
+                    "duration": "integer | null — 分鐘；實際片長優先、無則來源片長；null 時前端隱藏",
                     "series": "string",
                     "label": "string",
                     "sample_images": "array[string] — 劇照 gallery image URLs（真正的 array）",
@@ -831,6 +837,12 @@ _TOOLS: list[dict] = [
                         "單檔片為空陣列。非空即代表本筆是多個實體檔案的合併呈現。"
                     ),
                     "needs_translate": "boolean — 標題含日文假名、沒有 original_title、且已有 NFO（nfo_mtime>0）（可用來挑出尚未翻譯的片）",
+                    "resolution_tier": "string | null — 實際解析度等級（SD/HD/FHD/2K/4K/8K）；無有效探針時 null",
+                    "media_width": "integer | null — 實際寬度（px）；無有效探針時 null",
+                    "media_height": "integer | null — 實際高度（px）；無有效探針時 null",
+                    "media_codec": "string | null — 視訊編碼標籤（如 H.264／HEVC）；無有效探針時 null",
+                    "media_duration_min": "integer | null — 實際片長（分鐘）；無有效探針或 <1 時 null",
+                    "source_duration": "integer | null — 來源片長（分鐘，NFO／刮削值）",
                 },
             },
         },
@@ -860,11 +872,13 @@ _TOOLS: list[dict] = [
         "output_schema": {
             "success": "boolean",
             "video": (
-                "object — 25 欄位 dict，schema 同 showcase_videos.videos.item_fields"
+                "object — 31 欄位 dict，schema 同 showcase_videos.videos.item_fields"
                 "（path/title/original_title/number/actresses[csv⚠️]/maker/release_date/tags[csv⚠️]/"
                 "size/cover_url/cover_full_url/mtime/director/duration/series/label/"
                 "sample_images[array]/user_tags[array]/user_rating[integer]/has_cover/has_nfo/auto_focal/crop_mode/"
-                "part_tokens[array]/needs_translate[boolean，標題含日文假名、沒有 original_title、且已有 NFO]）。注意 actresses 和 tags"
+                "part_tokens[array]/needs_translate[boolean，標題含日文假名、沒有 original_title、且已有 NFO]/"
+                "resolution_tier/media_width/media_height/media_codec/media_duration_min/source_duration）。"
+                "注意 actresses 和 tags"
                 "是逗號分隔字串，其餘標記為 array 的欄位才是真正的 array。"
                 " 查詢分集片的任一段，回的都是該組的合併結果（`part_tokens` 非空）。"
             ),
@@ -1964,6 +1978,7 @@ _TOOLS: list[dict] = [
             " 呼叫 tag_alias_crud_write 建立 alias group。"
             " min_count=2（預設）過濾噪音單次 tag；total_unique_tags 不受 min_count 影響。"
             " 不含 user_tags（user_tags 為獨立欄位）。"
+            " 不含來源標的 4K 類標籤（4K 改以實際解析度判斷）。"
         ),
         "method": "GET",
         "path": "/api/tags/top",

@@ -64,3 +64,9 @@ class TestCoverBadgesManifest:
         assert ids.index("ltx") > ids.index("cracked")
         assert ids.index("ltx") < ids.index("leaked")
         assert data == manifest_payload()
+
+    def test_manifest_4k_row_source_is_media_probe(self, client):
+        """198a-T3：4K 標章規則改由 media_probe 驅動，manifest 必須帶 source。"""
+        data = client.get(MANIFEST_PATH).json()
+        by_id = {item["id"]: item for item in data}
+        assert by_id["4k"].get("source") == "media_probe"

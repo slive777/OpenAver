@@ -48,6 +48,7 @@ from core.data_root import resolve_gallery_output_path
 from core.readonly_producer import produce_source
 from web.routers.gallery_media import safe_realpath
 from core.readonly_source import is_path_readonly, readonly_source_prefixes, writable_source_prefixes
+from core.cover_attributes import is_source_4k_tag
 from core.generate_state import try_mark_generate_active, mark_generate_done
 from core import thumbnail_cache
 from core.scraper import smart_search
@@ -632,7 +633,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                 num=v.number or '',
                 maker=v.maker,
                 date=v.release_date,
-                genre=','.join(v.tags) if v.tags else '',
+                genre=','.join(t for t in (v.tags or []) if not is_source_4k_tag(t)),
                 size=v.size_bytes,
                 mtime=int(v.mtime * 10000000 + 116444736000000000) if v.mtime else 0,
                 img=v.cover_path
@@ -1576,7 +1577,7 @@ def generate_from_ids(body: GenerateFromIdsRequest):
                 num=v.number or num,
                 maker=v.maker or '',
                 date=v.release_date or '',
-                genre=','.join(v.tags) if v.tags else '',
+                genre=','.join(t for t in (v.tags or []) if not is_source_4k_tag(t)),
                 size=v.size_bytes or 0,
                 mtime=int(v.mtime * 10000000 + 116444736000000000) if v.mtime else 0,
                 img=v.cover_path or ''
