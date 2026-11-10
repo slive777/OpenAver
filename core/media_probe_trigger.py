@@ -5,12 +5,15 @@
 """
 from __future__ import annotations
 
+import os
+
 from core import media_probe
 from core.database.video import VideoRepository
 from core.logger import get_logger
 from core.media_probe_worker import submit_media_probe
-from core.path_utils import uri_to_local_fs_path
+from core.path_utils import uri_to_fs_path, uri_to_local_fs_path
 from core.readonly_source import is_path_readonly
+from core.video_extensions import ZERO_SIZE_EXTENSIONS
 
 logger = get_logger(__name__)
 
@@ -27,9 +30,12 @@ def maybe_submit_media_probe(
 
     prefix／path_mappings 為 None 時自己 load_config()。
     入庫時唯讀列一律不讀（不看 include_readonly）。
+    ZERO_SIZE_EXTENSIONS（.strm 等）不排探針。
     """
     try:
         if not media_probe.is_available():
+            return
+        if os.path.splitext(uri_to_fs_path(video_uri))[1].lower() in ZERO_SIZE_EXTENSIONS:
             return
         if readonly_prefixes is None or writable_prefixes is None or path_mappings is None:
             from core.config import load_config

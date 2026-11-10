@@ -2031,12 +2031,18 @@ class VideoRepository:
         include_readonly: bool,
         readonly_prefixes,
         writable_prefixes,
+        configured_dir_uris,
     ) -> list:
-        """不滿足 is_ok_current 的列；include_readonly 假時剔除唯讀。
+        """不滿足 is_ok_current 的列；限目前設定資料夾；include_readonly 假時剔除唯讀。
 
         回 (path, mtime, size_bytes) list。含從未讀過的列（與 get_media_probe_map 範圍不同）。
+        已移除來源仍留在 DB 的列、以及 ZERO_SIZE_EXTENSIONS（.strm 等）不入 pending。
         """
+        import os
+
+        from core.path_utils import is_path_under_dir, uri_to_fs_path
         from core.readonly_source import is_path_readonly
+        from core.video_extensions import ZERO_SIZE_EXTENSIONS
 
         conn = self._get_connection()
         try:
@@ -2053,6 +2059,10 @@ class VideoRepository:
             if view.is_ok_current:
                 continue
             path = view.path
+            if not any(is_path_under_dir(path, uri) for uri in configured_dir_uris):
+                continue
+            if os.path.splitext(uri_to_fs_path(path))[1].lower() in ZERO_SIZE_EXTENSIONS:
+                continue
             if not include_readonly and is_path_readonly(path, readonly_prefixes, writable_prefixes):
                 continue
             out.append((view.path, view.mtime, view.size_bytes))

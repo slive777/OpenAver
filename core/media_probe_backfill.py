@@ -54,14 +54,16 @@ def set_include_readonly(value: bool) -> None:
 
 
 def _prefixes():
-    from core.config import load_config
+    from core.config import get_configured_gallery_dirs, load_config
 
-    gallery = load_config().get("gallery", {}) or {}
-    mappings = gallery.get("path_mappings", {}) or {}
+    config = load_config()
+    gallery = config.get("gallery", {}) or {}
+    configured_dir_uris, mappings = get_configured_gallery_dirs(config)
     return (
         readonly_source_prefixes(gallery, mappings),
         writable_source_prefixes(gallery, mappings),
         mappings,
+        configured_dir_uris,
     )
 
 
@@ -69,12 +71,13 @@ def status() -> dict:
     """CD-198a-8：{available, dismissed, include_readonly, pending, readonly_pending, job:{running, done, total}}。"""
     include_ro = get_include_readonly()
     try:
-        ro, wr, _mappings = _prefixes()
+        ro, wr, _mappings, configured = _prefixes()
         pending = len(
             VideoRepository().list_media_probe_pending(
                 include_readonly=include_ro,
                 readonly_prefixes=ro,
                 writable_prefixes=wr,
+                configured_dir_uris=configured,
             )
         )
         # 未讀唯讀列數（不論勾選）：同一支 list_media_probe_pending 以相反旗標再數一次，
@@ -84,6 +87,7 @@ def status() -> dict:
                 include_readonly=not include_ro,
                 readonly_prefixes=ro,
                 writable_prefixes=wr,
+                configured_dir_uris=configured,
             )
         )
         readonly_pending = abs(pending - other)
@@ -116,11 +120,12 @@ def start() -> dict:
             return {"ok": False, "status": "already_running"}
         try:
             include_ro = get_include_readonly()
-            ro, wr, mappings = _prefixes()
+            ro, wr, mappings, configured = _prefixes()
             snapshot = VideoRepository().list_media_probe_pending(
                 include_readonly=include_ro,
                 readonly_prefixes=ro,
                 writable_prefixes=wr,
+                configured_dir_uris=configured,
             )
             if not snapshot:
                 _SHELL.abort_acquire()

@@ -399,12 +399,15 @@ def test_same_mtime_different_size_is_reprobed(tmp_path, monkeypatch):
         "directories": [{"path": str(scan_dir), "readonly": False, "output_path": ""}],
         "path_mappings": {},
     }
+    from core.config import get_configured_gallery_dirs
     from core.readonly_source import readonly_source_prefixes, writable_source_prefixes
 
+    configured, _mappings = get_configured_gallery_dirs({"gallery": gallery})
     pending = repo2.list_media_probe_pending(
         include_readonly=False,
         readonly_prefixes=readonly_source_prefixes(gallery, {}),
         writable_prefixes=writable_source_prefixes(gallery, {}),
+        configured_dir_uris=configured,
     )
     pending_paths = {p for p, _m, _s in pending}
     assert uri2 in pending_paths, f"③ no_video 後 pending 應含該列，實際={pending}"

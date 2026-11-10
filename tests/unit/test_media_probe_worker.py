@@ -55,9 +55,15 @@ def _fresh_backfill_state(monkeypatch, temp_db):
     import core.media_probe_worker as worker_mod
 
     monkeypatch.setattr(db_connection, "get_db_path", lambda: temp_db)
+    # directories 含 /media，讓 I6 backfill 的 /media/bf_*.mp4 落在設定資料夾內
     monkeypatch.setattr(
         "core.config.load_config",
-        lambda: {"gallery": {"sources": [], "path_mappings": {}}},
+        lambda: {
+            "gallery": {
+                "directories": [{"path": "/media", "readonly": False, "output_path": ""}],
+                "path_mappings": {},
+            }
+        },
     )
     backfill._reset_for_tests()
     # 換掉單例，避免跨測污染
@@ -274,10 +280,17 @@ def test_backfill_progress_converges(temp_db, monkeypatch):
 
 @pytest.mark.parametrize(
     "case",
-    ["pending_default", "pending_include_ro", "trigger_skips_ro"],
+    [
+        "pending_default",
+        "pending_include_ro",
+        "trigger_skips_ro",
+        "pending_outside_configured",
+        "pending_excludes_strm",
+        "trigger_skips_strm",
+    ],
 )
 def test_readonly_rows_never_read(temp_db, monkeypatch, case):
-    """I7：唯讀列預設不進補讀；trigger 永不 submit 唯讀列。"""
+    """I7：唯讀／設定外／.strm 不進 pending；trigger 永不 submit 唯讀與 .strm。"""
     import core.media_probe_backfill as backfill
     import core.media_probe_trigger as trigger
     import core.media_probe_worker as worker_mod
@@ -286,10 +299,14 @@ def test_readonly_rows_never_read(temp_db, monkeypatch, case):
     wr_prefix = to_file_uri("/nas/rw")
     ro_path = to_file_uri("/nas/ro/a.mp4")
     wr_path = to_file_uri("/nas/rw/b.mp4")
+    outside_path = to_file_uri("/other/removed/c.mp4")
+    strm_path = to_file_uri("/nas/rw/d.strm")
 
     repo = VideoRepository(temp_db)
     repo.upsert(Video(path=ro_path, title="唯讀", mtime=1.0, size_bytes=10))
     repo.upsert(Video(path=wr_path, title="可寫", mtime=2.0, size_bytes=20))
+    repo.upsert(Video(path=outside_path, title="已移除來源", mtime=3.0, size_bytes=30))
+    repo.upsert(Video(path=strm_path, title="串流指標", mtime=4.0, size_bytes=40))
 
     submitted = []
 
@@ -302,12 +319,14 @@ def test_readonly_rows_never_read(temp_db, monkeypatch, case):
 
     ro_prefixes = [ro_prefix]
     wr_prefixes = [wr_prefix]
+    configured = {ro_prefix, wr_prefix}
 
     if case == "pending_default":
         pending = repo.list_media_probe_pending(
             include_readonly=False,
             readonly_prefixes=ro_prefixes,
             writable_prefixes=wr_prefixes,
+            configured_dir_uris=configured,
         )
         got = {p for p, _m, _s in pending}
         assert got == {wr_path}
@@ -317,10 +336,43 @@ def test_readonly_rows_never_read(temp_db, monkeypatch, case):
             include_readonly=True,
             readonly_prefixes=ro_prefixes,
             writable_prefixes=wr_prefixes,
+            configured_dir_uris=configured,
         )
         got = {p for p, _m, _s in pending}
         assert ro_path in got
         assert wr_path in got
+
+    elif case == "pending_outside_configured":
+        pending = repo.list_media_probe_pending(
+            include_readonly=True,
+            readonly_prefixes=ro_prefixes,
+            writable_prefixes=wr_prefixes,
+            configured_dir_uris=configured,
+        )
+        got = {p for p, _m, _s in pending}
+        assert outside_path not in got
+        assert wr_path in got
+
+    elif case == "pending_excludes_strm":
+        pending = repo.list_media_probe_pending(
+            include_readonly=True,
+            readonly_prefixes=ro_prefixes,
+            writable_prefixes=wr_prefixes,
+            configured_dir_uris=configured,
+        )
+        got = {p for p, _m, _s in pending}
+        assert strm_path not in got
+        assert wr_path in got
+
+    elif case == "trigger_skips_strm":
+        trigger.maybe_submit_media_probe(
+            strm_path,
+            db_path=temp_db,
+            readonly_prefixes=ro_prefixes,
+            writable_prefixes=wr_prefixes,
+            path_mappings={},
+        )
+        assert submitted == []
 
     else:
         # trigger 在 include_readonly=True 設定下仍不 submit 唯讀
