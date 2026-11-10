@@ -84,7 +84,7 @@
                         <span class="filter-pill-list" role="list" x-show="pills.length">
                             <template x-for="pill in pills" :key="pill.dim + '::' + normalizePillValue(pill.value)">
                                 <span class="filter-pill" role="listitem"
-                                      :class="{ 'is-editing': !!_releaseEditor && pill.dim === 'release' }"
+                                      :class="{ 'is-editing': (!!_releaseEditor && pill.dim === 'release') || (!!_resolutionEditor && pill.dim === 'resolution') }"
                                       :title="pill.dim === 'pick' ? t('showcase.pick.chip_label') : t('showcase.pill.title', { dim: t('showcase.pill.dim_label.' + pill.dim), value: pillLabel(pill) })">
                                     <!-- 124a-T3: release pill 依 _pillPopoverEnabled（≤480px 為 false）
                                          分流成可點／不可點，鏡射女優版 button/span 換型別的既有手法
@@ -94,7 +94,14 @@
                                                 @click.stop="_toggleReleaseEditor(pill)"
                                                 x-text="pillLabel(pill)"></button>
                                     </template>
-                                    <template x-if="!(pill.dim === 'release' && _pillPopoverEnabled)">
+                                    <!-- 198a-T4: resolution pill 同樣分流（≤480px 不可點）；第二個 x-if 同時排除兩者，
+                                         否則 resolution chip 會渲染 button 與 span 兩份。 -->
+                                    <template x-if="pill.dim === 'resolution' && _pillPopoverEnabled">
+                                        <button type="button" class="filter-pill-value"
+                                                @click.stop="_toggleResolutionEditor(pill)"
+                                                x-text="pillLabel(pill)"></button>
+                                    </template>
+                                    <template x-if="!((pill.dim === 'release' || pill.dim === 'resolution') && _pillPopoverEnabled)">
                                         <span class="filter-pill-value" x-text="pillLabel(pill)"></span>
                                     </template>
                                     <button type="button" class="filter-pill-remove"
@@ -273,6 +280,36 @@
                                 </div>
                             </div>
                         </template>
+                    </div>
+
+                    <!-- 198a-T4: 解析度 pill 浮層。沒有輸入欄與 ✓✗：點一顆即套用並關閉，所以不需要
+                         x-if 包 x-model；浮層本體是 x-show，關閉時綁定仍求值，對 _resolutionEditor 一律 ?.。 -->
+                    <div class="pill-editor-popover"
+                         x-show="_resolutionEditor && !showFavoriteActresses && _pillPopoverEnabled"
+                         x-cloak
+                         x-transition.opacity.duration.150ms
+                         x-trap="!!_resolutionEditor"
+                         @click.outside="_resolutionEditor && _cancelResolutionEditor()"
+                         @click.stop
+                         role="dialog"
+                         aria-modal="false"
+                         aria-labelledby="resolution-editor-title">
+                        <div class="pill-editor-title" id="resolution-editor-title" x-text="t('showcase.pill.dim_label.resolution')"></div>
+
+                        <div class="pill-editor-modes">
+                            <button type="button" class="pill-editor-mode" :class="{ 'is-active': _resolutionEditor?.op === '=' }"
+                                    @click="_applyResolutionOp('=')" :aria-label="t('showcase.pill.op.eq')">=</button>
+                            <button type="button" class="pill-editor-mode" :class="{ 'is-active': _resolutionEditor?.op === '<=' }"
+                                    @click="_applyResolutionOp('<=')" :aria-label="t('showcase.pill.op.lte')">≤</button>
+                            <button type="button" class="pill-editor-mode" :class="{ 'is-active': _resolutionEditor?.op === '>=' }"
+                                    @click="_applyResolutionOp('>=')" :aria-label="t('showcase.pill.op.gte')">≥</button>
+                        </div>
+                        <div class="pill-editor-modes pill-editor-modes--tiers">
+                            <template x-for="tier in resolutionTierList()" :key="tier">
+                                <button type="button" class="pill-editor-mode" :class="{ 'is-active': _resolutionEditor?.value === tier }"
+                                        @click="_applyResolutionTier(tier)" x-text="tier"></button>
+                            </template>
+                        </div>
                     </div>
 
                     <div class="search-actions-right">
@@ -1288,6 +1325,12 @@
                                 </span>
                                 <span x-show="currentLightboxVideo?.duration">
                                     &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' ' + t('showcase.unit.minutes') : ''"></span>
+                                </span>
+                                <span x-show="currentLightboxVideo?.resolution_tier">
+                                    &nbsp;·&nbsp;<a href="#" class="lb-tag lb-link"
+                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.resolution_tier, 'resolution')"
+                                       :title="t('showcase.lightbox.resolution_pill_title')"
+                                       x-text="currentLightboxVideo?.resolution_tier"></a><span x-show="currentLightboxVideo?.media_codec" x-text="' ' + currentLightboxVideo?.media_codec"></span>
                                 </span>
                                 <span x-show="currentLightboxVideo?.series">
                                     &nbsp;·&nbsp;<b>{{ t('showcase.label.series') }}：</b>

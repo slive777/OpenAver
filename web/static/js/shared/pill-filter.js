@@ -12,6 +12,7 @@
  */
 
 import { expandPill, matchesReleasePill, parseEndpoint } from './release-window.js';
+import { tierRank } from './resolution-tier.js';
 
 export function normalizePillValue(s) {
     if (s === null || s === undefined) return '';
@@ -59,6 +60,19 @@ function _buildSingleMatcher(pill, nameToGroup, tagToGroup) {
         var w = expandPill(pill);
         if (!w) return function () { return false; };
         return function (video) { return matchesReleasePill(video, w); };
+    }
+    // TASK-198a-T4：resolution 維度，依等級序比較（SD < HD < FHD < 2K < 4K < 8K）。
+    // fail-closed：未知 op／未知 value／片的 resolution_tier 為 null／缺鍵／未知＝恆不符。
+    if (dim === 'resolution') {
+        var need = tierRank(pill.value);
+        var op = pill.op;
+        if (need < 0 || (op !== '=' && op !== '<=' && op !== '>=')) return function () { return false; };
+        return function (video) {
+            var have = tierRank(video.resolution_tier);
+            if (have < 0) return false;
+            if (op === '=') return have === need;
+            return op === '<=' ? have <= need : have >= need;
+        };
     }
     if (dim === 'actress' || dim === 'tag') {
         return _actressOrTagMatcher(dim, pill.value, nameToGroup, tagToGroup);
@@ -140,8 +154,10 @@ export function serializePills(pills) {
     if (!Array.isArray(pills)) return [];
     return pills.map(function (p) {
         var out = { dim: p.dim, value: p.value };
-        if (p.dim === 'release') {
+        if (p.dim === 'release' || p.dim === 'resolution') {
             if (p.op !== undefined) out.op = p.op;
+        }
+        if (p.dim === 'release') {
             if (p.value2 !== undefined) out.value2 = p.value2;
         }
         return out;
@@ -170,6 +186,13 @@ export function deserializePills(raw) {
             var releasePill = { dim: dim, value: value, op: op };
             if (op === 'range') releasePill.value2 = value2;
             out.push(releasePill);
+            continue;
+        }
+        if (dim === 'resolution') {
+            // TASK-198a-T4：op ∈ =／<=／>=（無 range）且 value ∈ RESOLUTION_TIERS，畸形一枚丟一枚。
+            if (p.op !== '=' && p.op !== '<=' && p.op !== '>=') continue;
+            if (tierRank(value) < 0) continue;
+            out.push({ dim: dim, value: value, op: p.op });
             continue;
         }
         out.push({ dim: dim, value: value });

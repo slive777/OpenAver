@@ -504,6 +504,8 @@ export function stateLightbox() {
             // （addPill 的正規化/去重路徑不適用 release 的 op/value2 結構）。
             if (dim === 'release') {
                 this._setReleasePillFromDate(value);
+            } else if (dim === 'resolution') {
+                this._setResolutionPillFromTier(value);   // 198a-T4：等級膠囊，同樣不經 addPill
             } else {
                 this.addPill(dim, value);
             }
@@ -974,8 +976,15 @@ export function stateLightbox() {
             // 取得焦點時 e.target.tagName === 'INPUT'，放在後面 ESC 永遠到不了這裡）。
             // TASK-124a-T2：新增 _releaseEditor 分支（兩個 slot 依 §3.5 不變式恆不同時非
             // null，三元式安全）。
-            if (this._pillEditor || this._releaseEditor) {
-                if (e.key === 'Escape') { e.preventDefault(); this._pillEditor ? this._cancelPillEditor() : this._cancelReleaseEditor(); return; }
+            // TASK-198a-T4：納入第三個 slot _resolutionEditor（三個 slot 至多一個非 null）。
+            if (this._pillEditor || this._releaseEditor || this._resolutionEditor) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (this._pillEditor) this._cancelPillEditor();
+                    else if (this._releaseEditor) this._cancelReleaseEditor();
+                    else this._cancelResolutionEditor();
+                    return;
+                }
                 return;                       // 第二段：鎖其餘鍵。不得 preventDefault
             }
             // 1. 輸入框中不處理快捷鍵

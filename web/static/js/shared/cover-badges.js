@@ -6,6 +6,7 @@
  */
 
 import { mergeTagTokens, _buildAliasSet } from './pill-filter.js';
+import { tierRank } from './resolution-tier.js';
 
 /**
  * @param {Array|*} manifest
@@ -62,6 +63,14 @@ export function computeBadges(video, manifest, tagToGroup, enabledIds) {
         var rule = manifest[i];
         if (!rule) continue;
         if (!enabled.has(rule.id)) continue;
+        // 198a-T4（CD-198a-9）：source 為 media_probe 的規則（4K）不看 tags／user_tags，
+        // 改看實際解析度等級。兩側 rank 都必須 >= 0（null tier 與未知 canonical 同為 -1，不能互相命中）。
+        if (rule.source === 'media_probe') {
+            var have = tierRank(video.resolution_tier);
+            var need = tierRank(rule.canonical_tag);
+            if (have >= 0 && need >= 0 && have >= need) matched.push(rule);
+            continue;
+        }
         var values = [rule.canonical_tag].concat(rule.match_aliases || []);
         var aliasSet = new Set();
         for (var j = 0; j < values.length; j++) {
