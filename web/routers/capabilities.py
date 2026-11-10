@@ -449,7 +449,10 @@ _TOOLS: list[dict] = [
         "name": "collection_sql",
         "description": (
             "Read-only SQL 查詢收藏資料庫，可自由組合 SELECT/JOIN/GROUP BY/WHERE。"
-            " tags 可能含來源 4K（描述作品），檔案真相看 `media_height`。"
+            " tags 可能含來源 4K（描述作品）。檔案真相須探針有效："
+            " media_probe_status='ok' AND media_probe_mtime IS mtime AND media_probe_size IS size_bytes；"
+            " 等級依寬高各判取較高（高≥720/1080/1440/2160/4320 或寬≥1280/1920/2560/3840/7680"
+            " → HD/FHD/2K/4K/8K）。列 4K 片較簡：用 /api/showcase/videos 的 resolution_tier。"
         ),
         "method": "POST",
         "path": "/api/collection/sql",
@@ -498,8 +501,24 @@ _TOOLS: list[dict] = [
                 "created_at": "TIMESTAMP",
                 "updated_at": "TIMESTAMP",
                 "ai_tagged_at": "TIMESTAMP — AI 標籤跑過的時間，NULL＝沒跑過",
+                "media_probe_status": "TEXT — 探針狀態（ok／failed；NULL＝未讀過）",
+                "media_probe_mtime": "REAL — 探針當下的檔案 mtime",
+                "media_probe_size": "INTEGER — 探針當下的檔案 size_bytes",
+                "media_probed_at": "TIMESTAMP — 探針寫入時間",
+                "media_width": "INTEGER — 實際寬度（px）",
+                "media_height": "INTEGER — 實際高度（px）",
+                "media_video_format": "TEXT — 視訊編碼格式原名",
+                "media_duration_ms": "INTEGER — 實際片長（毫秒）",
+                "media_hdr_format": "TEXT — HDR 格式",
+                "media_frame_rate": "REAL — 影格率",
+                "media_bitrate": "INTEGER — 整體位元率",
+                "media_container": "TEXT — 容器格式",
+                "media_audio_langs": "TEXT — 音軌語言 JSON array",
+                "media_subtitle_langs": "TEXT — 字幕語言 JSON array",
+                "media_truncated": "INTEGER — 是否截斷讀取（0/1）",
             },
         },
+
         "sql_examples": [
             "SELECT COUNT(*) as total FROM videos",
             "SELECT maker, COUNT(*) as cnt FROM videos GROUP BY maker ORDER BY cnt DESC LIMIT 10",
