@@ -737,7 +737,25 @@ class TestFocalModelColumn:
             db_cols = {row[1] for row in conn.execute("PRAGMA table_info(videos)").fetchall()}
         finally:
             conn.close()
-        allowed = {f.name for f in fields(Video)} | {"focal_model", "ai_tagged_at"}
+        allowed = {f.name for f in fields(Video)} | {
+            "focal_model",
+            "ai_tagged_at",
+            "media_probe_status",
+            "media_probe_mtime",
+            "media_probe_size",
+            "media_probed_at",
+            "media_width",
+            "media_height",
+            "media_video_format",
+            "media_duration_ms",
+            "media_hdr_format",
+            "media_frame_rate",
+            "media_bitrate",
+            "media_container",
+            "media_audio_langs",
+            "media_subtitle_langs",
+            "media_truncated",
+        }
         assert db_cols <= allowed, f"未登記欄位：{sorted(db_cols - allowed)}"
 
 

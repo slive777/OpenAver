@@ -164,6 +164,106 @@ class Video:
         return cls(**data)
 
 
+def _parse_lang_tuple(raw) -> tuple:
+    """DB TEXT JSON array → tuple[str, ...]；壞值／NULL → ()。"""
+    if not raw:
+        return ()
+    if isinstance(raw, (list, tuple)):
+        return tuple(str(x) for x in raw)
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return ()
+    if not isinstance(parsed, list):
+        return ()
+    return tuple(str(x) for x in parsed)
+
+
+@dataclass(frozen=True)
+class MediaProbeView:
+    """DB-only 探針欄位視圖（CD-198a-3〔補〕）；屬性名＝欄位名。"""
+
+    path: str
+    mtime: float | None
+    size_bytes: int | None
+    media_probe_status: str | None
+    media_probe_mtime: float | None
+    media_probe_size: int | None
+    media_probed_at: str | None
+    media_width: int | None
+    media_height: int | None
+    media_video_format: str | None
+    media_duration_ms: int | None
+    media_hdr_format: str | None
+    media_frame_rate: float | None
+    media_bitrate: int | None
+    media_container: str | None
+    media_audio_langs: tuple
+    media_subtitle_langs: tuple
+    media_truncated: int | None
+
+    @property
+    def key_matches(self) -> bool:
+        """status 非 NULL 且探針 key == 列當前 (mtime, size_bytes)（I4）。"""
+        if self.media_probe_status is None:
+            return False
+        return (
+            self.media_probe_mtime == self.mtime
+            and self.media_probe_size == self.size_bytes
+        )
+
+    @property
+    def is_ok_current(self) -> bool:
+        """status=='ok' 且 key_matches（I2 同一條件）。"""
+        return self.media_probe_status == 'ok' and self.key_matches
+
+    @classmethod
+    def from_row_dict(cls, data: dict) -> "MediaProbeView":
+        return cls(
+            path=data["path"],
+            mtime=data.get("mtime"),
+            size_bytes=data.get("size_bytes"),
+            media_probe_status=data.get("media_probe_status"),
+            media_probe_mtime=data.get("media_probe_mtime"),
+            media_probe_size=data.get("media_probe_size"),
+            media_probed_at=data.get("media_probed_at"),
+            media_width=data.get("media_width"),
+            media_height=data.get("media_height"),
+            media_video_format=data.get("media_video_format"),
+            media_duration_ms=data.get("media_duration_ms"),
+            media_hdr_format=data.get("media_hdr_format"),
+            media_frame_rate=data.get("media_frame_rate"),
+            media_bitrate=data.get("media_bitrate"),
+            media_container=data.get("media_container"),
+            media_audio_langs=_parse_lang_tuple(data.get("media_audio_langs")),
+            media_subtitle_langs=_parse_lang_tuple(data.get("media_subtitle_langs")),
+            media_truncated=data.get("media_truncated"),
+        )
+
+
+_MEDIA_PROBE_COLS = (
+    "path",
+    "mtime",
+    "size_bytes",
+    "media_probe_status",
+    "media_probe_mtime",
+    "media_probe_size",
+    "media_probed_at",
+    "media_width",
+    "media_height",
+    "media_video_format",
+    "media_duration_ms",
+    "media_hdr_format",
+    "media_frame_rate",
+    "media_bitrate",
+    "media_container",
+    "media_audio_langs",
+    "media_subtitle_langs",
+    "media_truncated",
+)
+_MEDIA_PROBE_SELECT_COLS = ", ".join(_MEDIA_PROBE_COLS)
+
+
 # preserve-on-conflict 欄位集合（CD-98a-6）：比照 path — 首次 INSERT 帶 dataclass 預設值，
 # 衝突/repath 走下方 4 個 builder 時不無條件覆蓋。focal 只由專用 update_auto_focal/
 # update_manual_focal/reset_focal_to_auto mutator 改寫（update_crop_mode 已於 99a-T7
@@ -1834,3 +1934,119 @@ class VideoRepository:
         finally:
             conn.close()
         return row is not None
+
+    def update_media_probe(self, path, result, expected_mtime, expected_size) -> bool:
+        """唯一寫手：compare-and-store 探針結果（CD-198a-3）。
+
+        # ranker-invalidate-ok: media_* 非相似排序語料欄位
+        ok → 'ok'；no_video → 'failed'；unreadable 不得呼叫本方法。
+        單條 UPDATE 寫全部 media 欄（舊值不殘留）；不碰 updated_at。
+        """
+        if getattr(result, "status", None) == "unreadable":
+            return False
+        status = "ok" if result.status == "ok" else "failed"
+        audio_langs = json.dumps(list(result.audio_langs or ()), ensure_ascii=False)
+        subtitle_langs = json.dumps(list(result.subtitle_langs or ()), ensure_ascii=False)
+        truncated = None if result.truncated is None else (1 if result.truncated else 0)
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE videos SET "
+                "media_probe_status = ?, media_probe_mtime = ?, media_probe_size = ?, "
+                "media_probed_at = CURRENT_TIMESTAMP, "
+                "media_width = ?, media_height = ?, media_video_format = ?, "
+                "media_duration_ms = ?, media_hdr_format = ?, media_frame_rate = ?, "
+                "media_bitrate = ?, media_container = ?, "
+                "media_audio_langs = ?, media_subtitle_langs = ?, media_truncated = ? "
+                "WHERE path = ? AND mtime IS ? AND size_bytes IS ?",
+                (
+                    status,
+                    expected_mtime,
+                    expected_size,
+                    result.width,
+                    result.height,
+                    result.video_format,
+                    result.duration_ms,
+                    result.hdr_format,
+                    result.frame_rate,
+                    result.overall_bitrate,
+                    result.container,
+                    audio_langs,
+                    subtitle_langs,
+                    truncated,
+                    path,
+                    expected_mtime,
+                    expected_size,
+                ),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def get_media_probe_map(self) -> dict:
+        """已讀過的列（status IS NOT NULL）→ {path: MediaProbeView}。"""
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                f"SELECT {_MEDIA_PROBE_SELECT_COLS} FROM videos "
+                "WHERE media_probe_status IS NOT NULL"
+            ).fetchall()
+            out = {}
+            for row in rows:
+                data = dict(zip(_MEDIA_PROBE_COLS, row, strict=True))
+                view = MediaProbeView.from_row_dict(data)
+                out[view.path] = view
+            return out
+        finally:
+            conn.close()
+
+    def get_media_probe_view(self, path: str):
+        """單列視圖；無列 → None；未讀過 → status=NULL 的 view。"""
+        conn = self._get_connection()
+        try:
+            row = conn.execute(
+                f"SELECT {_MEDIA_PROBE_SELECT_COLS} FROM videos WHERE path = ?",
+                (path,),
+            ).fetchone()
+            if row is None:
+                return None
+            return MediaProbeView.from_row_dict(
+                dict(zip(_MEDIA_PROBE_COLS, row, strict=True))
+            )
+        finally:
+            conn.close()
+
+    def list_media_probe_pending(
+        self,
+        *,
+        include_readonly: bool,
+        readonly_prefixes,
+        writable_prefixes,
+    ) -> list:
+        """不滿足 is_ok_current 的列；include_readonly 假時剔除唯讀。
+
+        回 (path, mtime, size_bytes) list。含從未讀過的列（與 get_media_probe_map 範圍不同）。
+        """
+        from core.readonly_source import is_path_readonly
+
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                f"SELECT {_MEDIA_PROBE_SELECT_COLS} FROM videos"
+            ).fetchall()
+        finally:
+            conn.close()
+        out = []
+        for row in rows:
+            view = MediaProbeView.from_row_dict(
+                dict(zip(_MEDIA_PROBE_COLS, row, strict=True))
+            )
+            if view.is_ok_current:
+                continue
+            path = view.path
+            if not include_readonly and is_path_readonly(path, readonly_prefixes, writable_prefixes):
+                continue
+            out.append((view.path, view.mtime, view.size_bytes))
+        return out
