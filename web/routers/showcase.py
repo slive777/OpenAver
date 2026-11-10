@@ -16,12 +16,14 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
+from core.cover_attributes import is_source_4k_tag
 from core.database import VideoRepository, get_db_path, init_db
 from core.database.version_tracker import (
     compute_db_fingerprint,
     compute_etag,
     get_showcase_revision,
 )
+from core.media_probe import resolution_tier, video_codec_label
 from core.path_utils import (
     is_path_under_dir,
     uri_to_local_fs_path,
@@ -66,13 +68,15 @@ class TitleWritebackRequest(BaseModel):
     original_title: Optional[str] = None
 
 
-def _serialize_video(v, path_mappings: dict, enabled: bool = False) -> dict:
+def _serialize_video(v, path_mappings: dict, enabled: bool = False, probe=None) -> dict:
     """將 Video ORM 物件序列化為前端 JSON dict（列表端點與單筆端點共用）。
 
     feature/71 T4：thumbnail_cache_enabled 開關決定 cover_url 走 thumb / image 分支。
     - enabled  → cover_url 指向 T3 /api/gallery/thumb?path=<quote(v.path)>（thumb key = video path）
     - disabled → 維持現狀 /api/gallery/image?path=<quote(uri_to_local_fs_path(v.cover_path, path_mappings))>（字節不變）
     cover_full_url 恆原圖（不受 flag 影響），供 T6 燈箱 blur-up 上層淡入用。
+
+    probe：MediaProbeView 或 None。六個探針衍生鍵只在 probe.is_ok_current 時有值。
     """
     cover_url = ""
     cover_full_url = ""
@@ -89,6 +93,23 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False) -> dict:
         local_path = uri_to_local_fs_path(img_uri, path_mappings)
         sample_urls.append(f"/api/gallery/image?path={quote(local_path, safe='')}")
 
+    resolution_tier_val = None
+    media_width = None
+    media_height = None
+    media_codec = None
+    media_duration_min = None
+    if probe is not None and probe.is_ok_current:
+        resolution_tier_val = resolution_tier(probe.media_width, probe.media_height)
+        media_width = probe.media_width
+        media_height = probe.media_height
+        codec_label = video_codec_label(probe.media_video_format)
+        media_codec = codec_label or None
+        if probe.media_duration_ms is not None:
+            mins = round(probe.media_duration_ms / 60000)
+            media_duration_min = mins if mins >= 1 else None
+
+    duration = media_duration_min if media_duration_min is not None else v.duration
+
     return {
         "path": v.path,                                          # file:/// URI（開啟影片用）
         "title": v.title,
@@ -97,13 +118,13 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False) -> dict:
         "number": v.number or '',
         "maker": v.maker,
         "release_date": v.release_date,
-        "tags": ','.join(v.tags) if v.tags else '',              # 逗號分隔字串
+        "tags": ','.join(t for t in (v.tags or []) if not is_source_4k_tag(t)),
         "size": v.size_bytes,
         "cover_url": cover_url,                                  # enabled→thumb / disabled→image
         "cover_full_url": cover_full_url,                        # 恆原圖 /api/gallery/image?path=...（T6 燈箱）
         "mtime": int(v.mtime) if v.mtime else 0,                 # Unix timestamp 整數
         "director": v.director or '',
-        "duration": v.duration,                                  # Optional[int]，None 時前端 x-show 隱藏
+        "duration": duration,                                    # 實際片長優先、無則來源；None 時前端隱藏
         "series": v.series or '',
         "label": v.label or '',
         "sample_images": sample_urls,
@@ -115,25 +136,35 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False) -> dict:
         "auto_focal": v.auto_focal,                  # canonical "x,y" 4dp 字串或 ''（98b：前端 focalObjectPosition 消費）
         "crop_mode": v.crop_mode,                    # 'auto' | 'default'（98b：default 退 baseline 右裁）
         "has_plot": v.has_plot is True,              # 187b：後端不輸出三態（NULL→false；FE-ALPINE-06）
+        "resolution_tier": resolution_tier_val,
+        "media_width": media_width,
+        "media_height": media_height,
+        "media_codec": media_codec,
+        "media_duration_min": media_duration_min,
+        "source_duration": v.duration,
     }
 
 
-def _serialize_group(group, path_mappings: dict, enabled: bool = False) -> dict:
+def _serialize_group(group, path_mappings: dict, enabled: bool = False, probe=None) -> dict:
     """將 VideoGroup 序列化為前端 JSON dict（feature/122，CD-122-4）。
 
     以 `group.members[0]`（part-1，group_rows 已依 part_number 升冪排序）的
     `_serialize_video()` 結果為基底，只在**真的多段時**覆寫 `size`（各段 size_bytes 加總，`or 0`
     是必要防禦——`Video.from_row()` 對 DB NULL 不做防禦，size_bytes 可能是 None）
-    與新增 `part_tokens`。其餘欄位（含 `duration`）逐字取 part-1，不做欄位級 merge。
+    與新增 `part_tokens`。多段時 `duration` 改回來源片長（`source_duration`），
+    `media_duration_min` 清成 null——第一段實際長度不是整組片長，避免前端誤用。
     單檔片：members==[v]、part_tokens==[]，輸出與今天 `_serialize_video(v, ...)`
     逐鍵逐值相同，只多 `part_tokens: []` 一個新鍵（AC-4）。
+    probe 對應 members[0].path（與序列化基底同一段）。
     """
-    base = _serialize_video(group.members[0], path_mappings, enabled)
+    base = _serialize_video(group.members[0], path_mappings, enabled, probe=probe)
     # 單檔片不碰 size：`_serialize_video()` 原樣傳 `v.size_bytes`（DB NULL → None），
     # 套 `or 0` 會把 None 變 0，違反 AC-4「單檔片逐位元組不變」的字面契約。
     # 只有真的多段時才加總，`or 0` 的 NULL 防禦留在那條路上（T2 review P3）。
     if len(group.members) > 1:
         base['size'] = sum(m.size_bytes or 0 for m in group.members)
+        base['duration'] = base['source_duration']
+        base['media_duration_min'] = None
     base['part_tokens'] = group.part_tokens
     return base
 
@@ -200,10 +231,12 @@ def get_videos(request: Request):
         from core.source_reachability import owning_source_index, source_keys_and_prefixes
 
         sources, prefixes = source_keys_and_prefixes(gallery_config)
+        probe_map = repo.get_media_probe_map()
 
         videos_json = []
         for g in groups:
-            item = _serialize_group(g, path_mappings, thumb_enabled)
+            probe = probe_map.get(g.members[0].path)
+            item = _serialize_group(g, path_mappings, thumb_enabled, probe=probe)
             idx = owning_source_index(g.members[0].path, prefixes)
             if idx is not None:
                 item["src"] = idx
@@ -258,11 +291,13 @@ def get_video(path: str = Query(..., description="file:/// URI")):
         # 不 500（CD-122-6）。
         group = resolve_group(repo, path, path_mappings, folder_source_uri=v.path)
         if group is None:
+            probe = repo.get_media_probe_view(v.path)
             return JSONResponse({"success": True,
-                                 "video": _serialize_video(v, path_mappings, thumb_enabled)})
+                                 "video": _serialize_video(v, path_mappings, thumb_enabled, probe=probe)})
 
+        probe = repo.get_media_probe_view(group.members[0].path)
         return JSONResponse({"success": True,
-                             "video": _serialize_group(group, path_mappings, thumb_enabled)})
+                             "video": _serialize_group(group, path_mappings, thumb_enabled, probe=probe)})
 
     except Exception as e:
         logger.error("取得單筆影片失敗: %s", e)

@@ -35,7 +35,7 @@ from core.config import (
     get_gallery_source_paths,
     get_configured_gallery_dirs,
 )
-from core.cover_attributes import manifest_payload
+from core.cover_attributes import is_source_4k_tag, manifest_payload
 
 logger = get_logger(__name__)
 
@@ -160,7 +160,10 @@ def _serialize_record(v, actress_lookup, tag_lookup) -> dict:
         "maker": (str(v.maker).strip() or None) if v.maker else None,
         "director": (str(v.director).strip() or None) if v.director else None,
         "series": (str(v.series).strip() or None) if v.series else None,
-        "tags": _canonical_list(v.tags, tag_lookup),
+        "tags": _canonical_list(
+            [t for t in (v.tags or []) if not is_source_4k_tag(t)],
+            tag_lookup,
+        ),
     }
 
 

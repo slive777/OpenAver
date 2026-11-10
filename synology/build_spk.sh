@@ -34,8 +34,8 @@ grep -v '^pywebview' "$PKG/app/requirements.txt" > "$WORK/req-nas.txt"
 CONSTRAINT=""
 for A in $ARCHS; do
   case "$A" in
-    aarch64) PLAT=(--platform manylinux2014_aarch64 --platform manylinux_2_28_aarch64 --platform manylinux_2_34_aarch64) ;;
-    x86_64)  PLAT=(--platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64) ;;
+    aarch64) PLAT=(--platform manylinux2014_aarch64 --platform manylinux_2_27_aarch64 --platform manylinux_2_28_aarch64 --platform manylinux_2_34_aarch64) ;;
+    x86_64)  PLAT=(--platform manylinux2014_x86_64 --platform manylinux_2_27_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64) ;;
     *) echo "unknown arch $A"; exit 1 ;;
   esac
   cp -a "$CACHE/python-$A-base" "$PKG/python-$A"

@@ -1,5 +1,6 @@
 from typing import Iterable
 
+from core.cover_attributes import is_source_4k_tag
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -92,7 +93,7 @@ def canonicalize(tags: Iterable[str]) -> list[str]:
         if not tag:
             continue
         canonical = alias_map.get(tag, tag)
-        if canonical in _STOPWORDS:
+        if canonical in _STOPWORDS or is_source_4k_tag(canonical):
             continue
         if canonical in seen:
             continue

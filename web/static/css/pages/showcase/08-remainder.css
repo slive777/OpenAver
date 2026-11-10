@@ -1051,6 +1051,12 @@ body.sidebar-collapsed .showcase-footer {
     gap: 4px;
 }
 
+/* 198a-T4：解析度浮層第二排六顆等級鈕，280px 浮層放不下一行 → 換行（預防性，CDP 第 11 條驗） */
+.pill-editor-modes--tiers {
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
 .pill-editor-mode {
     height: 32px;
     padding: 0 0.5rem;   /* 8pt grid（§4 layout 級）——0.6rem=9.6px 不落在任何合法帶 */

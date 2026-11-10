@@ -25,3 +25,9 @@ def test_stopword_filter():
     assert canonicalize(["高畫質"]) == []
 
 
+@pytest.mark.parametrize("tag", ["UHD", "8K"])
+def test_source_4k_equivalents_filtered_as_stopwords(tag):
+    """198a-T3 S1：來源 4K 等價詞（UHD／8K）在相似排序 canonicalize 時剔除。"""
+    assert canonicalize([tag, "巨乳"]) == ["巨乳"]
+
+

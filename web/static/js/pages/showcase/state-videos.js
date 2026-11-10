@@ -12,6 +12,7 @@ import { openLocal } from '@/shared/open-local.js';
 import { playVideo } from '@/shared/play-video.js';
 import { normalizePillValue, buildPillPredicate } from '@/shared/pill-filter.js';
 import { isDigitsOnlySearch } from '@/shared/digits-only-search.js';
+import { RESOLUTION_TIERS, tierRank } from '@/shared/resolution-tier.js';
 // TASK-124a-T2：發售日 pill 浮層狀態機直接呼叫的 T1 六支純函式中的五支
 // （matchesReleasePill 屬 pill-filter.js 內部使用，state 層不直接呼叫）。
 import { parseReleaseKey, parseEndpoint, expandPill, composeEndpoint, videoYearRange } from '@/shared/release-window.js';
@@ -152,6 +153,8 @@ export function stateVideos() {
             // TASK-124a-T2（§3.3）：移除的正是編輯中的 release pill → teardown 浮層草稿。
             // 移除其他維度不影響 _releaseEditor（release pill 恆 0/1 枚，dim 比對即可）。
             if (dim === 'release' && this._releaseEditor) this._releaseEditor = null;
+            // TASK-198a-T4：resolution pill 同理（恆 0/1 枚）。
+            if (dim === 'resolution' && this._resolutionEditor) this._resolutionEditor = null;
         },
 
         // TASK-123-T6：「只看精選」漏斗選單項 ＋ pill chip 的一組讀寫入口（CD-123-9：
@@ -175,6 +178,7 @@ export function stateVideos() {
         pillLabel(pill) {
             if (pill.dim === 'pick') return window.t('showcase.pick.chip_label');
             if (pill.dim === 'release') return this.releasePillText(pill);
+            if (pill.dim === 'resolution') return this.resolutionPillText(pill);
             return pill.value;
         },
 
@@ -185,6 +189,7 @@ export function stateVideos() {
         // release pill 恆 0/1 枚，不需要像女優版那樣比對 dim。
         _toggleReleaseEditor(pill) {
             if (!this._pillPopoverEnabled) return;               // 第二層防禦（斷點閘門）
+            this._resolutionEditor = null;                       // 198a-T4：三個浮層 slot 至多一個非 null
             if (this._releaseEditor) { this._releaseEditor = null; return; }  // 同一枚再點＝關閉
             var loParsed = pill.op === 'range' ? parseEndpoint(pill.value) : null;
             var hiParsed = pill.op === 'range' ? parseEndpoint(pill.value2) : null;
@@ -352,11 +357,64 @@ export function stateVideos() {
             this._setReleasePill({ dim: 'release', op: '=', value: month });
         },
 
+        // ── TASK-198a-T4：解析度 pill 浮層狀態機（無輸入欄：點一顆即套用並關閉；
+        // 照 _toggleReleaseEditor 的手勢，不共用程式碼）──
+
+        resolutionTierList() { return RESOLUTION_TIERS; },
+
+        _toggleResolutionEditor(pill) {
+            if (!this._pillPopoverEnabled) return;               // 第二層防禦（斷點閘門）
+            this._releaseEditor = null;                          // 三個浮層 slot 至多一個非 null
+            if (this._resolutionEditor) { this._resolutionEditor = null; return; }  // 同一枚再點＝關閉
+            this._resolutionEditor = { op: pill.op, value: pill.value };
+        },
+
+        _applyResolutionOp(op) {
+            if (!this._resolutionEditor) return;
+            this._setResolutionPill({ dim: 'resolution', op: op, value: this._resolutionEditor.value });
+            this._resolutionEditor = null;
+        },
+
+        _applyResolutionTier(tier) {
+            if (!this._resolutionEditor) return;
+            this._setResolutionPill({ dim: 'resolution', op: this._resolutionEditor.op, value: tier });
+            this._resolutionEditor = null;
+        },
+
+        _cancelResolutionEditor() {
+            this._resolutionEditor = null;
+        },
+
+        // 顯示文字：=4K／≥FHD／≤HD（前綴字元同 release）
+        resolutionPillText(pill) {
+            var prefix = pill.op === '<=' ? '≤' : pill.op === '>=' ? '≥' : '=';
+            return prefix + pill.value;
+        },
+
+        // 唯一寫入者：一律建構全新物件、整包取代同維度（恆 0/1 枚），不帶 value2。
+        // 同 key（resolution::4K）只改 op 時 keyed x-for 沿用 DOM，靠新物件＋重新賦值陣列才會重繪 chip（FE-ALPINE-20）。
+        _setResolutionPill(pill) {
+            var next = this.pills.filter(function (p) { return p.dim !== 'resolution'; });
+            next.push({ dim: 'resolution', op: pill.op, value: pill.value });
+            this.pills = next;
+            this._animateFilter();      // ⚠ 不是 applyFilterAndSort()（saveState 只在 _animateFilter 裡）
+            this._reconcileHeroCard();
+        },
+
+        // 入口 adapter（燈箱等級膠囊 / searchFromMetadata 分派用）：tier 不在等級表 → 不產生 pill。
+        _setResolutionPillFromTier(tier) {
+            if (tierRank(tier) < 0) return;
+            var same = this.pills.some(function (p) { return p.dim === 'resolution' && p.op === '=' && p.value === tier; });
+            if (!same) this._clearDigitsOnlySearch();      // 同值＝沒新增：不清（同 _setReleasePillFromDate）
+            this._setResolutionPill({ dim: 'resolution', op: '=', value: tier });
+        },
+
         // 跨切面 teardown 唯一實作（四個呼叫點：state-base.js 斷點 handler ×2、
         // toggleActressMode()、hero 橋接、clearAllFilters()）。無條件覆寫兩個 slot，冪等。
         _teardownPillEditors() {
             this._pillEditor = null;
             this._releaseEditor = null;
+            this._resolutionEditor = null;
         },
 
         // TASK-115-T9: 搜尋框 Backspace 刪最後一枚 pill（IME 組字中一律不刪）
@@ -763,7 +821,8 @@ export function stateVideos() {
                         video.director,
                         video.series,
                         video.label,
-                        video.user_tags
+                        video.user_tags,
+                        video.resolution_tier
                     ].filter(Boolean).join(' ').toLowerCase();
 
                     // 番號的正規化版本（移除空格和連字號）

@@ -25,6 +25,7 @@ from core.database import VideoRepository, organize_failures
 from core.db_inflow import try_inflow_upsert
 from core.ai_services import post_ingest
 from core.focal_trigger import maybe_submit_video_focal
+from core.media_probe_trigger import maybe_submit_media_probe
 from core.enricher import enrich_single, fetch_samples_only, resolve_nfo_cover_paths
 from core.enrich_contract import did_enrich_something, enrich_success, should_preserve_cover
 from core.organizer import organize_file
@@ -243,6 +244,23 @@ def _post_ingest_after_scrape(target_file, db_sync_status, path_mappings) -> Non
         logger.warning("scrape_single: 入庫後 AI 掛勾排程失敗（不影響整理結果）", exc_info=True)
 
 
+def _media_probe_after_scrape(target_file, db_sync_status, path_mappings) -> None:
+    """整理入庫後排 media probe（198a-T2b）：只在 synced 且有目標檔時呼叫；失敗不影響整理結果。"""
+    if db_sync_status != "synced" or not target_file:
+        return
+    try:
+        gallery = load_config().get("gallery", {}) or {}
+        mappings = path_mappings if path_mappings is not None else (gallery.get("path_mappings", {}) or {})
+        maybe_submit_media_probe(
+            to_file_uri(target_file, mappings),
+            readonly_prefixes=readonly_source_prefixes(gallery, mappings),
+            writable_prefixes=writable_source_prefixes(gallery, mappings),
+            path_mappings=mappings,
+        )
+    except Exception:
+        logger.warning("scrape_single: 入庫後 media probe 排程失敗（不影響整理結果）", exc_info=True)
+
+
 @router.post("/scrape-single")
 def scrape_single(request: ScrapeRequest) -> dict:
     """
@@ -394,6 +412,7 @@ def scrape_single(request: ScrapeRequest) -> dict:
                     )
             except Exception:
                 logger.warning("scrape_single: 首刮 focal 排程失敗（不影響整理結果）", exc_info=True)
+        _media_probe_after_scrape(target_file, db_sync_status, path_mappings)
         _post_ingest_after_scrape(target_file, db_sync_status, path_mappings)
 
     return {**result, "db_sync_status": db_sync_status}

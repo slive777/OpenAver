@@ -81,7 +81,8 @@ ATTRIBUTE_TABLE: tuple[AttributeRule, ...] = (
         match_aliases=("4K",),
         display_order=4,
         i18n_key="settings.gallery.cover_badge.4k",
-        source="filename_token",
+        # tokens 仍供 effective_tags 合流用；標章改由 media_probe 驅動，不再靠檔名／tags
+        source="media_probe",
         tokens=("-4K", "-uhd", "-8k"),
     ),
     AttributeRule(
@@ -124,7 +125,16 @@ _MANIFEST_KEYS = (
     "display_order",
     "i18n_key",
     "supersedes",
+    "source",
 )
+
+
+def is_source_4k_tag(tag) -> bool:
+    """顯示層述詞：來源標的 4K 等價詞（4K／UHD／8K…）。非字串回 False。"""
+    if not isinstance(tag, str):
+        return False
+    return tag.strip().lower() in _GENRE_4K_EQUIVALENTS
+
 
 
 def _dedup_keep_first(items: list[str]) -> list[str]:

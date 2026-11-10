@@ -197,3 +197,30 @@ sys.exit(2)
 '''
 
 
+# ── TASK-198a-T1: pymediainfo can_parse warn / --strict ──────────────────────
+
+
+@pytest.mark.parametrize(
+    'strict,expected_rc,needle',
+    [
+        (False, 0, '[WARN]'),
+        (True, 1, 'can_parse'),
+    ],
+)
+def test_pymediainfo_can_parse_warn_or_strict(monkeypatch, capsys, strict, expected_rc, needle):
+    """can_parse 為假：無旗標 WARN+exit 0；--strict FAIL+exit 1（CD-198a-1）。"""
+    _patch_usable_site_packages(monkeypatch)
+    import pymediainfo
+
+    monkeypatch.setattr(
+        pymediainfo.MediaInfo,
+        'can_parse',
+        classmethod(lambda c, library_file=None: False),
+    )
+    argv = ['--strict'] if strict else []
+    rc = vai.main(argv)
+    assert rc == expected_rc
+    out = capsys.readouterr().out
+    assert needle in out
+
+

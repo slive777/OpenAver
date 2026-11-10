@@ -865,10 +865,14 @@
       "min_size_hint": "掃描 / 入庫閾值 — 0 = 不過濾；小於此不入庫（決定你看得到哪些片）",
       "also_showcase_note": "也是你瀏覽頁的預設",
       "cover_badges_label": "封面屬性標籤",
-      "cover_badges_note": "在封面左上角顯示中文字幕／無碼／4K 等標籤（只影響顯示，不改標籤本身）",
+      "cover_badges_note": "在封面左上角顯示中文字幕／無碼／4K 等標籤（只影響顯示，不改標籤本身；4K 依實際影片解析度判斷）",
       "cover_badges_legend": "＊AI：無碼破解（AI 演算法去碼），LEAK：無碼流出（母帶外流）",
       "cover_badges_legend_ltx": "LTX：新一代 AI 去碼，畫質接近流出版",
       "cover_badges_help_aria": "封面屬性標籤說明",
+      "media_probe_reopen_label": "影片資訊讀取提醒",
+      "media_probe_reopen_note": "你之前按了「不再提醒」。要讓片庫管理頁再顯示讀取提醒，按右邊的按鈕。",
+      "media_probe_reopen_btn": "重新顯示提醒",
+      "media_probe_reopened": "已重新開啟，回到片庫管理頁就會看到提醒。",
       "show_table_list_label": "顯示表格與清單",
       "show_table_list_note": "開啟後，瀏覽頁右上角會多出表格與清單兩種呈現。預設只有封面與海報。",
       "show_table_list_help_aria": "顯示表格與清單說明",
@@ -1163,6 +1167,16 @@
       "nfo_field_director": "導演",
       "nfo_field_duration": "片長"
     },
+    "media_probe": {
+      "reminder": "有 {n} 部片還沒讀取影片資訊（解析度、片長）",
+      "start": "開始讀取",
+      "later": "稍後",
+      "dismiss": "不再提醒",
+      "include_readonly": "也讀取唯讀來源的片（NAS、雲端硬碟會多一些讀取）",
+      "progress": "已讀取 {done} / {total}",
+      "unavailable": "這台機器無法讀取影片資訊",
+      "readonly_only": "唯讀來源有 {n} 部片還沒讀取影片資訊"
+    },
     "alias": {
       "section_title": "女優別名管理",
       "collapse_title": "展開/收起",
@@ -1375,7 +1389,8 @@
         "age": "年齡",
         "height": "身高",
         "cup": "罩杯",
-        "release": "發售日"
+        "release": "發售日",
+        "resolution": "解析度"
       },
       "title": "{dim}：{value}",
       "remove_aria": "移除篩選：{value}",
@@ -1512,6 +1527,7 @@
       "prev": "上一部 (←)",
       "next": "下一部 (→)",
       "unknown_number": "未知",
+      "resolution_pill_title": "只看這個解析度的片",
       "add_tag": "新增標籤",
       "tag_placeholder": "標籤名稱",
       "tag_api_failed": "標籤儲存失敗，請稍後再試",

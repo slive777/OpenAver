@@ -11,12 +11,12 @@ const { computeBadges, resolveEnabledIds } = await import('../cover-badges.js');
 // match_aliases / supersedes。陣列順序刻意與後端表相同（4k 在 vr 前面、但 display_order 是 vr < 4k），
 // 用來鎖「resolveEnabledIds 不排序、computeBadges 依 display_order 排」。
 const MANIFEST = [
-    { id: 'subtitle', canonical_tag: '中文字幕', display_name: '中字', match_aliases: ['中文字幕', '中字', '字幕'], display_order: 1, supersedes: [] },
-    { id: 'cracked', canonical_tag: '無碼破解', display_name: 'AI', match_aliases: ['無碼破解', '破解', '克破', 'AI'], display_order: 2, supersedes: [] },
-    { id: 'ltx', canonical_tag: 'LTX', display_name: 'LTX', match_aliases: ['LTX'], display_order: 2, supersedes: ['cracked'] },
-    { id: 'leaked', canonical_tag: '無碼流出', display_name: 'LEAK', match_aliases: ['無碼流出', '流出', 'leak'], display_order: 2, supersedes: [] },
-    { id: '4k', canonical_tag: '4K', display_name: '4K', match_aliases: ['4K'], display_order: 4, supersedes: [] },
-    { id: 'vr', canonical_tag: 'VR', display_name: 'VR', match_aliases: ['VR'], display_order: 3, supersedes: [] },
+    { id: 'subtitle', canonical_tag: '中文字幕', display_name: '中字', match_aliases: ['中文字幕', '中字', '字幕'], display_order: 1, source: 'filename_token', supersedes: [] },
+    { id: 'cracked', canonical_tag: '無碼破解', display_name: 'AI', match_aliases: ['無碼破解', '破解', '克破', 'AI'], display_order: 2, source: 'filename_token', supersedes: [] },
+    { id: 'ltx', canonical_tag: 'LTX', display_name: 'LTX', match_aliases: ['LTX'], display_order: 2, source: 'filename_token', supersedes: ['cracked'] },
+    { id: 'leaked', canonical_tag: '無碼流出', display_name: 'LEAK', match_aliases: ['無碼流出', '流出', 'leak'], display_order: 2, source: 'filename_token', supersedes: [] },
+    { id: '4k', canonical_tag: '4K', display_name: '4K', match_aliases: ['4K'], display_order: 4, source: 'media_probe', supersedes: [] },
+    { id: 'vr', canonical_tag: 'VR', display_name: 'VR', match_aliases: ['VR'], display_order: 3, source: 'filename_token', supersedes: [] },
 ];
 
 const ALL_IDS = MANIFEST.map((r) => r.id);
@@ -75,13 +75,29 @@ test('computeBadges: 使用者自建 alias group 命中（繁中 → 中字）',
 // ── 6. 命中 4 條以上 → 只回 3 個，順序符合 display_order ─────────────
 // 中字 > AI/LEAK > VR > 4K。manifest 陣列裡 4k 排在 vr 前面，
 // 若不依 display_order 排就會截到 4K、丟掉 VR。
-// 本條是 mutation 1 的鎖（slice(0, 4) 會讓 length 變成 4）。
+// 198a-T4：4K 改看 resolution_tier（source: 'media_probe'），不再看 tags。
 
-test('computeBadges: 命中 4 條以上只回 3 個且順序符合 display_order', () => {
-    const result = badges({ tags: '中文字幕,無碼破解,VR,4K' });
+test('computeBadges: 4K 標章跟 resolution_tier 走、不跟 tags 走', () => {
+    // top-3：4K 由 resolution_tier 命中（tags 無 4K），第四條被截掉，順序仍依 display_order
+    const result = badges({ tags: '中文字幕,無碼破解,VR', resolution_tier: '4K' });
     assert.equal(result.length, 3);
     assert.deepEqual(idsOf(result), ['subtitle', 'cracked', 'vr']);
     assert.deepEqual(namesOf(result), ['中字', 'AI', 'VR']);
+    // 少一條 VR 時 4K 才浮上來（證明 tier=4K 真的命中，不是 length===3 恆真）
+    assert.deepEqual(idsOf(badges({ tags: '中文字幕,無碼破解', resolution_tier: '4K' })), ['subtitle', 'cracked', '4k']);
+    // tier 命中、tags 無 4K → 掛；8K 也掛
+    assert.deepEqual(idsOf(badges({ tags: '', resolution_tier: '4K' })), ['4k']);
+    assert.deepEqual(idsOf(badges({ tags: '', resolution_tier: '8K' })), ['4k']);
+    // 來源標 4K 但檔案是 FHD → 不掛
+    assert.deepEqual(idsOf(badges({ tags: '4K', resolution_tier: 'FHD' })), []);
+    assert.deepEqual(idsOf(badges({ tags: '4K', user_tags: ['4K'], resolution_tier: '2K' })), []);
+    // 沒讀過（null／缺鍵／未知字串）→ 不掛，即使 tags 有 4K
+    assert.deepEqual(idsOf(badges({ tags: '4K', resolution_tier: null })), []);
+    assert.deepEqual(idsOf(badges({ tags: '4K' })), []);
+    assert.deepEqual(idsOf(badges({ tags: '4K', resolution_tier: '9K' })), []);
+    // source 缺鍵（舊 manifest 快取）→ 仍走 tags 路徑
+    const noSource = MANIFEST.map((r) => { const { source, ...rest } = r; return rest; });
+    assert.deepEqual(idsOf(badges({ tags: '4K' }, { manifest: noSource })), ['4k']);
 });
 
 // ── 7. 關掉的屬性不佔用截斷名額 ──────────────────────────────────────
@@ -127,7 +143,7 @@ test('resolveEnabledIds: enabled 為 false/undefined/缺 key → []，computeBad
     assert.deepEqual(resolveEnabledIds(MANIFEST, undefined), []);
 
     const off = resolveEnabledIds(MANIFEST, { enabled: false });
-    assert.deepEqual(badges({ tags: '中文字幕,無碼破解,VR,4K' }, { enabledIds: off }), []);
+    assert.deepEqual(badges({ tags: '中文字幕,無碼破解,VR', resolution_tier: '4K' }, { enabledIds: off }), []);
 });
 
 // ── 10. manifest 為 [] → []、不拋例外 ────────────────────────────────

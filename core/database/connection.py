@@ -134,6 +134,32 @@ CREATE TABLE IF NOT EXISTS maker_javbus_map (
 )
 """
 
+# 198a-T2a CD-198a-3：videos 探針欄（DB-only）；idempotent ADD，形狀同 has_plot。
+_MEDIA_PROBE_COLUMNS = (
+    ('media_probe_status', 'TEXT DEFAULT NULL'),
+    ('media_probe_mtime', 'REAL DEFAULT NULL'),
+    ('media_probe_size', 'INTEGER DEFAULT NULL'),
+    ('media_probed_at', 'TIMESTAMP DEFAULT NULL'),
+    ('media_width', 'INTEGER DEFAULT NULL'),
+    ('media_height', 'INTEGER DEFAULT NULL'),
+    ('media_video_format', 'TEXT DEFAULT NULL'),
+    ('media_duration_ms', 'INTEGER DEFAULT NULL'),
+    ('media_hdr_format', 'TEXT DEFAULT NULL'),
+    ('media_frame_rate', 'REAL DEFAULT NULL'),
+    ('media_bitrate', 'INTEGER DEFAULT NULL'),
+    ('media_container', 'TEXT DEFAULT NULL'),
+    ('media_audio_langs', 'TEXT DEFAULT NULL'),
+    ('media_subtitle_langs', 'TEXT DEFAULT NULL'),
+    ('media_truncated', 'INTEGER DEFAULT NULL'),
+)
+
+
+def _migrate_media_probe_columns(cursor, existing_cols: set) -> None:
+    """ALTER TABLE 加 15 個 media_* 欄；已存在則跳過。"""
+    for col, decl in _MEDIA_PROBE_COLUMNS:
+        if col not in existing_cols:
+            cursor.execute(f"ALTER TABLE videos ADD COLUMN {col} {decl}")
+
 
 def init_db(db_path: Path = None) -> None:
     """初始化資料庫 Schema"""
@@ -382,7 +408,7 @@ def init_db(db_path: Path = None) -> None:
     # Migration: has_plot（187b-T2a；三態 NULL/0/1；掃描寫 True/False，舊列留 NULL 由回填 pass 補）
     if 'has_plot' not in existing_cols:
         cursor.execute("ALTER TABLE videos ADD COLUMN has_plot INTEGER DEFAULT NULL")
-
+    _migrate_media_probe_columns(cursor, existing_cols)  # 198a-T2a CD-198a-3
     # Migration: 加入 user_rating 欄位（videos，spec-123 精選標記；0=未精選，>0=已精選。
     # 只由 set_user_rating()/set_user_rating_bulk() 與 repath() 分支 3 的 max() 合併寫入，
     # 其餘動態 UPDATE builder 一律 pop 排除，見 video.py CD-123-3/-4）

@@ -689,7 +689,7 @@ class VideoScanner:
 
         # 步驟 2: 從 SQLite 取得現有 mtime 索引
         # 注意：資料庫中的 path 是 file:/// 格式
-        db_index = repo.get_mtime_index()  # {path: (mtime, nfo_mtime, sample_count)}
+        db_index = repo.get_mtime_index()  # {path: (mtime, nfo_mtime, sample_count, size_bytes)}
 
         # 建立 file:/// 路徑到原始路徑的映射，以及原始路徑到 mtime 的映射
         # scan_file 會產生 file:/// 格式的路徑（使用 core.path_utils.to_file_uri）

@@ -21,6 +21,7 @@ websockets==16.0
 # Utilities
 pillow==13.0.0  # 影像處理（鎖最新修補版 head；清掉 39 個 advisory（13.0.0 一次修，含 JPEG 解碼 heap overflow GHSA-8g5g-8vmr-9782、Ghostscript 參數注入 GHSA-w889-685w-c8fh、TIFF 越界讀取等））
 PyYAML==6.0.3  # 自訂來源 YAML 載入
+pymediainfo==7.0.1  # 讀影片檔解析度／編碼／片長（wheel 內附 libmediainfo）
 
 # Desktop GUI (Windows)
 pywebview==6.2.1

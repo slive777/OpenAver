@@ -327,6 +327,8 @@ export function stateBase() {
         _pillEditor: null,
         // TASK-124a-T2：發售日 pill 浮層草稿獨立 slot（CD-124a-4，不與 _pillEditor 共用一個欄位）。
         _releaseEditor: null,
+        // TASK-198a-T4：解析度 pill 浮層獨立 slot（null 或 { op, value }；三個 slot 至多一個非 null）。
+        _resolutionEditor: null,
         _pillPopoverEnabled: (typeof window.matchMedia === 'function')
             ? !window.matchMedia('(max-width: 480px)').matches
             : (window.innerWidth > 480),

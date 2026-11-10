@@ -8,6 +8,7 @@ import { aiServicesCard }    from '@/settings/ai-services-card.js';
 import { aiSimilarPanel }    from '@/settings/ai-similar-panel.js';
 import { aiFacesPanel }      from '@/settings/ai-faces-panel.js';
 import { aiTagsPanel }       from '@/settings/ai-tags-panel.js';
+import { mediaProbeReopen }  from '@/settings/media-probe-reopen.js';
 import { browseDirState }    from '@/shared/state-browse-dir.js';
 import { toastState }        from '@/shared/state-toast.js';
 import { mergeState }        from '@/shared/merge-state.js';
@@ -33,4 +34,6 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('aiFacesPanel', aiFacesPanel);
     // 188c-T8b: AI 標籤分頁（不進 mergeState）
     Alpine.data('aiTagsPanel', aiTagsPanel);
+    // 198a-T5: 影片資訊讀取提醒重開列（不進 mergeState）
+    Alpine.data('mediaProbeReopen', mediaProbeReopen);
 });
