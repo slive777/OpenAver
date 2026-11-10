@@ -1015,7 +1015,7 @@ class VideoRepository:
             conn.close()
 
     def get_mtime_index(self) -> dict:
-        """取得 {path: (mtime, nfo_mtime, sample_count)} 索引，用於增量比對。
+        """取得 {path: (mtime, nfo_mtime, sample_count, size_bytes)} 索引，用於增量比對。
 
         sample_count（TASK-118b-T9）：合法 JSON list → 實際張數。空字串／NULL／
         損毀 JSON／非 list 的合法 JSON 這四種壞值一律回傳哨兵值
@@ -1023,15 +1023,22 @@ class VideoRepository:
         裁決④：壞資料要 fail-safe 成「需要重掃」，不得讓單筆壞資料中止整個
         SELECT／整次掃描）。真實檔案系統算出來的張數恆為 >= 0，-1 必定與任何
         真實張數不相等，呼叫端的比對式因此自然觸發重掃，不需要額外的例外分支。
+
+        size_bytes（TASK-198a-T2b）：尾端追加；可能為 NULL（舊列尚未寫回真實大小）。
+        呼叫端以 `db_entry[3] != file_info['size']` 比對——NULL ≠ 真實大小為真，
+        第一次掃描會重掃一次並寫回（CD-198a-5 接受的副作用）。既有 `[0]`–`[2]`
+        索引語意不變。
         """
         conn = self._get_connection()
         cursor = conn.cursor()
 
         try:
-            cursor.execute("SELECT path, mtime, nfo_mtime, sample_images FROM videos")
+            cursor.execute(
+                "SELECT path, mtime, nfo_mtime, sample_images, size_bytes FROM videos"
+            )
             rows = cursor.fetchall()
             result = {}
-            for path, mtime, nfo_mtime, sample_images_raw in rows:
+            for path, mtime, nfo_mtime, sample_images_raw, size_bytes in rows:
                 sample_count = _SAMPLE_COUNT_UNKNOWN
                 if sample_images_raw:
                     try:
@@ -1040,7 +1047,7 @@ class VideoRepository:
                             sample_count = len(parsed)
                     except (json.JSONDecodeError, TypeError):
                         pass
-                result[path] = (mtime, nfo_mtime, sample_count)
+                result[path] = (mtime, nfo_mtime, sample_count, size_bytes)
             return result
         finally:
             conn.close()

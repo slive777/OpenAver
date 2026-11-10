@@ -14,6 +14,7 @@ from core.database import organize_failures
 from core.db_inflow import try_inflow_upsert
 from core.favorite_scan import detect_nfo, list_favorite_video_files, resolve_favorite_folder
 from core.logger import get_logger
+from core.media_probe_trigger import maybe_submit_media_probe
 from core.organizer import extract_chinese_title, organize_file
 from core.path_utils import coerce_to_file_uri, to_file_uri
 from core.readonly_source import is_path_readonly, readonly_source_prefixes, writable_source_prefixes
@@ -76,6 +77,21 @@ def _post_ingest_after_organize(sync_status, target_file, path_mappings) -> None
         )
     except Exception:
         logger.warning("[auto_organize] 入庫後 AI 掛勾排程失敗（不影響本輪）", exc_info=True)
+
+
+def _media_probe_after_organize(sync_status, target_file, path_mappings, ro_prefixes, wr_prefixes) -> None:
+    """入庫成功後排 media probe（198a-T2b）：只在 synced 時呼叫；失敗不影響本輪。"""
+    if sync_status != "synced" or not target_file:
+        return
+    try:
+        maybe_submit_media_probe(
+            to_file_uri(target_file, path_mappings),
+            readonly_prefixes=ro_prefixes,
+            writable_prefixes=wr_prefixes,
+            path_mappings=path_mappings,
+        )
+    except Exception:
+        logger.warning("[auto_organize] 入庫後 media probe 排程失敗（不影響本輪）", exc_info=True)
 
 
 def run_one_round(
@@ -239,6 +255,7 @@ def run_one_round(
             target_file = organize_result.get('new_filename')
             if target_file:
                 sync_status = try_inflow_upsert(target_file, old_file_path=path)
+                _media_probe_after_organize(sync_status, target_file, path_mappings, ro_prefixes, wr_prefixes)
                 _post_ingest_after_organize(sync_status, target_file, path_mappings)
             if organize_result.get('cover_path'):
                 added.append(number)

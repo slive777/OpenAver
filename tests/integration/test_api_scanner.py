@@ -1733,7 +1733,7 @@ class TestGenerateAvlistFocalTrigger:
         info.maker = maker
         info.title = "T"
 
-        fast_scan_files = [{"path": video_fs, "mtime": 111, "nfo_mtime": 0}]
+        fast_scan_files = [{"path": video_fs, "mtime": 111, "nfo_mtime": 0, "size": 0}]
         scan_file_infos = {video_fs: info}
 
         # TASK-99a: 支援多候選（focal 迴圈中途 abort 測試需要 >= 2 個候選才能
@@ -1752,7 +1752,7 @@ class TestGenerateAvlistFocalTrigger:
             extra_info.maker = maker
             extra_info.title = "T"
 
-            fast_scan_files.append({"path": extra_video_fs, "mtime": 111, "nfo_mtime": 0})
+            fast_scan_files.append({"path": extra_video_fs, "mtime": 111, "nfo_mtime": 0, "size": 0})
             scan_file_infos[extra_video_fs] = extra_info
 
         config = {

@@ -41,6 +41,7 @@ from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
 from core.focal import requires_face_detection
 from core.focal_trigger import maybe_submit_video_focal
+from core.media_probe_trigger import maybe_submit_media_probe
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
 from core.config import load_config, iter_gallery_sources, get_gallery_source_paths, STEM_IMAGE_MODES
 from core.data_root import resolve_gallery_output_path
@@ -279,6 +280,21 @@ def _schedule_ai_incremental() -> None:
         logger.exception("AI 標籤增量排程失敗（掃描完成收尾）")
 
 
+def _schedule_media_probes(videos, db_path, ro_prefixes, wr_prefixes, path_mappings) -> None:
+    """掃描入庫後排 media probe（198a-T2b）。失敗只記 log，不得影響掃描。"""
+    try:
+        for video in videos:
+            maybe_submit_media_probe(
+                video.path,
+                db_path=db_path,
+                readonly_prefixes=ro_prefixes,
+                writable_prefixes=wr_prefixes,
+                path_mappings=path_mappings,
+            )
+    except Exception:
+        logger.warning("media probe 排程失敗（掃描完成收尾）", exc_info=True)
+
+
 def _post_scan_cleanup_and_plot_backfill(repo, config, path_mappings, is_aborted):
     """掃描收尾：sample_images 孤兒清理 + has_plot 回填（187b-T2b）。
 
@@ -328,6 +344,8 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
         output_filename = gallery_config.get('output_filename', 'gallery_output.html')
         path_mappings = gallery_config.get('path_mappings', {})
         min_size_mb = gallery_config.get('min_size_mb', 0)
+        probe_ro_prefixes = readonly_source_prefixes(gallery_config, path_mappings)
+        probe_wr_prefixes = writable_source_prefixes(gallery_config, path_mappings)
 
         # 預設顯示設定
         default_mode = gallery_config.get('default_mode', 'image')
@@ -477,8 +495,8 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                     if db_entry is None:
                         # 新檔案
                         needs_scan.append(file_info)
-                    elif db_entry[0] != file_info['mtime'] or db_entry[1] != file_info.get('nfo_mtime', 0) or db_entry[2] != file_info.get('sample_image_count', 0):
-                        # mtime、nfo_mtime 或劇照張數變更（TASK-118b-T9：db_entry[2] 為 get_mtime_index() 哨兵值時代表壞資料，恆不等於真實張數 → 同樣觸發重掃，fail-safe）
+                    elif db_entry[0] != file_info['mtime'] or db_entry[1] != file_info.get('nfo_mtime', 0) or db_entry[2] != file_info.get('sample_image_count', 0) or db_entry[3] != file_info['size']:
+                        # mtime、nfo_mtime、劇照張數或大小變更（TASK-118b-T9：db_entry[2] 為 get_mtime_index() 哨兵值時代表壞資料，恆不等於真實張數 → 同樣觸發重掃，fail-safe；TASK-198a-T2b：size）
                         needs_scan.append(file_info)
 
                 # 清理已刪除的檔案（限定在此目錄下）
@@ -539,6 +557,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                     inserted, updated = repo.upsert_batch(videos_to_upsert)
                     total_inserted += inserted
                     total_updated += updated
+                    _schedule_media_probes(videos_to_upsert, repo.db_path, probe_ro_prefixes, probe_wr_prefixes, path_mappings)
 
                 # 掃描 focal trigger（TASK-98b-T2 / Codex PR#105 P2）：涵蓋本次掃描
                 # in-scope 的所有空焦點無碼片，不只 upsert batch（needs_scan）——既有、

@@ -64,7 +64,7 @@ class TestVideoRepository:
 
         index = repo.get_mtime_index()
 
-        assert index[to_file_uri("/video1.mp4")] == (100.5, 100.0, 3)
+        assert index[to_file_uri("/video1.mp4")] == (100.5, 100.0, 3, 0)
 
 
     def test_delete_by_paths(self, temp_db):
