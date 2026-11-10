@@ -66,7 +66,7 @@ def _prefixes():
 
 
 def status() -> dict:
-    """CD-198a-8：{available, dismissed, include_readonly, pending, job:{running, done, total}}。"""
+    """CD-198a-8：{available, dismissed, include_readonly, pending, readonly_pending, job:{running, done, total}}。"""
     include_ro = get_include_readonly()
     try:
         ro, wr, _mappings = _prefixes()
@@ -77,9 +77,20 @@ def status() -> dict:
                 writable_prefixes=wr,
             )
         )
+        # 未讀唯讀列數（不論勾選）：同一支 list_media_probe_pending 以相反旗標再數一次，
+        # 兩次結果是包含關係（True ⊇ False），差即唯讀那批；不另寫第二份「是否未讀」判斷。
+        other = len(
+            VideoRepository().list_media_probe_pending(
+                include_readonly=not include_ro,
+                readonly_prefixes=ro,
+                writable_prefixes=wr,
+            )
+        )
+        readonly_pending = abs(pending - other)
     except Exception:
         logger.exception("media_probe_backfill.status pending count failed")
         pending = 0
+        readonly_pending = 0
     with _job_lock:
         done, total = _job_done, _job_total
     return {
@@ -87,6 +98,7 @@ def status() -> dict:
         "dismissed": get_dismissed(),
         "include_readonly": include_ro,
         "pending": pending,
+        "readonly_pending": readonly_pending,
         "job": {
             "running": _SHELL.is_running(),
             "done": done,

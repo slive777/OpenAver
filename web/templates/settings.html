@@ -1162,6 +1162,20 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- 影片資訊讀取提醒重開（198a-T5）：獨立元件，key 全以 mp 為前綴，狀態只在後端 app_meta -->
+                        <div class="settings-form-row" x-data="mediaProbeReopen" x-cloak x-show="mpVisible()">
+                            <div class="flex-1 flex flex-col gap-1">
+                                <span class="label-text">{{ t('settings.gallery.media_probe_reopen_label') }}</span>
+                                <small class="settings-note-inline" x-show="!mpReopened">{{ t('settings.gallery.media_probe_reopen_note') }}</small>
+                                <small class="settings-note-inline" x-show="mpReopened" role="status">{{ t('settings.gallery.media_probe_reopened') }}</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline"
+                                    x-show="!mpReopened" :disabled="mpBusy"
+                                    @click="mpReopen()">
+                                {{ t('settings.gallery.media_probe_reopen_btn') }}
+                            </button>
+                        </div>
                     </div><!-- /settings-group -->
                     <div class="settings-group">
                         <p class="settings-tier-label">{{ t('settings.group.gallery_cover') }}</p>

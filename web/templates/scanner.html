@@ -625,6 +625,46 @@
         </div>
     </div>
 
+    <!-- 影片資訊讀取提醒（198a-T5）：獨立元件，key 全以 mp 為前綴，不依賴父層 scanner -->
+    <div class="stats-card" x-data="mediaProbeReminder" x-cloak role="status"
+         x-show="mpView().mode !== 'hidden'"
+         @visibilitychange.document="mpOnVisibility()">
+        <div class="stats-row">
+            <div class="stat-item">
+                <i class="bi bi-film"></i>
+                <span x-text="mpMessage()"></span>
+            </div>
+            <div class="stat-item" x-show="mpView().mode !== 'running'">
+                <button class="btn-nfo-update" @click="mpStart()"
+                        x-show="mpView().mode === 'pending'"
+                        :disabled="mpBusy">
+                    {{ t('scanner.media_probe.start') }}
+                </button>
+                <button class="btn btn-ghost btn-xs" @click="mpLaterClick()"
+                        x-show="mpView().mode === 'pending'">
+                    {{ t('scanner.media_probe.later') }}
+                </button>
+                <button class="btn btn-ghost btn-xs" @click="mpDismiss()"
+                        :disabled="mpBusy">
+                    {{ t('scanner.media_probe.dismiss') }}
+                </button>
+            </div>
+        </div>
+        <div class="progress-mini" x-show="mpView().mode === 'running'">
+            <div class="bar" :style="{ width: mpView().percent + '%' }"></div>
+        </div>
+        <div class="nfo-update-row"
+             x-show="mpView().mode === 'pending' || mpView().mode === 'readonly_only'">
+            <label class="flex items-center gap-1">
+                <input type="checkbox" class="toggle toggle-primary toggle-sm"
+                       :checked="mpChecked()"
+                       :disabled="mpBusy"
+                       @change="mpToggleReadonly($event.target)">
+                <span>{{ t('scanner.media_probe.include_readonly') }}</span>
+            </label>
+        </div>
+    </div>
+
     <!-- Tag Alias Delete Group Modal (A3-3) -->
     <dialog class="modal fluent-modal"
             :class="{ 'modal-open': deleteTagAliasGroupModalOpen }"

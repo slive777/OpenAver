@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass
 from typing import Literal
 
@@ -79,6 +80,27 @@ def is_available() -> bool:
     if _available_cache is None:
         _available_cache = bool(MediaInfo.can_parse())
     return _available_cache
+
+
+_unavailable_logged = False
+
+
+def log_unavailable_once() -> None:
+    """原生庫載不起來時，整個 process 只記一行 warning（含原因）；可用時零動作。
+
+    ``can_parse()`` 把例外吞掉，只有 ``parse`` 會 raise ``Failed to load library from …``，
+    所以以空串流呼叫一次 ``parse`` 取回 OSError 文字。
+    """
+    global _unavailable_logged
+    if _unavailable_logged or is_available():
+        return
+    _unavailable_logged = True
+    try:
+        MediaInfo.parse(io.BytesIO(b''))
+        reason = 'unknown'
+    except Exception as e:
+        reason = str(e)
+    logger.warning('media_probe: native library unavailable, video info reading disabled: %s', reason)
 
 
 def video_codec_label(video_format: str | None) -> str:

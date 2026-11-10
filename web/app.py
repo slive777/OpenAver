@@ -46,7 +46,7 @@ from core.database import init_db
 from core.database import backfill_readonly_nfo_mtime_once
 from core.metatube.state import metatube_state as _mt_startup_state
 from core.access_auth import ensure_schema, load_snapshot, snapshot, verify_ticket
-from core import source_reachability
+from core import media_probe, source_reachability
 from core import self_update
 from core.platform_info import is_headless_server, is_synology
 from core.desktop_env import desktop_kind
@@ -194,6 +194,10 @@ async def lifespan(app: FastAPI):
         seed_builtin_aliases()
     except Exception:
         logger.warning("lifespan: seed_builtin_aliases failed unexpectedly", exc_info=True)
+    try:
+        media_probe.log_unavailable_once()
+    except Exception:
+        logger.warning("lifespan: media_probe.log_unavailable_once failed unexpectedly", exc_info=True)
     start_notification_persistence()
 
     _pending = consume_pending_bootstrap_result()
@@ -348,6 +352,7 @@ from web.routers import custom_sources as custom_sources_router
 from web.routers import ai_services as ai_services_router
 from web.routers import ai_tags as ai_tags_router
 from web.routers import image_search as image_search_router
+from web.routers import media_probe as media_probe_router
 # Module-level imports for startup_reconnect / _fire_probe so that
 # patch("web.app.startup_reconnect") / patch("web.app._fire_probe") target the
 # correct use-site binding (TASK-63e-1; function-local import would defeat patch).
@@ -391,6 +396,7 @@ app.include_router(custom_sources_router.router)
 app.include_router(ai_services_router.router)
 app.include_router(ai_tags_router.router)
 app.include_router(image_search_router.router)
+app.include_router(media_probe_router.router)
 
 
 @app.exception_handler(RequestValidationError)
