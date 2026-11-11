@@ -338,3 +338,62 @@ def test_i_org_6_marker_before_part_token(tmp_path):
     stem = os.path.splitext(os.path.basename(result["new_filename"]))[0]
     assert stem.endswith("-LTX-cd1"), stem
     assert existing.read_bytes() == orig_video
+
+
+def _long_title_config(filename_format):
+    config = dict(_make_config("off", False))
+    config["filename_format"] = filename_format
+    config["max_title_length"] = 100
+    config["max_filename_length"] = 120
+    return config
+
+
+def _long_title_metadata():
+    md = dict(_make_metadata())
+    md["title"] = "あ" * 100
+    return md
+
+
+@pytest.mark.parametrize("first_name,src_name,fmt,tail", [
+    ("ABF-348.mp4", "ABF-348-LTX.mp4", "{num} {title}", "-LTX.mp4"),
+    ("ABF-348.mp4", "ABF-348-C.mp4", "{num} {title}", "-C.mp4"),
+    ("ABF-348-cd1.mp4", "ABF-348-LTX-cd1.mp4", "{num} {title}{suffix}", "-LTX-cd1.mp4"),
+])
+def test_i_org_8_long_name_keeps_appended_marker(tmp_path, first_name, src_name, fmt, tail):
+    config = _long_title_config(fmt)
+    first_src = tmp_path / first_name
+    first_src.write_bytes(b"first-plain")
+    first = organize_file(str(first_src), _long_title_metadata(), config)
+    assert first["success"] is True, first
+    first_video = os.path.basename(first["new_filename"])
+    first_nfo = os.path.basename(first["nfo_path"])
+    before_video = (tmp_path / first_video).read_bytes()
+    before_nfo = (tmp_path / first_nfo).read_bytes()
+    src = tmp_path / src_name
+    src.write_bytes(b"second-version")
+    result = organize_file(str(src), _long_title_metadata(), config)
+    assert result["success"] is True, result
+    new_name = os.path.basename(result["new_filename"])
+    assert new_name != first_video
+    assert new_name.endswith(tail), new_name
+    assert len(new_name.encode("utf-8")) <= 255, len(new_name.encode("utf-8"))
+    assert (tmp_path / new_name).read_bytes() == b"second-version"
+    assert (tmp_path / first_video).read_bytes() == before_video
+    assert (tmp_path / first_nfo).read_bytes() == before_nfo
+
+
+GOLDEN_OVERLONG = (  # 取自改動前（version_tail 為空的第一次整理）；與 GOLDEN 同樣不得變動
+    "ABF-348 " + "あ" * 80 + "....mp4"
+)
+
+
+@pytest.mark.parametrize("fmt,src_name", [
+    ("{num} {title}", "ABF-348.mp4"),
+    ("{num} {title}{suffix}", "ABF-348-cd1.mp4"),
+])
+def test_i_org_8_golden_first_organize_overlong_name_unchanged(tmp_path, fmt, src_name):
+    src = tmp_path / src_name
+    src.write_bytes(b"first-plain")
+    result = organize_file(str(src), _long_title_metadata(), _long_title_config(fmt))
+    assert result["success"] is True, result
+    assert os.path.basename(result["new_filename"]) == GOLDEN_OVERLONG

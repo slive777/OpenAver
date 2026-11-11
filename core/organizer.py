@@ -1149,6 +1149,7 @@ def _reclaim_placeholder(file_path: str, target_path: str) -> None:
 def _assemble_filename_base(format_data: Dict[str, Any], filename_template: str, max_chars: int, original_ext: str, vr_tail: str, part_tail: str, version_tail: str = '') -> str:
     """檔名組裝（含 vr／版本標記／part tail 與長度預算）。"""
     suffix = format_data.get('suffix', '')
+    protect = ''  # 撞名重試補上的版本標記（連同其後的尾巴）：超長右截斷時不得被砍掉
     if suffix and '{suffix}' in filename_template:
         no_suffix_data = dict(format_data, suffix='')
         base_without_suffix = format_string(filename_template, no_suffix_data)
@@ -1159,8 +1160,12 @@ def _assemble_filename_base(format_data: Dict[str, Any], filename_template: str,
         else:
             base_without_suffix = truncate_to_chars(base_without_suffix, base_budget)
             filename_base = base_without_suffix + version_tail + suffix
+            if version_tail:
+                protect = version_tail + suffix + vr_tail + part_tail
             version_tail = ''
     else:
+        if version_tail:
+            protect = version_tail + part_tail
         reserve = len(vr_tail) + len(version_tail) + len(part_tail)
         filename_base = format_string(filename_template, format_data)
         filename_base = truncate_to_chars(filename_base, max(0, max_chars - reserve))
@@ -1169,8 +1174,12 @@ def _assemble_filename_base(format_data: Dict[str, Any], filename_template: str,
         filename_base = _strip_part_token(filename_base)
     filename_base = filename_base + version_tail + part_tail
     filename_base = truncate_to_chars(filename_base, max_chars)
-    filename_base = _fit_utf8_bytes(filename_base, 255 - len(original_ext.encode('utf-8')))
-    return filename_base
+    byte_budget = 255 - len(original_ext.encode('utf-8'))
+    protect_bytes = len(protect.encode('utf-8'))
+    if protect and protect_bytes < byte_budget and filename_base.endswith(protect):
+        head = _fit_utf8_bytes(filename_base[:-len(protect)], byte_budget - protect_bytes)
+        return head + protect
+    return _fit_utf8_bytes(filename_base, byte_budget)
 
 
 def _version_tail(original_filename: str, filename_base: str) -> str:
