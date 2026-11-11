@@ -5,7 +5,7 @@
 
 import pytest
 
-from core.cover_attributes import effective_tags
+from core.cover_attributes import effective_tags, is_version_kind_tag, version_kinds
 
 _CANONICAL_TAGS = frozenset(
     {"中文字幕", "無碼破解", "無碼流出", "4K", "VR", "LTX"}
@@ -160,3 +160,22 @@ def test_ltx_filename_tags(filename, expected):
     assert _has_canonical(result) == expected
     if filename == "ABF-358-UC-LTX.mkv":
         assert result.count("無碼破解") == 1
+
+
+@pytest.mark.parametrize(
+    ("filename", "tags", "expected"),
+    [
+        ("ABF-348-LTX.mkv", [], ("ltx",)),
+        ("ABF-348-UC.mkv", [], ("subtitle", "cracked")),
+        ("ABF-348.mp4", ["中文字幕", "VR"], ("subtitle",)),
+        ("ABF-348-4K.mp4", [], ()),
+    ],
+)
+def test_version_kinds(filename, tags, expected):
+    assert version_kinds(filename, tags) == expected
+    if not expected:
+        return
+    for tag in ("中文字幕", "中字", "破解", "LTX", "流出"):
+        assert is_version_kind_tag(tag) is True
+    for tag in ("VR", "4K", "一般標籤", None, 123):
+        assert is_version_kind_tag(tag) is False
