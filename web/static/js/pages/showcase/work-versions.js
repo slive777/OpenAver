@@ -116,3 +116,43 @@ export function versionCapsules(v, kindName, t, formatSize) {
     texts.forEach((text) => dupCount.set(text, (dupCount.get(text) || 0) + 1));
     return texts.map((text, i) => (dupCount.get(text) > 1 ? text + ' ' + formatSize(vs[i].size) : text));
 }
+
+// 寫入對象解析（198b-T7b，CD-198b-8 寫入規則）：已渲染的卡（cards）與燈箱（lightbox）要經 Proxy 寫才會重繪，
+// 其餘寫原物件（FE-ALPINE-20）。一律 path 比對（FE-ALPINE-14）。cards 可為 undefined／空。
+export function viaRendered(dict, cards, lightbox) {
+    const card = (cards || []).find((p) => p.path === dict.path);
+    if (card) return card;
+    return (lightbox && lightbox.path === dict.path) ? lightbox : dict;
+}
+
+// 作品層欄位寫入：dicts 每個版本恰寫一次；陣列值每個版本各複製一份。回傳實際被寫的物件。
+export function writeWorkFields(dicts, fields, cards, lightbox) {
+    return dicts.map((d) => {
+        const own = {};
+        Object.keys(fields).forEach((k) => { own[k] = Array.isArray(fields[k]) ? fields[k].slice() : fields[k]; });
+        return Object.assign(viaRendered(d, cards, lightbox), own);
+    });
+}
+
+// 移除單一版本後的局部縮減（198b-T7b，CD-198b-12）：不經 refreshRoute（版本變少一定判 'reload'，整牆重載會丟燈箱位置）。
+// newItem 是 GET 回應（可為 null＝讀不到）：回應裡找得到的版本寫回原物件、依回應順序；找不到的 path 一律忽略；
+// 全找不到或 newItem 為 null → 只做移除（剩下的原順序）。DELETE 已成功，這支不得 throw。
+export function applyVersionRemoval(oldDict, removedPath, newItem, write = Object.assign) {
+    const remaining = versionsOf(oldDict).filter((o) => o.path !== removedPath);
+    if (remaining.length === 0) return { defaultDict: null, byPath: {} };
+    const hits = [];
+    _incomingOf(newItem).forEach((nv) => {
+        const target = remaining.find((o) => o.path === nv.path);
+        if (target && !hits.some((h) => h.target === target)) hits.push({ target, nv });
+    });
+    const nextVersions = hits.length > 0 ? hits.map((h) => h.target) : remaining;
+    nextVersions.forEach((t) => { if (!Object.prototype.hasOwnProperty.call(t, '_versions')) _defineVersions(t, [t]); });
+    // 每個版本恰寫一次、寫之前不先改原物件（經 Proxy 寫才會觸發重繪）；沒有回應資料的只更新版本清單。
+    nextVersions.forEach((t) => {
+        const hit = hits.find((h) => h.target === t);
+        write(t, hit ? _patchOf(hit.nv, nextVersions) : { _versions: nextVersions });
+    });
+    const byPath = {};
+    nextVersions.forEach((t) => { byPath[t.path] = t; });
+    return { defaultDict: nextVersions[0], byPath };
+}

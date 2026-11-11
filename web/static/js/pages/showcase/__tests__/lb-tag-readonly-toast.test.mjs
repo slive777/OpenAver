@@ -176,3 +176,34 @@ for (const kind of ['add', 'remove']) {
         }
     });
 }
+
+
+// ── 198b-T7b：work_user_tags —— 標籤跟作品走（燈箱停在非預設版本）─────────────────────────
+const { normalizeWorkItem: normWork198 } = await import('../work-versions.js');
+const { stateLightboxAiTags: aiTags198 } = await import('../state-lightbox-ai-tags.js');
+
+test('work_user_tags：加／刪標籤與 AI 標籤 → 三個版本的標籤都換成作品聯集並重算標章', async () => {
+    for (const entry of ['confirmAddLbTag', 'removeLbUserTag', 'lbAiTag']) {
+        const mk = (p) => ({ path: 'file:///m/ABF-348' + p, user_tags: ['own'] });
+        const list = [mk('-C.mkv'), mk('.mp4'), mk('-LTX.mkv')];
+        normWork198({ ...list[0], versions: list });
+        const [zh, k4, ltx] = list;
+        const union = ['想看', 'own', 'x'];
+        const mock = mockFetch({
+            success: true, user_tags: ['own'], work_user_tags: union, added: ['x'], refused: false,
+            nfo_updated: false, readonly_no_output: false, nfo_write_blocked: false,
+        });
+        try {
+            const c = Object.assign(makeComponent({ currentLightboxVideo: ltx, paginatedVideos: [], newLbTagValue: 'x' }), aiTags198());
+            if (entry === 'removeLbUserTag') await c.removeLbUserTag('own');
+            else await c[entry]();
+            for (const d of list) {
+                assert.deepEqual(d.user_tags, union, entry + '：' + d.path + ' 要是作品聯集，不是請求那個檔自己的 [own]');
+                assert.ok(Array.isArray(d._badges), entry + '：' + d.path + ' 的標章要重算');
+            }
+            assert.notEqual(zh.user_tags, k4.user_tags, entry + '：各版本各自一份陣列，不共用實例');
+        } finally {
+            mock.restore();
+        }
+    }
+});

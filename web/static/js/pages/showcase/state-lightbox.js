@@ -16,7 +16,7 @@ import { detectSwipe } from '@/shared/swipe.js';
 import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/wheel-nav.js';
 import { shouldShowEnrichButton } from '@/shared/enrich-gate.js';
 import { computeActorAgesMap } from '@/shared/actress-release-age.js';
-import { versionsOf, sameWork, refreshRoute, applyWorkUpdate } from './work-versions.js';
+import { versionsOf, sameWork, refreshRoute, applyWorkUpdate, writeWorkFields } from './work-versions.js';
 
 
 // 120a-T1：.lb-full @error 的遲到事件判定。比較對象是 Alpine :src 寫入的相對路徑
@@ -817,13 +817,15 @@ export function stateLightbox() {
             var video = this.currentLightboxVideo;
             if (!video || !video.path) return;
             var path = video.path;
-            if (this._pickInFlight[path]) return;
+            // 198b-T7b：精選是作品層的帳——整部作品所有版本一起寫、一起鎖（FE-TIMING-16：第一個 await 前取快照）。
+            var dicts = versionsOf(video).slice();
+            if (dicts.some((d) => this._pickInFlight[d.path])) return;
 
             var oldValue = video.user_rating || 0;
             var newValue = oldValue > 0 ? 0 : 1;
 
-            this._pickInFlight[path] = true;
-            video.user_rating = newValue;
+            dicts.forEach((d) => { this._pickInFlight[d.path] = true; });
+            writeWorkFields(dicts, { user_rating: newValue }, this.paginatedVideos, this.currentLightboxVideo);
             this.$nextTick(() => {
                 window.ShowcaseAnimations?.playPickFill?.(
                     document.querySelector('.pick-star-fill'),
@@ -845,13 +847,13 @@ export function stateLightbox() {
                 if (data.results?.[0]?.ok !== true) throw new Error('not_found');
                 // 成功：樂觀更新已是最終狀態，什麼都不做
             } catch (e) {
-                video.user_rating = oldValue;
+                writeWorkFields(dicts, { user_rating: oldValue }, this.paginatedVideos, this.currentLightboxVideo);
                 // CD-123-15 在動畫層的同一個坑：回滾發生在 await 之後，燈箱裡那顆星是**常駐節點**，
                 // 這時候可能已經在顯示別片了。不檢查就會把「這一片的回滾動畫」畫到「另一片的星」
                 // 上——實測過：取消已精選的 A、飛行中滾到未精選的 B、A 失敗回滾 → B 的
                 // aria-pressed 還是 false，星卻被畫成滿金色。只有還停在同一片時才播回滾動畫；
                 // 換片的話 Alpine 的 :style 綁定本來就已經把星畫成新片該有的樣子了。
-                if (this.currentLightboxVideo === video) {
+                if (sameWork(this.currentLightboxVideo, video)) {
                     this.$nextTick(() => {
                         window.ShowcaseAnimations?.playPickFill?.(
                             document.querySelector('.pick-star-fill'),
@@ -863,7 +865,7 @@ export function stateLightbox() {
                 }
                 this.showToast(window.t('showcase.pick.save_failed'), 'error');
             } finally {
-                delete this._pickInFlight[path];   // 本次的鎖先解掉，_pickHasInFlight() 才不會被自己擋住
+                dicts.forEach((d) => { delete this._pickInFlight[d.path]; });   // 本次的鎖先解掉，_pickHasInFlight() 才不會被自己擋住
                 // 燈箱還開著就不重篩（spec §4.13：不能把使用者正在看的那片從腳下抽走）；
                 // 已經關了才補一次——這條涵蓋「點完馬上關燈箱、請求之後才回來（或失敗回滾）」，
                 // 以及「兩個不同 path 同時在飛，其中一個成功改變了成員關係」（沒有旗標可競爭，

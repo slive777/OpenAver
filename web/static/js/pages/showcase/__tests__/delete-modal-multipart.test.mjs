@@ -53,3 +53,82 @@ test('分集卡開啟確認彈窗：pending 快照帶著 part_tokens', () => {
 });
 
 
+
+// ── 198b-T7b：confirmDeleteVideo 只移除一個版本（applyVersionRemoval）──────────────────────
+const { normalizeWorkItem: normWork198, versionsOf: versionsOf198 } = await import('@/showcase/work-versions.js');
+const { _videos: wallVideos198, _allVideos: wallAll198 } = await import('@/showcase/state-base.js');
+
+function delWork198(tag) {
+    const mkv = (p, o) => ({ path: 'file:///m/' + tag + p, title: 'T' + p, ...o });
+    const list = [mkv('-C.mkv'), mkv('.mp4'), mkv('-LTX.mkv')];
+    return normWork198({ ...list[0], versions: list.map((x) => ({ ...x })) }); // 預設版本 dict；_versions = [中字, 4K, LTX]
+}
+
+function delComp198(lightbox, extra) {
+    const toasts = [];
+    const c = Object.assign(stateDelete(), {
+        currentLightboxVideo: lightbox, paginatedVideos: [], videoCount: 8, hiddenCount: 0,
+        calls: { filter: 0, close: 0 }, toasts,
+        applyFilterAndSort() { c.calls.filter++; }, closeLightbox() { c.calls.close++; },
+        showToast(msg, kind) { toasts.push({ msg, kind }); }, $nextTick(fn) { fn(); },
+        lbVersionCapsules() { return ['FHD 中字', '4K 原版', 'FHD LTX']; },
+    }, extra);
+    return c;
+}
+
+test('confirmDeleteVideo + applyVersionRemoval：移除 LTX 版 → 卡與其他版本留著、共 N 部不變；最後一版才整張消失', async () => {
+    const prevFetch = globalThis.fetch;
+    try {
+        for (const mode of ['ok', 'reject', 'http500']) {
+            const W = delWork198('ABF');
+            const [zh, k4, ltx] = versionsOf198(W);
+            const other = { path: 'file:///m/OTHER.mp4' };
+            wallVideos198.length = 0; wallAll198.length = 0;
+            wallVideos198.push(other, W); wallAll198.push(other, W);
+            const c = delComp198(ltx);
+            c.openDeleteVideoModal();
+            assert.equal(c._pendingDeleteVersionLabel, 'FHD LTX', '彈窗要知道是哪一版（目前版本，不是第一顆）');
+            assert.deepEqual(c._pendingDeleteOthers, [zh.path, k4.path]);
+
+            const methods = [];
+            globalThis.fetch = async (url, opts) => {
+                methods.push(opts && opts.method ? opts.method : 'GET');
+                if (opts && opts.method === 'DELETE') return { ok: true, status: 200, json: async () => ({ deleted: 1 }) };
+                if (mode === 'reject') throw new Error('network down');
+                if (mode === 'http500') return { ok: false, status: 500, json: async () => ({}) };
+                const nk4 = { ...k4, title: 'NEW-4K' };
+                return { ok: true, status: 200, json: async () => ({ success: true, video: { ...nk4, versions: [nk4, { ...zh }] } }) };
+            };
+            await c.confirmDeleteVideo();
+
+            const want = mode === 'ok' ? k4 : zh;   // 回應決定新預設；讀不到就退成剩下的第一個
+            assert.deepEqual(c.toasts.map((x) => x.msg), ['showcase.video.delete_success'], mode + '：不能先跳「移除失敗」');
+            assert.equal(c.videoCount, 8, mode + '：共 N 部不變');
+            assert.equal(wallVideos198[1], want, mode + '：_videos 那格是新預設的原物件');
+            assert.equal(wallAll198[1], want, mode + '：_allVideos 同');
+            assert.deepEqual(versionsOf198(want).map((x) => x.path), mode === 'ok' ? [k4.path, zh.path] : [zh.path, k4.path]);
+            assert.equal(want.title, mode === 'ok' ? 'NEW-4K' : 'T-C.mkv', mode + '：有回應就用回應資料');
+            assert.ok(![zh, k4].some((d) => versionsOf198(d).some((x) => x.path === ltx.path)), mode + '：剩下版本的清單不含 LTX');
+            assert.deepEqual([c.calls.filter, c.calls.close], [1, 1]);
+            assert.deepEqual(methods, ['DELETE', 'GET']);
+            assert.deepEqual([c._pendingDeleteVersionLabel, c._pendingDeleteOthers, c._pendingDeletePath], ['', [], null]);
+        }
+
+        // 最後一版：整張消失、−1、只發 DELETE
+        const only = normWork198({ path: 'file:///m/SOLO.mp4', versions: [] });
+        wallVideos198.length = 0; wallAll198.length = 0;
+        wallVideos198.push(only); wallAll198.push(only);
+        const methods = [];
+        globalThis.fetch = async (url, opts) => { methods.push(opts.method); return { ok: true, status: 200, json: async () => ({ deleted: 1 }) }; };
+        const c = delComp198(only, { lbVersionCapsules: undefined });   // 單版本不得呼叫版本膠囊
+        c.openDeleteVideoModal();
+        assert.equal(c._pendingDeleteVersionLabel, '');
+        await c.confirmDeleteVideo();
+        assert.deepEqual(methods, ['DELETE']);
+        assert.deepEqual([wallVideos198.length, wallAll198.length, c.videoCount], [0, 0, 7]);
+        assert.deepEqual(c.toasts.map((x) => x.msg), ['showcase.video.delete_success']);
+    } finally {
+        globalThis.fetch = prevFetch;
+        wallVideos198.length = 0; wallAll198.length = 0;
+    }
+});

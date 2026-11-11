@@ -294,3 +294,47 @@ test('請求 body：file_path + picked 布林（冪等設值，非 toggle）', a
 // 下面兩支各自鎖住一個方向；把述詞改回舊版的單向寫法，第一支會轉紅。
 
 
+
+// ── 198b-T7b：togglePickStar 作品層（三個版本一起變，燈箱停在非預設版本）──────────────────
+const { normalizeWorkItem: normalizeWork198 } = await import('../work-versions.js');
+
+function pickWork198() {
+    const mkv = (p) => ({ path: 'file:///m/ABF-348' + p, user_rating: 1, title: 'T' + p });
+    const list = [mkv('-C.mkv'), mkv('.mp4'), mkv('-LTX.mkv')];
+    normalizeWork198({ ...list[0], versions: list });
+    return list; // [中字（預設）, 4K, LTX]，皆為原物件
+}
+
+test('togglePickStar 作品層：LTX 版取消 ★ → 三個版本一起 0、失敗一起回 1、飛行中換版本連點不發第二個請求', async () => {
+    const mock = mockFetchManual();
+    try {
+        const [zh, k4, ltx] = pickWork198();
+        const all = [zh, k4, ltx];
+        const c = makeComponent({ currentLightboxVideo: ltx, paginatedVideos: [] });
+
+        const p = c.togglePickStar();
+        assert.deepEqual(all.map((d) => d.user_rating), [0, 0, 0], '樂觀更新寫到三個版本');
+        assert.deepEqual(all.map((d) => !!c._pickInFlight[d.path]), [true, true, true], '飛行鎖鎖整部作品');
+        assert.equal(mock.calls[0].body.file_path, ltx.path, 'body 用目前版本（LTX）的 path');
+
+        c.currentLightboxVideo = zh;   // 飛行中切到同作品的中字版再按
+        c.togglePickStar();
+        assert.equal(mock.calls.length, 1, '同一部作品跨版本連點不發第二個請求');
+
+        mock.calls[0].resolve(okResp());
+        await p;
+        assert.deepEqual(all.map((d) => d.user_rating), [0, 0, 0], '成功：維持樂觀值');
+        assert.deepEqual(all.map((d) => d.path in c._pickInFlight), [false, false, false], '落地後三把鎖都清掉');
+
+        // 失敗：三個版本一起回原狀
+        c.currentLightboxVideo = ltx;
+        const p2 = c.togglePickStar();
+        assert.deepEqual(all.map((d) => d.user_rating), [1, 1, 1]);
+        mock.calls[1].resolve({ ok: true, status: 200, json: async () => ({ success: true, results: [{ ok: false }] }) });
+        await p2;
+        assert.deepEqual(all.map((d) => d.user_rating), [0, 0, 0], '失敗：三個版本一起回到取消前的 0');
+        assert.equal(c.toasts.at(-1).msg, 'showcase.pick.save_failed');
+    } finally {
+        mock.restore();
+    }
+});
