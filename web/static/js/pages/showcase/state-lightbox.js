@@ -155,6 +155,14 @@ export function stateLightbox() {
             });
         },
 
+        // 199a-T6 branch review：燈箱開著的那部作品資料被 refreshVideoData 換掉（重刮／補完）時的簡介失效點。
+        // path／has_plot 沒變時 state-base 的 $watch 不 fire，簡介 view 會停在舊內容（按翻譯會拿舊簡介覆蓋 NFO）。
+        // 先失效（_lbPlotGen++ 丟掉在途舊讀取）再在簡介列該顯示時重讀。?. 因為既有 harness 只合併部分分片。
+        _lbPlotRefreshAfterDataChange() {
+            this._lbPlotReset?.();
+            if (this.lbPlotRowVisible?.()) this._lbPlotLoad?.();
+        },
+
         // 149b-T3（CD-149b-3）：燈箱女優列「發行時年齡」重算——規則是「_refreshLbFullBlurUp()
         // 出現在哪，這個就出現在哪」（六個刷新點，見 plan-149b §9 陷阱②）。對 currentLightboxVideo
         // 的女優列每個 trim 過的名字呼叫一次 resolveFavoriteActressAge()，組出
@@ -978,6 +986,11 @@ export function stateLightbox() {
                         const anchor = (this.lightboxOpen === true && cur && cur.path) ? cur.path : video.path;
                         const bustPaths = incoming.map((nv) => nv.path).concat(versionsOf(work).map((v) => v.path));
                         await this._reloadWallKeepLightbox(anchor, { bustPaths, t: _t });
+                        // 整牆重載換入新物件但 path／has_plot 值不變、$watch 不 fire：燈箱仍開在這部作品時簡介也要失效重讀
+                        // （與 patch 分支共用 _lbPlotRefreshAfterDataChange；refreshVideoData 成功且燈箱仍開著的出口只有這兩處）
+                        if (this.lightboxOpen === true && bustPaths.includes(anchor) && this.currentLightboxVideo?.path === anchor) {
+                            this._lbPlotRefreshAfterDataChange();
+                        }
                         return;
                     }
                     // 已渲染的卡（paginatedVideos）與燈箱（currentLightboxVideo）經 Proxy 寫；其餘寫原物件。
@@ -1004,10 +1017,7 @@ export function stateLightbox() {
                     // path 比對（FE-ALPINE-14）。必須在寫入之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。
                     const lbNow = this.currentLightboxVideo;
                     if (lbNow && lbNow.path && byPath[lbNow.path]) {
-                        // 199a-T6 branch review：patch 路徑 path／has_plot 都沒變、$watch 不 fire，簡介 view 會停在重刮前的舊內容
-                        // （此時按翻譯會拿舊簡介覆蓋 NFO）。先失效（_lbPlotGen++ 丟掉在途舊讀取）再重讀。
-                        this._lbPlotReset?.();
-                        if (this.lbPlotRowVisible?.()) this._lbPlotLoad?.();
+                        this._lbPlotRefreshAfterDataChange();
                         this._refreshLbFullBlurUp();
                         this._refreshLbActorAges();
                     }

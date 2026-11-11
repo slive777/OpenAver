@@ -460,3 +460,63 @@ test('test_refresh_video_data_patch_reloads_plot', async () => {
         }
     });
 });
+
+// 199a-T6 branch review 修正 2：版本集合改變 → refreshVideoData 走 reload 分支（整牆重載換入新物件、path／has_plot 值不變，
+// $watch 不 fire）→ 簡介一樣要失效重讀。_reloadWallKeepLightbox 本體在 state-videos.js，這裡以「換入同 path 新物件」的替身模擬。
+test('test_refresh_video_data_reload_reloads_plot', async () => {
+    const { _setAllVideos, _setVideos } = await import('../state-base.js');
+    await withEnv(async ({ A, B, c, f }) => {
+        _setAllVideos([A]);
+        _setVideos([A]);
+        try {
+            const p0 = c._lbPlotLoad();
+            f.pending.plotGet[0]({ success: true, plot: '舊簡介', original_plot: '', has_original: false });
+            await p0;
+            const pStale = c._lbPlotLoad();
+            assert.equal(f.count('plotGet'), 2);
+            const genBefore = c._lbPlotGen;
+
+            const A2 = { ...A, title: '新片名' };
+            let reloadCalls = 0;
+            c._reloadWallKeepLightbox = async (anchor) => {
+                reloadCalls++;
+                assert.equal(anchor, A.path);
+                _setFilteredVideos([A2, B]);
+                c.currentLightboxVideo = A2;
+            };
+            const baseFetch = globalThis.fetch;
+            globalThis.fetch = (url, opts) => {
+                if (typeof url === 'string' && url.startsWith('/api/showcase/video?path=')) {
+                    const second = { path: 'file:///C:/a-v2.mp4', number: A.number, title: '新片名', actresses: A.actresses, has_plot: true };
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        json: async () => ({
+                            success: true,
+                            video: { path: A.path, number: A.number, title: '新片名', actresses: A.actresses, has_plot: true, versions: [{ path: A.path, number: A.number, has_plot: true }, second] },
+                        }),
+                    });
+                }
+                return baseFetch(url, opts);
+            };
+            await c.refreshVideoData(A);
+            await tick();
+
+            assert.equal(reloadCalls, 1, '版本集合改變走 reload 分支');
+            assert.equal(c.currentLightboxVideo.path, A.path, '燈箱仍停在同一個 path');
+            assert.ok(c._lbPlotGen > genBefore, 'reload 分支也要失效：世代遞增');
+            assert.equal(f.count('plotGet'), 3, 'reload 後重新讀一次簡介');
+
+            f.pending.plotGet[2]({ success: true, plot: '新簡介', original_plot: '', has_original: false });
+            await tick();
+            assert.equal(c._lbPlotView.plot, '新簡介', '簡介列換成重刮後的內容');
+            f.pending.plotGet[1]({ success: true, plot: '舊簡介（遲到）', original_plot: '', has_original: false });
+            await pStale;
+            await tick();
+            assert.equal(c._lbPlotView.plot, '新簡介', '重載前發出的舊讀取不得寫進新 view');
+        } finally {
+            _setAllVideos([]);
+            _setVideos([]);
+        }
+    });
+});
