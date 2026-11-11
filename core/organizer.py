@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 
 from core.atomic_write import atomic_move
 from core.config import STEM_IMAGE_MODES
-from core.cover_attributes import effective_tags, existing_marker_kinds, filename_marker_kinds, filename_marker_spans
+from core.cover_attributes import effective_tags, existing_marker_kinds, filename_marker_kinds, filename_marker_spans, marker_kinds_in_text
 from core.nfo_read import nfo_merged_tags
 from core.nfo_utils import sanitize_nfo_bytes
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS
@@ -1158,7 +1158,8 @@ def _assemble_filename_base(format_data: Dict[str, Any], filename_template: str,
             filename_base = truncate_to_chars(suffix, max(0, max_chars - reserve))
         else:
             base_without_suffix = truncate_to_chars(base_without_suffix, base_budget)
-            filename_base = base_without_suffix + suffix
+            filename_base = base_without_suffix + version_tail + suffix
+            version_tail = ''
     else:
         reserve = len(vr_tail) + len(version_tail) + len(part_tail)
         filename_base = format_string(filename_template, format_data)
@@ -1173,22 +1174,20 @@ def _assemble_filename_base(format_data: Dict[str, Any], filename_template: str,
 
 
 def _version_tail(original_filename: str, filename_base: str) -> str:
-    """原檔名命中標記但主幹沒有的段，轉成版本尾。"""
-    lowered_base = filename_base.lower()
+    """原檔名命中標記但主幹沒有同 kind 的段，轉成版本尾。"""
+    covered = set(marker_kinds_in_text(filename_base))
     out: List[str] = []
     for span in filename_marker_spans(original_filename):
-        if span.lower() in lowered_base:
-            continue
         if span[:1] in "_.":
             piece = "-" + span[1:]
         elif span[:1] == "-":
             piece = span
         else:
             piece = "-" + span
-        if piece.lower() in lowered_base:
+        piece_kinds = marker_kinds_in_text(piece)
+        if piece_kinds and piece_kinds <= covered:
             continue
-        if piece.lower() in (p.lower() for p in out):
-            continue
+        covered |= piece_kinds
         out.append(piece)
     return "".join(out)
 

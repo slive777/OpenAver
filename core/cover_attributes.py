@@ -223,8 +223,20 @@ def filename_marker_kinds(filename: str) -> frozenset:
     return frozenset(found)
 
 
+def marker_kinds_in_text(text: str) -> frozenset:
+    """文本中命中 MARKER_KIND_IDS token 的 kind（不套 supersedes，供同 kind 去重）。"""
+    found: set[str] = set()
+    lowered = text.lower()
+    for rule, patterns in _RULE_PATTERNS:
+        if rule.id not in MARKER_KIND_IDS:
+            continue
+        if any(pattern.search(lowered) for pattern in patterns):
+            found.add(rule.id)
+    return frozenset(found)
+
+
 def existing_marker_kinds(filename: str, tags) -> frozenset:
-    """既有檔的版本類型：檔名命中 ∪ NFO tags 命中，聯集後套 supersedes。"""
+    """既有檔的版本類型：檔名命中 ∪ NFO tags 命中，聯集後套 supersedes（4K 只看檔名）。"""
     found: set[str] = set()
     lowered = filename.lower()
     for rule, patterns in _RULE_PATTERNS:
@@ -237,8 +249,6 @@ def existing_marker_kinds(filename: str, tags) -> frozenset:
             rule_id = _version_rule_id_for_tag(tag)
             if rule_id is not None:
                 found.add(rule_id)
-            elif is_source_4k_tag(tag):
-                found.add("4k")
     for rule in ATTRIBUTE_TABLE:
         if rule.id in found:
             for covered in rule.supersedes:

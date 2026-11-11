@@ -84,7 +84,7 @@ def _organize_ltx(tmp_path, src_bytes):
     return result
 
 
-@pytest.mark.parametrize("case", ["a", "b", "c", "d", "e", "e2"])
+@pytest.mark.parametrize("case", ["a", "b", "c", "d", "e", "e2", "f1-off", "f1-jf", "f2-maker", "f3-uhd"])
 def test_i_org_7_marker_import_matrix(tmp_path, case):
     if case == "a":
         existing = tmp_path / "[ABF-348][maker] title.mp4"
@@ -201,6 +201,55 @@ def test_i_org_7_marker_import_matrix(tmp_path, case):
         for n in before_names:
             assert (tmp_path / n).read_bytes() == before_bytes[n]
         assert sorted(os.listdir(tmp_path)) == sorted(before_names + ["ABF-348-LTX.mp4"])
+    elif case in ("f1-off", "f1-jf"):
+        ext_mode = "jellyfin" if case == "f1-jf" else "off"
+        existing = tmp_path / ("ABF-348 タイトル-cd1.mp4" if ext_mode == "off" else "ABF-348-cd1.mp4")
+        existing.write_bytes(b"orig")
+        orig_video = existing.read_bytes()
+        src = tmp_path / "ABF-348-C-cd1.mp4"
+        src.write_bytes(b"src-c")
+        config = dict(_make_config(ext_mode, False))
+        config["filename_format"] = "{num} {title}{suffix}" if ext_mode == "off" else "{num}"
+        metadata = _make_metadata()
+        metadata["title"] = "タイトル"
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True, result
+        stem = os.path.splitext(os.path.basename(result["new_filename"]))[0]
+        assert "-C" in stem, stem
+        assert stem.endswith("-cd1"), stem
+        assert existing.read_bytes() == orig_video
+    elif case == "f2-maker":
+        existing = tmp_path / "[ABF-348][S-Cute] title.mp4"
+        existing.write_bytes(b"orig")
+        orig_video = existing.read_bytes()
+        before_names = sorted(os.listdir(tmp_path))
+        src = tmp_path / "ABF-348-C.mp4"
+        src.write_bytes(b"src-c")
+        config = dict(_make_config("off", True))
+        config["filename_format"] = "[{num}][{maker}] {title}"
+        metadata = _make_metadata()
+        metadata["maker"] = "S-Cute"
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True, result
+        stem = os.path.splitext(os.path.basename(result["new_filename"]))[0]
+        assert "-C" in stem, stem
+        assert existing.read_bytes() == orig_video
+    elif case == "f3-uhd":
+        existing = tmp_path / "[ABF-348][maker] title.mp4"
+        existing.write_bytes(b"orig")
+        (tmp_path / "[ABF-348][maker] title.nfo").write_bytes(
+            b'<?xml version="1.0" encoding="utf-8"?><movie><title>t</title><num>ABF-348</num><genre>4K</genre></movie>'
+        )
+        orig_video = existing.read_bytes()
+        orig_nfo = (tmp_path / "[ABF-348][maker] title.nfo").read_bytes()
+        src = tmp_path / "ABF-348-uhd.mp4"
+        src.write_bytes(b"src-uhd")
+        result = organize_file(str(src), _make_metadata(), _make_config("off", True))
+        assert result["success"] is True, result
+        stem = os.path.splitext(os.path.basename(result["new_filename"]))[0]
+        assert "-uhd" in stem.lower(), stem
+        assert existing.read_bytes() == orig_video
+        assert (tmp_path / "[ABF-348][maker] title.nfo").read_bytes() == orig_nfo
     else:
         existing = tmp_path / "ABF-348.mp4"
         existing.write_bytes(b"orig")
@@ -245,23 +294,19 @@ def test_i_org_3_marker_name_taken_is_duplicate(tmp_path):
     assert sorted(p.name for p in tmp_path.iterdir() if p.is_file()) == sorted(before_names + ["ABF-348-LTX.mp4", "upload2.jpg"])
 
 
-@pytest.mark.parametrize("src_name,nfo_genre", [
-    ("ABF-348-C.mp4", "中文字幕"),
-    ("ABF-348.mp4", None),
-    ("ABF-348.mp4", "LTX"),
+@pytest.mark.parametrize("src_name,nfo_genres", [
+    ("ABF-348-C.mp4", ["中文字幕"]),
+    ("ABF-348.mp4", []),
+    ("ABF-348.mp4", ["LTX"]),
+    ("ABF-348-C.mp4", ["中文字幕", "4K"]),
 ])
-def test_i_org_4_5_same_kind_or_unmarked_is_duplicate(tmp_path, src_name, nfo_genre):
-    if nfo_genre == "中文字幕":
+def test_i_org_4_5_same_kind_or_unmarked_is_duplicate(tmp_path, src_name, nfo_genres):
+    if nfo_genres:
         existing = tmp_path / "[ABF-348][maker] title.mp4"
         existing.write_bytes(b"orig")
+        genre_xml = "".join(f"<genre>{g}</genre>" for g in nfo_genres)
         (tmp_path / "[ABF-348][maker] title.nfo").write_bytes(
-            b'<?xml version="1.0" encoding="utf-8"?><movie><title>t</title><num>ABF-348</num><genre>\xe4\xb8\xad\xe6\x96\x87\xe5\xad\x97\xe5\xb9\x95</genre></movie>'
-        )
-    elif nfo_genre == "LTX":
-        existing = tmp_path / "[ABF-348][maker] title.mp4"
-        existing.write_bytes(b"orig")
-        (tmp_path / "[ABF-348][maker] title.nfo").write_bytes(
-            b'<?xml version="1.0" encoding="utf-8"?><movie><title>t</title><num>ABF-348</num><genre>LTX</genre></movie>'
+            f'<?xml version="1.0" encoding="utf-8"?><movie><title>t</title><num>ABF-348</num>{genre_xml}</movie>'.encode("utf-8")
         )
     else:
         existing = tmp_path / "[ABF-348][maker] title.mp4"
