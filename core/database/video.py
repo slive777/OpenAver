@@ -2033,7 +2033,7 @@ class VideoRepository:
         writable_prefixes,
         configured_dir_uris,
     ) -> list:
-        """不滿足 is_ok_current 的列；限目前設定資料夾；include_readonly 假時剔除唯讀。
+        """不滿足 key_matches（status NULL 或探針 key 對不上；failed＋key 相符不入 pending）的列；限目前設定資料夾；include_readonly 假時剔除唯讀。
 
         回 (path, mtime, size_bytes) list。含從未讀過的列（與 get_media_probe_map 範圍不同）。
         已移除來源仍留在 DB 的列、以及 ZERO_SIZE_EXTENSIONS（.strm 等）不入 pending。
@@ -2056,7 +2056,7 @@ class VideoRepository:
             view = MediaProbeView.from_row_dict(
                 dict(zip(_MEDIA_PROBE_COLS, row, strict=True))
             )
-            if view.is_ok_current:
+            if view.key_matches:
                 continue
             path = view.path
             if not any(is_path_under_dir(path, uri) for uri in configured_dir_uris):
