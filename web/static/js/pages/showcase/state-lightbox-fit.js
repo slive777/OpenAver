@@ -13,11 +13,31 @@
  * 分片頂層不讀 window／document（FE-GUARD-11）：ResizeObserver／document.fonts 在方法內才讀並先 typeof 檢查。
  */
 
-import { fitActresses, fitSig } from './lbx-logic.js';
+import { fitActresses, fitSig, fitTagRow } from './lbx-logic.js';
 
 const LBX_FIT_DEFAULT_SHOWN = 3;
 
-// 預設量測：讀 DOM 回 { chipWidths, moreChipWidth, available, gap }；任何元素缺或寬度不可用 → null（呼叫端退回預設露出數）
+// 第 5 列（199a-T7）：讀 DOM 回 { userWidths, workWidths, plusWidth, moreChipWidth, rowWidth, gap }；任何元素缺或寬度不可用 → null（標籤全露）
+function measureTagRow(rowEl) {
+    const tagRowEl = rowEl.closest?.('.lbx-meta')?.querySelector('.lbx-tag-row');
+    if (!tagRowEl) return null;
+    const measureEl = tagRowEl.querySelector('.lbx-measure');
+    const controlEl = tagRowEl.querySelector('.lbx-tag-control');
+    if (!measureEl || !controlEl) return null;
+    const widths = (sel) => Array.from(measureEl.querySelectorAll(sel)).map((el) => el.offsetWidth);
+    const userWidths = widths('.lbx-utag');
+    const workWidths = widths('.lbx-tag');
+    const moreEl = measureEl.querySelector('.lbx-more-tags');
+    const moreChipWidth = moreEl ? moreEl.offsetWidth : 0;
+    const plusWidth = controlEl.offsetWidth;
+    const rowWidth = tagRowEl.clientWidth;
+    const gap = parseFloat(getComputedStyle(tagRowEl).columnGap) || 0;
+    if (!(Number.isFinite(rowWidth) && rowWidth > 0)) return null;
+    if (![...userWidths, ...workWidths, moreChipWidth, plusWidth, gap].every(Number.isFinite)) return null;
+    return { userWidths, workWidths, plusWidth, moreChipWidth, rowWidth, gap };
+}
+
+// 預設量測：讀 DOM 回 { chipWidths, moreChipWidth, available, gap, tagRow }；任何元素缺或寬度不可用 → null（呼叫端退回預設露出數）
 function measureRow({ rowEl } = {}) {
     if (!rowEl || typeof rowEl.querySelector !== 'function') return null;
     const actorsEl = rowEl.querySelector('.lbx-actors');
@@ -30,7 +50,7 @@ function measureRow({ rowEl } = {}) {
     const gap = parseFloat(getComputedStyle(actorsEl).columnGap) || 0;
     if (!(Number.isFinite(available) && available > 0)) return null;
     if (!chipWidths.every(Number.isFinite) || !Number.isFinite(moreChipWidth)) return null;
-    return { chipWidths, moreChipWidth, available, gap };
+    return { chipWidths, moreChipWidth, available, gap, tagRow: measureTagRow(rowEl) };
 }
 
 export function stateLightboxFit() {
@@ -40,7 +60,7 @@ export function stateLightboxFit() {
     let fontsHooked = false;
 
     return {
-        // workTagShown／userTagShown 是 T7 的欄位：T5 原值帶過、不計算
+        // workTagShown／userTagShown（199a-T7）：null＝量測失敗／尚未量到＝全露（模板的 lbxTagShown 把非整數視為 ∞）
         lbxFit: { sig: '', actressShown: LBX_FIT_DEFAULT_SHOWN, workTagShown: null, userTagShown: null },
 
         lbxFitSig(video, adding) {
@@ -73,7 +93,7 @@ export function stateLightboxFit() {
                 observer = new ResizeObserver(rerun);
                 const metaEl = rowEl.closest('.lbx-meta');
                 if (metaEl) observer.observe(metaEl);
-                for (const el of rowEl.querySelectorAll('.lbx-measure')) observer.observe(el);
+                for (const el of (metaEl || rowEl).querySelectorAll('.lbx-measure, .lbx-tag-control')) observer.observe(el);
             }
             if (!fontsHooked && typeof document !== 'undefined' && document.fonts?.ready?.then) {
                 fontsHooked = true;
@@ -85,8 +105,12 @@ export function stateLightboxFit() {
         lbxFitRun(sig, inputs, measure = measureRow) {
             const m = measure(inputs);
             const actressShown = m ? fitActresses(m) : LBX_FIT_DEFAULT_SHOWN;
-            if (this.lbxFit.sig === sig && this.lbxFit.actressShown === actressShown) return;
-            this.lbxFit = { ...this.lbxFit, sig, actressShown };
+            const tagFit = m && m.tagRow ? fitTagRow(m.tagRow) : null;
+            const workTagShown = tagFit ? tagFit.workShown : null;
+            const userTagShown = tagFit ? tagFit.userShown : null;
+            const cur = this.lbxFit;
+            if (cur.sig === sig && cur.actressShown === actressShown && cur.workTagShown === workTagShown && cur.userTagShown === userTagShown) return;
+            this.lbxFit = { ...cur, sig, actressShown, workTagShown, userTagShown };
         },
     };
 }

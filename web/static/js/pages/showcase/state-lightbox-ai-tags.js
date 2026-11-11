@@ -64,6 +64,7 @@ export function stateLightboxAiTags() {
                 for (const toast of aiTagsSuccessToasts(data)) {
                     this.showToast(window.t(toast.key, toast.params), toast.type);
                 }
+                if (this.currentLightboxVideo?.path === path) this.cancelAddLbTag?.();
             } finally {
                 delete this._lbAiInFlight[path];
             }

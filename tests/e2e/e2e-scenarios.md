@@ -1269,8 +1269,8 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
    - **驗**：底部出現「avtest-disk 沒有連線」＋ `.footer-source-toggle`「隱藏」；點它 → 牆清空、顯示「所有影片都在未連線的硬碟上」、底部變「…已隱藏 2,102 部／顯示」；再點「顯示」回原狀
    - **驗**：`GET /api/config` 的 `gallery.hide_unreachable_sources` 沒被改動（寫入被攔）
    - ⚠️ 須用 `page.locator('.footer-source-toggle')`；`getByRole('button',{name:'隱藏'})` 在此頁定位不到
-6. **[MCP] 點燈箱裡自己加的標籤文字就篩選**：`/showcase` → 開第一張卡燈箱 → 點 `a.lb-user-tag-link`（例如「LTX」）
-   - **驗**：燈箱關閉、搜尋框出現同名 pill、牆縮成符合的片；點 `×`（`.lb-tag-remove`）才是刪標籤（**不點**，會寫 DB）
+6. **[MCP] 點燈箱裡自己加的標籤文字就篩選**：`/showcase` → 開第一張卡燈箱 → 點 `.lbx-tag-right a.lbx-utag-link`（例如「LTX」）
+   - **驗**：燈箱關閉、搜尋框出現同名 pill、牆縮成符合的片；點 `×`（`.lbx-utag-x`）才是刪標籤（**不點**，會寫 DB）
 7. **[MCP] 搜尋框純數字後點女優／標籤自動清掉那段數字**：`/showcase` 搜尋框打 `920` → 開燈箱 → 點任一 `a.lb-tag`
    - **驗**：搜尋框清空、只剩該標籤 pill
    - 收尾：清掉 pill（`localStorage.removeItem('showcase_state')`）避免殘留到下個場景
@@ -1301,7 +1301,7 @@ N/A — 書籤牆／燈箱純瀏覽器互動，不依賴原生 picker。「加�
 - 說明頁舞台步驟列不前進／`aria-current="step"` 沒跟著換 → 捲動引擎或 `help-tabs.js` 壞
 - 說明頁窄螢幕出現橫向捲動或舞台在 390px 仍顯示 → `help-stage.css` media query 壞
 - 底部提示「沒有連線」出現但「隱藏」按了牆沒清空／片數不變 → `state-hidden-sources.js` 的 `_hsRefresh` 壞
-- 點燈箱自己加的標籤文字只關燈箱、搜尋框沒 pill → `lb-user-tag-link` 沒接線
+- 點燈箱自己加的標籤文字只關燈箱、搜尋框沒 pill → `lbx-utag-link` 沒接線
 - 搜尋框 `920` 後點標籤，數字還在 → `digits-only-search.js` 壞
 - 設定頁露出 `settings.gallery.hide_unreachable…`／`settings.ai.tags…` 等 key → 該語系檔漏 key
 - `.locale-toggle-btn` 沒回 `繁` 就收工 → 之後的場景全在別的語系下跑

@@ -41,7 +41,6 @@ export function stateLightboxVersions() {
             if (!target || target.path === this.currentLightboxVideo?.path) return;
             this.currentLightboxVideo = target;
             this.addingLbTag = false;
-            this._videoChipsExpanded = false;
             this._refreshLbFullBlurUp();
             this._refreshLbActorAges();
         },

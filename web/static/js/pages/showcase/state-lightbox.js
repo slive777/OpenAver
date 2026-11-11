@@ -114,9 +114,6 @@ export function stateLightbox() {
         // 99a-T3 為了防這個 race 而加的「使用者已手動調整」旗標因此整條移除（不留殭屍旗標；
         // 舊識別字已由 static_guard_lint.mjs forbidden-string 鎖住不得復活）。
 
-        _videoChipsExpanded: false,     // 影片 tag chips +N 展開（T4 使用）
-
-
         // Enrich 狀態 (T3)
         _enriching: false,
         shouldShowEnrichButton,  // CD-149b-9：物件簡寫，import 自 @/shared/enrich-gate.js
@@ -209,7 +206,6 @@ export function stateLightbox() {
                 ? _filteredVideos[idx] : null;
             this.currentLightboxActress = null;   // video setter always clear actress
             this.addingLbTag = false;             // 切換影片時重置輸入框
-            this._videoChipsExpanded = false;     // 影片切換時 reset chips 展開
             // BUGfix-mobile-similar-stale-cover P2b: in-grid 切換後清除 standalone 旗標，
             // 確保連點 tier2/3 再 tier1 時 prev/next + fly-back 恢復正常（不殘留 standalone）
             this.similarExitVideo = null;
@@ -339,7 +335,6 @@ export function stateLightbox() {
             this.currentLightboxActress = this._matchedActress;
             this.currentLightboxVideo = null;
             this.addingLbTag = false;
-            this._videoChipsExpanded = false;
             var lightboxEl = document.querySelector('.showcase-lightbox');
             if (lightboxEl) lightboxEl.classList.add('gsap-animating');
             this.actressLightboxSource = 'hero';   // T5: hero card 路徑
@@ -582,7 +577,6 @@ export function stateLightbox() {
                 this.currentLightboxActress = this._matchedActress;
                 this.currentLightboxVideo = null;
                 this.addingLbTag = false;
-                this._videoChipsExpanded = false;
                 this._refreshActressPhotoLoaded();   // §B-2b：hero card 橋接同樣是 actress 變為可見的入口
 
                 var lbGen = ++this._lightboxGeneration;
@@ -1159,6 +1153,7 @@ export function stateLightbox() {
                     // 影片 lightbox
                     if (key === 'ESCAPE') {
                         if (this.lbxPop) { e.preventDefault(); this.lbxPopClose({ restoreFocus: true }); return; }
+                        if (this.addingLbTag) { e.preventDefault(); this.cancelAddLbTag(); return; }
                         e.preventDefault();
                         this.closeLightbox();
                     } else if (key === 'ARROWLEFT') {

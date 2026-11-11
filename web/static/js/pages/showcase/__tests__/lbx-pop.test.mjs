@@ -23,6 +23,7 @@ const { stateLightbox } = await import('../state-lightbox.js');
 const { stateLightboxPicker } = await import('../state-lightbox-picker.js');
 const { stateLightboxMask } = await import('../state-lightbox-mask.js');
 const { stateLightboxPop } = await import('../state-lightbox-pop.js');
+const { stateLightboxTags } = await import('../state-lightbox-tags.js');
 const { mergeState } = await import('@/shared/merge-state.js');
 const { _setFilteredVideos } = await import('../state-base.js');
 
@@ -123,6 +124,59 @@ test('test_esc_closes_pop_before_lightbox', () => {
 
         c.handleKeydown(escEvent());
         assert.equal(closeCount, 1, 'second Esc closes the lightbox');
+    } finally {
+        _setFilteredVideos([]);
+    }
+});
+
+test('test_esc_cancels_tag_input_before_closing_lightbox', () => {
+    _setFilteredVideos([{ path: 'file:///C:/a.mp4', number: 'AAA-001', title: 'x', actresses: '' }]);
+    try {
+        const c = mergeState(stateLightbox(), stateLightboxPicker(), stateLightboxMask(), stateLightboxPop(), stateLightboxTags(), {
+            lightboxOpen: true,
+            showFavoriteActresses: false,
+            currentLightboxActress: null,
+            lightboxIndex: 0,
+            actressLightboxIndex: 0,
+            similarModeOpen: false,
+            similarModeMobileOpen: false,
+            removeActressModalOpen: false,
+            actressAddPanelOpen: false,
+            _pickerOpen: false,
+            rescrapeOpen: false,
+            deleteVideoModalOpen: false,
+            sampleGalleryOpen: false,
+            _pillEditor: null,
+            _releaseEditor: null,
+            _maskVisible: false,
+            lbPlotOpen: false,
+            $nextTick() {},
+            $refs: {},
+        });
+        let closeCount = 0;
+        c.closeLightbox = () => { closeCount++; };
+
+        c.addingLbTag = true;
+        c.lbxPopOpen('moreTags', {}, { mode: 'click' });
+        assert.ok(c.lbxPop, 'pop opened');
+
+        // 1st Esc: only the pop closes; the tag input stays open
+        const first = escEvent();
+        c.handleKeydown(first);
+        assert.equal(c.lbxPop, null);
+        assert.equal(c.addingLbTag, true);
+        assert.equal(closeCount, 0);
+
+        // 2nd Esc: cancels the tag input; lightbox stays open
+        const second = escEvent();
+        c.handleKeydown(second);
+        assert.equal(c.addingLbTag, false);
+        assert.equal(closeCount, 0, 'second Esc only cancels the input');
+        assert.equal(second.prevented, true);
+
+        // 3rd Esc: now the lightbox closes
+        c.handleKeydown(escEvent());
+        assert.equal(closeCount, 1, 'third Esc closes the lightbox');
     } finally {
         _setFilteredVideos([]);
     }

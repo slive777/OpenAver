@@ -88,3 +88,24 @@ test('test_work_info_fields_skip_empty_and_dup_label', async () => {
     assert.equal(rel({ releaseClickable: false }), false);
     assert.equal(rel({ releaseClickable: true }), true);
 });
+
+test('test_fit_tag_row_user_tags_first_then_overflow_to_more', async () => {
+    const { fitTagRow } = await import('../lbx-logic.js');
+    const rep = (n, w) => Array(n).fill(w);
+    const base = { plusWidth: 28, moreChipWidth: 36, gap: 6 };
+
+    // (a) 寬度充裕：使用者標籤先排、全露；作品標籤用剩下的寬度，N = 13 - 6 = 7
+    const a = fitTagRow({ ...base, rowWidth: 1000, userWidths: rep(5, 60), workWidths: rep(13, 80) });
+    assert.equal(a.userShown, 5);
+    assert.equal(a.workShown, 6);
+    assert.equal(13 - a.workShown, 7);
+
+    // (b) 使用者標籤超過半行才收；作品標籤本來放得下 3 個，但因為有使用者標籤被收起，要為 +N 讓位 → 2 個，N = (3-2) + (4-2) = 3
+    const b = fitTagRow({ ...base, rowWidth: 400, userWidths: rep(4, 60), workWidths: rep(3, 70) });
+    assert.equal(b.userShown, 2);
+    assert.equal(b.workShown, 2);
+    assert.equal(3 - b.workShown + (4 - b.userShown), 3);
+
+    // (c) 都沒有標籤 → 0／0
+    assert.deepEqual(fitTagRow({ ...base, rowWidth: 1000, userWidths: [], workWidths: [] }), { userShown: 0, workShown: 0 });
+});

@@ -586,6 +586,60 @@ const RULES = [
     note: '[lint-guard:199a-T6-watch-has-plot] 少了 has_plot 的載入 watch → 使用者在燈箱裡補完讓片有了簡介，簡介列出現卻停在骨架，要關掉重開才看得到文字',
   },
 
+  // ---- 199a-T7：文字區第 5 列（作品標籤＋「+N」／你的標籤＋「＋」展開；Esc 先取消輸入）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [
+      /<a\b(?=[^>]*\bclass="lbx-utag-link")(?=[^>]*@click\.prevent="searchFromMetadata\(tag, 'tag'\)")[^>]*>/,
+      'removeLbUserTag(tag)',
+    ],
+    scope: { anchor: /<template x-if="lbxPop\.kind === 'moreTags'"/, window: 2400 }, // 實測 anchor 到浮層內 removeLbUserTag(tag) 結尾 1785 字元，加約 34% 餘裕
+    note: '[lint-guard:199a-T7-utag-in-more-pop] 「+N」浮層裡「你的標籤」少了點擊篩選或 × 移除接線 → 被收進 +N 的自己的標籤點了沒反應、或刪不掉（可見層那顆餵不飽它：scope 在 moreTags 浮層內）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'order',
+    scope: { anchor: /handleKeydown\(e\) \{/, braceBalanced: true },
+    items: [
+      { pattern: /(?<![\w:-])if \(this\.lbxPop\) \{ e\.preventDefault\(\); this\.lbxPopClose\(\{ restoreFocus: true \}\); return; \}/ },
+      { pattern: /(?<![\w:-])if \(this\.addingLbTag\) \{ e\.preventDefault\(\); this\.cancelAddLbTag\(\); return; \}/ },
+      { pattern: 'this.closeLightbox();', occurrence: 'last' },
+    ],
+    note: '[lint-guard:199a-T7-esc-order] 影片 Esc 的「先取消標籤輸入」層缺了或排到 closeLightbox 之後 → 使用者按「＋」打到一半想按 Esc 取消，整座燈箱一起關掉，打到一半的標籤與正在看的那部片位置全丟',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [
+      'lbxFitMeasuring(lbxFitSig(',
+      'data-lbx-anchor="moreTags"',
+      "lbxPopToggle('moreTags'",
+      'showAddLbTagInput()',
+      'removeLbUserTag(tag)',
+      'x-ref="lbTagInput"',
+      '@keydown.enter.stop="confirmAddLbTag()"',
+      '@keydown.escape.stop="cancelAddLbTag()"',
+    ],
+    scope: { anchor: /<div class="lbx-tag-row"/, window: 4200 }, // 實測 anchor 到最遠的 @keydown.escape.stop 結尾 3205 字元，加約 31% 餘裕
+    note: '[lint-guard:199a-T7-tag-row-wired] 第 5 列少了量測隱藏／+N 錨點／＋ 展開／× 移除／輸入框 Enter／Esc 任一接線 → 使用者換片後標籤列不重算或列永遠看不到、+N 點了收不掉、＋ 打開後輸入框 Enter／Esc 沒反應',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: "lbxPop.kind === 'moreTags'",
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 16200 }, // 實測 anchor 到 moreTags template 的 kind 判斷結尾 12377 字元（隔著 verTip／title／otitle／menu／actresses／info／plot），加約 31% 餘裕
+    note: '[lint-guard:199a-T7-pop-in-host] 「+N」浮層內容必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點 +N 看不到其餘標籤',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /<div class="lbx-measure"(?=[^>]*\baria-hidden="true")(?=[^>]*\binert\b)/,
+    scope: { anchor: /<div class="lbx-tag-row"/, window: 6600 }, // 實測 anchor 到量測層 inert 開標籤結尾 4983 字元，加約 32% 餘裕；T5 那條是整檔 flat、被人物列那顆餵飽，標籤列這顆掉了不會紅，所以這裡 scope 到標籤列
+    note: '[lint-guard:199a-T7-measure-inert] 第 5 列量測層少了 aria-hidden 或 inert → 螢幕閱讀器把每個標籤念兩遍，鍵盤 Tab 還會停在看不見的東西上',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['@click.stop="lbAiTag()"', 'x-show="lbAiVisible()"'],
+    scope: { anchor: /<div class="lbx-tag-expand"/, window: 1750 }, // 實測 anchor 到 @click.stop="lbAiTag()" 結尾 1307 字元，加約 34% 餘裕
+    note: '[lint-guard:199a-T7-ai-in-expand] AI 判斷鈕不在「＋」展開區裡或少了顯示條件／點擊接線 → 鈕又冒在「＋」外面、或展開後找不到、或設定關著也看得到鈕',
+  },
+
   // 星空等待動畫函式定義存在（ghost-fly.js）+ callsite（state-lightbox.js openMask，唯一啟動點）。
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'function playFocalDetectWait', note: '[TestMaskToggleGuard] 99a-T5：ghost-fly.js 定義星空等待迴圈動畫（start）' },
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'function stopFocalDetectWait', note: '[TestMaskToggleGuard] 99a-T5：ghost-fly.js 定義星空等待動畫停止（stop）' },
@@ -3986,11 +4040,12 @@ const RULES = [
     note: '[lint-guard:195-T6-search-card-play-wired] 結果卡播放鈕必須呼叫共用 playVideo(...)，否則桌面 App 按播放會跳去瀏覽器分頁',
   },
 
-  // 195-T11：燈箱 user tag 文字必須包進 <a class="lb-user-tag-link"> 並呼叫 searchFromMetadata。
+  // 195-T11：燈箱 user tag 文字必須包進 <a class="lbx-utag-link"> 並呼叫 searchFromMetadata。
   // 只錨 <a> 開標籤，不錨整個 span——整個 span 範圍內的 HTML 註解會餵飽 required-string 而 fail-open（FE-GUARD-03）。
+  // 199a-T7：class 由 lb-user-tag-link 改名 lbx-utag-link（舊兩列標籤換成第 5 列）；量測層的複本是 <span class="lbx-utag-link">、不是 <a>，所以「第一個命中」永遠是可見層那顆。
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: "searchFromMetadata(tag, 'tag')",
-    scope: /<a\b[^>]*\bclass="lb-user-tag-link"[^>]*>/,
+    scope: /<a\b[^>]*\bclass="lbx-utag-link"[^>]*>/,
     note: '[lint-guard:195-T11-user-tag-click-wired] 燈箱 user tag 文字必須呼叫 searchFromMetadata(tag, \'tag\')，否則使用者點自己加的 tag 沒反應（其餘檢查照樣全綠）',
   },
 
@@ -5860,9 +5915,7 @@ const RULES = [
       'actressCupValue',
     ], stripLineComments: true, note: '[lint-guard 162c-TestShowcaseActressState.test_actress_js_contains] 使用者切到女優模式/排序後重新整理 → 缺 saveState 的 persist 寫入就回到預設、每次要重切；其餘為女優模式 state/method 識別字清單 — 遷自 test_frontend_lint.py' },
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: [
-      '_videoChipsExpanded',
       'currentLightboxActress = null',
-      '_videoChipsExpanded = false',
       'this.currentLightboxActress',
       'this.prevActressLightbox()',
       'this.nextActressLightbox()',

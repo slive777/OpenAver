@@ -186,7 +186,6 @@ export function stateVideos() {
                 this.similarExitVideo = target;
                 this.currentLightboxVideo = target;
                 this.currentLightboxActress = null;
-                this._videoChipsExpanded = false;
                 this.addingLbTag = false;
             }
             this._refreshLbFullBlurUp();

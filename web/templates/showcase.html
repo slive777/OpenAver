@@ -1363,65 +1363,75 @@
                                     <span class="lbx-plot-text" x-show="lbPlotRowState() === 'text'" x-text="_lbPlotView.plot"></span>
                                 </button>
                             </template>
-                            <!-- Row 5: Tags (with +N chips, T4) -->
-                            <div class="lb-tags" x-show="currentLightboxVideo?.tags">
-                                <template x-for="tag in _visibleVideoTags()" :key="tag">
-                                    <a href="#" class="lb-tag lb-link" @click.prevent="searchFromMetadata(tag.trim(), 'tag')" x-text="tag.trim()"></a>
-                                </template>
-                                <span class="lb-tag lb-chips-more"
-                                      x-show="_videoTagsOverflow() > 0 && !_videoChipsExpanded"
-                                      x-text="'+' + _videoTagsOverflow()"
-                                      @click="_videoChipsExpanded = true"></span>
-                            </div>
-
-                            <!-- Row 6: User Tags (T4) -->
-                            <div class="lb-user-tags"
-                                 x-show="!!currentLightboxVideo?.path">
-                                <!-- User tag badges with × remove button -->
-                                <template x-for="tag in (currentLightboxVideo?.user_tags || [])" :key="tag">
-                                    <span class="lb-user-tag">
-                                        <a href="#" class="lb-user-tag-link" @click.prevent="searchFromMetadata(tag, 'tag')"><span x-text="tag"></span></a>
-                                        <button class="lb-tag-remove"
-                                                @click.stop="removeLbUserTag(tag)"
-                                                :title="tag">×</button>
-                                    </span>
-                                </template>
-
-                                <!-- + 新增按鈕（有 path 才顯示） -->
-                                <button class="lb-tag-add-btn"
-                                        x-show="!addingLbTag && !!currentLightboxVideo?.path"
-                                        @click.stop="showAddLbTagInput()"
-                                        :title="t('showcase.lightbox.add_tag')">+</button>
-
-                                <!-- AI 標籤鈕（188c-T11；設定頁開 AI 標籤且本片有封面才顯示） -->
-                                <button type="button" class="lb-tag-ai-btn"
-                                        x-show="lbAiVisible()"
-                                        @click.stop="lbAiTag()"
-                                        :disabled="lbAiIsBusy()"
-                                        :aria-busy="lbAiIsBusy()"
-                                        data-tooltip="{{ t('showcase.lightbox.ai_tags_tooltip') }}"
-                                        aria-label="{{ t('showcase.lightbox.ai_tags_tooltip') }}">
-                                    <i class="bi bi-stars" x-show="!lbAiIsBusy()"></i>
-                                    <i class="bi bi-arrow-repeat spin" x-show="lbAiIsBusy()"></i>
-                                </button>
-
-                                <!-- Inline 輸入框 -->
-                                <span class="lb-tag-input-wrapper" x-show="addingLbTag">
-                                    <input class="lb-tag-input"
-                                           x-ref="lbTagInput"
-                                           x-model="newLbTagValue"
-                                           type="text"
-                                           maxlength="20"
-                                           :placeholder="t('showcase.lightbox.tag_placeholder')"
-                                           @keydown.enter.stop="confirmAddLbTag()"
-                                           @keydown.escape.stop="cancelAddLbTag()">
-                                    <button class="lb-tag-confirm"
-                                            @click.stop="confirmAddLbTag()"
-                                            title="✓">✓</button>
-                                    <button class="lb-tag-cancel"
-                                            @click.stop="cancelAddLbTag()"
-                                            title="✕">✕</button>
-                                </span>
+                            <!-- Row 5（199a-T7）：標籤列。左＝作品標籤（點了篩選）＋「+N」；右＝你的標籤（文字點了篩選、× 移除）＋「＋」。
+                                 你的標籤先排、全部露出（上限半行），作品標籤用剩下的寬度，放不下的收成「+N」（浮層分「標籤」「你的標籤」兩段）。
+                                 露出數由 lbxFit 量 .lbx-measure（可見層的隱形複本，共用同一組 class 寬度才一致；複本沒有 <a>／<button>／<input>）；
+                                 量完前兩個內容區 visibility:hidden（控制區不藏：按「＋」讓簽章變、列進入量測，輸入框要能立刻 focus）。
+                                 「＋」⇄展開區用 .is-adding class＋CSS 切換、不用 x-show（FE-ALPINE-17）；展開區一直在 DOM。 -->
+                            <div class="lbx-tag-row" :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag))}">
+                                <div class="lbx-tags-work">
+                                    <template x-for="tag in lbxWorkTags().slice(0, lbxTagShown('work'))" :key="tag">
+                                        <a href="#" class="lb-tag lbx-tag" @click.prevent="searchFromMetadata(tag, 'tag')" x-text="tag"></a>
+                                    </template>
+                                    <template x-if="lbxTagMoreCount() > 0">
+                                        <button type="button" class="lb-tag lbx-more-tags" data-lbx-anchor="moreTags" aria-haspopup="true"
+                                                :aria-expanded="lbxPopIs('moreTags', 'moreTags')"
+                                                :aria-label="t('showcase.lightbox.tags_more_title', { n: lbxTagMoreCount() })"
+                                                @click.stop="lbxPopToggle('moreTags', $el, { mode: 'click', anchorKey: 'moreTags' })"
+                                                x-text="'+' + lbxTagMoreCount()"></button>
+                                    </template>
+                                </div>
+                                <div class="lbx-tag-right" :class="{'is-hidden': !currentLightboxVideo?.path}">
+                                    <div class="lbx-utags">
+                                        <template x-for="tag in lbxUserTags().slice(0, lbxTagShown('user'))" :key="tag">
+                                            <span class="lb-tag lbx-utag">
+                                                <a href="#" class="lbx-utag-link" @click.prevent="searchFromMetadata(tag, 'tag')"><span x-text="tag"></span></a>
+                                                <button type="button" class="lbx-utag-x" @click.stop="removeLbUserTag(tag)" :title="tag" :aria-label="tag">×</button>
+                                            </span>
+                                        </template>
+                                    </div>
+                                    <div class="lbx-tag-control" :class="{'is-adding': addingLbTag}">
+                                        <button type="button" class="lbx-tag-plus" x-ref="lbTagPlus" @click.stop="showAddLbTagInput()"
+                                                :title="t('showcase.lightbox.add_tag')" :aria-label="t('showcase.lightbox.add_tag')"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+                                        <div class="lbx-tag-expand">
+                                            <input class="lbx-tag-input"
+                                                   x-ref="lbTagInput"
+                                                   x-model="newLbTagValue"
+                                                   type="text"
+                                                   maxlength="20"
+                                                   :placeholder="t('showcase.lightbox.tag_placeholder')"
+                                                   @keydown.enter.stop="confirmAddLbTag()"
+                                                   @keydown.escape.stop="cancelAddLbTag()">
+                                            <button type="button" class="lbx-tag-ok" @click.stop="confirmAddLbTag()" title="✓">✓</button>
+                                            <button type="button" class="lbx-tag-no" @click.stop="cancelAddLbTag()" title="✕">✕</button>
+                                            <!-- AI 標籤鈕（188c-T11；設定頁開 AI 標籤且本片有封面才顯示）：整顆從舊位置搬入，只在尾端多一個文字 label（窄時 CSS 隱藏成純圖示） -->
+                                            <button type="button" class="lb-tag-ai-btn"
+                                                    x-show="lbAiVisible()"
+                                                    @click.stop="lbAiTag()"
+                                                    :disabled="lbAiIsBusy()"
+                                                    :aria-busy="lbAiIsBusy()"
+                                                    data-tooltip="{{ t('showcase.lightbox.ai_tags_tooltip') }}"
+                                                    aria-label="{{ t('showcase.lightbox.ai_tags_tooltip') }}">
+                                                <i class="bi bi-stars" x-show="!lbAiIsBusy()"></i>
+                                                <i class="bi bi-arrow-repeat spin" x-show="lbAiIsBusy()"></i>
+                                                <span class="lbx-tag-ai-label">{{ t('showcase.lightbox.tag_ai_judge') }}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- 量測層：不可見、不可聚焦、不念給螢幕閱讀器；沒有 @click／<a>／<button>／<input>，也沒有 AI 鈕（可見層才是互動站點）。
+                                     「+N」只在有任何標籤時畫，N＝總數（最壞位數）。 -->
+                                <div class="lbx-measure" aria-hidden="true" inert>
+                                    <template x-for="tag in lbxWorkTags()" :key="tag">
+                                        <span class="lb-tag lbx-tag" x-text="tag"></span>
+                                    </template>
+                                    <template x-if="lbxWorkTags().length + lbxUserTags().length > 0">
+                                        <span class="lb-tag lbx-more-tags" x-text="'+' + (lbxWorkTags().length + lbxUserTags().length)"></span>
+                                    </template>
+                                    <template x-for="tag in lbxUserTags()" :key="tag">
+                                        <span class="lb-tag lbx-utag"><span class="lbx-utag-link" x-text="tag"></span><span class="lbx-utag-x">×</span></span>
+                                    </template>
+                                </div>
                             </div>
 
                         </div>
@@ -1566,6 +1576,35 @@
                                     <i class="bi" :class="lbPlotButtons.includes('retranslate') ? 'bi-arrow-repeat' : 'bi-translate'" x-show="!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="!!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i>
                                     <span x-text="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"></span>
                                 </button>
+                            </div>
+                        </template>
+                        <!-- 199a-T7：「+N」—第 5 列沒露出的標籤（分「標籤」「你的標籤」兩段）。浮層內的標籤＝可見層沒露出的那些，每個標籤恰在可見層與浮層其中一處；
+                             你的標籤在這裡仍可點篩選、仍有 ×（無確認，同可見層）。 -->
+                        <template x-if="lbxPop.kind === 'moreTags'">
+                            <div class="lbx-tags-pop">
+                                <template x-if="lbxWorkTags().slice(lbxTagShown('work')).length > 0">
+                                    <div class="lbx-tags-pop-sec">
+                                        <div class="lbx-tags-pop-label">{{ t('showcase.lightbox.tags_work_section') }}</div>
+                                        <div class="lbx-tags-pop-list">
+                                            <template x-for="tag in lbxWorkTags().slice(lbxTagShown('work'))" :key="tag">
+                                                <a href="#" class="lb-tag lbx-tag" @click.prevent="searchFromMetadata(tag, 'tag')" x-text="tag"></a>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="lbxUserTags().slice(lbxTagShown('user')).length > 0">
+                                    <div class="lbx-tags-pop-sec">
+                                        <div class="lbx-tags-pop-label">{{ t('showcase.lightbox.tags_user_section') }}</div>
+                                        <div class="lbx-tags-pop-list">
+                                            <template x-for="tag in lbxUserTags().slice(lbxTagShown('user'))" :key="tag">
+                                                <span class="lb-tag lbx-utag">
+                                                    <a href="#" class="lbx-utag-link" @click.prevent="searchFromMetadata(tag, 'tag')"><span x-text="tag"></span></a>
+                                                    <button type="button" class="lbx-utag-x" @click.stop="removeLbUserTag(tag)" :title="tag" :aria-label="tag">×</button>
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                         </template>
                     </div>

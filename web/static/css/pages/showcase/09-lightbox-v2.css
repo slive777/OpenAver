@@ -930,3 +930,401 @@ a.lbx-link:focus-visible {
         transition: none;
     }
 }
+
+/* ── 199a-T7：文字區第 5 列（作品標籤＋「+N」／你的標籤＋「＋」展開）＋「+N」浮層內容 ───────────────
+   左：`.lbx-tags-work`（flex:1 1 0＋min-width:0，FE-CSS-12）放作品標籤與 +N；右：`.lbx-tag-right`（flex:none）放你的標籤與「＋」。
+   你的標籤先排、全露（上限半行），作品標籤用剩下的寬度——露出數由 lbxFit 量 `.lbx-measure`（可見層的隱形複本，共用同一組 class 寬度才一致）。
+   列間、左區內、右區內、展開區內的 gap 全是 .375rem：fitTagRow 只吃一個 gap（讀 .lbx-tag-row 的 column-gap）。
+   `.is-measuring` 只隱藏兩個內容區（visibility:hidden，版面保留、不用 display:none）；不隱藏 `.lbx-tag-control`——
+   按「＋」會讓簽章變、列進入量測，連輸入框一起藏起來 focus() 會靜默失敗。
+   「＋」⇄展開區用 `.is-adding` class 切換（不用 x-show，量測在 $nextTick 讀寬度）。
+   單一 accent 原則：本段與浮層內不出現 accent；膠囊走 tonal 中性色，使用者標籤比作品標籤強一階並加細框區分。 */
+.lbx-tag-row {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    position: relative;
+    margin-top: .6875rem;
+}
+
+@media (max-width: 768px), (max-height: 719px) {
+    .lbx-tag-row {
+        flex-wrap: wrap;
+        min-height: 1.5rem;
+    }
+
+    /* 閘外沒有 container／不降級：作品標籤區給 10rem 基準寬，放不下右區就整塊換到下一行（與上面 wrap 互斥同條件） */
+    .lbx-tags-work {
+        flex-basis: 10rem;
+    }
+}
+
+@media (min-width: 769px) and (min-height: 720px) {
+    .lbx-tag-row {
+        flex-wrap: nowrap;
+        height: 1.5rem;
+    }
+}
+
+.lbx-tag-row.is-measuring .lbx-tags-work,
+.lbx-tag-row.is-measuring .lbx-utags {
+    visibility: hidden;
+}
+
+.lbx-tags-work {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.lbx-tag-right {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+}
+
+.lbx-tag-right.is-hidden {
+    display: none;
+}
+
+.lbx-utags {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    white-space: nowrap;
+}
+
+/* 膠囊：作品標籤、+N、你的標籤（列內與浮層內共用；量測層複本在列內，吃同一條規則）。浮層不在 .lightbox-metadata 內，沒有 05 的 .lb-tag 基底，所以這裡寫全 */
+.lbx-tag-row .lbx-tag,
+.lbx-tag-row .lbx-more-tags,
+.lbx-tag-row .lbx-utag,
+.lbx-tags-pop .lbx-tag,
+.lbx-tags-pop .lbx-utag {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: 1.375rem;
+    padding: 0 .5rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+/* 你的標籤：中性色、比作品標籤強一階並加細框（不再是實心 accent） */
+.lbx-tag-row .lbx-utag,
+.lbx-tags-pop .lbx-utag {
+    gap: .25rem;
+    padding-right: .25rem;
+    border-color: var(--stroke-subtle);
+    background: color-mix(in oklch, var(--text-primary) 12%, transparent);
+    color: var(--text-primary);
+}
+
+.lbx-tag-row a.lbx-tag:hover,
+.lbx-tag-row a.lbx-tag:focus-visible,
+.lbx-tags-pop a.lbx-tag:hover,
+.lbx-tags-pop a.lbx-tag:focus-visible {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+
+.lbx-utag-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+a.lbx-utag-link:hover,
+a.lbx-utag-link:focus-visible {
+    text-decoration: underline;
+}
+
+.lbx-utag-x {
+    box-sizing: border-box;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+    opacity: .7;
+    cursor: pointer;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.lbx-utag-x:hover,
+.lbx-utag-x:focus-visible {
+    opacity: 1;
+}
+
+.lbx-tag-row .lbx-more-tags {
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-tag-row .lbx-more-tags:hover,
+.lbx-tag-row .lbx-more-tags[aria-expanded="true"] {
+    background: color-mix(in oklch, var(--text-primary) 14%, transparent);
+    color: var(--text-primary);
+}
+
+.lbx-tag-row a.lbx-tag:focus-visible,
+.lbx-tag-row .lbx-more-tags:focus-visible,
+.lbx-tags-pop a.lbx-tag:focus-visible,
+.lbx-utag-link:focus-visible,
+.lbx-utag-x:focus-visible,
+.lbx-tag-plus:focus-visible,
+.lbx-tag-ok:focus-visible,
+.lbx-tag-no:focus-visible,
+.lbx-tag-input:focus-visible,
+.lbx-meta .lb-tag-ai-btn:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: 1px;
+}
+
+/* 量測層：作品標籤／你的標籤／最壞位數 +N 的隱形複本（全域 .lbx-measure 已是 absolute＋visibility:hidden＋height:0，這裡只補「量到自然寬度」） */
+.lbx-measure .lbx-tag,
+.lbx-measure .lbx-utag,
+.lbx-measure .lbx-more-tags {
+    flex: none;
+}
+
+/* 「＋」與展開區：按鈕、輸入框、✓、✕、AI 判斷 */
+.lbx-tag-control {
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+}
+
+.lbx-tag-control:not(.is-adding) .lbx-tag-expand {
+    display: none;
+}
+
+.lbx-tag-control.is-adding .lbx-tag-plus {
+    display: none;
+}
+
+.lbx-tag-expand {
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+}
+
+.lbx-tag-plus {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+/* 虛線框畫在圖示上、不畫在按鈕上：觸控時按鈕放大成 2.75rem 熱區，視覺仍是 1.375rem 方塊 */
+.lbx-tag-plus > i {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    border: 1px dashed var(--text-muted);
+    border-radius: var(--radius-sm);
+    font-size: .75rem;
+    line-height: 1;
+    transition: color var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-tag-plus:hover > i,
+.lbx-tag-plus:focus-visible > i {
+    border-color: var(--text-secondary);
+    color: var(--text-secondary);
+}
+
+.lbx-tag-input {
+    box-sizing: border-box;
+    width: 8rem;
+    height: 1.375rem;
+    padding: 0 .5rem;
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+}
+
+.lbx-tag-ok,
+.lbx-tag-no {
+    box-sizing: border-box;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: .8125rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-tag-ok:hover,
+.lbx-tag-no:hover {
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+    color: var(--text-primary);
+}
+
+/* AI 判斷鈕：整顆沿用今天的 .lb-tag-ai-btn（08 的全域規則帶 accent，這裡逐態覆寫成中性——hover／disabled／focus-visible 三態，權重都高於 08；不改 08） */
+.lbx-meta .lb-tag-ai-btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    gap: .25rem;
+    height: 1.375rem;
+    padding: 0 .5rem;
+    border: 1px dashed var(--text-muted);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-meta .lb-tag-ai-btn:hover:not(:disabled) {
+    border-color: var(--text-secondary);
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+    color: var(--text-primary);
+}
+
+.lbx-meta .lb-tag-ai-btn:disabled {
+    border-color: var(--text-muted);
+    color: var(--text-muted);
+}
+
+.lbx-meta .lb-tag-ai-btn:focus-visible {
+    box-shadow: none;
+}
+
+/* 「+N」浮層：兩段（標籤／你的標籤），段與段之間一條髮絲線；寬度蓋過 .lbx-pop 的 max-content（overflow-y／overscroll 是 data-mode="click" 已寫的） */
+.lbx-pop[data-kind="moreTags"] {
+    width: min(34rem, calc(100vw - 1rem));
+    padding: .5rem .75rem .625rem;
+}
+
+.lbx-tags-pop {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.lbx-tags-pop-sec + .lbx-tags-pop-sec {
+    padding-top: .5rem;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+.lbx-tags-pop-label {
+    margin-bottom: .25rem;
+    color: var(--text-muted);
+    font-size: .75rem;
+    line-height: 1.25rem;
+}
+
+.lbx-tags-pop-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .375rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-utag-x,
+    .lbx-tag-row .lbx-more-tags,
+    .lbx-tag-plus > i,
+    .lbx-tag-ok,
+    .lbx-tag-no,
+    .lbx-meta .lb-tag-ai-btn {
+        transition: none;
+    }
+}
+
+/* 觸控：「＋」、「+N」、× 的點擊熱區 ≥44px，不把第 5 列撐高（列高仍 1.5rem）。
+   「＋」在列尾（右側會被 .lbx-meta 的 overflow 裁掉，不能靠偽元素外擴）→ 按鈕本體放大成 2.75rem、負 margin-block 吃掉多出的高度，虛線框仍是 1.375rem（畫在 <i> 上）。
+   「+N」與 × 用透明偽元素外擴；作品標籤區 overflow:hidden 會裁掉偽元素 → 比照 T5 的女優區，用 padding 撐開＋等量負 margin 抵銷（內容位置與寬度不變）。 */
+@media (pointer: coarse) {
+    .lbx-tag-plus {
+        width: 2.75rem;
+        height: 2.75rem;
+        margin-block: -.6875rem;
+    }
+
+    .lbx-tags-work {
+        padding: .75rem .625rem;
+        margin: -.75rem -.625rem;
+    }
+
+    .lbx-tag-row .lbx-more-tags {
+        position: relative;
+    }
+
+    .lbx-tag-row .lbx-more-tags::after {
+        content: "";
+        position: absolute;
+        inset: -.75rem -.625rem;
+    }
+
+    .lbx-utag-x::after {
+        content: "";
+        position: absolute;
+        inset: -.875rem;
+    }
+}
+
+/* ≤639px（只在視窗閘內有 container）：輸入框縮短、「AI 判斷」變純圖示 */
+@container lbx-meta (max-width: 639px) {
+    .lbx-tag-input {
+        width: 5.5rem;
+    }
+
+    .lbx-tag-ai-label {
+        display: none;
+    }
+}

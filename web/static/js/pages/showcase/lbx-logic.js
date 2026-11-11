@@ -117,3 +117,32 @@ export function fitSig(video, adding) {
 export function parseActresses(video) {
     return String(video?.actresses || '').split(',').map((s) => s.trim()).filter(Boolean);
 }
+
+/**
+ * fitTagRow：第 5 列標籤露出數（199a-T7，CD-199a-13）。使用者標籤先排（右區，上限＝列寬 × userMaxRatio，「＋」永遠先算進去），
+ * 作品標籤用剩下的寬度；只要有任何標籤被收起（作品或使用者）就要為「+N」預留一顆寬度。輸入都是量到的寬度（px），純函式。
+ */
+export function fitTagRow({ userWidths, workWidths, plusWidth, moreChipWidth, rowWidth, gap, userMaxRatio = 0.5 }) {
+    const budget = rowWidth * userMaxRatio;
+    let userShown = 0;
+    let right = plusWidth;
+    for (; userShown < userWidths.length; userShown += 1) {
+        const next = right + gap + userWidths[userShown];
+        if (next > budget) break;
+        right = next;
+    }
+    const userHidden = userWidths.length - userShown;
+    const left = right > 0 ? rowWidth - right - gap : rowWidth;
+    let workShown = workWidths.length;
+    for (; workShown > 0; workShown -= 1) {
+        const used = workWidths.slice(0, workShown).reduce((a, w) => a + w, 0) + gap * (workShown - 1);
+        const more = workWidths.length - workShown + userHidden > 0 ? moreChipWidth + gap : 0;
+        if (used + more <= left) break;
+    }
+    return { userShown, workShown };
+}
+
+/** parseWorkTags：影片的作品標籤（逗號分隔、去空白、去空字串）。 */
+export function parseWorkTags(video) {
+    return String(video?.tags || '').split(',').map((s) => s.trim()).filter(Boolean);
+}

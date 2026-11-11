@@ -34,3 +34,25 @@ test('test_fit_hides_until_measured_then_writes_once', () => {
     assert.equal(fit.lbxFitMeasuring('sig-b'), false);
     assert.equal(store.actressShown, 3);
 });
+
+test('test_fit_run_writes_tag_counts_with_actress_count_once', () => {
+    const fit = stateLightboxFit();
+    let writes = 0;
+    let store = fit.lbxFit;
+    Object.defineProperty(fit, 'lbxFit', {
+        get: () => store,
+        set: (v) => { writes += 1; store = v; },
+        configurable: true,
+    });
+    const measure = () => ({
+        chipWidths: [100, 100, 100, 100], moreChipWidth: 50, available: 1000, gap: 6,
+        tagRow: { userWidths: [60, 60, 60, 60, 60], workWidths: Array(13).fill(80), plusWidth: 28, moreChipWidth: 36, rowWidth: 1000, gap: 6 },
+    });
+
+    fit.lbxFitRun('sig-t', {}, measure);
+    assert.equal(writes, 1, 'one assignment carries all four fields');
+    assert.equal(store.sig, 'sig-t');
+    assert.equal(store.actressShown, 3);
+    assert.equal(store.workTagShown, 6);
+    assert.equal(store.userTagShown, 5);
+});
