@@ -26,7 +26,7 @@ export function bandParts(video, { formatSize, formatRuntime }) {
 /**
  * placePop：浮層位置（199a-T3，CD-199a-4）。
  * mode 是「位置模式」：'below'＝錨點下緣＋gap；'inplace'＝錨點上緣−4（T4 的片名／原文才用）。
- * 恆不低於封面下緣＋4（浮層不蓋封面）；超出視窗底就上移；interactive（點開類）才回 maxHeight 內捲，純閱讀類不內捲。
+ * 恆不低於封面下緣＋4（浮層不蓋封面）；超出視窗底就上移；interactive（點開類）一律回 maxHeight（視窗底−top）讓內容長高時在浮層內捲，純閱讀類不內捲。
  * align：'left'（預設）左緣對齊錨點；'right' 右緣對齊錨點（⋯ 選單）。
  */
 export function placePop({ anchorRect, coverBottom, vw, vh, popSize, mode, align = 'left', interactive = false, margin = 8, gap = 6 }) {
@@ -35,7 +35,8 @@ export function placePop({ anchorRect, coverBottom, vw, vh, popSize, mode, align
     let top = mode === 'inplace' ? anchorRect.top - 4 : anchorRect.bottom + gap;
     top = Math.max(top, floor);
     if (top + popSize.h > bottomLimit) top = Math.max(floor, bottomLimit - popSize.h);
-    const maxHeight = interactive && top + popSize.h > bottomLimit ? Math.max(0, bottomLimit - top) : undefined;
+    // 可點類一律限高到視窗底（不只在當下內容超出時）：開啟後內容長高（如簡介翻譯完成）只會在浮層內捲，不會伸出視窗
+    const maxHeight = interactive ? Math.max(0, bottomLimit - top) : undefined;
     const anchorX = align === 'right' ? anchorRect.right - popSize.w : anchorRect.left;
     const left = Math.min(Math.max(anchorX, margin), Math.max(margin, vw - popSize.w - margin));
     return { left, top, maxHeight };

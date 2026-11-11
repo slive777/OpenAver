@@ -50,6 +50,10 @@ test('test_place_pop_never_covers_cover_or_leaves_viewport', () => {
     assert.ok(click.top >= coverBottom + 4);
     assert.equal(click.maxHeight, vh - margin - click.top);
 
+    // (c2) interactive pop WITH room still gets a max height (content may grow after open): reaches the viewport bottom
+    const clickRoom = placePop({ ...base, interactive: true, anchorRect: { left: 100, top: 840, bottom: 870 } });
+    assert.equal(clickRoom.maxHeight, vh - margin - clickRoom.top);
+
     // (d) read-only pop without room: no max height (no inner scroll)
     const read = placePop({ ...base, popSize: tall, interactive: false, anchorRect: { left: 100, top: 840, bottom: 870 } });
     assert.equal(read.maxHeight, undefined);

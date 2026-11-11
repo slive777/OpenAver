@@ -1159,7 +1159,6 @@ export function stateLightbox() {
                     // 影片 lightbox
                     if (key === 'ESCAPE') {
                         if (this.lbxPop) { e.preventDefault(); this.lbxPopClose({ restoreFocus: true }); return; }
-                        if (this.lbPlotOpen) { e.preventDefault(); this.lbPlotClose(); return; }
                         e.preventDefault();
                         this.closeLightbox();
                     } else if (key === 'ARROWLEFT') {

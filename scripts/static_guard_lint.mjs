@@ -567,6 +567,25 @@ const RULES = [
     note: '[lint-guard:199a-T5-measure-inert] 量測層少了 aria-hidden 或 inert → 螢幕閱讀器把女優名念兩遍，鍵盤 Tab 還會停在看不見的東西上',
   },
 
+  // ---- 199a-T6：文字區第 4 列（簡介常駐列＋點了往下浮出全文）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['data-lbx-anchor="plot"', "lbxPopToggle('plot'"],
+    scope: { anchor: /<button type="button" class="lbx-plot-row"/, window: 320 }, // 實測 anchor 到 lbxPopToggle('plot' 結尾 241 字元，加約 33% 餘裕
+    note: '[lint-guard:199a-T6-plot-row-wired] 簡介列少了 data-lbx-anchor 或 lbxPopToggle(\'plot\' → 使用者點簡介想收起，被判成「點外面」先收掉、click 又重開，永遠收不掉；或點了沒反應',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: "lbxPop.kind === 'plot'",
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 12500 }, // 實測 anchor 到 plot template 的 kind 判斷結尾 9500 字元（隔著 verTip／title／otitle／menu／actresses／info），加約 31% 餘裕
+    note: '[lint-guard:199a-T6-plot-pop-in-host] 簡介全文必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點簡介列看不到全文',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',
+    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.has_plot',\s*\(\)\s*=>\s*\{[^}]*this\._lbPlotLoad\?\.\(\)[^}]*\}\s*\)/,
+    note: '[lint-guard:199a-T6-watch-has-plot] 少了 has_plot 的載入 watch → 使用者在燈箱裡補完讓片有了簡介，簡介列出現卻停在骨架，要關掉重開才看得到文字',
+  },
+
   // 星空等待動畫函式定義存在（ghost-fly.js）+ callsite（state-lightbox.js openMask，唯一啟動點）。
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'function playFocalDetectWait', note: '[TestMaskToggleGuard] 99a-T5：ghost-fly.js 定義星空等待迴圈動畫（start）' },
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'function stopFocalDetectWait', note: '[TestMaskToggleGuard] 99a-T5：ghost-fly.js 定義星空等待動畫停止（stop）' },
@@ -9610,14 +9629,13 @@ const RULES = [
     note: '[lint-guard:199a-T5-main-import] main.js 漏掉第 3 列量測分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
   },
   {
-    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
-    pattern: /(?<![\w:-])if \(this\.lbPlotOpen\) \{ e\.preventDefault\(\); this\.lbPlotClose\(\); return; \}/,
-    note: '[lint-guard 187b-T5a-esc] 影片 Esc 少了簡介先關層 → 使用者想收起簡介按 Esc，整座燈箱一起關掉',
-  },
-  {
     file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',
-    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\._lbPlotReset\?\.\(\);\s*\}\)/,
-    note: '[lint-guard 187b-T5a-watch] 換片 $watch 少了 _lbPlotReset → 切片後簡介面仍開著、內容可能是上一片的',
+    // 199a-T6 刻意加嚴（舊：回呼只要含 reset）：回呼內必須依序含 reset 與 load——簡介列常駐，沒有「點開才載入」的入口了
+    // 收據：舊定位器 `…\{\s*this\._lbPlotReset\?\.\(\);\s*\}\)`（回呼只能是 reset）→ 新定位器（reset 後、`}` 之前須出現 `this._lbPlotLoad?.()`）；
+    // 合法改寫格＝`{ this._lbPlotReset?.(); if (this.lbPlotRowVisible?.()) this._lbPlotLoad?.(); }`（單一 if 條件，不含 `}`）；
+    // 比舊寬反例格＝回呼只剩 `{ this._lbPlotReset?.(); }`（舊綠、新紅，正是本卡 M3 要它紅的形狀）
+    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\._lbPlotReset\?\.\(\);[^}]*this\._lbPlotLoad\?\.\(\)[^}]*\}\s*\)/,
+    note: '[lint-guard 187b-T5a-watch] 換片 $watch 少了 _lbPlotReset 或 _lbPlotLoad → 使用者開一部有簡介的片、什麼都不點，簡介列只有灰色骨架線、文字永遠不來（或換片後還顯示上一片的簡介）',
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
@@ -9704,12 +9722,7 @@ const RULES = [
     note: '[177-T2-no-innerHTML] 分析頁 JS 不得用 innerHTML／insertAdjacentHTML：標籤、導演名稱來自外部刮削的 NFO，當 HTML 插入會執行其中的 script／載入外部圖',
   },
 
-  // 187b-T5b：燈箱簡介鈕／簡介面接線（模板接線存在；邏輯由 T5a node:test 守）
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-inert',
-    pattern: /(?<![\w:-]):inert="!lbPlotOpen"/,
-    note: '[187b-T5b-inert] 使用者沒開簡介卻用 Tab 鍵走進看不見的簡介面按鈕（.lb-plot-face 要綁 :inert="!lbPlotOpen"）',
-  },
+  // 187b-T5b：簡介翻譯鈕接線（199a-T6 起在簡介浮層內；模板接線存在，邏輯由 T5a node:test 守）
   {
     file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-translate',
     pattern: /(?<![\w:-])@click\.stop="lbPlotTranslate\(\)"/,

@@ -775,3 +775,158 @@ a.lbx-link:focus-visible {
         transition: none;
     }
 }
+
+/* ── 199a-T6：文字區第 4 列（簡介常駐兩行）＋簡介全文浮層 ───────────────────────────────
+   列：<button>，固定高度 3.125rem＝兩行 1.25rem 行高＋上下內距各 .3125rem——骨架／文字／讀不到三態同高，
+   文字到達前後列高不變（列高不靠 JS）。列間距用 margin-top（同第 3 列 .6875rem）。
+   底色走 surface-1 一階 tonal、hover 疊一層文字色；骨架線用文字色 12% 才在 surface-1 上看得見；不做動畫。
+   單一 accent 原則：列與浮層內不出現 accent。浮層底座（位置／玻璃／可捲）是 T3 已寫的，這裡只定寬度、高度上限與內容殼。
+   全部追加在視窗閘外，所有視窗都有簡介列。 */
+.lbx-plot-row {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    height: 3.125rem;
+    margin: .6875rem 0 0;
+    padding: .3125rem .625rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: .8125rem;
+    line-height: 1.25rem;
+    text-align: left;
+    white-space: normal;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-plot-row:hover,
+.lbx-plot-row[aria-expanded="true"] {
+    background: color-mix(in oklch, var(--text-primary) 8%, var(--surface-1));
+}
+
+.lbx-plot-row:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+}
+
+/* 兩行截斷（FE-CSS-16：-webkit-box 下 computed display 不可靠，驗截斷看 scrollHeight／line-clamp） */
+.lbx-plot-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    color: var(--text-secondary);
+}
+
+.lbx-plot-unavailable {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+/* 骨架：兩條灰線（第二條 60% 寬），在列內垂直置中（2 條 .75rem＋.5rem 間距＝2rem，列內容高 2.5rem） */
+.lbx-plot-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin-block: .25rem;
+}
+
+.lbx-plot-skeleton-line {
+    display: block;
+    height: .75rem;
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklch, var(--text-primary) 12%, transparent);
+}
+
+.lbx-plot-skeleton-line:last-child {
+    width: 60%;
+}
+
+/* 浮層：寬度蓋過 .lbx-pop 的 max-content；高度上限＝視窗閘內封面底到視窗底恆約 262px 的算術上限（翻譯完成後內容長高不靠重新定位也不會伸出視窗），
+   超過就在浮層內捲（click 模式的 overflow-y／overscroll 是 T3 已寫） */
+.lbx-pop[data-kind="plot"] {
+    width: min(720px, calc(100vw - 1rem));
+    max-height: 15.5rem;
+    padding: .75rem 1rem;
+}
+
+.lbx-plot-pop {
+    display: flex;
+    flex-direction: column;
+    gap: .625rem;
+}
+
+.lbx-plot-pop-sec + .lbx-plot-pop-sec {
+    padding-top: .625rem;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+.lbx-plot-pop-label {
+    margin-bottom: .25rem;
+    color: var(--text-muted);
+    font-size: .75rem;
+    line-height: 1.25rem;
+}
+
+.lbx-plot-pop-text {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: .8125rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.lbx-plot-pop-btn {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: .5rem;
+    padding: .5rem .625rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .8125rem;
+    line-height: 1.25rem;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-plot-pop-btn:hover,
+.lbx-plot-pop-btn:focus-visible {
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+}
+
+.lbx-plot-pop-btn:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+}
+
+.lbx-plot-pop-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.lbx-plot-pop-btn:disabled:hover {
+    background: transparent;
+}
+
+.lbx-plot-pop-btn > i {
+    flex: none;
+    color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-plot-row,
+    .lbx-plot-pop-btn {
+        transition: none;
+    }
+}

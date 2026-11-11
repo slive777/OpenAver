@@ -1283,11 +1283,6 @@
                                     </button>
                                 </div>
                             </div>
-                            <!-- 187b-T5b：Row2–Row6 與簡介面同一塊區域翻面（class 切換，不用 x-show／x-transition，FE-ALPINE-17） -->
-                            <div class="lb-faces">
-                            <div class="lb-info-face"
-                                 :class="{'is-flipped': lbPlotOpen}"
-                                 :inert="lbPlotOpen">
                             <!-- Row 2（199a-T4）：原文一行；缺原文或與片名相同就整列不渲染 -->
                             <template x-if="lbxHasOtitle()">
                                 <div class="lbx-otitle" tabindex="0" data-lbx-anchor="otitle"
@@ -1354,6 +1349,20 @@
                                     </template>
                                 </div>
                             </div>
+                            <!-- Row 4（199a-T6）：簡介常駐（最多兩行）。有簡介才渲染（lbPlotRowVisible，同步可得）；列高固定，骨架／文字／讀不到三態同高。
+                                 點一下往下浮出全文（kind: plot）。<button> 內只放 <span>。 -->
+                            <template x-if="lbPlotRowVisible()">
+                                <button type="button" class="lbx-plot-row" data-lbx-anchor="plot" aria-haspopup="true"
+                                        :aria-expanded="lbxPopIs('plot', 'plot')"
+                                        @click.stop="lbxPopToggle('plot', $el, { mode: 'click', anchorKey: 'plot' })">
+                                    <span class="lbx-plot-skeleton" x-show="lbPlotRowState() === 'loading'" aria-hidden="true">
+                                        <span class="lbx-plot-skeleton-line"></span>
+                                        <span class="lbx-plot-skeleton-line"></span>
+                                    </span>
+                                    <span class="lbx-plot-unavailable" x-show="lbPlotRowState() === 'error'">{{ t('showcase.lightbox.plot_unavailable') }}</span>
+                                    <span class="lbx-plot-text" x-show="lbPlotRowState() === 'text'" x-text="_lbPlotView.plot"></span>
+                                </button>
+                            </template>
                             <!-- Row 5: Tags (with +N chips, T4) -->
                             <div class="lb-tags" x-show="currentLightboxVideo?.tags">
                                 <template x-for="tag in _visibleVideoTags()" :key="tag">
@@ -1413,41 +1422,6 @@
                                             @click.stop="cancelAddLbTag()"
                                             title="✕">✕</button>
                                 </span>
-                            </div>
-                            </div>
-                            <div class="lb-plot-face"
-                                 :class="{'is-open': lbPlotOpen}"
-                                 :inert="!lbPlotOpen"
-                                 :aria-hidden="!lbPlotOpen">
-                                <div class="lb-plot-face-head">
-                                    <span class="lb-plot-face-title">{{ t('showcase.lightbox.plot_face_title') }}</span>
-                                    <button type="button" class="lb-translate-btn"
-                                        x-show="!_lbPlotView.error && !_lbPlotView.loading && (lbPlotButtons.includes('translate') || lbPlotButtons.includes('retranslate'))"
-                                        @click.stop="lbPlotTranslate()"
-                                        :disabled="!!_lbPlotInFlight[currentLightboxVideo?.path]"
-                                        :aria-busy="!!_lbPlotInFlight[currentLightboxVideo?.path]"
-                                        :data-tooltip="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"
-                                        :aria-label="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"><i class="bi" :class="lbPlotButtons.includes('retranslate') ? 'bi-arrow-repeat' : 'bi-translate'" x-show="!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="!!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i></button>
-                                    <button type="button" class="lb-translate-btn"
-                                        x-show="!_lbPlotView.error && !_lbPlotView.loading && lbPlotButtons.includes('toggle')"
-                                        @click.stop="lbPlotToggleOriginal()"
-                                        :data-tooltip="_lbPlotView.showing === 'plot' ? t('showcase.lightbox.plot_show_original_tooltip') : t('showcase.lightbox.plot_show_translated_tooltip')"
-                                        :aria-label="_lbPlotView.showing === 'plot' ? t('showcase.lightbox.plot_show_original_tooltip') : t('showcase.lightbox.plot_show_translated_tooltip')"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></button>
-                                    <button type="button" class="lb-translate-btn lb-plot-close"
-                                        @click.stop="lbPlotClose()"
-                                        data-tooltip="{{ t('showcase.lightbox.plot_close') }}"
-                                        aria-label="{{ t('showcase.lightbox.plot_close') }}"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-                                </div>
-                                <div class="lb-plot-body">
-                                    <div class="lb-plot-skeleton" x-show="_lbPlotView.loading" aria-hidden="true">
-                                        <span class="lb-plot-skeleton-line"></span>
-                                        <span class="lb-plot-skeleton-line"></span>
-                                    </div>
-                                    <p class="lb-plot-unavailable" x-show="!_lbPlotView.loading && _lbPlotView.error">{{ t('showcase.lightbox.plot_unavailable') }}</p>
-                                    <p class="lb-plot-text" x-show="!_lbPlotView.loading && !_lbPlotView.error"
-                                       x-text="_lbPlotView.showing === 'original' ? _lbPlotView.original : _lbPlotView.plot"></p>
-                                </div>
-                            </div>
                             </div>
 
                         </div>
@@ -1564,6 +1538,34 @@
                                     <span class="lbx-pop-label">{{ t('showcase.lightbox.info_source_duration') }}</span>
                                     <span class="lbx-pop-val" x-text="currentLightboxVideo?.source_duration + ' ' + t('showcase.unit.minutes')"></span>
                                 </div>
+                            </div>
+                        </template>
+                        <!-- 199a-T6：簡介全文（有翻過＝「譯文」「原文」兩段；沒翻過＝一段無標籤的原文）＋翻譯／重新翻譯鈕。
+                             翻譯期間浮層保持開著，完成後內容原地更新；譯文標籤只在有原文時才畫（沒翻過的簡介本身就是原文語言） -->
+                        <template x-if="lbxPop.kind === 'plot'">
+                            <div class="lbx-plot-pop">
+                                <div class="lbx-plot-pop-sec">
+                                    <div class="lbx-plot-pop-label" x-show="_lbPlotView.hasOriginal">{{ t('showcase.lightbox.plot_pop_translated') }}</div>
+                                    <div class="lbx-plot-skeleton" x-show="lbPlotRowState() === 'loading'" aria-hidden="true">
+                                        <span class="lbx-plot-skeleton-line"></span>
+                                        <span class="lbx-plot-skeleton-line"></span>
+                                    </div>
+                                    <p class="lbx-plot-unavailable" x-show="lbPlotRowState() === 'error'">{{ t('showcase.lightbox.plot_unavailable') }}</p>
+                                    <p class="lbx-plot-pop-text" x-show="lbPlotRowState() === 'text'" x-text="_lbPlotView.plot"></p>
+                                </div>
+                                <div class="lbx-plot-pop-sec" x-show="_lbPlotView.hasOriginal && lbPlotRowState() === 'text'">
+                                    <div class="lbx-plot-pop-label">{{ t('showcase.lightbox.plot_pop_original') }}</div>
+                                    <p class="lbx-plot-pop-text" x-text="_lbPlotView.original"></p>
+                                </div>
+                                <button type="button" class="lbx-plot-pop-btn"
+                                        x-show="lbPlotRowState() === 'text' && lbPlotButtons.length > 0"
+                                        @click.stop="lbPlotTranslate()"
+                                        :disabled="!!_lbPlotInFlight[currentLightboxVideo?.path]"
+                                        :aria-busy="!!_lbPlotInFlight[currentLightboxVideo?.path]"
+                                        :aria-label="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')">
+                                    <i class="bi" :class="lbPlotButtons.includes('retranslate') ? 'bi-arrow-repeat' : 'bi-translate'" x-show="!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="!!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i>
+                                    <span x-text="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"></span>
+                                </button>
                             </div>
                         </template>
                     </div>
