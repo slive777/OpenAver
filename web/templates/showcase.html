@@ -1299,53 +1299,60 @@
                                      @click="lbxPopTapOpen($event, 'otitle', 'otitle')"
                                      x-text="currentLightboxVideo.original_title"></div>
                             </template>
-                            <!-- Row 3: Actresses -->
-                            <div class="lb-actor" x-show="currentLightboxVideo?.actresses">
-                                <template x-for="(actress, idx) in (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim())" :key="actress">
-                                    <span>
-                                        <a href="#" class="lb-link" @click.prevent="searchFromMetadata(actress.trim(), 'actress')" x-text="actress.trim()"></a><span class="lb-actor-age" x-show="_lbActorAges[actress.trim()] != null" x-text="' (' + _lbActorAges[actress.trim()] + t('showcase.unit.age_suffix') + ')'"></span><span x-show="idx < (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim()).length - 1">, </span>
-                                    </span>
-                                </template>
-                            </div>
-                            <!-- Row 4: Details (merged) -->
-                            <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
-                            <div class="lb-details">
-                                <!-- 123-T8：精選星已移到 .lb-title（標題行）最前面，此列回到以番號起頭。 -->
-                                <span x-text="currentLightboxVideo?.number || t('showcase.lightbox.unknown_number')"></span>
-                                <span x-show="currentLightboxVideo?.maker">
-                                    &nbsp;·&nbsp;<a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker, 'maker')" x-text="currentLightboxVideo?.maker"></a>
-                                </span>
-                                <span x-show="currentLightboxVideo?.director">
-                                    &nbsp;·&nbsp;<b>{{ t('showcase.label.director') }}：</b>
-                                    <a href="#" class="lb-link"
-                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.director, 'director')"
-                                       x-text="currentLightboxVideo?.director"></a>
-                                </span>
-                                <span x-show="currentLightboxVideo?.duration">
-                                    &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' ' + t('showcase.unit.minutes') : ''"></span>
-                                </span>
-                                <span x-show="currentLightboxVideo?.series">
-                                    &nbsp;·&nbsp;<b>{{ t('showcase.label.series') }}：</b>
-                                    <a href="#" class="lb-link"
+                            <!-- Row 3（199a-T5）：左＝女優（最多 3 位，放不下逐位減少、至少 1 位，其餘收成「另有 N 位」）；右＝作品資訊小膠囊＋ⓘ。
+                                 這一列永遠渲染（沒有女優就左側空）。露出數由 lbxFit 分片量 .lbx-measure（可見層的隱形複本，共用同一組 class 寬度才一致）；
+                                 量完前列帶 is-measuring（visibility:hidden，版面保留）。x-effect 與 :class 只傳引數給 lbxFit*，分片不讀別片的狀態。 -->
+                            <div class="lbx-people-row"
+                                 :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag))}"
+                                 x-effect="lbxFitSchedule($el, lbxFitSig(currentLightboxVideo, addingLbTag))">
+                                <div class="lbx-actors">
+                                    <template x-for="name in lbxActressList().slice(0, lbxFit.actressShown)" :key="name">
+                                        <span class="lbx-actor-chip"><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
+                                    </template>
+                                    <template x-if="lbxActressList().length > lbxFit.actressShown">
+                                        <button type="button" class="lb-tag lbx-more-actors" data-lbx-anchor="actresses" aria-haspopup="true"
+                                                :aria-expanded="lbxPopIs('actresses', 'actresses')"
+                                                @click.stop="lbxPopToggle('actresses', $el, { mode: 'click', anchorKey: 'actresses' })"
+                                                x-text="t('showcase.lightbox.actresses_more', { n: lbxActressList().length - lbxFit.actressShown })"></button>
+                                    </template>
+                                </div>
+                                <!-- 作品資訊小膠囊：番號·片商·系列·發行日·來源片長·ⓘ。空欄位不畫；廠牌、導演只在ⓘ。窄時由右往左省略（CSS @container），省略的都在ⓘ裡 -->
+                                <div class="lbx-works">
+                                    <span class="lb-tag lbx-work lbx-work--num" x-show="lbxInfoHas('number')" x-text="currentLightboxVideo?.number"></span>
+                                    <a href="#" class="lb-tag lbx-work lbx-work--maker" x-show="lbxInfoHas('maker')"
+                                       :title="currentLightboxVideo?.maker"
+                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.maker, 'maker')"
+                                       x-text="currentLightboxVideo?.maker"></a>
+                                    <a href="#" class="lb-tag lbx-work lbx-work--series" x-show="lbxInfoHas('series')"
+                                       :title="currentLightboxVideo?.series"
                                        @click.prevent="searchFromMetadata(currentLightboxVideo?.series, 'series')"
                                        x-text="currentLightboxVideo?.series"></a>
-                                </span>
-                                <span x-show="currentLightboxVideo?.label && currentLightboxVideo?.label !== currentLightboxVideo?.maker">
-                                    &nbsp;·&nbsp;<b>{{ t('showcase.label.label') }}：</b>
-                                    <a href="#" class="lb-link"
-                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.label, 'label')"
-                                       x-text="currentLightboxVideo?.label"></a>
-                                </span>
-                                <span x-show="currentLightboxVideo?.release_date">
-                                    &nbsp;·&nbsp;<template x-if="_isReleaseClickable(currentLightboxVideo)">
-                                        <a href="#" class="lb-link"
+                                    <template x-if="lbxInfoField('release')?.clickable">
+                                        <a href="#" class="lb-tag lbx-work lbx-work--release"
                                            @click.prevent="searchFromMetadata(currentLightboxVideo?.release_date, 'release')"
                                            x-text="currentLightboxVideo?.release_date"></a>
                                     </template>
-                                    <template x-if="!_isReleaseClickable(currentLightboxVideo)">
-                                        <span x-text="currentLightboxVideo?.release_date"></span>
+                                    <template x-if="lbxInfoHas('release') && !lbxInfoField('release').clickable">
+                                        <span class="lb-tag lbx-work lbx-work--release" x-text="currentLightboxVideo?.release_date"></span>
                                     </template>
-                                </span>
+                                    <span class="lb-tag lbx-work lbx-work--src" x-show="lbxInfoHas('source_duration')"
+                                          x-text="t('showcase.lightbox.source_duration', { n: currentLightboxVideo?.source_duration })"></span>
+                                    <button type="button" class="lbx-info-btn" data-lbx-anchor="info" aria-haspopup="true"
+                                            :aria-expanded="lbxPopIs('info', 'info')"
+                                            :aria-label="t('showcase.lightbox.info_open')"
+                                            :title="t('showcase.lightbox.info_open')"
+                                            @click.stop="lbxPopToggle('info', $el, { mode: 'click', anchorKey: 'info' })"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+                                </div>
+                                <!-- 量測層：不可見、不可聚焦、不念給螢幕閱讀器；沒有 @click／<a>／<button>（可見層才是互動站點）。
+                                     「另有 N 位」只在多於 1 位時畫，N＝最壞情況（只露 1 位）。 -->
+                                <div class="lbx-measure" aria-hidden="true" inert>
+                                    <template x-for="name in lbxActressList()" :key="name">
+                                        <span class="lbx-actor-chip"><span class="lbx-link" x-text="name"></span><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
+                                    </template>
+                                    <template x-if="lbxActressList().length > 1">
+                                        <span class="lb-tag lbx-more-actors" x-text="t('showcase.lightbox.actresses_more', { n: lbxActressList().length - 1 })"></span>
+                                    </template>
+                                </div>
                             </div>
                             <!-- Row 5: Tags (with +N chips, T4) -->
                             <div class="lb-tags" x-show="currentLightboxVideo?.tags">
@@ -1509,6 +1516,54 @@
                                     <i class="bi bi-trash" aria-hidden="true"></i>
                                     <span x-text="t('showcase.video.delete')"></span>
                                 </button>
+                            </div>
+                        </template>
+                        <!-- 199a-T5：「另有 N 位」—全部女優名單，每位可點（看她的片）。年齡沿用第 3 列同一份 _lbActorAges -->
+                        <template x-if="lbxPop.kind === 'actresses'">
+                            <div class="lbx-pop-list">
+                                <div class="lbx-pop-title" x-text="t('showcase.lightbox.actresses_all_title', { n: lbxActressList().length })"></div>
+                                <template x-for="name in lbxActressList()" :key="name">
+                                    <div class="lbx-pop-row"><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></div>
+                                </template>
+                            </div>
+                        </template>
+                        <!-- 199a-T5：ⓘ 作品資訊—完整欄位（含廠牌、導演；第 3 列被省略的 pill 都在這裡）。七列是靜態 markup，空欄位整列不畫 -->
+                        <template x-if="lbxPop.kind === 'info'">
+                            <div class="lbx-pop-info">
+                                <div class="lbx-pop-title">{{ t('showcase.lightbox.info_title') }}</div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('number')">
+                                    <span class="lbx-pop-label">{{ t('showcase.table.col_number') }}</span>
+                                    <span class="lbx-pop-val" x-text="currentLightboxVideo?.number"></span>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('maker')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.maker') }}</span>
+                                    <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker, 'maker')" x-text="currentLightboxVideo?.maker"></a>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('label')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.label') }}</span>
+                                    <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.label, 'label')" x-text="currentLightboxVideo?.label"></a>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('series')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.series') }}</span>
+                                    <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.series, 'series')" x-text="currentLightboxVideo?.series"></a>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('director')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.director') }}</span>
+                                    <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.director, 'director')" x-text="currentLightboxVideo?.director"></a>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('release')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.date') }}</span>
+                                    <template x-if="lbxInfoField('release')?.clickable">
+                                        <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.release_date, 'release')" x-text="currentLightboxVideo?.release_date"></a>
+                                    </template>
+                                    <template x-if="lbxInfoHas('release') && !lbxInfoField('release').clickable">
+                                        <span class="lbx-pop-val" x-text="currentLightboxVideo?.release_date"></span>
+                                    </template>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('source_duration')">
+                                    <span class="lbx-pop-label">{{ t('showcase.lightbox.info_source_duration') }}</span>
+                                    <span class="lbx-pop-val" x-text="currentLightboxVideo?.source_duration + ' ' + t('showcase.unit.minutes')"></span>
+                                </div>
                             </div>
                         </template>
                     </div>

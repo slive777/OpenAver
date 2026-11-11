@@ -502,6 +502,7 @@ export function stateLightbox() {
             this._lightboxAnimating = false;
             this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
             this.lightboxOpen = false;
+            this.lbxPopClose?.();        // 199a-T5：從浮層（另有 N 位／ⓘ）點篩選也要收浮層，不然 250ms 內重開同一片還看得到舊浮層
             // 123-T3 / CD-123-14a：這條路徑本來就會經 addPill 重篩一次，述詞式不需要事先清任何東西。
             document.body.classList.remove('overflow-hidden');
 

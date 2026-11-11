@@ -11,7 +11,7 @@
  */
 
 import { versionsOf } from './work-versions.js';
-import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle } from './lbx-logic.js';
+import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields } from './lbx-logic.js';
 
 const LBX_POP_HOVER_CLOSE_MS = 160;
 const LBX_POP_ANCHOR_SEL = '[data-lbx-anchor]';
@@ -193,6 +193,19 @@ export function stateLightboxPop() {
                 .filter((p) => p.id !== 'tier')
                 .map((p) => p.text);
             return { name, specs };
+        },
+
+        // 第 3 列（199a-T5）：女優名單／作品資訊欄位。讀 currentLightboxVideo，屬 pop 分片的外求（CD-199a-3 已接受）；不放進 fit 分片
+        lbxActressList() {
+            return parseActresses(this.currentLightboxVideo);
+        },
+
+        lbxInfoField(id) {
+            return workInfoFields(this.currentLightboxVideo, { releaseClickable: this._isReleaseClickable(this.currentLightboxVideo) }).find((f) => f.id === id);
+        },
+
+        lbxInfoHas(id) {
+            return !!this.lbxInfoField(id);
         },
     };
 }

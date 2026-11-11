@@ -51,3 +51,40 @@ test('test_menu_items_follow_path_samples_and_translate_gate', async () => {
     // (d) 翻譯條件不成立 → 不出 translate
     assert.deepEqual(ids({ sampleCount: 0, trVisible: false, hasPath: true }), ['samples', 'rescrape', 'delete']);
 });
+
+// TASK-199a-T5：第 3 列女優露出數與作品資訊欄位。
+test('test_fit_actresses_caps_at_three_and_keeps_at_least_one', async () => {
+    const { fitActresses } = await import('../lbx-logic.js');
+    const chip = (n) => Array(n).fill(100);
+    const base = { moreChipWidth: 60, gap: 10 };
+
+    // (a) 6 位、寬度充裕 → 上限 3
+    assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 5000 }), 3);
+    // (b) 連第 1 位都放不下 → 至少 1 位，不是 0
+    assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 10 }), 1);
+    // (c) 2 位、寬度充裕 → 兩位都露，沒有「另有」
+    const two = fitActresses({ ...base, chipWidths: chip(2), available: 5000 });
+    assert.equal(two, 2);
+    assert.equal(2 - two, 0);
+    // (d) 6 位、只夠 2 位＋more chip（2*100+10+60+10=280）→ 2
+    assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 290 }), 2);
+});
+
+test('test_work_info_fields_skip_empty_and_dup_label', async () => {
+    const { workInfoFields } = await import('../lbx-logic.js');
+    const ids = (v, o) => workInfoFields(v, o).map((f) => f.id);
+    const full = { number: 'N-1', maker: 'M', label: 'L', series: 'S', director: 'D', release_date: '2020-01-01', source_duration: 120 };
+
+    // (a) 全欄位齊 → 固定順序
+    assert.deepEqual(ids(full), ['number', 'maker', 'label', 'series', 'director', 'release', 'source_duration']);
+    // (b) 廠牌等於片商 → 不重複列
+    assert.ok(!ids({ ...full, label: 'M' }).includes('label'));
+    // (c) 空字串／空白／來源片長 0／null → 不出現
+    const empty = { number: '', maker: '  ', label: '', series: null, director: undefined, release_date: '', source_duration: 0 };
+    assert.deepEqual(ids(empty), []);
+    assert.ok(!ids({ ...full, source_duration: null }).includes('source_duration'));
+    // (d) 發行日可不可點由呼叫端決定
+    const rel = (o) => workInfoFields(full, o).find((f) => f.id === 'release').clickable;
+    assert.equal(rel({ releaseClickable: false }), false);
+    assert.equal(rel({ releaseClickable: true }), true);
+});

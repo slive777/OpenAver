@@ -23,6 +23,7 @@ import { stateLightboxVersions } from '@/showcase/state-lightbox-versions.js';
 import { stateLightboxPlot } from '@/showcase/state-lightbox-plot.js';
 import { stateLightboxSamples } from '@/showcase/state-lightbox-samples.js';
 import { stateLightboxPop } from '@/showcase/state-lightbox-pop.js';
+import { stateLightboxFit } from '@/showcase/state-lightbox-fit.js';
 import { stateSimilar }  from '@/showcase/state-similar.js';
 import { stateDelete }   from '@/showcase/state-delete.js';
 import { stateHiddenSources } from '@/showcase/state-hidden-sources.js';
@@ -45,6 +46,7 @@ window.showcaseState = function() {
         stateLightboxPlot.call(this),
         stateLightboxSamples.call(this),
         stateLightboxPop.call(this),
+        stateLightboxFit.call(this),
         stateSimilar.call(this),
         stateDelete.call(this),
         stateHiddenSources.call(this),

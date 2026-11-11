@@ -463,3 +463,315 @@
         transition: none;
     }
 }
+
+/* ── 199a-T5：文字區第 3 列（女優＋作品資訊小膠囊＋ⓘ）＋「另有 N 位」／ⓘ 兩種浮層內容 ──────────────
+   左：女優區 `.lbx-actors`（flex:1 1 0＋min-width:0，FE-CSS-12：不用裸 1fr），內容寬度由 lbxFit 量測決定露出數；
+   右：`.lbx-works` 不收縮（片商 pill 例外：設上限＋省略號，免得超長片商把女優區擠到零）。
+   量測層 `.lbx-measure` 是可見層的隱形複本（共用 .lbx-actor-chip／.lbx-more-actors 的樣式，寬度才一致）：
+   visibility:hidden＋height:0＋absolute，不佔版面也不影響 `.lbx-actors` 的 clientWidth。
+   `.is-measuring` 只用 visibility:hidden（版面保留，不用 display:none——會讓 clientWidth 變 0、量測失效）。
+   視窗閘（769×720）內 nowrap＋container query 由右往左省略；閘外沒有 container，靠 wrap 與可捲不壞（spec §2.11）。
+   單一 accent 原則：本段與兩個浮層內不出現 accent；pill 走 tonal（文字色 8%），不加玻璃、不加 accent。
+   pill 沿用 .lb-tag 基底（pill 白名單類 3），不新增 999px 選擇器。 */
+.lbx-people-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    position: relative;
+    min-height: 2.125rem;
+    margin-top: .6875rem;
+}
+
+@media (max-width: 768px), (max-height: 719px) {
+    .lbx-people-row,
+    .lbx-works {
+        flex-wrap: wrap;
+    }
+}
+
+@media (min-width: 769px) and (min-height: 720px) {
+    .lbx-people-row,
+    .lbx-works {
+        flex-wrap: nowrap;
+    }
+}
+
+.lbx-people-row.is-measuring {
+    visibility: hidden;
+}
+
+.lbx-actors {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* 閘外沒有 container／不降級：女優區給 10rem 基準寬，放不下作品資訊就整排換到下一行（與上面 wrap 互斥同條件） */
+@media (max-width: 768px), (max-height: 719px) {
+    .lbx-actors {
+        flex-basis: 10rem;
+    }
+}
+
+.lbx-actor-chip {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: .875rem;
+    color: var(--text-primary);
+}
+
+.lbx-link {
+    color: var(--text-primary);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+a.lbx-link:hover,
+a.lbx-link:focus-visible {
+    text-decoration: underline;
+}
+
+.lbx-people-row .lb-actor-age,
+.lbx-pop .lb-actor-age {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.lbx-works {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+}
+
+.lbx-people-row .lbx-work,
+.lbx-people-row .lbx-more-actors {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    height: 1.375rem;
+    padding: 0 .5rem;
+    border-color: transparent;
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.lbx-people-row .lbx-work--num {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.lbx-people-row .lbx-work--maker {
+    display: inline-block;
+    max-width: 12rem;
+    line-height: 1.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lbx-people-row .lbx-more-actors {
+    flex: none;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-people-row a.lbx-work:hover,
+.lbx-people-row a.lbx-work:focus-visible {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+
+.lbx-people-row .lbx-more-actors:hover,
+.lbx-people-row .lbx-more-actors[aria-expanded="true"] {
+    background: color-mix(in oklch, var(--text-primary) 14%, transparent);
+    color: var(--text-primary);
+}
+
+.lbx-people-row .lbx-more-actors:focus-visible,
+.lbx-people-row a.lbx-work:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: 1px;
+}
+
+.lbx-info-btn {
+    position: relative;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: .875rem;
+    cursor: pointer;
+    transition: color var(--duration-fast) var(--ease-out),
+                background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-info-btn:hover,
+.lbx-info-btn[aria-expanded="true"] {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+}
+
+.lbx-info-btn:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: 1px;
+}
+
+/* 量測層：女優 chip 的隱形複本（全部女優＋最壞位數的「另有 N 位」） */
+.lbx-measure {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: max-content;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    white-space: nowrap;
+}
+
+.lbx-measure .lbx-actor-chip,
+.lbx-measure .lbx-more-actors {
+    flex: none;
+}
+
+/* 觸控：ⓘ 與「另有 N 位」熱區 ≥44px，不把第 3 列撐高。
+   ⓘ 本體放大成 2.75rem 方塊（負 margin-block 吃掉多出的高度；放在列尾，不能靠偽元素外擴——右側會被 .lbx-meta 的 overflow 裁掉）；
+   「另有 N 位」本來就比 44px 寬，只用透明偽元素外擴上下（女優區用負 margin 吃掉 padding，免得 overflow:hidden 裁掉偽元素） */
+@media (pointer: coarse) {
+    .lbx-info-btn {
+        width: 2.75rem;
+        height: 2.75rem;
+        margin-block: -.4375rem;
+    }
+
+    .lbx-people-row .lbx-more-actors {
+        position: relative;
+    }
+
+    .lbx-people-row .lbx-more-actors::after {
+        content: "";
+        position: absolute;
+        inset: -.75rem 0;
+    }
+
+    .lbx-actors {
+        padding-block: .75rem;
+        margin-block: -.75rem;
+    }
+}
+
+/* 寬度降級（只在視窗閘內有 container）：由右往左省略 來源片長 → 系列 → 發行日；被省略的都在ⓘ裡。
+   斷點初值 900／700／640 沿用 mockup（NC-6 待 CDP 量測後由主 session 裁）。
+   選擇器必須帶 `.lbx-people-row` 前綴：上面 `.lbx-people-row .lbx-work { display: inline-flex }`（0,2,0）權重高於單 class 的
+   `.lbx-work--src { display: none }`（0,1,0），container query 命中了也會被蓋掉（CDP 實測 computed display 仍是 flex）。 */
+@container lbx-meta (max-width: 899px) {
+    .lbx-people-row .lbx-work--src {
+        display: none;
+    }
+}
+
+@container lbx-meta (max-width: 699px) {
+    .lbx-people-row .lbx-work--series {
+        display: none;
+    }
+}
+
+/* 極窄（桌面最小保證 1280×720 的直幅封面約 280px）：片商 pill 整個省略（仍在ⓘ）。
+   （曾試過讓第 1 位女優 chip 不收縮——名字很長時會把「另有 N 位」擠出 overflow:hidden 的女優區，已撤回。） */
+@container lbx-meta (max-width: 359px) {
+    .lbx-people-row .lbx-work--maker {
+        display: none;
+    }
+}
+
+/* 很窄（直幅封面 900p 約 400px）：片商 pill 再縮短，否則作品資訊吃掉女優區，第 1 位名字被擠成省略號；全名在 title 與ⓘ */
+@container lbx-meta (max-width: 479px) {
+    .lbx-people-row .lbx-work--maker {
+        max-width: 7.5rem;
+    }
+}
+
+@container lbx-meta (max-width: 639px) {
+    .lbx-people-row .lbx-work--release,
+    .lbx-people-row .lbx-actor-chip .lb-actor-age {
+        display: none;
+    }
+
+    .lbx-meta .lbx-title-row .lb-title {
+        font-size: 1.125rem;
+    }
+}
+
+/* 浮層內容：女優名單／作品資訊（皆 click 模式，可點） */
+.lbx-pop[data-kind="actresses"],
+.lbx-pop[data-kind="info"] {
+    padding: .5rem .25rem;
+}
+
+.lbx-pop-title {
+    padding: 0 .5rem .375rem;
+    color: var(--text-muted);
+    font-size: .75rem;
+    line-height: 1.25rem;
+}
+
+.lbx-pop-list,
+.lbx-pop-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 12rem;
+    max-width: min(26rem, calc(100vw - 2rem));
+}
+
+.lbx-pop-row {
+    display: flex;
+    align-items: baseline;
+    gap: .75rem;
+    padding: .25rem .5rem;
+    font-size: .8125rem;
+    line-height: 1.25rem;
+}
+
+.lbx-pop-label {
+    flex: none;
+    min-width: 3.5rem;
+    color: var(--text-muted);
+}
+
+.lbx-pop-val {
+    min-width: 0;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.lbx-pop-row a.lbx-link {
+    font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-info-btn,
+    .lbx-people-row .lbx-more-actors {
+        transition: none;
+    }
+}

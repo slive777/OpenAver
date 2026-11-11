@@ -65,6 +65,7 @@ export function menuItems(video, { sampleCount, trVisible, hasPath }) {
 export function popPlacement(kind) {
     if (kind === 'title' || kind === 'otitle') return { mode: 'inplace', align: 'left' };
     if (kind === 'menu') return { mode: 'below', align: 'right' };
+    if (kind === 'info') return { mode: 'below', align: 'right' };
     return { mode: 'below', align: 'left' };
 }
 
@@ -72,4 +73,46 @@ export function popPlacement(kind) {
 export function hasDistinctOtitle(video) {
     const o = String(video?.original_title || '').trim();
     return !!o && o !== String(video?.title || '').trim();
+}
+
+/**
+ * fitActresses：第 3 列女優露出數（199a-T5，CD-199a-9）。最多 max 位、至少 min 位（不足人數時取人數）；
+ * 放不下就逐位減少，有被收起的人時要多留「另有 N 位」那顆的寬度。輸入都是量到的寬度（px），純函式。
+ */
+export function fitActresses({ chipWidths, moreChipWidth, available, gap, max = 3, min = 1 }) {
+    const n = chipWidths.length;
+    let shown = Math.min(max, n);
+    const floor = Math.min(min, n);
+    for (; shown > floor; shown -= 1) {
+        const used = chipWidths.slice(0, shown).reduce((a, w) => a + w, 0) + gap * (shown - 1);
+        const more = shown < n ? moreChipWidth + gap : 0;
+        if (used + more <= available) break;
+    }
+    return shown;
+}
+
+/** workInfoFields：作品資訊欄位（199a-T5，CD-199a-10）。空欄位不列；廠牌等於片商不重複列；來源片長 >0 才列。 */
+export function workInfoFields(video, { releaseClickable = false } = {}) {
+    if (!video) return [];
+    const text = (v) => String(v ?? '').trim();
+    const fields = [];
+    if (text(video.number)) fields.push({ id: 'number', clickable: false });
+    if (text(video.maker)) fields.push({ id: 'maker', clickable: true });
+    if (text(video.label) && text(video.label) !== text(video.maker)) fields.push({ id: 'label', clickable: true });
+    if (text(video.series)) fields.push({ id: 'series', clickable: true });
+    if (text(video.director)) fields.push({ id: 'director', clickable: true });
+    if (text(video.release_date)) fields.push({ id: 'release', clickable: !!releaseClickable });
+    if (Number(video.source_duration) > 0) fields.push({ id: 'source_duration', clickable: false });
+    return fields;
+}
+
+/** fitSig：量測簽章（199a-T5，CD-199a-9）。簽章變 ⇒ 重量測；分隔字元避免欄位內容互相拼出相同字串。 */
+export function fitSig(video, adding) {
+    if (!video) return '';
+    return [video.path || '', video.actresses || '', video.tags || '', (video.user_tags || []).join('\u0001'), adding ? '1' : '0'].join('\u0000');
+}
+
+/** parseActresses：影片的女優名單（逗號分隔、去空白、去空字串）。 */
+export function parseActresses(video) {
+    return String(video?.actresses || '').split(',').map((s) => s.trim()).filter(Boolean);
 }
