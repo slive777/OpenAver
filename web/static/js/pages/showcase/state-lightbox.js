@@ -27,13 +27,26 @@ export function isStaleLbFullError(actualSrc, expectedSrc) {
     return actualSrc !== expectedSrc;
 }
 
+// 199a-T1：垂直滾輪「交還原生捲動」判定（handleWheel 的 vertical 分支）。
+// 交還：.lbx-pop 浮層內、女優 .lightbox-metadata（今天可捲），以及 .lbx-meta 在「可捲且真的溢出」時
+// （僅 overflow-y 為 auto／scroll 的閘外情況）。閘內 .lbx-meta 是 overflow:hidden 的固定高度文字區，
+// 就算內容溢出也不交還——滾輪換片，不讓使用者陷在既不捲也不換片的死區。
+export function shouldYieldVerticalWheel(target) {
+    if (target.closest(WHEEL_VERTICAL_EXCLUDE_SELECTOR)) return true;
+    const meta = target.closest('.lbx-meta');
+    if (!meta) return false;
+    const oy = getComputedStyle(meta).overflowY;
+    return (oy === 'auto' || oy === 'scroll') && meta.scrollHeight > meta.clientHeight;
+}
+
 // 排除清單容器（橫向捲動列表/表格）：命中即整條 wheel handler 提早 return，
 // 讓原生橫向捲動不受影響（見 TASK-102d-T1.md「技術要點」排除清單段）。
 const WHEEL_EXCLUDE_SELECTOR = '.sample-strip, .sg-thumbs, .picker-candidates-grid, .table-scroll-container, .overflow-x-auto';
-// 102d P2b（owner 拍板 2026-07-19）：overlay 內可垂直捲動的子容器（lightbox metadata 面板，
-// showcase.css:785/946 `.lightbox-metadata{overflow-y:auto}`）——垂直滾輪命中時交還原生捲動，
+// 102d P2b（owner 拍板 2026-07-19）：overlay 內可垂直捲動的子容器——垂直滾輪命中時交還原生捲動，
 // 不吃導航（僅 vertical 分支檢查，horizontal 分支不受影響、行為不變）。
-const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata';
+// 199a-T1：女優 .lightbox-metadata（無 .lbx-meta）一律交還；影片的 .lbx-meta 排除在外，改由
+// shouldYieldVerticalWheel 看實際可捲狀態決定；.lbx-pop 為影片燈箱浮層（T3 起才有此 DOM）。
+const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata:not(.lbx-meta), .lbx-pop';
 
 export function stateLightbox() {
     // TASK-102d-T1：四個獨立累積器（Lightbox 影片 / Lightbox 女優 / 劇照 / 牆翻頁）——
@@ -101,9 +114,6 @@ export function stateLightbox() {
         // 99a-T3 為了防這個 race 而加的「使用者已手動調整」旗標因此整條移除（不留殭屍旗標；
         // 舊識別字已由 static_guard_lint.mjs forbidden-string 鎖住不得復活）。
 
-        _videoChipsExpanded: false,     // 影片 tag chips +N 展開（T4 使用）
-
-
         // Enrich 狀態 (T3)
         _enriching: false,
         shouldShowEnrichButton,  // CD-149b-9：物件簡寫，import 自 @/shared/enrich-gate.js
@@ -143,6 +153,14 @@ export function stateLightbox() {
                     self._lbFullLoaded = true;
                 }
             });
+        },
+
+        // 199a-T6 branch review：燈箱開著的那部作品資料被 refreshVideoData 換掉（重刮／補完）時的簡介失效點。
+        // path／has_plot 沒變時 state-base 的 $watch 不 fire，簡介 view 會停在舊內容（按翻譯會拿舊簡介覆蓋 NFO）。
+        // 先失效（_lbPlotGen++ 丟掉在途舊讀取）再在簡介列該顯示時重讀。?. 因為既有 harness 只合併部分分片。
+        _lbPlotRefreshAfterDataChange() {
+            this._lbPlotReset?.();
+            if (this.lbPlotRowVisible?.()) this._lbPlotLoad?.();
         },
 
         // 149b-T3（CD-149b-3）：燈箱女優列「發行時年齡」重算——規則是「_refreshLbFullBlurUp()
@@ -196,7 +214,6 @@ export function stateLightbox() {
                 ? _filteredVideos[idx] : null;
             this.currentLightboxActress = null;   // video setter always clear actress
             this.addingLbTag = false;             // 切換影片時重置輸入框
-            this._videoChipsExpanded = false;     // 影片切換時 reset chips 展開
             // BUGfix-mobile-similar-stale-cover P2b: in-grid 切換後清除 standalone 旗標，
             // 確保連點 tier2/3 再 tier1 時 prev/next + fly-back 恢復正常（不殘留 standalone）
             this.similarExitVideo = null;
@@ -326,7 +343,6 @@ export function stateLightbox() {
             this.currentLightboxActress = this._matchedActress;
             this.currentLightboxVideo = null;
             this.addingLbTag = false;
-            this._videoChipsExpanded = false;
             var lightboxEl = document.querySelector('.showcase-lightbox');
             if (lightboxEl) lightboxEl.classList.add('gsap-animating');
             this.actressLightboxSource = 'hero';   // T5: hero card 路徑
@@ -371,6 +387,7 @@ export function stateLightbox() {
             this.addingLbTag = false;    // 關閉 lightbox 時重置 user tag 輸入框
             this._resetMask();           // 98b-T4：關燈箱丟棄未提交遮罩態（不 commit）
             this._lbPlotReset?.();       // 187b-T5a：關燈箱清簡介面（defense-in-depth）
+            this.lbxPopClose?.();        // 199a-T3：關燈箱收浮層（可選呼叫：只合併部分分片的 harness 沒有它）
             this._fetchSamplesFailed = {};
 
             // ★ C11: fly-back — 必須在 generation++ / lightboxOpen = false 之前捕獲
@@ -488,6 +505,7 @@ export function stateLightbox() {
             this._lightboxAnimating = false;
             this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
             this.lightboxOpen = false;
+            this.lbxPopClose?.();        // 199a-T5：從浮層（另有 N 位／ⓘ）點篩選也要收浮層，不然 250ms 內重開同一片還看得到舊浮層
             // 123-T3 / CD-123-14a：這條路徑本來就會經 addPill 重篩一次，述詞式不需要事先清任何東西。
             document.body.classList.remove('overflow-hidden');
 
@@ -567,7 +585,6 @@ export function stateLightbox() {
                 this.currentLightboxActress = this._matchedActress;
                 this.currentLightboxVideo = null;
                 this.addingLbTag = false;
-                this._videoChipsExpanded = false;
                 this._refreshActressPhotoLoaded();   // §B-2b：hero card 橋接同樣是 actress 變為可見的入口
 
                 var lbGen = ++this._lightboxGeneration;
@@ -740,6 +757,11 @@ export function stateLightbox() {
          * Known Limitation: Click-Through Detection 技巧
          */
         handleLightboxBackdropClick(e) {
+            // 同一下點擊剛收掉了浮層（state-lightbox-pop.js 的 pointerdown 留的旗標）→ 只收浮層，不關燈箱、不穿透
+            if (this._lbxPopSwallowClick) {
+                this._lbxPopSwallowClick = false;
+                return;
+            }
             // 如果點擊的是 lightbox-content 內部，不處理
             if (e.target.closest('.lightbox-content')) return;
 
@@ -969,6 +991,11 @@ export function stateLightbox() {
                         const anchor = (this.lightboxOpen === true && cur && cur.path) ? cur.path : video.path;
                         const bustPaths = incoming.map((nv) => nv.path).concat(versionsOf(work).map((v) => v.path));
                         await this._reloadWallKeepLightbox(anchor, { bustPaths, t: _t });
+                        // 整牆重載換入新物件但 path／has_plot 值不變、$watch 不 fire：燈箱仍開在這部作品時簡介也要失效重讀
+                        // （與 patch 分支共用 _lbPlotRefreshAfterDataChange；refreshVideoData 成功且燈箱仍開著的出口只有這兩處）
+                        if (this.lightboxOpen === true && bustPaths.includes(anchor) && this.currentLightboxVideo?.path === anchor) {
+                            this._lbPlotRefreshAfterDataChange();
+                        }
                         return;
                     }
                     // 已渲染的卡（paginatedVideos）與燈箱（currentLightboxVideo）經 Proxy 寫；其餘寫原物件。
@@ -995,6 +1022,7 @@ export function stateLightbox() {
                     // path 比對（FE-ALPINE-14）。必須在寫入之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。
                     const lbNow = this.currentLightboxVideo;
                     if (lbNow && lbNow.path && byPath[lbNow.path]) {
+                        this._lbPlotRefreshAfterDataChange();
                         this._refreshLbFullBlurUp();
                         this._refreshLbActorAges();
                     }
@@ -1143,7 +1171,8 @@ export function stateLightbox() {
                 } else {
                     // 影片 lightbox
                     if (key === 'ESCAPE') {
-                        if (this.lbPlotOpen) { e.preventDefault(); this.lbPlotClose(); return; }
+                        if (this.lbxPop) { e.preventDefault(); this.lbxPopClose({ restoreFocus: true }); return; }
+                        if (this.addingLbTag) { e.preventDefault(); this.cancelAddLbTag(); return; }
                         e.preventDefault();
                         this.closeLightbox();
                     } else if (key === 'ARROWLEFT') {
@@ -1203,8 +1232,8 @@ export function stateLightbox() {
 
             // 排除清單容器：原生橫向捲動優先，不吃導航。
             if (event.target.closest(WHEEL_EXCLUDE_SELECTOR)) return;
-            // overlay 內可垂直捲動的子容器（metadata 面板）：垂直滾輪交還原生捲動。
-            if (vertical && event.target.closest(WHEEL_VERTICAL_EXCLUDE_SELECTOR)) return;
+            // overlay 內可垂直捲動的子容器（metadata 面板／浮層）：垂直滾輪交還原生捲動。
+            if (vertical && shouldYieldVerticalWheel(event.target)) return;
 
             // 1. similar mode 最高優先（比照 handleKeydown 段 1）：獨佔，滾輪不穿透
             if (this.similarModeOpen || this.similarModeMobileOpen) return;

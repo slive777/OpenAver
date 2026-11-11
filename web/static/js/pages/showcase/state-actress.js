@@ -977,16 +977,6 @@ export function stateActress() {
             return Math.max(0, this._allInfoChips().length - this._chipsLimit());
         },
 
-        _visibleVideoTags() {
-            var tags = (this.currentLightboxVideo?.tags || '').split(',').filter(function(t) { return t.trim(); });
-            return this._videoChipsExpanded ? tags : tags.slice(0, this._chipsLimit());
-        },
-
-        _videoTagsOverflow() {
-            var tags = (this.currentLightboxVideo?.tags || '').split(',').filter(function(t) { return t.trim(); });
-            return Math.max(0, tags.length - this._chipsLimit());
-        },
-
         // --- 117-T3/T4: Actress add panel（T5 queue stubs 仍在） ---
 
         // AC-1.3 / AC-1.6：殼同步開，不 await 網路；每次開啟重載（無快取——片數必須與當下庫一致）

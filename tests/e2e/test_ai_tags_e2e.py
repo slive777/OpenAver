@@ -104,7 +104,11 @@ def _path(page: Page) -> str:
         f"return (d.currentLightboxVideo && d.currentLightboxVideo.path) || ''; }}"
     )
 def _tags(page: Page) -> list[str]:
-    return page.locator(".lb-user-tag span:first-child").all_inner_texts()
+    return page.locator(".lbx-tag-right a.lbx-utag-link span").all_inner_texts()
+def _open_tag_input(page: Page) -> None:
+    """按「＋」展開輸入區（AI 判斷鈕藏在展開區裡）。"""
+    page.locator(".lbx-tag-plus").click()
+    expect(page.locator(".lbx-tag-input")).to_be_visible()
 def test_tags_conn_area_shows_only_tags_provider_editable(page: Page, base_url: str) -> None:
     """翻譯關、只開 AI 標籤選 Gemini → 標籤分頁卡底只剩 Gemini 一家且可打字（翻譯選的 Ollama 不列）。"""
     bad: list[str] = []
@@ -209,7 +213,7 @@ def test_tags_cost_hidden_without_pending_or_rule(page: Page, base_url: str) -> 
 
 
 def test_lightbox_ai_button_follows_flag_beside_plus(page: Page, base_url: str) -> None:
-    """旗標關無 AI 鈕；旗標開恰一顆且在＋右側同一列。"""
+    """旗標關無 AI 鈕；旗標開展開前看不到、展開後恰一顆且在輸入框右側同一列。"""
     ctx = page.context
     path_a = _cover_a(page, base_url)
     if not path_a:
@@ -226,10 +230,12 @@ def test_lightbox_ai_button_follows_flag_beside_plus(page: Page, base_url: str) 
     on.goto(f"{base_url}/showcase", wait_until="domcontentloaded")
     on.wait_for_selector(CARD, state="visible", timeout=15_000)
     _open_lb(on, path_a)
-    ai, plus = on.locator(".lb-tag-ai-btn:visible"), on.locator(".lb-tag-add-btn:visible")
+    expect(on.locator(".lb-tag-ai-btn:visible")).to_have_count(0)
+    _open_tag_input(on)
+    ai, inp = on.locator(".lb-tag-ai-btn:visible"), on.locator(".lbx-tag-input:visible")
     expect(ai).to_have_count(1)
-    ab, pb = ai.bounding_box(), plus.bounding_box()
-    assert ab and pb and ab["x"] > pb["x"] and abs(ab["y"] - pb["y"]) < 24
+    ab, ib = ai.bounding_box(), inp.bounding_box()
+    assert ab and ib and ab["x"] > ib["x"] and abs(ab["y"] - ib["y"]) < 24
     on.close()
 def test_lightbox_ai_result_lands_on_original_video(page: Page, base_url: str) -> None:
     """按下 AI 鈕後換片：結果寫回 A，B 不被蓋；toast 含 3。"""
@@ -255,6 +261,7 @@ def test_lightbox_ai_result_lands_on_original_video(page: Page, base_url: str) -
         p.goto(f"{base_url}/showcase", wait_until="domcontentloaded")
         p.wait_for_selector(CARD, state="visible", timeout=15_000)
         _open_lb(p, path_a)
+        _open_tag_input(p)
         btn = p.locator(".lb-tag-ai-btn")
         expect(btn).to_be_visible()
         btn.click()
@@ -280,7 +287,7 @@ def test_lightbox_ai_result_lands_on_original_video(page: Page, base_url: str) -
         assert _tags(p) == snap and _path(p) == path_b
         p.keyboard.press("ArrowLeft")
         _wait_lb(p, path_a)
-        expect(p.locator(".lb-user-tag span:first-child")).to_have_text(added)
+        expect(p.locator(".lbx-tag-right a.lbx-utag-link span")).to_have_text(added)
         assert json.loads(held[0].request.post_data or "{}").get("file_path") == path_a
         assert len(held) == 1
     finally:

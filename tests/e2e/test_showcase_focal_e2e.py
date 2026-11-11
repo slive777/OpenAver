@@ -399,6 +399,7 @@ def _run_render_probe(page: Page) -> dict:
 
 # ── 斷言 1 + 2：hit-test + detect-first 無二次跳動 ────────────────────────────
 
+@pytest.mark.skip(reason="199a 拿掉影片燈箱對焦入口；200a 新入口落地時改接並移除此 skip")
 def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
     """
     斷言 1（hit-test）：✓/✗ 按鈕中心座標的 elementFromPoint 命中按鈕本身；
@@ -617,6 +618,7 @@ def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
 
 # ── 斷言 3 + 4：✓ 確實存 / ✗ 什麼都不存 ────────────────────────────────────────
 
+@pytest.mark.skip(reason="199a 拿掉影片燈箱對焦入口；200a 新入口落地時改接並移除此 skip")
 def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> None:
     """
     斷言 4（✗ 不存）：真實 click ✗ → 無 /video/save-focal request，crop_mode 不變。
@@ -852,6 +854,7 @@ def _read_mask_window_measurements(page: Page) -> dict:
     )
 
 
+@pytest.mark.skip(reason="199a 拿掉影片燈箱對焦入口；200a 新入口落地時改接並移除此 skip")
 def test_no_face_settles_to_baseline_geometry(page: Page, base_url: str) -> None:
     """
     TASK-101b-T5：`_maskStartSettle` 步驟③ no-face（沒找到臉／偵測失敗）分支落點修復驗證。

@@ -1,4 +1,5 @@
-// TASK-187b-T5a：CD-187b-10 oracle 1–5（Esc 兩段式／過期讀取＋重開重讀／翻譯鎖＋捕獲＋復原＋已是中文）。
+// TASK-187b-T5a／199a-T6：CD-187b-10 oracle 1–5（Esc 收浮層再關燈箱／過期讀取＋重載／翻譯鎖＋捕獲＋復原＋已是中文＋重翻來源）。
+// 199a-T6：簡介常駐列＋浮層，沒有翻面；換片的 $watch 回呼（reset＋load）在 node 裡用 switchTo／reload 直接模擬。
 // 組合 component 用 mergeState（保留 getter descriptor）。
 // _filteredVideos 是 state-base 的 module singleton，每支測試 try/finally 清乾淨（FE-GUARD-13）。
 
@@ -24,6 +25,7 @@ const { stateLightbox } = await import('../state-lightbox.js');
 const { stateLightboxPicker } = await import('../state-lightbox-picker.js');
 const { stateLightboxMask } = await import('../state-lightbox-mask.js');
 const { stateLightboxPlot } = await import('../state-lightbox-plot.js');
+const { stateLightboxPop } = await import('../state-lightbox-pop.js');
 const { mergeState } = await import('@/shared/merge-state.js');
 const { _setFilteredVideos } = await import('../state-base.js');
 
@@ -35,7 +37,7 @@ function makeVideos() {
 }
 
 function makeComponent(toasts) {
-    return mergeState(stateLightbox(), stateLightboxPicker(), stateLightboxMask(), stateLightboxPlot(), {
+    return mergeState(stateLightbox(), stateLightboxPicker(), stateLightboxMask(), stateLightboxPlot(), stateLightboxPop(), {
         lightboxOpen: true,
         showFavoriteActresses: false,
         currentLightboxActress: null,
@@ -103,6 +105,13 @@ function installFetch() {
 
 const tick = () => new Promise((r) => setImmediate(r));
 
+// 模擬 state-base 的路徑 $watch 回呼（node 不跑 Alpine）：換片 → reset → load
+function switchTo(c, i) {
+    c._setLightboxIndex(i);
+    c._lbPlotReset();
+    return c._lbPlotLoad();
+}
+
 function escEvent() {
     return {
         key: 'Escape',
@@ -130,13 +139,14 @@ async function withEnv(fn) {
 
 test('test_esc_closes_plot_before_lightbox', async () => {
     await withEnv(async ({ c }) => {
-        c.lbPlotOpen = true;
+        c.lbxPopOpen('plot', {}, { mode: 'click', anchorKey: 'plot' });
+        assert.equal(c.lbxPop.kind, 'plot');
         let closeCount = 0;
         c.closeLightbox = () => { closeCount++; };
 
         c.handleKeydown(escEvent());
-        assert.equal(c.lbPlotOpen, false);
-        assert.equal(closeCount, 0, 'Esc 先關簡介，不呼叫 closeLightbox');
+        assert.equal(c.lbxPop, null);
+        assert.equal(closeCount, 0, 'Esc 先收簡介浮層，不呼叫 closeLightbox');
 
         c.handleKeydown(escEvent());
         assert.equal(closeCount, 1, '再按一次 Esc 才關燈箱');
@@ -144,16 +154,22 @@ test('test_esc_closes_plot_before_lightbox', async () => {
 });
 
 test('test_stale_read_and_reopen_reread', async () => {
-    await withEnv(async ({ A, c, f }) => {
-        // (i) 對 A 開簡介（GET 掛起）→ reset → 放行：現行 _lbPlotView 不被寫入
-        const pOpen = c.lbPlotToggle();
-        assert.equal(c.lbPlotOpen, true);
+    await withEnv(async ({ B, c, f }) => {
+        // (i) A 的讀取掛起 → 換到 B（reset＋load）→ 先放行 B、再放行遲到的 A：現行 view 仍是 B
+        const pA = c._lbPlotLoad();
         assert.equal(c._lbPlotView.loading, true);
         assert.equal(f.count('plotGet'), 1);
 
-        c._lbPlotReset();
-        assert.equal(c.lbPlotOpen, false);
-        assert.equal(c._lbPlotView.plot, '');
+        const pB = switchTo(c, 1);
+        assert.equal(f.count('plotGet'), 2);
+        f.pending.plotGet[1]({
+            success: true,
+            plot: 'B內容',
+            original_plot: '',
+            has_original: false,
+        });
+        await pB;
+        assert.equal(c._lbPlotView.plot, 'B內容');
 
         f.pending.plotGet[0]({
             success: true,
@@ -161,46 +177,44 @@ test('test_stale_read_and_reopen_reread', async () => {
             original_plot: '',
             has_original: false,
         });
-        await pOpen;
+        await pA;
         await tick();
-        assert.equal(c._lbPlotView.plot, '', '過期讀取不得寫入現行 view');
+        assert.equal(c._lbPlotView.plot, 'B內容', '過期讀取不得蓋掉現行 view');
+        assert.equal(c._lbPlotView.path, B.path, '過期讀取不得改寫 path');
         assert.equal(c._lbPlotView.loading, false, '過期讀取不得改寫 loading');
 
-        // (ii) 開→放行 X→關→再開（掛起）→ loading 且不呈現 X → 放行 Y
-        const p1 = c.lbPlotToggle();
-        f.pending.plotGet[1]({
+        // (ii) 載入 X → 再載入（模擬 has_plot 補完後重載）→ 重載瞬間 loading 且不呈現 X → 放行 Y
+        const pX = c._lbPlotLoad();
+        f.pending.plotGet[2]({
             success: true,
             plot: '內容X',
             original_plot: '',
             has_original: false,
         });
-        await p1;
+        await pX;
         assert.equal(c._lbPlotView.plot, '內容X');
 
-        c.lbPlotClose();
-        assert.equal(c.lbPlotOpen, false);
+        const pY = c._lbPlotLoad();
+        assert.equal(c._lbPlotView.loading, true, '重載瞬間 loading');
+        assert.notEqual(c._lbPlotView.plot, '內容X', '重載瞬間不呈現舊內容 X');
+        assert.equal(f.count('plotGet'), 4);
 
-        const p2 = c.lbPlotToggle();
-        assert.equal(c._lbPlotView.loading, true, '重開瞬間 loading');
-        assert.notEqual(c._lbPlotView.plot, '內容X', '重開瞬間不呈現舊內容 X');
-        assert.equal(f.count('plotGet'), 3);
-
-        f.pending.plotGet[2]({
+        f.pending.plotGet[3]({
             success: true,
             plot: '內容Y',
             original_plot: '',
             has_original: false,
         });
-        await p2;
+        await pY;
         assert.equal(c._lbPlotView.plot, '內容Y');
-        assert.equal(c._lbPlotView.path, A.path);
+        assert.equal(c._lbPlotView.path, B.path);
     });
 });
 
 test('test_translate_lock_capture_undo', async () => {
     await withEnv(async ({ A, B, c, f, toasts }) => {
         // 先把 A 的簡介載入好
-        const pLoad = c.lbPlotToggle();
+        const pLoad = c._lbPlotLoad();
         f.pending.plotGet[0]({
             success: true,
             plot: '日本語あらすじ',
@@ -241,7 +255,7 @@ test('test_translate_lock_capture_undo', async () => {
         assert.equal(f.count('plotPost'), 1);
 
         // oracle 5：切到 B 並開 B 的簡介 → 按 A 的復原 → POST 仍是 A；B 的面不被覆蓋
-        const pLoadB = c.lbPlotToggle();
+        const pLoadB = c._lbPlotLoad();
         f.pending.plotGet[1]({
             success: true,
             plot: 'B片簡介',
@@ -274,9 +288,7 @@ test('test_translate_lock_capture_undo', async () => {
 
         // oracle 4：譯文空白正規化後＝來源 → 寫回零呼叫、toast already_zh
         // 重新開 A、載入後翻譯回相同文字（僅頭尾／中間空白差異）
-        c.lbPlotClose();
-        c._setLightboxIndex(0);
-        const pReload = c.lbPlotToggle();
+        const pReload = switchTo(c, 0);
         f.pending.plotGet[2]({
             success: true,
             plot: '同じ  内容',
@@ -293,10 +305,10 @@ test('test_translate_lock_capture_undo', async () => {
         assert.equal(lastToast[0], 'showcase.lightbox.plot_already_zh');
         assert.equal(lastToast[1], 'info');
 
-        // 重翻：翻譯 await 期間 close→toggle 讓 _lbPlotLoad 清空 view.original
+        // 重翻：載入有原文的片後直接按重新翻譯 → 來源必須是原文（不是譯文）；
+        // 翻譯 await 期間再載入一次會就地清空 view.original
         // → 寫回 POST 的 original_plot 仍須是按下當下的原文（不可送 ""）
-        c.lbPlotClose();
-        const pHasOrig = c.lbPlotToggle();
+        const pHasOrig = c._lbPlotLoad();
         f.pending.plotGet[3]({
             success: true,
             plot: '中文譯文',
@@ -304,14 +316,17 @@ test('test_translate_lock_capture_undo', async () => {
             has_original: true,
         });
         await pHasOrig;
-        c.lbPlotToggleOriginal();
-        assert.equal(c._lbPlotView.showing, 'original');
+        assert.equal(c._lbPlotView.hasOriginal, true);
         assert.equal(c._lbPlotView.original, '原文あらすじ');
 
         const pRe = c.lbPlotTranslate();
         assert.equal(f.count('translate'), 3);
-        c.lbPlotClose();
-        const pReopen = c.lbPlotToggle();
+        assert.equal(
+            f.calls.filter((x) => x.kind === 'translate').at(-1).body.text,
+            '原文あらすじ',
+            '有原文時重新翻譯的來源是原文，不是已翻好的中文',
+        );
+        const pReopen = c._lbPlotLoad();
         assert.equal(c._lbPlotView.original, '', 'load 已把 view.original 清成空');
         assert.equal(c._lbPlotView.loading, true);
 
@@ -339,7 +354,7 @@ test('test_translate_lock_capture_undo', async () => {
 
 test('test_undo_ignored_while_retranslate_in_flight', async () => {
     await withEnv(async ({ A, c, f, toasts }) => {
-        const pLoad = c.lbPlotToggle();
+        const pLoad = c._lbPlotLoad();
         f.pending.plotGet[0]({ success: true, plot: '日本語', original_plot: '', has_original: false });
         await pLoad;
 
@@ -351,10 +366,10 @@ test('test_undo_ignored_while_retranslate_in_flight', async () => {
         await p1;
         const undoToast = toasts.find((t) => t[0] === 'showcase.lightbox.plot_translate_done');
 
-        // 看原文 → 重翻（翻譯請求掛起，鎖持有中）
-        c.lbPlotToggleOriginal();
+        // 已有原文 → 重翻（翻譯請求掛起，鎖持有中）
         const p2 = c.lbPlotTranslate();
         assert.equal(f.count('translate'), 2);
+        assert.equal(f.calls.filter((x) => x.kind === 'translate').at(-1).body.text, '日本語', '重翻來源是原文');
 
         // 此時點舊復原：不得送出第二個寫回 POST
         await undoToast[3].onClick();
@@ -371,5 +386,137 @@ test('test_undo_ignored_while_retranslate_in_flight', async () => {
         await undoP;
         assert.deepEqual(c._lbPlotInFlight, {}, '復原結束釋放鎖');
         assert.equal(A.path, c._lbPlotView.path);
+    });
+});
+
+// 199a-T6 branch review P2：重刮成功走 refreshVideoData 的 patch 路徑（path 不變、$watch 不 fire）
+// → 簡介 view 必須失效重讀；重刮前發出的舊 GET 不得寫進新 view（_lbPlotGen）。
+test('test_refresh_video_data_patch_reloads_plot', async () => {
+    const { _setAllVideos, _setVideos } = await import('../state-base.js');
+    await withEnv(async ({ A, c, f }) => {
+        _setAllVideos([A]);
+        _setVideos([A]);
+        try {
+            // 載入 A 的舊簡介
+            const p0 = c._lbPlotLoad();
+            f.pending.plotGet[0]({ success: true, plot: '舊簡介', original_plot: '', has_original: false });
+            await p0;
+            assert.equal(c._lbPlotView.plot, '舊簡介');
+
+            // 重刮前發出的讀取（掛起中）
+            const pStale = c._lbPlotLoad();
+            assert.equal(f.count('plotGet'), 2);
+            const genBefore = c._lbPlotGen;
+
+            // refreshVideoData 打的 /api/showcase/video 由包一層的 fetch 直接回新資料，其餘交給原 harness
+            const baseFetch = globalThis.fetch;
+            let nextHasPlot = true;
+            globalThis.fetch = (url, opts) => {
+                if (typeof url === 'string' && url.startsWith('/api/showcase/video?path=')) {
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        json: async () => ({ success: true, video: { path: A.path, number: A.number, title: '新片名', actresses: A.actresses, has_plot: nextHasPlot } }),
+                    });
+                }
+                return baseFetch(url, opts);
+            };
+            await c.refreshVideoData(A);
+            await tick();
+
+            assert.equal(A.title, '新片名', 'patch 路徑已就地改寫燈箱那片（path 不變）');
+            assert.ok(c._lbPlotGen > genBefore, '簡介快取失效：世代遞增');
+            assert.equal(f.count('plotGet'), 3, '重刮後重新讀一次簡介');
+
+            // 先放行新讀取，再放行遲到的舊讀取
+            f.pending.plotGet[2]({ success: true, plot: '新簡介', original_plot: '', has_original: false });
+            await tick();
+            assert.equal(c._lbPlotView.plot, '新簡介', '簡介列換成重刮後的內容');
+            f.pending.plotGet[1]({ success: true, plot: '舊簡介（遲到）', original_plot: '', has_original: false });
+            await pStale;
+            await tick();
+            assert.equal(c._lbPlotView.plot, '新簡介', '重刮前發出的舊讀取不得寫進新 view');
+            assert.equal(c._lbPlotView.loading, false);
+
+            // 重刮後來源沒有簡介（has_plot 變 false）：不再重讀，但舊 view 必須清掉、在途舊讀取不得寫回
+            const pStale2 = c._lbPlotLoad();
+            const staleIdx = f.count('plotGet') - 1;
+            const gen2 = c._lbPlotGen;
+            nextHasPlot = false;
+            await c.refreshVideoData(A);
+            await tick();
+            assert.equal(A.has_plot, false);
+            assert.ok(c._lbPlotGen > gen2, '沒有簡介時也要失效（丟掉在途舊讀取）');
+            assert.equal(f.count('plotGet'), staleIdx + 1, '沒有簡介就不再打 plot API');
+            assert.equal(c._lbPlotView.plot, '', '舊簡介已清掉');
+            assert.equal(c._lbPlotView.path, '', 'view 回到空白，之後 has_plot 補完才會重讀');
+            f.pending.plotGet[staleIdx]({ success: true, plot: '舊簡介（遲到２）', original_plot: '', has_original: false });
+            await pStale2;
+            await tick();
+            assert.equal(c._lbPlotView.plot, '', '重刮前發出的舊讀取不得寫進清空後的 view');
+        } finally {
+            _setAllVideos([]);
+            _setVideos([]);
+        }
+    });
+});
+
+// 199a-T6 branch review 修正 2：版本集合改變 → refreshVideoData 走 reload 分支（整牆重載換入新物件、path／has_plot 值不變，
+// $watch 不 fire）→ 簡介一樣要失效重讀。_reloadWallKeepLightbox 本體在 state-videos.js，這裡以「換入同 path 新物件」的替身模擬。
+test('test_refresh_video_data_reload_reloads_plot', async () => {
+    const { _setAllVideos, _setVideos } = await import('../state-base.js');
+    await withEnv(async ({ A, B, c, f }) => {
+        _setAllVideos([A]);
+        _setVideos([A]);
+        try {
+            const p0 = c._lbPlotLoad();
+            f.pending.plotGet[0]({ success: true, plot: '舊簡介', original_plot: '', has_original: false });
+            await p0;
+            const pStale = c._lbPlotLoad();
+            assert.equal(f.count('plotGet'), 2);
+            const genBefore = c._lbPlotGen;
+
+            const A2 = { ...A, title: '新片名' };
+            let reloadCalls = 0;
+            c._reloadWallKeepLightbox = async (anchor) => {
+                reloadCalls++;
+                assert.equal(anchor, A.path);
+                _setFilteredVideos([A2, B]);
+                c.currentLightboxVideo = A2;
+            };
+            const baseFetch = globalThis.fetch;
+            globalThis.fetch = (url, opts) => {
+                if (typeof url === 'string' && url.startsWith('/api/showcase/video?path=')) {
+                    const second = { path: 'file:///C:/a-v2.mp4', number: A.number, title: '新片名', actresses: A.actresses, has_plot: true };
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        json: async () => ({
+                            success: true,
+                            video: { path: A.path, number: A.number, title: '新片名', actresses: A.actresses, has_plot: true, versions: [{ path: A.path, number: A.number, has_plot: true }, second] },
+                        }),
+                    });
+                }
+                return baseFetch(url, opts);
+            };
+            await c.refreshVideoData(A);
+            await tick();
+
+            assert.equal(reloadCalls, 1, '版本集合改變走 reload 分支');
+            assert.equal(c.currentLightboxVideo.path, A.path, '燈箱仍停在同一個 path');
+            assert.ok(c._lbPlotGen > genBefore, 'reload 分支也要失效：世代遞增');
+            assert.equal(f.count('plotGet'), 3, 'reload 後重新讀一次簡介');
+
+            f.pending.plotGet[2]({ success: true, plot: '新簡介', original_plot: '', has_original: false });
+            await tick();
+            assert.equal(c._lbPlotView.plot, '新簡介', '簡介列換成重刮後的內容');
+            f.pending.plotGet[1]({ success: true, plot: '舊簡介（遲到）', original_plot: '', has_original: false });
+            await pStale;
+            await tick();
+            assert.equal(c._lbPlotView.plot, '新簡介', '重載前發出的舊讀取不得寫進新 view');
+        } finally {
+            _setAllVideos([]);
+            _setVideos([]);
+        }
     });
 });

@@ -1718,7 +1718,6 @@ export function stateSimilar() {
       // tier 2 + 3 共用收尾：standalone housekeeping + blur-up reset
       this.currentLightboxVideo = this.similarExitVideo;
       this.currentLightboxActress = null;
-      this._videoChipsExpanded = false;
       this.addingLbTag = false;
       this._refreshLbFullBlurUp();
       this._refreshLbActorAges();

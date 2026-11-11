@@ -546,8 +546,11 @@ export function stateBase() {
             // 98b-T4：換片 reset 遮罩（結構性涵蓋四條換片路徑——皆最終改 currentLightboxVideo）。
             // A 片開遮罩翻 auto → 不關直接換 B → 舊片未提交態不落 B 的 DB（_maskSession guard + 此 reset）。
             this.$watch('currentLightboxVideo?.path', () => { if (this._maskVisible) this._resetMask(); })
-            // 187b-T5a：換片關簡介面並清 view（結構性涵蓋所有改 currentLightboxVideo 的路徑）
-            this.$watch('currentLightboxVideo?.path', () => { this._lbPlotReset?.(); })
+            // 199a-T6：簡介常駐列——開燈箱／換片／切版本（皆改 currentLightboxVideo.path）先清 view 再載入；
+            // 同一個 path 上 has_plot false→true（補完後）走第二條，用 view.path 比對避免與第一條重複請求
+            this.$watch('currentLightboxVideo?.path', () => { this._lbPlotReset?.(); if (this.lbPlotRowVisible?.()) this._lbPlotLoad?.(); })
+            this.$watch('currentLightboxVideo?.has_plot', () => { if (this.lbPlotRowVisible?.() && this._lbPlotView?.path !== this.currentLightboxVideo?.path) this._lbPlotLoad?.(); })
+            this.$watch('currentLightboxVideo?.path', () => { this.lbxPopClose?.(); })
             // 100b-T2a（§B-1c 姊妹 watcher）：actress→actress 切換用（x-if 不重新掛載，watcher
             // 夠用）。video→actress／actress→video 的掛載瞬間已由 _setActressLightboxIndex()／
             // prevLightboxVideo()／nextLightboxVideo() 內的同步 _resetMask() 擋住（gotchas-frontend

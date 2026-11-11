@@ -1,14 +1,15 @@
 /**
- * state-lightbox-plot.js — Showcase ESM（187b-T5a）
+ * state-lightbox-plot.js — Showcase ESM（187b-T5a → 199a-T6）
  *
- * 燈箱簡介面：讀 NFO plot → 翻譯 → 寫回 NFO／DB（POST /api/showcase/video/plot）→ toast「復原」。
+ * 燈箱簡介：文字區第 4 列常駐（lbPlotRowVisible／lbPlotRowState）＋點了往下浮出全文（lbxPop kind: 'plot'，T3 單槽）。
+ * 讀 NFO plot → 翻譯 → 寫回 NFO／DB（POST /api/showcase/video/plot）→ toast「復原」。沒有翻面（199a-T6 移除）。
  * mergeState 分片（plan-187b CD-9）：不定義 init()（FE-ALPINE-05）、頂層 key 一律 lbPlot／_lbPlot 前綴。
+ * 載入由 state-base.js 的 $watch 觸發（currentLightboxVideo?.path 變 → reset＋load；?.has_plot 補完 → load）。
  * 時序（CD-10）：讀取用 _lbPlotGen 世代；翻譯鎖 _lbPlotInFlight[path] 在任何 await 之前設起；
  * 結果只寫「按下當下捕獲的 view 物件」。禁止用物件身分（!==）比對 view（Alpine Proxy）。
  */
-
 import { translateFailureToastKey } from '@/shared/translate-provider.js';
-import { plotFaceButtons, sameAfterNormalize } from './lb-plot-logic.js';
+import { plotPopButtons, sameAfterNormalize } from './lb-plot-logic.js';
 
 const LB_PLOT_UNDO_TOAST_MS = 6000;
 
@@ -20,13 +21,11 @@ function emptyPlotView() {
         plot: '',
         original: '',
         hasOriginal: false,
-        showing: 'plot',
     };
 }
 
 export function stateLightboxPlot() {
     return {
-        lbPlotOpen: false,
         _lbPlotView: emptyPlotView(),
         _lbPlotInFlight: {},
         _lbPlotGen: 0,
@@ -36,33 +35,28 @@ export function stateLightboxPlot() {
         },
 
         get lbPlotButtons() {
-            return plotFaceButtons({
+            return plotPopButtons({
                 translateEnabled: this.lbPlotTranslateEnabled,
                 hasOriginal: this._lbPlotView.hasOriginal,
-                showing: this._lbPlotView.showing,
             });
         },
 
-        lbPlotShowButton() {
+        // 簡介列出不出現只看這個（同步可得）：沒簡介／沒對應檔／沿用版本 → 整列不在 DOM、也不打 plot API
+        lbPlotRowVisible() {
             return this.currentLightboxVideo?.has_plot === true && !!this.currentLightboxVideo?.path;
         },
 
-        lbPlotToggle() {
-            if (this.lbPlotOpen) {
-                this.lbPlotClose();
-                return;
-            }
-            this.lbPlotOpen = true;
-            return this._lbPlotLoad();
-        },
-
-        lbPlotClose() {
-            this.lbPlotOpen = false;
+        // 列內三態（純讀取，會被模板 x-show 多次呼叫）：列高由 CSS 固定，這裡只決定內容
+        lbPlotRowState() {
+            if (!this.lbPlotRowVisible()) return 'none';
+            const v = this._lbPlotView;
+            if (v.loading || v.path !== this.currentLightboxVideo?.path) return 'loading';
+            if (v.error || !v.plot) return 'error';
+            return 'text';
         },
 
         _lbPlotReset() {
             this._lbPlotGen += 1;
-            this.lbPlotOpen = false;
             this._lbPlotView = emptyPlotView();
         },
 
@@ -76,7 +70,6 @@ export function stateLightboxPlot() {
             this._lbPlotView.plot = '';
             this._lbPlotView.original = '';
             this._lbPlotView.hasOriginal = false;
-            this._lbPlotView.showing = 'plot';
             let ok = false;
             let data = null;
             try {
@@ -101,12 +94,6 @@ export function stateLightboxPlot() {
             this._lbPlotView.loading = false;
         },
 
-        lbPlotToggleOriginal() {
-            const view = this._lbPlotView;
-            if (!view.hasOriginal) return;
-            view.showing = view.showing === 'plot' ? 'original' : 'plot';
-        },
-
         async lbPlotTranslate() {
             const video = this.currentLightboxVideo;
             if (!video || !video.path) return;
@@ -115,8 +102,8 @@ export function stateLightboxPlot() {
             const path = video.path;
             if (this._lbPlotInFlight[path]) return;
             this._lbPlotInFlight[path] = true;
-            const sourceText = view.showing === 'original' ? (view.original || '') : view.plot;
-            const isRetranslate = view.showing === 'original';
+            const isRetranslate = view.hasOriginal;
+            const sourceText = isRetranslate ? (view.original || '') : view.plot;
             const snapshot = { plot: view.plot, original: view.original || '' };
             try {
                 let trData;
@@ -152,7 +139,7 @@ export function stateLightboxPlot() {
                 }
                 const body = { file_path: path, plot: translated };
                 if (isRetranslate) {
-                    // 按下當下捕獲；await 期間 close→toggle 會把同一個 view.original 清成 ''
+                    // 按下當下捕獲；await 期間重載（換片／補完後）會把同一個 view.original 清成 ''
                     body.original_plot = snapshot.original;
                 }
                 let data;
@@ -187,7 +174,6 @@ export function stateLightboxPlot() {
             view.plot = data.plot || '';
             view.original = data.original_plot || '';
             view.hasOriginal = !!data.has_original;
-            view.showing = 'plot';
             view.loading = false;
             view.error = false;
         },

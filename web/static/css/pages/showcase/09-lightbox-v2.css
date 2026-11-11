@@ -1,0 +1,1330 @@
+/* 199a 影片燈箱 v2：外框（T1）。
+   本檔每條選擇器必含 `.lbx-` 或 `.lb-video-branch`（CG-199A-01 強制）——本檔也會被 search.html、
+   design-system.html 一起載入（共用 _showcase_css.html），隔離全靠選擇器在那兩頁結構上零命中。
+   隔離開關只有一個：影片分支包裝 div 的 `.lb-video-branch`；外框規則一律掛
+   `.lightbox-content:has(> .lb-video-branch)`，女優分支與搜尋頁結構上不帶它，不靠權重或載入順序。
+   不改 05／06／08 的任何既有規則。
+   閘：寬 ≥769（避開 06 的 max-width:768px）且高 ≥720（桌面最小保證）。閘外沿用今天的外框規則，
+   `.lbx-meta` 仍是 `.lightbox-metadata` 的 overflow-y:auto。
+   垂直預算全用 rem：1.5 上 padding + .75 gap + 13.875 文字區 + .875 下 padding = 17rem。
+   本檔不得出現 px 高度數字。 */
+@media (min-width: 769px) and (min-height: 720px) {
+    .lightbox-content:has(> .lb-video-branch) {
+        max-height: 96vh;
+        max-height: 96dvh;
+        padding: 1.5rem 1.5rem .875rem;
+        gap: .75rem;
+    }
+
+    .lightbox-content:has(> .lb-video-branch) .lightbox-cover.has-cover {
+        width: min(90vw, calc((96vh - 17rem) * var(--lb-cover-ar, 1.5)));
+        width: min(90vw, calc((96dvh - 17rem) * var(--lb-cover-ar, 1.5)));
+    }
+
+    .lightbox-content:has(> .lb-video-branch) .lbx-meta {
+        height: 13.875rem;
+        flex: none;
+        box-sizing: border-box;
+        overflow: hidden;
+        container: lbx-meta / inline-size;
+    }
+}
+
+/* ── 199a-T2：封面 hover 層（上排 ▶📁🔍、下排規格帶）──────────────────────────
+   不在上面那個視窗閘內——新 markup 在所有視窗都存在，閘外也要排得好。
+   淡入／暗幕沿用 05 的 `.cover-actions`（opacity、transition、漸層底、pointer:coarse 常顯），這裡不重宣告，
+   只改版面（直欄、靠底）。hover 層純 CSS 驅動，不用 x-show／JS 切 class（FE-ALPINE-17）。
+   全區唯一 accent＝`.lbx-vcap.is-active`；其餘一律中性白。膠囊在媒體上，自帶底色（FE-CSS-18）。
+   `.lb-tag` 的基底樣式只在 `.lightbox-metadata` 內，封面上不會繼承，所以 `.lbx-vcap`／`.lbx-spec` 自帶完整樣式。
+   窄封面降級用 container query；容器放在 `.lbx-cover-layer`（不放 `.lightbox-cover`）。 */
+.lightbox-cover .cover-actions.lbx-cover-layer {
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    gap: .625rem;
+    padding: 1.5rem .75rem .625rem;
+    container: lbx-cover / inline-size;
+}
+
+.lbx-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: .75rem;
+}
+
+.lbx-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .375rem .5rem;
+    min-height: 1.625rem;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.lbx-versions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .375rem;
+    min-width: 0;
+}
+
+.lbx-vcap,
+.lbx-spec {
+    box-sizing: border-box;
+    padding: .1875rem .625rem;
+    background: var(--overlay-badge);
+    border: 1px solid color-mix(in oklch, white 45%, transparent);
+    border-radius: var(--radius-pill);
+    color: oklch(100% 0 0);
+    font-size: .6875rem;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.lbx-vcap {
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-vcap:hover {
+    background: color-mix(in oklch, white 18%, var(--overlay-badge));
+}
+
+.lbx-vcap.is-active {
+    background: color-mix(in oklch, var(--accent) 22%, var(--overlay-badge));
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.lbx-vcap:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.lbx-part {
+    padding: .1875rem .5rem;
+    background: var(--overlay-badge);
+    border-radius: var(--radius-sm);
+    color: oklch(100% 0 0);
+    font-size: .6875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.lbx-spec {
+    display: inline-flex;
+    align-items: center;
+    margin-inline-start: auto;
+    max-width: 100%;
+}
+
+/* 項目間的分隔符只出現在「前面有項目」時——缺項不會留下孤立的 · */
+.lbx-spec-item + .lbx-spec-item::before {
+    content: "·";
+    margin-inline: .375rem;
+    opacity: .7;
+}
+
+.lbx-tier {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.lbx-tier:hover {
+    text-decoration: underline;
+}
+
+.lbx-tier:focus-visible {
+    outline: 2px solid currentcolor;
+    outline-offset: 2px;
+}
+
+@container lbx-cover (max-width: 620px) {
+    .lbx-band {
+        gap: .25rem;
+    }
+
+    .lbx-vcap,
+    .lbx-spec {
+        padding: .125rem .4375rem;
+        font-size: .625rem;
+    }
+
+    .lbx-spec-item + .lbx-spec-item::before {
+        margin-inline: .25rem;
+    }
+}
+
+/* ── 199a-T3：浮層底座 lbxPop（單槽、單一宿主）──────────────────────────────
+   宿主 `.lbx-pop-host` 是 `.showcase-lightbox` 的直接子節點（不在 `.lightbox-content` 的 transform／overflow 裡），
+   自己不佔版面（display: contents）；浮層 `position: fixed`，座標由 JS 量完一次寫入（placePop）。
+   同在 `.showcase-lightbox` 內互斥的 `.actress-picker-overlay` 是 z-index 1100，這裡同階。
+   不放進上面的視窗閘：浮層在所有視窗都存在。
+   材質走 overlay 玻璃（dim）／實色 surface（其他主題），與 `.lightbox-content` 同一套；單一 accent 原則——浮層內不出現 accent。
+   hover 類（data-mode="hover"）純閱讀、不吃指標；click 類（data-mode="click"）可點可捲（T4 起使用）。 */
+.lbx-pop-host {
+    display: contents;
+}
+
+.lbx-pop {
+    position: fixed;
+    z-index: 1100;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: calc(100vw - 1rem);
+    padding: .5rem .75rem;
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--fluent-shadow-16);
+    color: var(--text-primary);
+    font-size: .8125rem;
+    line-height: 1.4;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+[data-theme="dim"] .lbx-pop {
+    border: 1px solid transparent;
+    background:
+        var(--glass-overlay-fill-gradient) padding-box,
+        var(--glass-overlay-border-gradient) border-box;
+    backdrop-filter: blur(var(--fluent-blur)) saturate(var(--glass-overlay-saturate));
+    -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(var(--glass-overlay-saturate));
+}
+
+.lbx-pop.is-placed {
+    visibility: visible;
+    opacity: 1;
+}
+
+.lbx-pop[data-mode="hover"] {
+    pointer-events: none;
+}
+
+.lbx-pop[data-mode="click"] {
+    pointer-events: auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-pop {
+        transition: none;
+    }
+}
+
+.lbx-pop-vertip {
+    display: flex;
+    flex-direction: column;
+    gap: .125rem;
+    max-width: min(28rem, calc(100vw - 1rem));
+}
+
+.lbx-pop-vertip__name {
+    color: var(--text-primary);
+    font-weight: 600;
+    word-break: break-all;
+}
+
+.lbx-pop-vertip__spec {
+    color: var(--text-secondary);
+    font-size: .75rem;
+}
+
+/* ── 199a-T4：文字區第 1、2 列＋⋯ 選單＋片名／原文全文浮層 ──────────────────────
+   不在最上面的視窗閘內：新 markup 在所有視窗都存在，閘外也要排得好（<640 的縮字級是 T5 的 container query）。
+   片名列單行 flex：★＋一行片名（省略號）…〔劇照圖示〕〔⋯〕。`.lb-title` 是塊級（才量得到 scrollWidth／clientWidth，
+   FE-REVIEW-16），★ 的 focus 外框改畫在按鈕盒內側（outline-offset 為負），免得被 overflow:hidden 裁掉。
+   這一段全是中性色；單一 accent 原則——浮層與本段新元素內不出現 accent。 */
+.lbx-title-row {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    height: 1.875rem;
+    min-width: 0;
+}
+
+.lbx-meta .lbx-title-row .lb-title {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: 1.375rem;
+    font-weight: 600;
+    line-height: 1.875rem;
+    white-space: nowrap;
+    word-break: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lbx-meta .lbx-title-row .lb-title:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm);
+}
+
+.lbx-meta .lbx-title-row .lb-title .pick-star:focus-visible {
+    outline-offset: -2px;
+}
+
+.lbx-title-row .lb-borrowed,
+.lbx-title-acts {
+    flex: none;
+}
+
+.lbx-title-acts {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    margin-left: auto;
+}
+
+.lbx-sg-btn,
+.lbx-more-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: color var(--duration-fast) var(--ease-out),
+                background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-sg-btn:hover,
+.lbx-more-btn:hover,
+.lbx-more-btn[aria-expanded="true"] {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+}
+
+.lbx-sg-btn:focus-visible,
+.lbx-more-btn:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+}
+
+/* 劇照張數角標：方圓角小塊（不做 pill），蓋在圖示右上角 */
+.lbx-sg-count {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: .875rem;
+    padding: 0 .1875rem;
+    box-sizing: border-box;
+    border-radius: var(--radius-sm);
+    background: var(--text-secondary);
+    color: var(--surface-1);
+    font-size: .625rem;
+    font-weight: 600;
+    line-height: .875rem;
+    text-align: center;
+    pointer-events: none;
+}
+
+@media (pointer: coarse) {
+    .lbx-sg-btn,
+    .lbx-more-btn {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+}
+
+/* 第 2 列：原文一行，缺原文或與片名相同時整列不渲染（模板 x-if） */
+.lbx-otitle {
+    box-sizing: border-box;
+    font-size: .78125rem;
+    line-height: 1.125rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-otitle:hover {
+    color: var(--text-secondary);
+}
+
+.lbx-otitle:focus-visible {
+    color: var(--text-secondary);
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm);
+}
+
+/* 片名／原文全文浮層：純閱讀，字級粗細與來源列相同（「就地」感），寬度只靠 max-width；觸控點開（click 模式）時可內捲 */
+.lbx-pop-text {
+    max-width: min(44rem, calc(100vw - 1rem));
+    white-space: normal;
+    word-break: break-word;
+}
+
+.lbx-pop-text--title {
+    font-size: 1.375rem;
+    font-weight: 600;
+    line-height: 1.875rem;
+    color: var(--text-primary);
+}
+
+.lbx-pop-text--otitle {
+    font-size: .78125rem;
+    line-height: 1.125rem;
+    color: var(--text-secondary);
+}
+
+/* ⋯ 選單 */
+.lbx-pop[data-kind="menu"] {
+    padding: .25rem;
+}
+
+.lbx-menu {
+    display: flex;
+    flex-direction: column;
+    min-width: 12rem;
+}
+
+.lbx-menu-item {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    box-sizing: border-box;
+    width: 100%;
+    padding: .5rem .625rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .8125rem;
+    line-height: 1.25rem;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-menu-item:hover,
+.lbx-menu-item:focus-visible {
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+}
+
+.lbx-menu-item:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+}
+
+.lbx-menu-item:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.lbx-menu-item:disabled:hover {
+    background: transparent;
+}
+
+.lbx-menu-item > i {
+    flex: none;
+    color: var(--text-secondary);
+}
+
+.lbx-menu-item--busy {
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.lbx-menu-item--busy:hover {
+    background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-sg-btn,
+    .lbx-more-btn,
+    .lbx-otitle,
+    .lbx-menu-item {
+        transition: none;
+    }
+}
+
+/* ── 199a-T5：文字區第 3 列（女優＋作品資訊小膠囊＋ⓘ）＋「另有 N 位」／ⓘ 兩種浮層內容 ──────────────
+   左：女優區 `.lbx-actors`（flex:1 1 0＋min-width:0，FE-CSS-12：不用裸 1fr），內容寬度由 lbxFit 量測決定露出數；
+   右：`.lbx-works` 不收縮（片商 pill 例外：設上限＋省略號，免得超長片商把女優區擠到零）。
+   量測層 `.lbx-measure` 是可見層的隱形複本（共用 .lbx-actor-chip／.lbx-more-actors 的樣式，寬度才一致）：
+   visibility:hidden＋height:0＋absolute，不佔版面也不影響 `.lbx-actors` 的 clientWidth。
+   `.is-measuring` 只用 visibility:hidden（版面保留，不用 display:none——會讓 clientWidth 變 0、量測失效）。
+   視窗閘（769×720）內 nowrap＋container query 由右往左省略；閘外沒有 container，靠 wrap 與可捲不壞（spec §2.11）。
+   單一 accent 原則：本段與兩個浮層內不出現 accent；pill 走 tonal（文字色 8%），不加玻璃、不加 accent。
+   pill 沿用 .lb-tag 基底（pill 白名單類 3），不新增 999px 選擇器。 */
+.lbx-people-row {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    position: relative;
+    min-height: 2.125rem;
+    margin-top: .6875rem;
+}
+
+@media (max-width: 768px), (max-height: 719px) {
+    .lbx-people-row,
+    .lbx-works {
+        flex-wrap: wrap;
+    }
+}
+
+@media (min-width: 769px) and (min-height: 720px) {
+    .lbx-people-row,
+    .lbx-works {
+        flex-wrap: nowrap;
+    }
+}
+
+.lbx-people-row.is-measuring {
+    visibility: hidden;
+}
+
+.lbx-actors {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* 閘外沒有 container／不降級：女優區給 10rem 基準寬，放不下作品資訊就整排換到下一行（與上面 wrap 互斥同條件） */
+@media (max-width: 768px), (max-height: 719px) {
+    .lbx-actors {
+        flex-basis: 10rem;
+    }
+}
+
+.lbx-actor-chip {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: .875rem;
+    color: var(--text-primary);
+}
+
+.lbx-link {
+    color: var(--text-primary);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+a.lbx-link:hover,
+a.lbx-link:focus-visible {
+    text-decoration: underline;
+}
+
+.lbx-people-row .lb-actor-age,
+.lbx-pop .lb-actor-age {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.lbx-works {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+}
+
+.lbx-people-row .lbx-work,
+.lbx-people-row .lbx-more-actors {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    height: 1.375rem;
+    padding: 0 .5rem;
+    border-color: transparent;
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.lbx-people-row .lbx-work--num {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.lbx-people-row .lbx-work--maker {
+    display: inline-block;
+    max-width: 12rem;
+    line-height: 1.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lbx-people-row .lbx-more-actors {
+    flex: none;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-people-row a.lbx-work:hover,
+.lbx-people-row a.lbx-work:focus-visible {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+
+.lbx-people-row .lbx-more-actors:hover,
+.lbx-people-row .lbx-more-actors[aria-expanded="true"] {
+    background: color-mix(in oklch, var(--text-primary) 14%, transparent);
+    color: var(--text-primary);
+}
+
+.lbx-people-row .lbx-more-actors:focus-visible,
+.lbx-people-row a.lbx-work:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: 1px;
+}
+
+.lbx-info-btn {
+    position: relative;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: .875rem;
+    cursor: pointer;
+    transition: color var(--duration-fast) var(--ease-out),
+                background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-info-btn:hover,
+.lbx-info-btn[aria-expanded="true"] {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+}
+
+.lbx-info-btn:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: 1px;
+}
+
+/* 量測層：女優 chip 的隱形複本（全部女優＋最壞位數的「另有 N 位」） */
+.lbx-measure {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: max-content;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    white-space: nowrap;
+}
+
+.lbx-measure .lbx-actor-chip,
+.lbx-measure .lbx-more-actors {
+    flex: none;
+}
+
+/* 觸控：ⓘ 與「另有 N 位」熱區 ≥44px，不把第 3 列撐高。
+   ⓘ 本體放大成 2.75rem 方塊（負 margin-block 吃掉多出的高度；放在列尾，不能靠偽元素外擴——右側會被 .lbx-meta 的 overflow 裁掉）；
+   「另有 N 位」本來就比 44px 寬，只用透明偽元素外擴上下（女優區用負 margin 吃掉 padding，免得 overflow:hidden 裁掉偽元素） */
+@media (pointer: coarse) {
+    .lbx-info-btn {
+        width: 2.75rem;
+        height: 2.75rem;
+        margin-block: -.4375rem;
+    }
+
+    .lbx-people-row .lbx-more-actors {
+        position: relative;
+    }
+
+    .lbx-people-row .lbx-more-actors::after {
+        content: "";
+        position: absolute;
+        inset: -.75rem 0;
+    }
+
+    .lbx-actors {
+        padding-block: .75rem;
+        margin-block: -.75rem;
+    }
+}
+
+/* 寬度降級（只在視窗閘內有 container）：由右往左省略 來源片長 → 系列 → 發行日；被省略的都在ⓘ裡。
+   斷點初值 900／700／640 沿用 mockup（NC-6 待 CDP 量測後由主 session 裁）。
+   選擇器必須帶 `.lbx-people-row` 前綴：上面 `.lbx-people-row .lbx-work { display: inline-flex }`（0,2,0）權重高於單 class 的
+   `.lbx-work--src { display: none }`（0,1,0），container query 命中了也會被蓋掉（CDP 實測 computed display 仍是 flex）。 */
+@container lbx-meta (max-width: 899px) {
+    .lbx-people-row .lbx-work--src {
+        display: none;
+    }
+}
+
+@container lbx-meta (max-width: 699px) {
+    .lbx-people-row .lbx-work--series {
+        display: none;
+    }
+}
+
+/* 極窄（桌面最小保證 1280×720 的直幅封面約 280px）：片商 pill 整個省略（仍在ⓘ）。
+   （曾試過讓第 1 位女優 chip 不收縮——名字很長時會把「另有 N 位」擠出 overflow:hidden 的女優區，已撤回。） */
+@container lbx-meta (max-width: 359px) {
+    .lbx-people-row .lbx-work--maker {
+        display: none;
+    }
+}
+
+/* 很窄（直幅封面 900p 約 400px）：片商 pill 再縮短，否則作品資訊吃掉女優區，第 1 位名字被擠成省略號；全名在 title 與ⓘ */
+@container lbx-meta (max-width: 479px) {
+    .lbx-people-row .lbx-work--maker {
+        max-width: 7.5rem;
+    }
+}
+
+@container lbx-meta (max-width: 639px) {
+    .lbx-people-row .lbx-work--release,
+    .lbx-people-row .lbx-actor-chip .lb-actor-age {
+        display: none;
+    }
+
+    .lbx-meta .lbx-title-row .lb-title {
+        font-size: 1.125rem;
+    }
+}
+
+/* 浮層內容：女優名單／作品資訊（皆 click 模式，可點） */
+.lbx-pop[data-kind="actresses"],
+.lbx-pop[data-kind="info"] {
+    padding: .5rem .25rem;
+}
+
+.lbx-pop-title {
+    padding: 0 .5rem .375rem;
+    color: var(--text-muted);
+    font-size: .75rem;
+    line-height: 1.25rem;
+}
+
+.lbx-pop-list,
+.lbx-pop-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 12rem;
+    max-width: min(26rem, calc(100vw - 2rem));
+}
+
+.lbx-pop-row {
+    display: flex;
+    align-items: baseline;
+    gap: .75rem;
+    padding: .25rem .5rem;
+    font-size: .8125rem;
+    line-height: 1.25rem;
+}
+
+.lbx-pop-label {
+    flex: none;
+    min-width: 3.5rem;
+    color: var(--text-muted);
+}
+
+.lbx-pop-val {
+    min-width: 0;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.lbx-pop-row a.lbx-link {
+    font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-info-btn,
+    .lbx-people-row .lbx-more-actors {
+        transition: none;
+    }
+}
+
+/* ── 199a-T6：文字區第 4 列（簡介常駐兩行）＋簡介全文浮層 ───────────────────────────────
+   列：<button>，固定高度 3.125rem＝兩行 1.25rem 行高＋上下內距各 .3125rem——骨架／文字／讀不到三態同高，
+   文字到達前後列高不變（列高不靠 JS）。列間距用 margin-top（同第 3 列 .6875rem）。
+   底色走 surface-1 一階 tonal、hover 疊一層文字色；骨架線用文字色 12% 才在 surface-1 上看得見；不做動畫。
+   單一 accent 原則：列與浮層內不出現 accent。浮層底座（位置／玻璃／可捲）是 T3 已寫的，這裡只定寬度、高度上限與內容殼。
+   全部追加在視窗閘外，所有視窗都有簡介列。 */
+.lbx-plot-row {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    height: 3.125rem;
+    margin: .6875rem 0 0;
+    padding: .3125rem .625rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: .8125rem;
+    line-height: 1.25rem;
+    text-align: left;
+    white-space: normal;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-plot-row:hover,
+.lbx-plot-row[aria-expanded="true"] {
+    background: color-mix(in oklch, var(--text-primary) 8%, var(--surface-1));
+}
+
+.lbx-plot-row:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+}
+
+/* 兩行截斷（FE-CSS-16：-webkit-box 下 computed display 不可靠，驗截斷看 scrollHeight／line-clamp） */
+.lbx-plot-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    color: var(--text-secondary);
+}
+
+.lbx-plot-unavailable {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+/* 骨架：兩條灰線（第二條 60% 寬），在列內垂直置中（2 條 .75rem＋.5rem 間距＝2rem，列內容高 2.5rem） */
+.lbx-plot-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin-block: .25rem;
+}
+
+.lbx-plot-skeleton-line {
+    display: block;
+    height: .75rem;
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklch, var(--text-primary) 12%, transparent);
+}
+
+.lbx-plot-skeleton-line:last-child {
+    width: 60%;
+}
+
+/* 浮層：寬度蓋過 .lbx-pop 的 max-content；高度上限＝視窗閘內封面底到視窗底恆約 262px 的算術上限（翻譯完成後內容長高不靠重新定位也不會伸出視窗），
+   超過就在浮層內捲（click 模式的 overflow-y／overscroll 是 T3 已寫） */
+.lbx-pop[data-kind="plot"] {
+    width: min(720px, calc(100vw - 1rem));
+    max-height: 15.5rem;
+    padding: .75rem 1rem;
+}
+
+.lbx-plot-pop {
+    display: flex;
+    flex-direction: column;
+    gap: .625rem;
+}
+
+.lbx-plot-pop-sec + .lbx-plot-pop-sec {
+    padding-top: .625rem;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+.lbx-plot-pop-label {
+    margin-bottom: .25rem;
+    color: var(--text-muted);
+    font-size: .75rem;
+    line-height: 1.25rem;
+}
+
+.lbx-plot-pop-text {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: .8125rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.lbx-plot-pop-btn {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: .5rem;
+    padding: .5rem .625rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .8125rem;
+    line-height: 1.25rem;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-plot-pop-btn:hover,
+.lbx-plot-pop-btn:focus-visible {
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+}
+
+.lbx-plot-pop-btn:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+}
+
+.lbx-plot-pop-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.lbx-plot-pop-btn:disabled:hover {
+    background: transparent;
+}
+
+.lbx-plot-pop-btn > i {
+    flex: none;
+    color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-plot-row,
+    .lbx-plot-pop-btn {
+        transition: none;
+    }
+}
+
+/* ── 199a-T7：文字區第 5 列（作品標籤＋「+N」／你的標籤＋「＋」展開）＋「+N」浮層內容 ───────────────
+   左：`.lbx-tags-work`（flex:1 1 0＋min-width:0，FE-CSS-12）放作品標籤與 +N；右：`.lbx-tag-right`（flex:none）放你的標籤與「＋」。
+   你的標籤先排、全露（上限半行），作品標籤用剩下的寬度——露出數由 lbxFit 量 `.lbx-measure`（可見層的隱形複本，共用同一組 class 寬度才一致）。
+   列間、左區內、右區內、展開區內的 gap 全是 .375rem：fitTagRow 只吃一個 gap（讀 .lbx-tag-row 的 column-gap）。
+   `.is-measuring` 只隱藏兩個內容區（visibility:hidden，版面保留、不用 display:none）；不隱藏 `.lbx-tag-control`——
+   按「＋」會讓簽章變、列進入量測，連輸入框一起藏起來 focus() 會靜默失敗。
+   「＋」⇄展開區用 `.is-adding` class 切換（不用 x-show，量測在 $nextTick 讀寬度）。
+   單一 accent 原則：本段與浮層內不出現 accent；膠囊走 tonal 中性色，使用者標籤比作品標籤強一階並加細框區分。 */
+.lbx-tag-row {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    position: relative;
+    margin-top: .6875rem;
+}
+
+@media (max-width: 768px), (max-height: 719px) {
+    .lbx-tag-row {
+        flex-wrap: wrap;
+        min-height: 1.5rem;
+    }
+
+    /* 閘外沒有 container／不降級：作品標籤區給 10rem 基準寬，放不下右區就整塊換到下一行（與上面 wrap 互斥同條件） */
+    .lbx-tags-work {
+        flex-basis: 10rem;
+    }
+}
+
+@media (min-width: 769px) and (min-height: 720px) {
+    .lbx-tag-row {
+        flex-wrap: nowrap;
+        height: 1.5rem;
+    }
+}
+
+.lbx-tag-row.is-measuring .lbx-tags-work,
+.lbx-tag-row.is-measuring .lbx-utags {
+    visibility: hidden;
+}
+
+.lbx-tags-work {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.lbx-tag-right {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+}
+
+.lbx-tag-right.is-hidden {
+    display: none;
+}
+
+.lbx-utags {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    white-space: nowrap;
+}
+
+/* 膠囊：作品標籤、+N、你的標籤（列內與浮層內共用；量測層複本在列內，吃同一條規則）。浮層不在 .lightbox-metadata 內，沒有 05 的 .lb-tag 基底，所以這裡寫全 */
+.lbx-tag-row .lbx-tag,
+.lbx-tag-row .lbx-more-tags,
+.lbx-tag-row .lbx-utag,
+.lbx-tags-pop .lbx-tag,
+.lbx-tags-pop .lbx-utag {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: 1.375rem;
+    padding: 0 .5rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+/* 你的標籤：中性色、比作品標籤強一階並加細框（不再是實心 accent） */
+.lbx-tag-row .lbx-utag,
+.lbx-tags-pop .lbx-utag {
+    gap: .25rem;
+    padding-right: .25rem;
+    border-color: var(--stroke-subtle);
+    background: color-mix(in oklch, var(--text-primary) 12%, transparent);
+    color: var(--text-primary);
+}
+
+.lbx-tag-row a.lbx-tag:hover,
+.lbx-tag-row a.lbx-tag:focus-visible,
+.lbx-tags-pop a.lbx-tag:hover,
+.lbx-tags-pop a.lbx-tag:focus-visible {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+
+.lbx-utag-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+a.lbx-utag-link:hover,
+a.lbx-utag-link:focus-visible {
+    text-decoration: underline;
+}
+
+.lbx-utag-x {
+    box-sizing: border-box;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+    opacity: .7;
+    cursor: pointer;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.lbx-utag-x:hover,
+.lbx-utag-x:focus-visible {
+    opacity: 1;
+}
+
+.lbx-tag-row .lbx-more-tags {
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-tag-row .lbx-more-tags:hover,
+.lbx-tag-row .lbx-more-tags[aria-expanded="true"] {
+    background: color-mix(in oklch, var(--text-primary) 14%, transparent);
+    color: var(--text-primary);
+}
+
+.lbx-tag-row a.lbx-tag:focus-visible,
+.lbx-tag-row .lbx-more-tags:focus-visible,
+.lbx-tags-pop a.lbx-tag:focus-visible,
+.lbx-utag-link:focus-visible,
+.lbx-utag-x:focus-visible,
+.lbx-tag-plus:focus-visible,
+.lbx-tag-ok:focus-visible,
+.lbx-tag-no:focus-visible,
+.lbx-tag-input:focus-visible,
+.lbx-meta .lb-tag-ai-btn:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: 1px;
+}
+
+/* 量測層：作品標籤／你的標籤／最壞位數 +N 的隱形複本（全域 .lbx-measure 已是 absolute＋visibility:hidden＋height:0，這裡只補「量到自然寬度」） */
+.lbx-measure .lbx-tag,
+.lbx-measure .lbx-utag,
+.lbx-measure .lbx-more-tags {
+    flex: none;
+}
+
+/* 「＋」與展開區：按鈕、輸入框、✓、✕、AI 判斷 */
+.lbx-tag-control {
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+}
+
+.lbx-tag-control:not(.is-adding) .lbx-tag-expand {
+    display: none;
+}
+
+.lbx-tag-control.is-adding .lbx-tag-plus {
+    display: none;
+}
+
+.lbx-tag-expand {
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+}
+
+.lbx-tag-plus {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+/* 虛線框畫在圖示上、不畫在按鈕上：觸控時按鈕放大成 2.75rem 熱區，視覺仍是 1.375rem 方塊 */
+.lbx-tag-plus > i {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    border: 1px dashed var(--text-muted);
+    border-radius: var(--radius-sm);
+    font-size: .75rem;
+    line-height: 1;
+    transition: color var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-tag-plus:hover > i,
+.lbx-tag-plus:focus-visible > i {
+    border-color: var(--text-secondary);
+    color: var(--text-secondary);
+}
+
+.lbx-tag-input {
+    box-sizing: border-box;
+    width: 8rem;
+    height: 1.375rem;
+    padding: 0 .5rem;
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+}
+
+.lbx-tag-ok,
+.lbx-tag-no {
+    box-sizing: border-box;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: .8125rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-tag-ok:hover,
+.lbx-tag-no:hover {
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+    color: var(--text-primary);
+}
+
+/* AI 判斷鈕：整顆沿用今天的 .lb-tag-ai-btn（08 的全域規則帶 accent，這裡逐態覆寫成中性——hover／disabled／focus-visible 三態，權重都高於 08；不改 08） */
+.lbx-meta .lb-tag-ai-btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    gap: .25rem;
+    height: 1.375rem;
+    padding: 0 .5rem;
+    border: 1px dashed var(--text-muted);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: .75rem;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-meta .lb-tag-ai-btn:hover:not(:disabled) {
+    border-color: var(--text-secondary);
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+    color: var(--text-primary);
+}
+
+.lbx-meta .lb-tag-ai-btn:disabled {
+    border-color: var(--text-muted);
+    color: var(--text-muted);
+}
+
+.lbx-meta .lb-tag-ai-btn:focus-visible {
+    box-shadow: none;
+}
+
+/* 「+N」浮層：兩段（標籤／你的標籤），段與段之間一條髮絲線；寬度蓋過 .lbx-pop 的 max-content（overflow-y／overscroll 是 data-mode="click" 已寫的） */
+.lbx-pop[data-kind="moreTags"] {
+    width: min(34rem, calc(100vw - 1rem));
+    padding: .5rem .75rem .625rem;
+}
+
+.lbx-tags-pop {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.lbx-tags-pop-sec + .lbx-tags-pop-sec {
+    padding-top: .5rem;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+.lbx-tags-pop-label {
+    margin-bottom: .25rem;
+    color: var(--text-muted);
+    font-size: .75rem;
+    line-height: 1.25rem;
+}
+
+.lbx-tags-pop-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .375rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-utag-x,
+    .lbx-tag-row .lbx-more-tags,
+    .lbx-tag-plus > i,
+    .lbx-tag-ok,
+    .lbx-tag-no,
+    .lbx-meta .lb-tag-ai-btn {
+        transition: none;
+    }
+}
+
+/* 觸控：「＋」、「+N」、× 的點擊熱區 ≥44px，不把第 5 列撐高（列高仍 1.5rem）。
+   「＋」在列尾（右側會被 .lbx-meta 的 overflow 裁掉，不能靠偽元素外擴）→ 按鈕本體放大成 2.75rem、負 margin-block 吃掉多出的高度，虛線框仍是 1.375rem（畫在 <i> 上）。
+   「+N」與 × 用透明偽元素外擴；作品標籤區 overflow:hidden 會裁掉偽元素 → 比照 T5 的女優區，用 padding 撐開＋等量負 margin 抵銷（內容位置與寬度不變）。 */
+@media (pointer: coarse) {
+    .lbx-tag-plus {
+        width: 2.75rem;
+        height: 2.75rem;
+        margin-block: -.6875rem;
+    }
+
+    .lbx-tags-work {
+        padding: .75rem .625rem;
+        margin: -.75rem -.625rem;
+    }
+
+    .lbx-tag-row .lbx-more-tags {
+        position: relative;
+    }
+
+    .lbx-tag-row .lbx-more-tags::after {
+        content: "";
+        position: absolute;
+        inset: -.75rem -.625rem;
+    }
+
+    .lbx-utag-x::after {
+        content: "";
+        position: absolute;
+        inset: -.875rem;
+    }
+}
+
+/* ≤639px（只在視窗閘內有 container）：輸入框縮短、「AI 判斷」變純圖示 */
+@container lbx-meta (max-width: 639px) {
+    .lbx-tag-input {
+        width: 5.5rem;
+    }
+
+    .lbx-tag-ai-label {
+        display: none;
+    }
+}

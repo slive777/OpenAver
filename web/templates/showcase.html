@@ -895,6 +895,8 @@
              x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen && !rescrapeOpen && !deleteVideoModalOpen && !similarModeMobileOpen"
              @touchstart.passive="_lbTouchStart($event)"
              @touchend.passive="_lbTouchEnd($event)"
+             @pointerdown.window="lbxPopOnPointerDown($event)"
+             @resize.window="lbxPopClose()"
              @click="handleLightboxBackdropClick($event)">
 
             <div class="lightbox-content" @click.stop>
@@ -1116,7 +1118,7 @@
 
                 <!-- Video Lightbox Branch (wrapped in x-if to prevent 44b hero card conflict) -->
                 <template x-if="currentLightboxVideo && !currentLightboxActress">
-                    <div style="display:contents">
+                    <div class="lb-video-branch" style="display:contents">
                         <!-- Cover Image -->
                         <!-- T8(Codex P2): has-cover 旗標 — 僅有封面時才讓 ≤480px min-height:0 塌到圖盒；
                              無封面時保留 min-height 避免 cover 區塌成 0 高（補封面入口會壞）。 -->
@@ -1150,14 +1152,6 @@
                                     </template>
                                 </div>
                             </template>
-                            <template x-if="!!currentLightboxVideo?.path && !_maskVisible && (currentLightboxVideo.part_tokens || []).length">
-                                <div class="cover-badges-part">
-                                    <span class="cover-badge" x-text="formatPartLabel(currentLightboxVideo.part_tokens)"></span>
-                                </div>
-                            </template>
-
-                            <!-- T1（CD-4/§B-1a）：遮罩 DOM 抽共用 partial，逐字搬移自舊 707-730（含 99a-T3/98b-T6 註解，見 partial 檔案開頭） -->
-                            {% include '_macros/focal_mask.html' %}
 
                             <!-- 56c-T3fix: Sparkle burst overlay（10 顆四角星，ring 分佈在封面區） -->
                             <div class="sparkle-burst"
@@ -1174,43 +1168,70 @@
                                 <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 90%; --cy: 84%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
                                 <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 56%; --cy: 92%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
                             </div>
-                            <!-- Cover Action Buttons -->
+                            <!-- Cover Action Buttons + 規格帶（199a-T2：同一層，hover／focus-within 時由 05 的淡入機制顯示） -->
                             <!-- 56c-fix-v2: x-show="!!currentLightboxVideo?.path" guards standalone
                                  similar-exit mode (path undefined) — regular lightbox items always have
                                  path so existing behavior is unaffected. -->
-                            <div class="cover-actions" x-show="!!currentLightboxVideo?.path" :class="{'cover-actions--focal-edit': _maskVisible}">
-                                <button class="lb-action-btn" x-show="!_maskVisible" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">
-                                    <i class="bi bi-play-fill"></i>
-                                </button>
-                                <button class="lb-action-btn js-open-folder" x-show="!_maskVisible" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
-                                    <i class="bi bi-folder2-open"></i>
-                                </button>
-                                <!-- 74b US4: tap=enrichVideo（自動補缺）；長壓已移除（進階重刮走齒輪 ⚙）。 -->
-                                <button class="lb-action-btn"
-                                        x-show="shouldShowEnrichButton(currentLightboxVideo) && !_maskVisible"
-                                        :disabled="_enriching"
-                                        @click.stop="enrichVideo(currentLightboxVideo)"
-                                        data-tooltip="{{ t('showcase.action.enrich') }}"
-                                        aria-label="{{ t('showcase.action.enrich') }}">
-                                    <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
-                                </button>
-                                <!-- 99a-T3：焦點編輯中的 ✓/✗，取代 98b 的窗內點擊 toggle。
-                                     99a-T5：detect 期間（_maskDetecting）尚無可提交的拖曳結果——
-                                     gate 收窄，等偵測 resolve 才顯示。 -->
-                                <button class="lb-action-btn lb-action-btn--success"
-                                        x-show="_maskVisible && !_maskDetecting"
-                                        @click.stop="confirmMask()"
-                                        :data-tooltip="t('showcase.lightbox.mask_confirm')"
-                                        :aria-label="t('showcase.lightbox.mask_confirm')">
-                                    <i class="bi bi-check-lg"></i>
-                                </button>
-                                <button class="lb-action-btn lb-action-btn--danger"
-                                        x-show="_maskVisible && !_maskDetecting"
-                                        @click.stop="cancelMask()"
-                                        :data-tooltip="t('showcase.lightbox.mask_cancel')"
-                                        :aria-label="t('showcase.lightbox.mask_cancel')">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
+                            <div class="cover-actions lbx-cover-layer" x-show="!!currentLightboxVideo?.path">
+                                <div class="lbx-actions">
+                                    <button class="lb-action-btn" x-show="!_maskVisible" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">
+                                        <i class="bi bi-play-fill"></i>
+                                    </button>
+                                    <button class="lb-action-btn js-open-folder" x-show="!_maskVisible" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
+                                        <i class="bi bi-folder2-open"></i>
+                                    </button>
+                                    <!-- 74b US4: tap=enrichVideo（自動補缺）；長壓已移除（進階重刮走齒輪 ⚙）。 -->
+                                    <button class="lb-action-btn"
+                                            x-show="shouldShowEnrichButton(currentLightboxVideo) && !_maskVisible"
+                                            :disabled="_enriching"
+                                            @click.stop="enrichVideo(currentLightboxVideo)"
+                                            data-tooltip="{{ t('showcase.action.enrich') }}"
+                                            aria-label="{{ t('showcase.action.enrich') }}">
+                                        <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
+                                    </button>
+                                </div>
+                                <!-- 規格帶：左＝版本膠囊（多版本才有）、中＝分集標記、右＝單一規格小膠囊（等級 · 編碼 · 實際片長 · 大小）。
+                                     分集標記是版本膠囊的兄弟，不放進受 x-show 管的版本群組（單版本分集也要看得到）。 -->
+                                <div class="lbx-band"
+                                     role="group"
+                                     :aria-label="t('showcase.lightbox.band_aria')"
+                                     x-show="lbVersions().length || formatPartLabel(currentLightboxVideo.part_tokens) || lbBandParts().length">
+                                    <div class="lbx-versions" role="group"
+                                         x-show="lbVersions().length"
+                                         :aria-label="t('showcase.lightbox.versions_aria')">
+                                        <template x-for="(ver, idx) in lbVersions()" :key="ver.path">
+                                            <button type="button" class="lb-tag lbx-vcap"
+                                                :class="{'is-active': ver.path === currentLightboxVideo?.path}"
+                                                :aria-pressed="ver.path === currentLightboxVideo?.path"
+                                                @click.stop="switchLightboxVersion(ver.path)"
+                                                x-text="lbVersionCapsules()[idx]"
+                                                data-lbx-anchor="verTip"
+                                                :aria-expanded="lbxPopIs('verTip', ver.path)"
+                                                @pointerenter="lbxPopHoverStart($event, 'verTip', ver.path)"
+                                                @focus="lbxPopHoverStart($event, 'verTip', ver.path)"
+                                                @pointerleave="lbxPopHoverEnd()"
+                                                @blur="lbxPopHoverEnd()"
+                                                @click.capture="lbxVerCapTap($event, ver.path)"
+                                                ></button>
+                                        </template>
+                                    </div>
+                                    <span class="lbx-part" x-show="formatPartLabel(currentLightboxVideo.part_tokens)" x-text="formatPartLabel(currentLightboxVideo.part_tokens)"></span>
+                                    <span class="lb-tag lbx-spec" x-show="lbBandParts().length">
+                                        <template x-for="p in lbBandParts()" :key="p.id">
+                                            <span class="lbx-spec-item">
+                                                <template x-if="p.id === 'tier'">
+                                                    <button type="button" class="lbx-tier"
+                                                            @click.stop="searchFromMetadata(currentLightboxVideo?.resolution_tier, 'resolution')"
+                                                            :title="t('showcase.lightbox.resolution_pill_title')"
+                                                            x-text="p.text"></button>
+                                                </template>
+                                                <template x-if="p.id !== 'tier'">
+                                                    <span x-text="p.text"></span>
+                                                </template>
+                                            </span>
+                                        </template>
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
@@ -1218,266 +1239,376 @@
                              改為獨立全螢幕 .similar-mobile-panel（page-level sibling，見 .similar-stage 之後）。 -->
 
                         <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
-                        <div class="lightbox-metadata">
-                            <!-- Row 1: Header (title + sample gallery button) -->
-                            <div class="lb-header">
-                                <!-- 123-T8：精選星掛在標題行最前面（owner 拍板：標題前比番號前更清楚，
-                                     與標題有沒有番號前綴無關——scraper 本來就會剝掉前綴，見
-                                     core/scrapers/javdb.py strip_number_prefix）。星與標題文字同屬一個
-                                     inline 格式化脈絡＝共用同一條基線（詳見 showcase.css 該段註解）。
-                                     <button> 與 <span> 之間不得留空白字元，否則會多出一個空格。 -->
-                                <div class="lb-title"><button type="button" class="pick-star"
+                        <div class="lightbox-metadata lbx-meta">
+                            <!-- Row 1（199a-T4）：片名列＝★＋一行片名（省略號）…〔劇照圖示〕〔⋯〕。
+                                 123-T8：精選星掛在標題最前面（owner 拍板：標題前比番號前更清楚，與標題有沒有番號前綴無關）。
+                                 星與標題文字同屬一個 inline 格式化脈絡＝共用同一條基線（詳見 05-lightbox.css 該段註解）。
+                                 <button> 與 <span> 之間不得留空白字元，否則會多出一個空格。
+                                 .lb-title 整個當全文浮層的錨點（塊級＋省略號才量得到截斷）；class 屬性放在最後，讓 123-T5 的 window 守衛距離不變。
+                                 「沿用」小字在 .lb-title 之外（要 overflow:hidden＋省略號，留在裡面會先被省略號吃掉）。 -->
+                            <div class="lbx-title-row">
+                                <div tabindex="0" data-lbx-anchor="title"
+                                     :aria-expanded="lbxPopIs('title', 'title')"
+                                     @pointerenter="lbxPopHoverStart($event, 'title', 'title')"
+                                     @focus="lbxPopHoverStart($event, 'title', 'title')"
+                                     @pointerleave="lbxPopHoverEnd()"
+                                     @blur="lbxPopHoverEnd()"
+                                     @click="lbxPopTapOpen($event, 'title', 'title')"
+                                     class="lb-title"><button type="button" class="pick-star"
                                         :class="{'is-picked': (currentLightboxVideo?.user_rating || 0) > 0}"
                                         :aria-pressed="(currentLightboxVideo?.user_rating || 0) > 0"
                                         :aria-label="(currentLightboxVideo?.user_rating||0) > 0 ? t('showcase.pick.remove_aria') : t('showcase.pick.add_aria')"
                                         :aria-busy="!!_pickInFlight[currentLightboxVideo?.path]"
                                         @click.stop="togglePickStar()"><i class="bi bi-star pick-star-outline" aria-hidden="true"></i><i class="bi bi-star-fill pick-star-fill" aria-hidden="true"
-                                       :style="{ '--pick-fill': (currentLightboxVideo?.user_rating || 0) > 0 ? '0%' : '100%' }"></i></button><span x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></span><span class="lb-borrowed" x-show="lbIsBorrowed()" :title="t('showcase.lightbox.borrowed_hint')" x-text="t('showcase.lightbox.borrowed')"></span><button type="button" class="lb-translate-btn"
-                                        x-show="lbTrShowOnTitle()"
-                                        @click.stop="lbTranslate()"
-                                        :disabled="lbTrIsBusy()"
-                                        :aria-busy="lbTrIsBusy()"
-                                        data-tooltip="{{ t('showcase.lightbox.translate_tooltip') }}"
-                                        aria-label="{{ t('showcase.lightbox.translate_tooltip') }}"><i class="bi bi-translate" x-show="!lbTrIsBusy()" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="lbTrIsBusy()" aria-hidden="true"></i></button></div>
-                                <!-- Sample Gallery 入口按鈕 (T7) -->
-                                <button class="sg-open-btn"
-                                        x-show="(currentLightboxVideo?.sample_images || []).length > 0"
-                                        @click="openSampleGallery(currentLightboxVideo.sample_images, 0)"
-                                        x-text="t('showcase.gallery.sample_prefix') + ' (' + (currentLightboxVideo?.sample_images || []).length + ')'">
-                                </button>
-                                <!-- §b3: 劇照補抓入口（無劇照時顯示） -->
-                                <button class="fetch-samples-btn"
-                                        x-show="(currentLightboxVideo?.sample_images || []).length === 0 && !_fetchSamplesLoading"
-                                        :disabled="!!_fetchSamplesFailed[currentLightboxVideo?.path]"
-                                        @click="fetchSamples(currentLightboxVideo)">
-                                    <i class="bi bi-cloud-download" aria-hidden="true"></i>
-                                    <span x-text="t('showcase.samples.fetch_btn')"></span>
-                                </button>
-                                <span x-show="_fetchSamplesLoading" x-text="t('showcase.samples.fetching')"></span>
-                                <!-- 187b-T5b：簡介鈕（has_plot 才存在；只有 icon、點了才翻面，不做滑過即開）-->
-                                <button type="button" class="lb-plot-btn"
-                                        x-show="lbPlotShowButton()"
-                                        :aria-pressed="lbPlotOpen"
-                                        @click.stop="lbPlotToggle()"
-                                        data-tooltip="{{ t('showcase.lightbox.plot_tooltip') }}"
-                                        aria-label="{{ t('showcase.lightbox.plot_tooltip') }}">
-                                    <i class="bi bi-card-text" aria-hidden="true"></i>
-                                </button>
-                                <!-- 98b-T4：焦點裁切遮罩 toggle（低調圓鈕，styled-like .lb-action-btn 但更小）-->
-                                <!-- 101d-T2：影片焦點 gate 綁 _posterModeActive()（窄/poster 模式才顯示）。與女優
-                                     _focalIconVisible() 的 per-image 門檻刻意不同——根因：影片只在 ≤899px 裁、
-                                     女優牆全寬度都裁（見 plan-101d §2.2）。改任一邊前先讀那張表，別「對齊」成同一套。 -->
-                                <button class="lb-mask-btn"
-                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded && _posterModeActive() && !lbIsBorrowed()"
-                                        @click="openMask()"
-                                        :title="t('showcase.lightbox.mask_toggle')"
-                                        :aria-label="t('showcase.lightbox.mask_toggle')">
-                                    <i class="bi bi-person-bounding-box" aria-hidden="true"></i>
-                                </button>
+                                       :style="{ '--pick-fill': (currentLightboxVideo?.user_rating || 0) > 0 ? '0%' : '100%' }"></i></button><span x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></span></div>
+                                <span class="lb-borrowed" x-show="lbIsBorrowed()" :title="t('showcase.lightbox.borrowed_hint')" x-text="t('showcase.lightbox.borrowed')"></span>
+                                <div class="lbx-title-acts">
+                                    <!-- 劇照廊入口（圖示＋張數；有劇照才出現，開的是同一個全螢幕劇照廊） -->
+                                    <button type="button" class="lbx-sg-btn"
+                                            x-show="(currentLightboxVideo?.sample_images || []).length > 0"
+                                            @click="openSampleGallery(currentLightboxVideo.sample_images, 0)"
+                                            :aria-label="t('showcase.lightbox.samples_open_aria', { count: (currentLightboxVideo?.sample_images || []).length })"
+                                            :data-tooltip="t('showcase.lightbox.samples_open_aria', { count: (currentLightboxVideo?.sample_images || []).length })">
+                                        <i class="bi bi-images" aria-hidden="true"></i><span class="lbx-sg-count" x-text="(currentLightboxVideo?.sample_images || []).length"></span>
+                                    </button>
+                                    <!-- ⋯ 選單：補劇照／翻譯片名／進階重刮／從收藏移除（依條件出現，內容畫在浮層宿主內） -->
+                                    <button type="button" class="lbx-more-btn"
+                                            data-lbx-anchor="menu"
+                                            aria-haspopup="true"
+                                            :aria-expanded="lbxPopIs('menu', 'menu')"
+                                            @click.stop="lbxPopToggle('menu', $el, { mode: 'click', anchorKey: 'menu' })"
+                                            :data-tooltip="t('showcase.lightbox.more_menu')"
+                                            :aria-label="t('showcase.lightbox.more_menu')">
+                                        <i class="bi bi-three-dots" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <!-- 187b-T5b：Row2–Row6 與簡介面同一塊區域翻面（class 切換，不用 x-show／x-transition，FE-ALPINE-17） -->
-                            <div class="lb-faces">
-                            <div class="lb-info-face"
-                                 :class="{'is-flipped': lbPlotOpen}"
-                                 :inert="lbPlotOpen">
-                            <!-- Row 2: Original Title (showcase only) -->
-                            <div class="lb-otitle-row">
-                            <div class="lb-otitle"
-                                 x-show="currentLightboxVideo?.original_title"
-                                 x-text="currentLightboxVideo?.original_title"></div>
-                            <button type="button" class="lb-translate-btn"
-                                        x-show="lbTrShowOnOtitle()"
-                                        @click.stop="lbTranslate()"
-                                        :disabled="lbTrIsBusy()"
-                                        :aria-busy="lbTrIsBusy()"
-                                        data-tooltip="{{ t('showcase.lightbox.translate_tooltip') }}"
-                                        aria-label="{{ t('showcase.lightbox.translate_tooltip') }}"><i class="bi bi-translate" x-show="!lbTrIsBusy()" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="lbTrIsBusy()" aria-hidden="true"></i></button>
-                            </div>
-                            <!-- Row 3: Actresses -->
-                            <div class="lb-actor" x-show="currentLightboxVideo?.actresses">
-                                <template x-for="(actress, idx) in (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim())" :key="actress">
-                                    <span>
-                                        <a href="#" class="lb-link" @click.prevent="searchFromMetadata(actress.trim(), 'actress')" x-text="actress.trim()"></a><span class="lb-actor-age" x-show="_lbActorAges[actress.trim()] != null" x-text="' (' + _lbActorAges[actress.trim()] + t('showcase.unit.age_suffix') + ')'"></span><span x-show="idx < (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim()).length - 1">, </span>
-                                    </span>
-                                </template>
-                            </div>
-                            <!-- Row 4: Details (merged) -->
-                            <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
-                            <div class="lb-details">
-                                <!-- 123-T8：精選星已移到 .lb-title（標題行）最前面，此列回到以番號起頭。 -->
-                                <span x-text="currentLightboxVideo?.number || t('showcase.lightbox.unknown_number')"></span>
-                                <!-- 62b-1: 進階重刮 ⚙ 入口（番號旁 inline 細鈕，常駐顯示）-->
-                                <button type="button"
-                                        class="lb-rescrape-gear"
-                                        @click.stop="openRescrape(currentLightboxVideo, 'lightbox')"
-                                        data-tooltip="{{ t('showcase.rescrape.entry_tooltip') }}"
-                                        aria-label="{{ t('showcase.rescrape.entry_tooltip') }}">
-                                    <i class="bi bi-gear" aria-hidden="true"></i>
-                                </button>
-                                <span x-show="currentLightboxVideo?.maker">
-                                    &nbsp;·&nbsp;<a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker, 'maker')" x-text="currentLightboxVideo?.maker"></a>
-                                </span>
-                                <span x-show="currentLightboxVideo?.director">
-                                    &nbsp;·&nbsp;<b>{{ t('showcase.label.director') }}：</b>
-                                    <a href="#" class="lb-link"
-                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.director, 'director')"
-                                       x-text="currentLightboxVideo?.director"></a>
-                                </span>
-                                <span x-show="currentLightboxVideo?.duration">
-                                    &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' ' + t('showcase.unit.minutes') : ''"></span>
-                                </span>
-                                <span x-show="currentLightboxVideo?.resolution_tier">
-                                    &nbsp;·&nbsp;<a href="#" class="lb-tag lb-link"
-                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.resolution_tier, 'resolution')"
-                                       :title="t('showcase.lightbox.resolution_pill_title')"
-                                       x-text="currentLightboxVideo?.resolution_tier"></a><span x-show="currentLightboxVideo?.media_codec" x-text="' ' + currentLightboxVideo?.media_codec"></span>
-                                </span>
-                                <span x-show="currentLightboxVideo?.series">
-                                    &nbsp;·&nbsp;<b>{{ t('showcase.label.series') }}：</b>
-                                    <a href="#" class="lb-link"
+                            <!-- Row 2（199a-T4）：原文一行；缺原文或與片名相同就整列不渲染 -->
+                            <template x-if="lbxHasOtitle()">
+                                <div class="lbx-otitle" tabindex="0" data-lbx-anchor="otitle"
+                                     :aria-expanded="lbxPopIs('otitle', 'otitle')"
+                                     @pointerenter="lbxPopHoverStart($event, 'otitle', 'otitle')"
+                                     @focus="lbxPopHoverStart($event, 'otitle', 'otitle')"
+                                     @pointerleave="lbxPopHoverEnd()"
+                                     @blur="lbxPopHoverEnd()"
+                                     @click="lbxPopTapOpen($event, 'otitle', 'otitle')"
+                                     x-text="currentLightboxVideo.original_title"></div>
+                            </template>
+                            <!-- Row 3（199a-T5）：左＝女優（最多 3 位，放不下逐位減少、至少 1 位，其餘收成「另有 N 位」）；右＝作品資訊小膠囊＋ⓘ。
+                                 這一列永遠渲染（沒有女優就左側空）。露出數由 lbxFit 分片量 .lbx-measure（可見層的隱形複本，共用同一組 class 寬度才一致）；
+                                 量完前列帶 is-measuring（visibility:hidden，版面保留）。x-effect 與 :class 只傳引數給 lbxFit*，分片不讀別片的狀態。 -->
+                            <div class="lbx-people-row"
+                                 :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag))}"
+                                 x-effect="lbxFitSchedule($el, lbxFitSig(currentLightboxVideo, addingLbTag))">
+                                <div class="lbx-actors">
+                                    <template x-for="name in lbxActressList().slice(0, lbxFit.actressShown)" :key="name">
+                                        <span class="lbx-actor-chip"><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
+                                    </template>
+                                    <template x-if="lbxActressList().length > lbxFit.actressShown">
+                                        <button type="button" class="lb-tag lbx-more-actors" data-lbx-anchor="actresses" aria-haspopup="true"
+                                                :aria-expanded="lbxPopIs('actresses', 'actresses')"
+                                                @click.stop="lbxPopToggle('actresses', $el, { mode: 'click', anchorKey: 'actresses' })"
+                                                x-text="t('showcase.lightbox.actresses_more', { n: lbxActressList().length - lbxFit.actressShown })"></button>
+                                    </template>
+                                </div>
+                                <!-- 作品資訊小膠囊：番號·片商·系列·發行日·來源片長·ⓘ。空欄位不畫；廠牌、導演只在ⓘ。窄時由右往左省略（CSS @container），省略的都在ⓘ裡 -->
+                                <div class="lbx-works">
+                                    <span class="lb-tag lbx-work lbx-work--num" x-show="lbxInfoHas('number')" x-text="currentLightboxVideo?.number"></span>
+                                    <a href="#" class="lb-tag lbx-work lbx-work--maker" x-show="lbxInfoHas('maker')"
+                                       :title="currentLightboxVideo?.maker"
+                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.maker, 'maker')"
+                                       x-text="currentLightboxVideo?.maker"></a>
+                                    <a href="#" class="lb-tag lbx-work lbx-work--series" x-show="lbxInfoHas('series')"
+                                       :title="currentLightboxVideo?.series"
                                        @click.prevent="searchFromMetadata(currentLightboxVideo?.series, 'series')"
                                        x-text="currentLightboxVideo?.series"></a>
-                                </span>
-                                <span x-show="currentLightboxVideo?.label && currentLightboxVideo?.label !== currentLightboxVideo?.maker">
-                                    &nbsp;·&nbsp;<b>{{ t('showcase.label.label') }}：</b>
-                                    <a href="#" class="lb-link"
-                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.label, 'label')"
-                                       x-text="currentLightboxVideo?.label"></a>
-                                </span>
-                                <span x-show="currentLightboxVideo?.release_date">
-                                    &nbsp;·&nbsp;<template x-if="_isReleaseClickable(currentLightboxVideo)">
-                                        <a href="#" class="lb-link"
+                                    <template x-if="lbxInfoField('release')?.clickable">
+                                        <a href="#" class="lb-tag lbx-work lbx-work--release"
                                            @click.prevent="searchFromMetadata(currentLightboxVideo?.release_date, 'release')"
                                            x-text="currentLightboxVideo?.release_date"></a>
                                     </template>
-                                    <template x-if="!_isReleaseClickable(currentLightboxVideo)">
-                                        <span x-text="currentLightboxVideo?.release_date"></span>
+                                    <template x-if="lbxInfoHas('release') && !lbxInfoField('release').clickable">
+                                        <span class="lb-tag lbx-work lbx-work--release" x-text="currentLightboxVideo?.release_date"></span>
                                     </template>
-                                </span>
-                                <span class="lb-size" x-show="currentLightboxVideo?.size">
-                                    &nbsp;·&nbsp;<span x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
-                                </span>
-                                <!-- 71b-T1: 從收藏移除（破壞性，只刪 DB row + thumb，不碰磁碟影片/封面）。
-                                     常駐 muted icon，靠右對齊於 metadata size 行末（margin-left:auto 推到行尾）。-->
-                                <button class="lb-delete-btn"
-                                        x-show="!!currentLightboxVideo?.path"
-                                        @click.stop="openDeleteVideoModal()"
-                                        :data-tooltip="t('showcase.video.delete')"
-                                        :aria-label="t('showcase.video.delete')">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                    <span class="lb-tag lbx-work lbx-work--src" x-show="lbxInfoHas('source_duration')"
+                                          x-text="t('showcase.lightbox.source_duration', { n: currentLightboxVideo?.source_duration })"></span>
+                                    <button type="button" class="lbx-info-btn" data-lbx-anchor="info" aria-haspopup="true"
+                                            :aria-expanded="lbxPopIs('info', 'info')"
+                                            :aria-label="t('showcase.lightbox.info_open')"
+                                            :title="t('showcase.lightbox.info_open')"
+                                            @click.stop="lbxPopToggle('info', $el, { mode: 'click', anchorKey: 'info' })"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+                                </div>
+                                <!-- 量測層：不可見、不可聚焦、不念給螢幕閱讀器；沒有 @click／<a>／<button>（可見層才是互動站點）。
+                                     「另有 N 位」只在多於 1 位時畫，N＝最壞情況（只露 1 位）。 -->
+                                <div class="lbx-measure" aria-hidden="true" inert>
+                                    <template x-for="name in lbxActressList()" :key="name">
+                                        <span class="lbx-actor-chip"><span class="lbx-link" x-text="name"></span><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
+                                    </template>
+                                    <template x-if="lbxActressList().length > 1">
+                                        <span class="lb-tag lbx-more-actors" x-text="t('showcase.lightbox.actresses_more', { n: lbxActressList().length - 1 })"></span>
+                                    </template>
+                                </div>
                             </div>
-                            <!-- 198b-T7a: 版本膠囊列（多版本作品才顯示；不得放進 .lb-details，見 static_guard_lint 的垃圾桶 scope） -->
-                            <div class="lb-tags lb-versions" role="group" x-show="lbVersions().length"
-                                 :aria-label="t('showcase.lightbox.versions_aria')">
-                                <template x-for="(ver, idx) in lbVersions()" :key="ver.path">
-                                    <button type="button" class="lb-tag lb-version-cap"
-                                            :class="{'is-active': ver.path === currentLightboxVideo?.path}"
-                                            :aria-pressed="ver.path === currentLightboxVideo?.path"
-                                            @click.stop="switchLightboxVersion(ver.path)"
-                                            x-text="lbVersionCapsules()[idx]"></button>
-                                </template>
-                            </div>
-                            <!-- Row 5: Tags (with +N chips, T4) -->
-                            <div class="lb-tags" x-show="currentLightboxVideo?.tags">
-                                <template x-for="tag in _visibleVideoTags()" :key="tag">
-                                    <a href="#" class="lb-tag lb-link" @click.prevent="searchFromMetadata(tag.trim(), 'tag')" x-text="tag.trim()"></a>
-                                </template>
-                                <span class="lb-tag lb-chips-more"
-                                      x-show="_videoTagsOverflow() > 0 && !_videoChipsExpanded"
-                                      x-text="'+' + _videoTagsOverflow()"
-                                      @click="_videoChipsExpanded = true"></span>
-                            </div>
-
-                            <!-- Row 6: User Tags (T4) -->
-                            <div class="lb-user-tags"
-                                 x-show="!!currentLightboxVideo?.path">
-                                <!-- User tag badges with × remove button -->
-                                <template x-for="tag in (currentLightboxVideo?.user_tags || [])" :key="tag">
-                                    <span class="lb-user-tag">
-                                        <a href="#" class="lb-user-tag-link" @click.prevent="searchFromMetadata(tag, 'tag')"><span x-text="tag"></span></a>
-                                        <button class="lb-tag-remove"
-                                                @click.stop="removeLbUserTag(tag)"
-                                                :title="tag">×</button>
+                            <!-- Row 4（199a-T6）：簡介常駐（最多兩行）。有簡介才渲染（lbPlotRowVisible，同步可得）；列高固定，骨架／文字／讀不到三態同高。
+                                 點一下往下浮出全文（kind: plot）。<button> 內只放 <span>。 -->
+                            <template x-if="lbPlotRowVisible()">
+                                <button type="button" class="lbx-plot-row" data-lbx-anchor="plot" aria-haspopup="true"
+                                        :aria-expanded="lbxPopIs('plot', 'plot')"
+                                        @click.stop="lbxPopToggle('plot', $el, { mode: 'click', anchorKey: 'plot' })">
+                                    <span class="lbx-plot-skeleton" x-show="lbPlotRowState() === 'loading'" aria-hidden="true">
+                                        <span class="lbx-plot-skeleton-line"></span>
+                                        <span class="lbx-plot-skeleton-line"></span>
                                     </span>
-                                </template>
-
-                                <!-- + 新增按鈕（有 path 才顯示） -->
-                                <button class="lb-tag-add-btn"
-                                        x-show="!addingLbTag && !!currentLightboxVideo?.path"
-                                        @click.stop="showAddLbTagInput()"
-                                        :title="t('showcase.lightbox.add_tag')">+</button>
-
-                                <!-- AI 標籤鈕（188c-T11；設定頁開 AI 標籤且本片有封面才顯示） -->
-                                <button type="button" class="lb-tag-ai-btn"
-                                        x-show="lbAiVisible()"
-                                        @click.stop="lbAiTag()"
-                                        :disabled="lbAiIsBusy()"
-                                        :aria-busy="lbAiIsBusy()"
-                                        data-tooltip="{{ t('showcase.lightbox.ai_tags_tooltip') }}"
-                                        aria-label="{{ t('showcase.lightbox.ai_tags_tooltip') }}">
-                                    <i class="bi bi-stars" x-show="!lbAiIsBusy()"></i>
-                                    <i class="bi bi-arrow-repeat spin" x-show="lbAiIsBusy()"></i>
+                                    <span class="lbx-plot-unavailable" x-show="lbPlotRowState() === 'error'">{{ t('showcase.lightbox.plot_unavailable') }}</span>
+                                    <span class="lbx-plot-text" x-show="lbPlotRowState() === 'text'" x-text="_lbPlotView.plot"></span>
                                 </button>
-
-                                <!-- Inline 輸入框 -->
-                                <span class="lb-tag-input-wrapper" x-show="addingLbTag">
-                                    <input class="lb-tag-input"
-                                           x-ref="lbTagInput"
-                                           x-model="newLbTagValue"
-                                           type="text"
-                                           maxlength="20"
-                                           :placeholder="t('showcase.lightbox.tag_placeholder')"
-                                           @keydown.enter.stop="confirmAddLbTag()"
-                                           @keydown.escape.stop="cancelAddLbTag()">
-                                    <button class="lb-tag-confirm"
-                                            @click.stop="confirmAddLbTag()"
-                                            title="✓">✓</button>
-                                    <button class="lb-tag-cancel"
-                                            @click.stop="cancelAddLbTag()"
-                                            title="✕">✕</button>
-                                </span>
-                            </div>
-                            </div>
-                            <div class="lb-plot-face"
-                                 :class="{'is-open': lbPlotOpen}"
-                                 :inert="!lbPlotOpen"
-                                 :aria-hidden="!lbPlotOpen">
-                                <div class="lb-plot-face-head">
-                                    <span class="lb-plot-face-title">{{ t('showcase.lightbox.plot_face_title') }}</span>
-                                    <button type="button" class="lb-translate-btn"
-                                        x-show="!_lbPlotView.error && !_lbPlotView.loading && (lbPlotButtons.includes('translate') || lbPlotButtons.includes('retranslate'))"
-                                        @click.stop="lbPlotTranslate()"
-                                        :disabled="!!_lbPlotInFlight[currentLightboxVideo?.path]"
-                                        :aria-busy="!!_lbPlotInFlight[currentLightboxVideo?.path]"
-                                        :data-tooltip="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"
-                                        :aria-label="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"><i class="bi" :class="lbPlotButtons.includes('retranslate') ? 'bi-arrow-repeat' : 'bi-translate'" x-show="!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="!!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i></button>
-                                    <button type="button" class="lb-translate-btn"
-                                        x-show="!_lbPlotView.error && !_lbPlotView.loading && lbPlotButtons.includes('toggle')"
-                                        @click.stop="lbPlotToggleOriginal()"
-                                        :data-tooltip="_lbPlotView.showing === 'plot' ? t('showcase.lightbox.plot_show_original_tooltip') : t('showcase.lightbox.plot_show_translated_tooltip')"
-                                        :aria-label="_lbPlotView.showing === 'plot' ? t('showcase.lightbox.plot_show_original_tooltip') : t('showcase.lightbox.plot_show_translated_tooltip')"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></button>
-                                    <button type="button" class="lb-translate-btn lb-plot-close"
-                                        @click.stop="lbPlotClose()"
-                                        data-tooltip="{{ t('showcase.lightbox.plot_close') }}"
-                                        aria-label="{{ t('showcase.lightbox.plot_close') }}"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                            </template>
+                            <!-- Row 5（199a-T7）：標籤列。左＝作品標籤（點了篩選）＋「+N」；右＝你的標籤（文字點了篩選、× 移除）＋「＋」。
+                                 你的標籤先排、全部露出（上限半行），作品標籤用剩下的寬度，放不下的收成「+N」（浮層分「標籤」「你的標籤」兩段）。
+                                 露出數由 lbxFit 量 .lbx-measure（可見層的隱形複本，共用同一組 class 寬度才一致；複本沒有 <a>／<button>／<input>）；
+                                 量完前兩個內容區 visibility:hidden（控制區不藏：按「＋」讓簽章變、列進入量測，輸入框要能立刻 focus）。
+                                 「＋」⇄展開區用 .is-adding class＋CSS 切換、不用 x-show（FE-ALPINE-17）；展開區一直在 DOM。 -->
+                            <div class="lbx-tag-row" :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag))}">
+                                <div class="lbx-tags-work">
+                                    <template x-for="tag in lbxWorkTags().slice(0, lbxTagShown('work'))" :key="tag">
+                                        <a href="#" class="lb-tag lbx-tag" @click.prevent="searchFromMetadata(tag, 'tag')" x-text="tag"></a>
+                                    </template>
+                                    <template x-if="lbxTagMoreCount() > 0">
+                                        <button type="button" class="lb-tag lbx-more-tags" data-lbx-anchor="moreTags" aria-haspopup="true"
+                                                :aria-expanded="lbxPopIs('moreTags', 'moreTags')"
+                                                :aria-label="t('showcase.lightbox.tags_more_title', { n: lbxTagMoreCount() })"
+                                                @click.stop="lbxPopToggle('moreTags', $el, { mode: 'click', anchorKey: 'moreTags' })"
+                                                x-text="'+' + lbxTagMoreCount()"></button>
+                                    </template>
                                 </div>
-                                <div class="lb-plot-body">
-                                    <div class="lb-plot-skeleton" x-show="_lbPlotView.loading" aria-hidden="true">
-                                        <span class="lb-plot-skeleton-line"></span>
-                                        <span class="lb-plot-skeleton-line"></span>
+                                <div class="lbx-tag-right" :class="{'is-hidden': !currentLightboxVideo?.path}">
+                                    <div class="lbx-utags">
+                                        <template x-for="tag in lbxUserTags().slice(0, lbxTagShown('user'))" :key="tag">
+                                            <span class="lb-tag lbx-utag">
+                                                <a href="#" class="lbx-utag-link" @click.prevent="searchFromMetadata(tag, 'tag')"><span x-text="tag"></span></a>
+                                                <button type="button" class="lbx-utag-x" @click.stop="removeLbUserTag(tag)" :title="tag" :aria-label="tag">×</button>
+                                            </span>
+                                        </template>
                                     </div>
-                                    <p class="lb-plot-unavailable" x-show="!_lbPlotView.loading && _lbPlotView.error">{{ t('showcase.lightbox.plot_unavailable') }}</p>
-                                    <p class="lb-plot-text" x-show="!_lbPlotView.loading && !_lbPlotView.error"
-                                       x-text="_lbPlotView.showing === 'original' ? _lbPlotView.original : _lbPlotView.plot"></p>
+                                    <div class="lbx-tag-control" :class="{'is-adding': addingLbTag}">
+                                        <button type="button" class="lbx-tag-plus" x-ref="lbTagPlus" @click.stop="showAddLbTagInput()"
+                                                :title="t('showcase.lightbox.add_tag')" :aria-label="t('showcase.lightbox.add_tag')"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+                                        <div class="lbx-tag-expand">
+                                            <input class="lbx-tag-input"
+                                                   x-ref="lbTagInput"
+                                                   x-model="newLbTagValue"
+                                                   type="text"
+                                                   maxlength="20"
+                                                   :placeholder="t('showcase.lightbox.tag_placeholder')"
+                                                   @keydown.enter.stop="confirmAddLbTag()"
+                                                   @keydown.escape.stop="cancelAddLbTag()">
+                                            <button type="button" class="lbx-tag-ok" @click.stop="confirmAddLbTag()" title="✓">✓</button>
+                                            <button type="button" class="lbx-tag-no" @click.stop="cancelAddLbTag()" title="✕">✕</button>
+                                            <!-- AI 標籤鈕（188c-T11；設定頁開 AI 標籤且本片有封面才顯示）：整顆從舊位置搬入，只在尾端多一個文字 label（窄時 CSS 隱藏成純圖示） -->
+                                            <button type="button" class="lb-tag-ai-btn"
+                                                    x-show="lbAiVisible()"
+                                                    @click.stop="lbAiTag()"
+                                                    :disabled="lbAiIsBusy()"
+                                                    :aria-busy="lbAiIsBusy()"
+                                                    data-tooltip="{{ t('showcase.lightbox.ai_tags_tooltip') }}"
+                                                    aria-label="{{ t('showcase.lightbox.ai_tags_tooltip') }}">
+                                                <i class="bi bi-stars" x-show="!lbAiIsBusy()"></i>
+                                                <i class="bi bi-arrow-repeat spin" x-show="lbAiIsBusy()"></i>
+                                                <span class="lbx-tag-ai-label">{{ t('showcase.lightbox.tag_ai_judge') }}</span>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                                <!-- 量測層：不可見、不可聚焦、不念給螢幕閱讀器；沒有 @click／<a>／<button>／<input>，也沒有 AI 鈕（可見層才是互動站點）。
+                                     「+N」只在有任何標籤時畫，N＝總數（最壞位數）。 -->
+                                <div class="lbx-measure" aria-hidden="true" inert>
+                                    <template x-for="tag in lbxWorkTags()" :key="tag">
+                                        <span class="lb-tag lbx-tag" x-text="tag"></span>
+                                    </template>
+                                    <template x-if="lbxWorkTags().length + lbxUserTags().length > 0">
+                                        <span class="lb-tag lbx-more-tags" x-text="'+' + (lbxWorkTags().length + lbxUserTags().length)"></span>
+                                    </template>
+                                    <template x-for="tag in lbxUserTags()" :key="tag">
+                                        <span class="lb-tag lbx-utag"><span class="lbx-utag-link" x-text="tag"></span><span class="lbx-utag-x">×</span></span>
+                                    </template>
+                                </div>
                             </div>
 
                         </div>
                     </div>
                 </template>
 
+            </div>
+
+            <!-- 199a-T3：浮層宿主（單槽）。必須是 .showcase-lightbox 的直接子節點——放進 .lightbox-content 會被它的 transform／overflow 困住或裁掉；
+                 @click.stop 必須有：宿主不在 .lightbox-content 內，沒有它點浮層會被當成點背景而關燈箱。 -->
+            <div class="lbx-pop-host" x-ref="lbxPopHost" @click.stop>
+                <template x-if="lbxPop">
+                    <div class="lbx-pop"
+                         :class="{'is-placed': lbxPop.placed}"
+                         :data-mode="lbxPop.mode"
+                         :data-kind="lbxPop.kind"
+                         :style="lbxPop.style">
+                        <template x-if="lbxPop.kind === 'verTip'">
+                            <div class="lbx-pop-vertip">
+                                <div class="lbx-pop-vertip__name" x-text="lbxVerTipParts().name"></div>
+                                <template x-if="lbxVerTipParts().specs.length">
+                                    <div class="lbx-pop-vertip__spec" x-text="lbxVerTipParts().specs.join(' · ')"></div>
+                                </template>
+                            </div>
+                        </template>
+                        <!-- 199a-T4：片名／原文全文（純閱讀；只在被截斷時才會開） -->
+                        <template x-if="lbxPop.kind === 'title'">
+                            <div class="lbx-pop-text lbx-pop-text--title" x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></div>
+                        </template>
+                        <template x-if="lbxPop.kind === 'otitle'">
+                            <div class="lbx-pop-text lbx-pop-text--otitle" x-text="currentLightboxVideo?.original_title"></div>
+                        </template>
+                        <!-- 199a-T4：⋯ 選單。項目全是 .lbx-menu 的直接子節點（刪除守衛的 scope 靠這個）；每項先收浮層再執行。
+                             進階重刮永遠在；其餘三項由 lbxMenuHas（lbx-logic.menuItems）決定。 -->
+                        <template x-if="lbxPop.kind === 'menu'">
+                            <div class="lbx-menu">
+                                <button type="button" class="lbx-menu-item lbx-menu-item--samples"
+                                        x-show="lbxMenuHas('samples') && !_fetchSamplesLoading"
+                                        :disabled="!!_fetchSamplesFailed[currentLightboxVideo?.path]"
+                                        @click="lbxPopClose({ restoreFocus: true }); fetchSamples(currentLightboxVideo)">
+                                    <i class="bi bi-cloud-download" aria-hidden="true"></i>
+                                    <span x-text="t('showcase.samples.fetch_btn')"></span>
+                                </button>
+                                <span class="lbx-menu-item lbx-menu-item--busy"
+                                      x-show="lbxMenuHas('samples') && _fetchSamplesLoading"
+                                      x-text="t('showcase.samples.fetching')"></span>
+                                <button type="button" class="lbx-menu-item lbx-menu-item--translate"
+                                        x-show="lbxMenuHas('translate')"
+                                        @click.stop="lbxPopClose({ restoreFocus: true }); lbTranslate()"
+                                        :disabled="lbTrIsBusy()"
+                                        :aria-busy="lbTrIsBusy()">
+                                    <i class="bi bi-translate" x-show="!lbTrIsBusy()" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="lbTrIsBusy()" aria-hidden="true"></i>
+                                    <span>{{ t('showcase.lightbox.translate_tooltip') }}</span>
+                                </button>
+                                <button type="button" class="lbx-menu-item lbx-menu-item--rescrape"
+                                        @click.stop="lbxPopClose({ restoreFocus: true }); openRescrape(currentLightboxVideo, 'lightbox')"
+                                        data-tooltip="{{ t('showcase.rescrape.entry_tooltip') }}"
+                                        aria-label="{{ t('showcase.rescrape.entry_tooltip') }}">
+                                    <i class="bi bi-gear" aria-hidden="true"></i>
+                                    <span>{{ t('showcase.rescrape.entry_tooltip') }}</span>
+                                </button>
+                                <button type="button" class="lbx-menu-item lbx-menu-item--delete"
+                                        x-show="lbxMenuHas('delete')"
+                                        @click.stop="lbxPopClose({ restoreFocus: true }); openDeleteVideoModal()"
+                                        :aria-label="t('showcase.video.delete')">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                    <span x-text="t('showcase.video.delete')"></span>
+                                </button>
+                            </div>
+                        </template>
+                        <!-- 199a-T5：「另有 N 位」—全部女優名單，每位可點（看她的片）。年齡沿用第 3 列同一份 _lbActorAges -->
+                        <template x-if="lbxPop.kind === 'actresses'">
+                            <div class="lbx-pop-list">
+                                <div class="lbx-pop-title" x-text="t('showcase.lightbox.actresses_all_title', { n: lbxActressList().length })"></div>
+                                <template x-for="name in lbxActressList()" :key="name">
+                                    <div class="lbx-pop-row"><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></div>
+                                </template>
+                            </div>
+                        </template>
+                        <!-- 199a-T5：ⓘ 作品資訊—完整欄位（含廠牌、導演；第 3 列被省略的 pill 都在這裡）。七列是靜態 markup，空欄位整列不畫 -->
+                        <template x-if="lbxPop.kind === 'info'">
+                            <div class="lbx-pop-info">
+                                <div class="lbx-pop-title">{{ t('showcase.lightbox.info_title') }}</div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('number')">
+                                    <span class="lbx-pop-label">{{ t('showcase.table.col_number') }}</span>
+                                    <span class="lbx-pop-val" x-text="currentLightboxVideo?.number"></span>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('maker')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.maker') }}</span>
+                                    <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker, 'maker')" x-text="currentLightboxVideo?.maker"></a>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('label')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.label') }}</span>
+                                    <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.label, 'label')" x-text="currentLightboxVideo?.label"></a>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('series')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.series') }}</span>
+                                    <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.series, 'series')" x-text="currentLightboxVideo?.series"></a>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('director')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.director') }}</span>
+                                    <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.director, 'director')" x-text="currentLightboxVideo?.director"></a>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('release')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.date') }}</span>
+                                    <template x-if="lbxInfoField('release')?.clickable">
+                                        <a href="#" class="lbx-link lbx-pop-val" @click.prevent="searchFromMetadata(currentLightboxVideo?.release_date, 'release')" x-text="currentLightboxVideo?.release_date"></a>
+                                    </template>
+                                    <template x-if="lbxInfoHas('release') && !lbxInfoField('release').clickable">
+                                        <span class="lbx-pop-val" x-text="currentLightboxVideo?.release_date"></span>
+                                    </template>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('source_duration')">
+                                    <span class="lbx-pop-label">{{ t('showcase.lightbox.info_source_duration') }}</span>
+                                    <span class="lbx-pop-val" x-text="currentLightboxVideo?.source_duration + ' ' + t('showcase.unit.minutes')"></span>
+                                </div>
+                            </div>
+                        </template>
+                        <!-- 199a-T6：簡介全文（有翻過＝「譯文」「原文」兩段；沒翻過＝一段無標籤的原文）＋翻譯／重新翻譯鈕。
+                             翻譯期間浮層保持開著，完成後內容原地更新；譯文標籤只在有原文時才畫（沒翻過的簡介本身就是原文語言） -->
+                        <template x-if="lbxPop.kind === 'plot'">
+                            <div class="lbx-plot-pop">
+                                <div class="lbx-plot-pop-sec">
+                                    <div class="lbx-plot-pop-label" x-show="_lbPlotView.hasOriginal">{{ t('showcase.lightbox.plot_pop_translated') }}</div>
+                                    <div class="lbx-plot-skeleton" x-show="lbPlotRowState() === 'loading'" aria-hidden="true">
+                                        <span class="lbx-plot-skeleton-line"></span>
+                                        <span class="lbx-plot-skeleton-line"></span>
+                                    </div>
+                                    <p class="lbx-plot-unavailable" x-show="lbPlotRowState() === 'error'">{{ t('showcase.lightbox.plot_unavailable') }}</p>
+                                    <p class="lbx-plot-pop-text" x-show="lbPlotRowState() === 'text'" x-text="_lbPlotView.plot"></p>
+                                </div>
+                                <div class="lbx-plot-pop-sec" x-show="_lbPlotView.hasOriginal && lbPlotRowState() === 'text'">
+                                    <div class="lbx-plot-pop-label">{{ t('showcase.lightbox.plot_pop_original') }}</div>
+                                    <p class="lbx-plot-pop-text" x-text="_lbPlotView.original"></p>
+                                </div>
+                                <button type="button" class="lbx-plot-pop-btn"
+                                        x-show="lbPlotRowState() === 'text' && lbPlotButtons.length > 0"
+                                        @click.stop="lbPlotTranslate()"
+                                        :disabled="!!_lbPlotInFlight[currentLightboxVideo?.path]"
+                                        :aria-busy="!!_lbPlotInFlight[currentLightboxVideo?.path]"
+                                        :aria-label="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')">
+                                    <i class="bi" :class="lbPlotButtons.includes('retranslate') ? 'bi-arrow-repeat' : 'bi-translate'" x-show="!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="!!_lbPlotInFlight[currentLightboxVideo?.path]" aria-hidden="true"></i>
+                                    <span x-text="lbPlotButtons.includes('retranslate') ? t('showcase.lightbox.plot_retranslate_tooltip') : t('showcase.lightbox.plot_translate_tooltip')"></span>
+                                </button>
+                            </div>
+                        </template>
+                        <!-- 199a-T7：「+N」—第 5 列沒露出的標籤（分「標籤」「你的標籤」兩段）。浮層內的標籤＝可見層沒露出的那些，每個標籤恰在可見層與浮層其中一處；
+                             你的標籤在這裡仍可點篩選、仍有 ×（無確認，同可見層）。 -->
+                        <template x-if="lbxPop.kind === 'moreTags'">
+                            <div class="lbx-tags-pop">
+                                <template x-if="lbxWorkTags().slice(lbxTagShown('work')).length > 0">
+                                    <div class="lbx-tags-pop-sec">
+                                        <div class="lbx-tags-pop-label">{{ t('showcase.lightbox.tags_work_section') }}</div>
+                                        <div class="lbx-tags-pop-list">
+                                            <template x-for="tag in lbxWorkTags().slice(lbxTagShown('work'))" :key="tag">
+                                                <a href="#" class="lb-tag lbx-tag" @click.prevent="searchFromMetadata(tag, 'tag')" x-text="tag"></a>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="lbxUserTags().slice(lbxTagShown('user')).length > 0">
+                                    <div class="lbx-tags-pop-sec">
+                                        <div class="lbx-tags-pop-label">{{ t('showcase.lightbox.tags_user_section') }}</div>
+                                        <div class="lbx-tags-pop-list">
+                                            <template x-for="tag in lbxUserTags().slice(lbxTagShown('user'))" :key="tag">
+                                                <span class="lb-tag lbx-utag">
+                                                    <a href="#" class="lbx-utag-link" @click.prevent="searchFromMetadata(tag, 'tag')"><span x-text="tag"></span></a>
+                                                    <button type="button" class="lbx-utag-x" @click.stop="removeLbUserTag(tag)" :title="tag" :aria-label="tag">×</button>
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
             </div>
 
             <!-- Picker Overlay（49c T1：z-axis overlay，fixed position；移出 lightbox-content） -->

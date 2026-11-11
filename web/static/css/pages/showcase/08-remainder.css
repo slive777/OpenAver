@@ -541,128 +541,12 @@ body.sidebar-collapsed .showcase-footer {
     border-color: var(--accent);
 }
 
-/* fetch-samples-btn：鏡像 sg-open-btn pill 結構，藍色差異化（--accent-secondary = Apple Blue） */
-.fetch-samples-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    flex-shrink: 0;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.8rem;
-    border-radius: var(--radius-pill);
-    border: 1px solid color-mix(in oklch, var(--accent-secondary) 40%, transparent);
-    background: color-mix(in oklch, var(--accent-secondary) 15%, transparent);
-    color: var(--accent-secondary);
-    cursor: pointer;
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
-                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
-    white-space: nowrap;
-}
-
-.fetch-samples-btn:hover:not(:disabled) {
-    background: color-mix(in oklch, var(--accent-secondary) 30%, transparent);
-    border-color: var(--accent-secondary);
-}
-
-/* Dark theme (dim) calibration — feature/69 T4: 近黑底吃光低% tint，提 tint% + border%。
-   mix partner 用 transparent（同 base 慣例，色相安全）。accent-secondary 無 dim override
-   （Apple Blue 暗底可見），只補背景物理隱形。
-   hover override 必要：base hover (3 class) specificity 高於 dim resting，否則 hover 反更淡。 */
-[data-theme="dim"] .fetch-samples-btn {
-    background: color-mix(in oklch, var(--accent-secondary) 25%, transparent);
-    border-color: color-mix(in oklch, var(--accent-secondary) 55%, transparent);
-}
-
-[data-theme="dim"] .fetch-samples-btn:hover:not(:disabled) {
-    background: color-mix(in oklch, var(--accent-secondary) 40%, transparent);
-}
-
-.fetch-samples-btn:disabled {
-    filter: grayscale(1);
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
 /* C21 guard：GSAP 動畫期間禁用 sg-main-img 的 CSS transition */
 .sample-gallery .sg-main-img.gsap-animating {
     transition: none !important;
 }
 
-/* === User Tags in Lightbox (T4) === */
-
-/* 整個 user tags 容器 — flex wrap，與 lb-tags 間距一致 */
-.lightbox-metadata .lb-user-tags {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.35rem;
-    margin-bottom: 0.5rem;
-}
-
-/* 單個 user tag badge — accent 色背景，與 scraper tag 明顯區分 */
-.lb-user-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    padding: 0.15rem 0.5rem;
-    background: var(--accent);
-    color: var(--color-primary-content);
-    border-radius: var(--radius-pill);
-    font-size: 0.6875rem;
-}
-
-/* user tag 文字連結 — 在 accent 實心底上，承襲字色 */
-.lb-user-tag-link {
-    color: inherit;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.lb-user-tag-link:hover {
-    text-decoration: underline;
-}
-
-.lb-user-tag-link:focus-visible {
-    outline: 2px solid currentColor;
-    outline-offset: 1px;
-    border-radius: var(--radius-sm);
-}
-
-/* × 刪除按鈕 */
-.lb-tag-remove {
-    cursor: pointer;
-    opacity: 0.7;
-    line-height: 1;
-    padding: 0;
-    background: none;
-    border: none;
-    color: inherit;
-    font-size: 0.75rem;
-}
-
-.lb-tag-remove:hover {
-    opacity: 1;
-}
-
-/* + 新增按鈕 — dashed border */
-.lb-tag-add-btn {
-    /* chip optical 6px (charter §4 micro chip 級例外保留) */
-    padding: 1px 6px;
-    font-size: 0.7rem;
-    line-height: 1.4;
-    background: transparent;
-    border: 1px dashed var(--text-muted);
-    color: var(--text-muted);
-    border-radius: var(--radius-sm, 4px);
-    cursor: pointer;
-}
-
-.lb-tag-add-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-/* 188c-T11：燈箱 AI 標籤鈕（沿用 .lb-tag-add-btn 數值；inline-flex 讓 spinner transform 有視覺） */
+/* 188c-T11：燈箱 AI 標籤鈕（數值同舊「＋」鈕；inline-flex 讓 spinner transform 有視覺） */
 .lb-tag-ai-btn {
     display: inline-flex;
     align-items: center;
@@ -692,43 +576,6 @@ body.sidebar-collapsed .showcase-footer {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     box-shadow: 0 0 0 4px var(--glow-subtle);
-}
-
-/* 輸入框包裝 */
-.lb-tag-input-wrapper {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-}
-
-/* 輸入框 */
-.lb-tag-input {
-    width: 80px;
-    padding: 1px 4px;
-    font-size: 0.7rem;
-    border: 1px solid var(--accent);
-    border-radius: var(--radius-sm, 4px);
-    background: var(--bg-card);
-    color: var(--text-primary);
-}
-
-/* ✓ 確認 / ✕ 取消按鈕 */
-.lb-tag-confirm,
-.lb-tag-cancel {
-    padding: 0 4px;
-    font-size: 0.7rem;
-    line-height: 1.2;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-}
-
-.lb-tag-confirm {
-    color: var(--color-success);
-}
-
-.lb-tag-cancel {
-    color: var(--color-error);
 }
 
 /* T3: 無封面卡片 overlay 常駐顯示（pointer-events 必須補 auto，否則不可點擊）*/
@@ -885,7 +732,7 @@ body.sidebar-collapsed .showcase-footer {
 /* ==================== Filter pills (TASK-115-T5 shell + T6 appearance) =====
    Shared spotlight frame lives on .filter-pill-group (not the inner input).
    .filter-pill is neutral tint + thin border — deliberately NOT solid --accent
-   (that fill is .lb-user-tag, which permanently deletes a tag). ✕ is always
+   (a solid fill would not read as a filter). ✕ is always
    visible with a ≥24×24 CSS-px hit target (no hover-reveal). */
 .filter-pill-group {
     display: flex;
@@ -937,7 +784,7 @@ body.sidebar-collapsed .showcase-footer {
     max-width: 100%;
 }
 
-/* Neutral tint + thin border — opposite of .lb-user-tag solid --accent fill. */
+/* Neutral tint + thin border — opposite of a solid --accent fill. */
 .filter-pill {
     display: inline-flex;
     align-items: center;

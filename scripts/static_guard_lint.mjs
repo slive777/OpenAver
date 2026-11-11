@@ -84,6 +84,8 @@ const LIGHTBOX_SLICE_FILES = [
   'web/static/js/pages/showcase/state-lightbox-tags.js',
   'web/static/js/pages/showcase/state-lightbox-translate.js',
   'web/static/js/pages/showcase/state-lightbox-plot.js',
+  'web/static/js/pages/showcase/state-lightbox-pop.js',
+  'web/static/js/pages/showcase/state-lightbox-fit.js',
   'web/static/js/pages/showcase/state-lightbox-ai-tags.js',
 ];
 
@@ -96,10 +98,10 @@ const RULES = [
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'video.director', note: '[TestShowcaseMetadataGuard] metadata binding' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'table-cell-duration', note: '[TestShowcaseMetadataGuard] metadata binding' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'currentLightboxVideo?.director', note: '[TestShowcaseMetadataGuard] lightbox field' },
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'currentLightboxVideo?.duration', note: '[TestShowcaseMetadataGuard] lightbox field' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'currentLightboxVideo?.source_duration', note: '[TestShowcaseMetadataGuard] lightbox field' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'currentLightboxVideo?.series', note: '[TestShowcaseMetadataGuard] lightbox field' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'currentLightboxVideo?.label', note: '[TestShowcaseMetadataGuard] lightbox field' },
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'lb-details', note: '[TestShowcaseMetadataGuard] lightbox field' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'lbx-works', note: '[TestShowcaseMetadataGuard] lightbox field' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: "searchFromMetadata(currentLightboxVideo?.director, 'director')", note: '[TestShowcaseMetadataGuard] searchFromMetadata call' },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', anyOf: true,
@@ -111,7 +113,6 @@ const RULES = [
 
   // ---- [lint-guard 101d-T2] 焦點適用邊界就地註解不得被順手刪（spec-101 §7.3-2 要求就地註解；plan-101d §5.2/§5.3）----
   // 錨四處「刻意不同/刻意不接」設計意圖註解的唯一關鍵句。刪任一句即紅（mutation 自驗）。
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'per-image 門檻刻意不同', note: '[lint-guard 101d-T2] 影片 gate≠女優 gate 就地註解（plan-101d §2.2）' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: '與影片 _posterModeActive() 刻意不同', note: '[lint-guard 101d-T2] 女優側反向指引註解（plan-101d §2.2）' },
   { file: 'web/static/css/pages/showcase/08-remainder.css', kind: 'required-string', pattern: '相似卡刻意固定右裁（桌面', note: '[lint-guard 101d-T2] 桌面 similar 卡固定右裁註解（plan-101d §5.3）' },
   { file: 'web/static/css/pages/showcase/06-responsive-and-lists.css', kind: 'required-string', pattern: '相似卡刻意固定右裁（手機 burst', note: '[lint-guard 101d-T2] 手機 burst similar 卡固定右裁註解（plan-101d §5.3）' },
@@ -461,7 +462,183 @@ const RULES = [
   // 唯一性已用 grep 確認），window 只需蓋過該分支內的 ✓/✗ 兩處、且在下一分支的同 pattern
   // 之前收尾，兩個分支才能被「各自」的 count:2 下限獨立守住。
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 8800 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解，與下一條影片 scope 的 anchor 相距 15069 字元，仍安全不重疊）' },
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 9000 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：影片分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到影片 <template x-if> 分支，count=2 獨立鎖住兩處都改到' },
+  // 199a-T2：影片分支的 ✓/✗ 隨封面對焦入口一起移除，上面只剩女優那條（影片那條 count:2 規則已刪）。
+  { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'lb-video-branch', count: 1, note: '[lint-guard:199a-T1-video-branch-count] 影片燈箱外框隔離標記 lb-video-branch 全檔恰 1 處——多了＝女優／其他燈箱也被套上影片版外框（封面忽然變大、版面跑掉），少了＝影片燈箱外框整組失效；模板內任何註解都不得寫到這個字樣' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'class="lb-video-branch"', scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 200 }, note: '[lint-guard:199a-T1-video-branch-scope] lb-video-branch 必須掛在影片分支 <template x-if> 緊接的包裝 div 上——class 被搬到女優分支時計數仍是 1，但影片燈箱外框失效、女優燈箱被改版' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ['lbVersionCapsules()', 'switchLightboxVersion('], scope: { anchor: /<div class="lbx-band"/, window: 1500 }, note: '[lint-guard:199a-T2-band-capsules] 封面規格帶的版本膠囊必須吃 lbVersionCapsules()（與刪除確認視窗同源）並用 switchLightboxVersion( 切版本——文字另起算法時，使用者看著 A 膠囊按刪除，確認視窗寫的卻是另一版，以為刪錯檔' },
+
+  // ---- 199a-T3：浮層底座 lbxPop（單槽浮層＋第一個消費者 verTip）----
+  {
+    file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'nested-count',
+    outerAnchor: /<div class="showcase-lightbox"/,
+    outerTagName: 'div', innerToken: 'lbx-pop-host', expected: 1,
+    note: '[lint-guard:199a-T3-host-direct-child] 浮層宿主被包進 .lightbox-content（有 transform／overflow 的祖先）→ 使用者把滑鼠停在版本膠囊上，檔案提示被裁掉或浮到錯的位置',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'order',
+    scope: { anchor: /handleKeydown\(e\) \{/, braceBalanced: true },
+    items: [
+      { pattern: /(?<![\w:-])if \(this\.lbxPop\) \{ e\.preventDefault\(\); this\.lbxPopClose\(\{ restoreFocus: true \}\); return; \}/ },
+      { pattern: 'this.closeLightbox();', occurrence: 'last' },
+    ],
+    note: '[lint-guard:199a-T3-esc-order] 影片 Esc 的「先收浮層」層排到 closeLightbox 之後 → 使用者想收起檔案提示按 Esc，整座燈箱一起關掉，要重開再找回那部片',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: /(?<![\w:-])this\.lbxPopClose\?\.\(\)/,
+    scope: { anchor: /closeLightbox\(\) \{/, braceBalanced: true },
+    note: '[lint-guard:199a-T3-close-reset] closeLightbox 少了 lbxPopClose?.()（或寫成沒有 ?. 的裸呼叫）→ 使用者關燈箱時浮層還留在畫面上，重開別部片還看到上一部的檔案提示',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',
+    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\.lbxPopClose\?\.\(\);\s*\}\)/,
+    note: '[lint-guard:199a-T3-watch-close] 換片 $watch 少了 lbxPopClose → 使用者在膠囊上開著檔案提示時換到下一部片，上一部片的檔名與規格還浮在畫面上、內容對不上目前這部',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['@pointerdown.window="lbxPopOnPointerDown($event)"', '@resize.window="lbxPopClose()"'],
+    scope: { anchor: /<div class="showcase-lightbox"/, window: 600 }, // 實測 anchor 到 @resize.window 結尾 452 字元，加約 30% 餘裕
+    note: '[lint-guard:199a-T3-root-listeners] 燈箱根節點少了「點外面收浮層」或「改視窗大小收浮層」→ 使用者點別處或拉大視窗後，浮層停在舊位置不消失、蓋住不該蓋的東西',
+  },
+
+  // ---- 199a-T4：文字區第 1、2 列＋⋯ 選單（片名／原文全文浮層共用 lbxPop）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['data-lbx-anchor="title"', 'data-lbx-anchor="otitle"', 'data-lbx-anchor="menu"'],
+    note: '[lint-guard:199a-T4-anchors] 片名／原文／⋯ 少了 data-lbx-anchor → 使用者點 ⋯ 想收起選單，點擊被判成「點外面」先收掉、click 又把它重開，選單永遠關不掉',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxMenuHas\('samples'\) && !_fetchSamplesLoading"/,
+    scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--samples"[^>]*>/,
+    note: '[lint-guard:199a-T4-menu-wired] ⋯ 選單「補劇照」項目元素本身少了 x-show 顯示條件 → 已有劇照的片、或沒有對應檔的片也看到「補劇照」，按下去重複向外站抓取或被後端拒絕',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxMenuHas\('samples'\) && _fetchSamplesLoading"/,
+    scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--busy"[^>]*>/,
+    note: '[lint-guard:199a-T4-menu-wired] ⋯ 選單「抓取中」項目元素本身少了 x-show 顯示條件 → 沒在抓取（或不該有補劇照的片）也顯示「抓取中...」',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxMenuHas\('translate'\)"/,
+    scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--translate"[^>]*>/,
+    note: '[lint-guard:199a-T4-menu-wired] ⋯ 選單「翻譯片名」項目元素本身少了 x-show 顯示條件 → 中文片名、翻譯關閉的片也看到「翻譯片名」，按下去才被擋（舊 172-T5-show-* 的元素屬性強度）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxMenuHas\('delete'\)"/,
+    scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--delete"[^>]*>/,
+    note: '[lint-guard:199a-T4-menu-wired] ⋯ 選單「從收藏移除」項目元素本身少了 x-show 顯示條件 → 沒有對應檔的片還能按「從收藏移除」，按下去後端找不到那筆而失敗',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', pattern: '<div class="lbx-menu">',
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 2300 }, // 實測 anchor 到 <div class="lbx-menu"> 1713 字元（隔著 verTip／title／otitle 三個 template），加約 34% 餘裕
+    note: '[lint-guard:199a-T4-menu-in-host] ⋯ 選單必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點 ⋯ 看不到選單',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'required-string',
+    pattern: ['lbTrShowOnTitle()', 'lbTrShowOnOtitle()', 'sample_images', '?.path'],
+    scope: { anchor: /lbxMenuItems\(\) \{/, braceBalanced: true },
+    note: '[lint-guard:199a-T4-menu-gates] lbxMenuItems 少了翻譯／劇照／對應檔條件 → 沒翻譯條件的片也看到「翻譯片名」、有劇照的片還出現「補劇照」（按下去重複向外站抓取）、沒有對應檔的片還能按「從收藏移除」',
+  },
+
+  // ---- 199a-T5：文字區第 3 列（女優最多 3 位＋「另有 N 位」、作品資訊小膠囊＋ⓘ；露出數由 lbxFit 量測）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [/x-effect="lbxFitSchedule\(\$el,\s*lbxFitSig\(/, /lbxFitMeasuring\(lbxFitSig\(/],
+    scope: { anchor: /<div class="lbx-people-row"/, window: 340 }, // 實測 anchor 到 x-effect 結尾 259 字元，加約 31% 餘裕
+    note: '[lint-guard:199a-T5-fit-wired] 第 3 列少了 x-effect 排程量測或 is-measuring 隱藏 → 使用者換片後女優列不重算，露出數停在上一片（「另有 N 位」數字對不上），或整列永遠 visibility:hidden 看不到女優',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['data-lbx-anchor="actresses"', 'data-lbx-anchor="info"'],
+    note: '[lint-guard:199a-T5-anchors] 「另有 N 位」／ⓘ 少了 data-lbx-anchor → 使用者點它們想收起浮層，點擊被判成「點外面」先收掉、click 又把它重開，永遠關不掉',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ["lbxPop.kind === 'actresses'", "lbxPop.kind === 'info'"],
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 7500 }, // 實測 anchor 到 info template 5720 字元（隔著 verTip／title／otitle／menu／actresses），加約 31% 餘裕
+    note: '[lint-guard:199a-T5-pop-in-host] 女優名單／作品資訊內容必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點「另有 N 位」或ⓘ 看不到東西',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /<div class="lbx-measure"(?=[^>]*\baria-hidden="true")(?=[^>]*\binert\b)/,
+    note: '[lint-guard:199a-T5-measure-inert] 量測層少了 aria-hidden 或 inert → 螢幕閱讀器把女優名念兩遍，鍵盤 Tab 還會停在看不見的東西上',
+  },
+
+  // ---- 199a-T6：文字區第 4 列（簡介常駐列＋點了往下浮出全文）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['data-lbx-anchor="plot"', "lbxPopToggle('plot'"],
+    scope: { anchor: /<button type="button" class="lbx-plot-row"/, window: 320 }, // 實測 anchor 到 lbxPopToggle('plot' 結尾 241 字元，加約 33% 餘裕
+    note: '[lint-guard:199a-T6-plot-row-wired] 簡介列少了 data-lbx-anchor 或 lbxPopToggle(\'plot\' → 使用者點簡介想收起，被判成「點外面」先收掉、click 又重開，永遠收不掉；或點了沒反應',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: "lbxPop.kind === 'plot'",
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 12500 }, // 實測 anchor 到 plot template 的 kind 判斷結尾 9500 字元（隔著 verTip／title／otitle／menu／actresses／info），加約 31% 餘裕
+    note: '[lint-guard:199a-T6-plot-pop-in-host] 簡介全文必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點簡介列看不到全文',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',
+    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.has_plot',\s*\(\)\s*=>\s*\{[^}]*this\._lbPlotLoad\?\.\(\)[^}]*\}\s*\)/,
+    note: '[lint-guard:199a-T6-watch-has-plot] 少了 has_plot 的載入 watch → 使用者在燈箱裡補完讓片有了簡介，簡介列出現卻停在骨架，要關掉重開才看得到文字',
+  },
+
+  // ---- 199a-T7：文字區第 5 列（作品標籤＋「+N」／你的標籤＋「＋」展開；Esc 先取消輸入）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [
+      /<a\b(?=[^>]*\bclass="lbx-utag-link")(?=[^>]*@click\.prevent="searchFromMetadata\(tag, 'tag'\)")[^>]*>/,
+      'removeLbUserTag(tag)',
+    ],
+    scope: { anchor: /<template x-if="lbxPop\.kind === 'moreTags'"/, window: 2400 }, // 實測 anchor 到浮層內 removeLbUserTag(tag) 結尾 1785 字元，加約 34% 餘裕
+    note: '[lint-guard:199a-T7-utag-in-more-pop] 「+N」浮層裡「你的標籤」少了點擊篩選或 × 移除接線 → 被收進 +N 的自己的標籤點了沒反應、或刪不掉（可見層那顆餵不飽它：scope 在 moreTags 浮層內）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'order',
+    scope: { anchor: /handleKeydown\(e\) \{/, braceBalanced: true },
+    items: [
+      { pattern: /(?<![\w:-])if \(this\.lbxPop\) \{ e\.preventDefault\(\); this\.lbxPopClose\(\{ restoreFocus: true \}\); return; \}/ },
+      { pattern: /(?<![\w:-])if \(this\.addingLbTag\) \{ e\.preventDefault\(\); this\.cancelAddLbTag\(\); return; \}/ },
+      { pattern: 'this.closeLightbox();', occurrence: 'last' },
+    ],
+    note: '[lint-guard:199a-T7-esc-order] 影片 Esc 的「先取消標籤輸入」層缺了或排到 closeLightbox 之後 → 使用者按「＋」打到一半想按 Esc 取消，整座燈箱一起關掉，打到一半的標籤與正在看的那部片位置全丟',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [
+      'lbxFitMeasuring(lbxFitSig(',
+      'data-lbx-anchor="moreTags"',
+      "lbxPopToggle('moreTags'",
+      'showAddLbTagInput()',
+      'removeLbUserTag(tag)',
+      'x-ref="lbTagInput"',
+      '@keydown.enter.stop="confirmAddLbTag()"',
+      '@keydown.escape.stop="cancelAddLbTag()"',
+    ],
+    scope: { anchor: /<div class="lbx-tag-row"/, window: 4200 }, // 實測 anchor 到最遠的 @keydown.escape.stop 結尾 3205 字元，加約 31% 餘裕
+    note: '[lint-guard:199a-T7-tag-row-wired] 第 5 列少了量測隱藏／+N 錨點／＋ 展開／× 移除／輸入框 Enter／Esc 任一接線 → 使用者換片後標籤列不重算或列永遠看不到、+N 點了收不掉、＋ 打開後輸入框 Enter／Esc 沒反應',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: "lbxPop.kind === 'moreTags'",
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 16200 }, // 實測 anchor 到 moreTags template 的 kind 判斷結尾 12377 字元（隔著 verTip／title／otitle／menu／actresses／info／plot），加約 31% 餘裕
+    note: '[lint-guard:199a-T7-pop-in-host] 「+N」浮層內容必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點 +N 看不到其餘標籤',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /<div class="lbx-measure"(?=[^>]*\baria-hidden="true")(?=[^>]*\binert\b)/,
+    scope: { anchor: /<div class="lbx-tag-row"/, window: 6600 }, // 實測 anchor 到量測層 inert 開標籤結尾 4983 字元，加約 32% 餘裕；T5 那條是整檔 flat、被人物列那顆餵飽，標籤列這顆掉了不會紅，所以這裡 scope 到標籤列
+    note: '[lint-guard:199a-T7-measure-inert] 第 5 列量測層少了 aria-hidden 或 inert → 螢幕閱讀器把每個標籤念兩遍，鍵盤 Tab 還會停在看不見的東西上',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['@click.stop="lbAiTag()"', 'x-show="lbAiVisible()"'],
+    scope: { anchor: /<div class="lbx-tag-expand"/, window: 1750 }, // 實測 anchor 到 @click.stop="lbAiTag()" 結尾 1307 字元，加約 34% 餘裕
+    note: '[lint-guard:199a-T7-ai-in-expand] AI 判斷鈕不在「＋」展開區裡或少了顯示條件／點擊接線 → 鈕又冒在「＋」外面、或展開後找不到、或設定關著也看得到鈕',
+  },
 
   // 星空等待動畫函式定義存在（ghost-fly.js）+ callsite（state-lightbox.js openMask，唯一啟動點）。
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'function playFocalDetectWait', note: '[TestMaskToggleGuard] 99a-T5：ghost-fly.js 定義星空等待迴圈動畫（start）' },
@@ -1770,6 +1947,8 @@ const RULES = [
     ['state-lightbox-tags.js', 'stateLightboxTags'],
     ['state-lightbox-translate.js', 'stateLightboxTranslate'],
     ['state-lightbox-plot.js', 'stateLightboxPlot'],
+    ['state-lightbox-pop.js', 'stateLightboxPop'],
+    ['state-lightbox-fit.js', 'stateLightboxFit'],
     ['state-lightbox-ai-tags.js', 'stateLightboxAiTags'],
   ].map(([file, fn]) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'required-string',
@@ -1806,18 +1985,18 @@ const RULES = [
     pattern: /^[ \t]*return[ \t]*mergeState\(/m,
     note: '[TestShowcaseESMGuard] test_main_js_calls_merge_state — 實際呼叫 mergeState(...)，非 Object.assign 等替代品（防 descriptor 丟失假綠，Codex P2）',
   },
-  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()', 'stateLightboxPlot()', 'stateLightboxAiTags()'].map((fn) => ({
+  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()', 'stateLightboxPlot()', 'stateLightboxPop()', 'stateLightboxFit()', 'stateLightboxAiTags()'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'forbidden-string', pattern: `...${fn}`,
     note: '[TestShowcaseESMGuard] test_main_js_no_plain_spread_merge — 8 factory 全禁',
   })),
-  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate', 'stateLightboxPlot', 'stateLightboxAiTags'].map((fn) => ({
+  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate', 'stateLightboxPlot', 'stateLightboxPop', 'stateLightboxFit', 'stateLightboxAiTags'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: `${fn}.call(this)`,
     note: '[TestShowcaseESMGuard] test_main_js_factory_calls_use_call_this — 唯一有此斷言的頁（settings/scanner/search 皆未檢查）',
   })),
   { file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: 'window.showcaseState', note: '[TestShowcaseESMGuard] test_main_js_has_window_showcase_state_bridge — 唯一有 window bridge 斷言的頁' },
-  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-ai-tags.js'].map((file) => ({
+  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-ai-tags.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
-    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate|stateLightboxPlot|stateLightboxAiTags)\b/m,
+    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate|stateLightboxPlot|stateLightboxPop|stateLightboxFit|stateLightboxAiTags)\b/m,
     note: `[TestShowcaseESMGuard] test_no_circular_state_factory_imports — ${file} 頂層 import 不可含 6 個 factory 函式名（判斷單位是 factory 名非檔名；state-base.js 本身不驗）`,
   })),
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
@@ -1827,17 +2006,17 @@ const RULES = [
   { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'forbidden-string', pattern: 'addFavoriteActress', note: '[TestShowcaseESMGuard] test_state_videos_no_actress_functions' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+openLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions — 方法定義 regex（行首縮排+openLightbox(，防誤殺 this.openLightbox(...) 呼叫）' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+closeLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions' },
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^(?!\s)(?!\/\/)(?!\*)[^\n]*window\.gsap/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層非註解行不可含 window.gsap`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^gsap\b/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層行不可以 gsap 識別字開頭`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-ai-tags.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-ai-tags.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string', pattern: 'this._PICKER_PARAMS',
     note: `[TestShowcaseESMGuard] test_no_this_picker_params_in_state_modules — ${file} 不可 this._PICKER_PARAMS（main.js 不在此列）`,
   })),
@@ -2183,32 +2362,32 @@ const RULES = [
   // ---- [TestRescrapeEntryGuard] showcase ⚙ gear 唯一進階重刮入口（62b-1 → 74b US4 → 74c-T1/T3）----
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: /<button[^>]*\bclass="lb-rescrape-gear"[^>]*>\s*<i[^>]*\bbi-gear\b/,
+    pattern: /<button[^>]*\bclass="lbx-menu-item lbx-menu-item--rescrape"[^>]*>\s*<i[^>]*\bbi-gear\b/,
     note: '[TestRescrapeEntryGuard] test_gear_has_bi_gear_icon — ⚙ gear button 內必須含 bi-gear icon',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: "openRescrape(currentLightboxVideo, 'lightbox')",
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: "[TestRescrapeEntryGuard] test_gear_opens_rescrape_lightbox — ⚙ @click 必須 openRescrape(currentLightboxVideo, 'lightbox')",
   },
   {
     file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: /x-show="[^"]*"/,
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: '[TestRescrapeEntryGuard] test_gear_gated_by_rescrape_enabled — 74c-T1：⚙ 齒輪已退役 x-show gate（negative 半邊）',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: "openRescrape(currentLightboxVideo, 'lightbox')",
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: "[TestRescrapeEntryGuard] test_gear_gated_by_rescrape_enabled — @click 仍在（齒輪行為不變，positive 半邊，冗餘但忠實 port）",
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: "t('showcase.rescrape.entry_tooltip')",
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: '[TestRescrapeEntryGuard] test_gear_tooltip_uses_i18n_key — ⚙ 用 i18n key，不硬編碼',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: /[\s:]aria-label="[^"]*entry_tooltip/,
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: '[TASK-104-T4] test_gear_tooltip_uses_i18n_key — ⚙ 缺 aria-label（可及性）；104-T4 移除 readonly 三元後改靜態 Jinja 屬性（原僅接受 Alpine `:aria-label` 動態綁定，拓寬比對前綴涵蓋兩種形式）。round-3 P3：改用 `[\\s:]` 前綴取代 `\\b`（`-` 也是 word-boundary，`\\baria-label` 會誤過 `data-aria-label`）',
   },
   { file: 'web/static/js/shared/long-press.js', kind: 'file-absent', note: '[TestRescrapeEntryGuard] test_long_press_helper_retired — 74c-T3：long-press.js 已刪除，不得再存在' },
@@ -3710,13 +3889,13 @@ const RULES = [
   // + test_core_js_contains（Opus 裁決 3：內部機制歸屬 96e，字串 pin 到實際所在檔）----
   {
     file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
-    tagName: 'button', className: 'fetch-samples-btn',
-    required: ['x-show=', 'sample_images', '@click=', 'fetchSamples', ':disabled=', '_fetchSamplesFailed'],
+    tagName: 'button', className: 'lbx-menu-item--samples',
+    required: ['x-show=', '@click=', 'fetchSamples', ':disabled=', '_fetchSamplesFailed'],
     note: '[TestFetchSamplesButton] test_html_contains — fetch-samples-btn 開標籤必要屬性',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', anyOf: true, pattern: [/^!!/, '=== true'],
-    scope: /<button\b(?=[^>]*class="[^"]*(?<![\w-])fetch-samples-btn(?![\w-])[^"]*")[^>]*:disabled=["']([^"']+)["'][^>]*>/,
+    scope: /<button\b(?=[^>]*class="[^"]*(?<![\w-])lbx-menu-item--samples(?![\w-])[^"]*")[^>]*:disabled=["']([^"']+)["'][^>]*>/,
     note: '[TestFetchSamplesButton] test_html_contains — :disabled boolean coercion（!! 開頭或 === true，§11 gotcha #1 AV capture-group scope）',
   },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-text=', note: '[TestFetchSamplesButton] test_html_contains（pytest 原斷言 or-html 恆等 WF，照抄行為）' },
@@ -3726,7 +3905,7 @@ const RULES = [
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'showcase.samples.fetching', note: '[TestFetchSamplesButton] test_html_contains' },
   {
     file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: '☁',
-    scope: /<button\b(?=[^>]*class="[^"]*(?<![\w-])fetch-samples-btn(?![\w-])[^"]*")[^>]*>[\s\S]*?<\/button>/,
+    scope: /<button\b(?=[^>]*class="[^"]*(?<![\w-])lbx-menu-item--samples(?![\w-])[^"]*")[^>]*>[\s\S]*?<\/button>/,
     note: '[TestFetchSamplesButton] test_html_contains — btn_region 內不可含 ☁ emoji（element-region-scoped）',
   },
   {
@@ -3861,11 +4040,12 @@ const RULES = [
     note: '[lint-guard:195-T6-search-card-play-wired] 結果卡播放鈕必須呼叫共用 playVideo(...)，否則桌面 App 按播放會跳去瀏覽器分頁',
   },
 
-  // 195-T11：燈箱 user tag 文字必須包進 <a class="lb-user-tag-link"> 並呼叫 searchFromMetadata。
+  // 195-T11：燈箱 user tag 文字必須包進 <a class="lbx-utag-link"> 並呼叫 searchFromMetadata。
   // 只錨 <a> 開標籤，不錨整個 span——整個 span 範圍內的 HTML 註解會餵飽 required-string 而 fail-open（FE-GUARD-03）。
+  // 199a-T7：class 由 lb-user-tag-link 改名 lbx-utag-link（舊兩列標籤換成第 5 列）；量測層的複本是 <span class="lbx-utag-link">、不是 <a>，所以「第一個命中」永遠是可見層那顆。
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: "searchFromMetadata(tag, 'tag')",
-    scope: /<a\b[^>]*\bclass="lb-user-tag-link"[^>]*>/,
+    scope: /<a\b[^>]*\bclass="lbx-utag-link"[^>]*>/,
     note: '[lint-guard:195-T11-user-tag-click-wired] 燈箱 user tag 文字必須呼叫 searchFromMetadata(tag, \'tag\')，否則使用者點自己加的 tag 沒反應（其餘檢查照樣全綠）',
   },
 
@@ -4693,12 +4873,11 @@ const RULES = [
     file: 'web/templates/showcase.html',
     kind: 'required-string',
     pattern: [
-      '!!currentLightboxVideo?.path && !_maskVisible && (currentLightboxVideo.part_tokens || []).length',
-      'class="cover-badges-part"',
+      'class="lbx-part"',
       'formatPartLabel(currentLightboxVideo.part_tokens)',
     ],
-    scope: { anchor: /<div class="lightbox-cover" :class="\{'has-cover': !!currentLightboxVideo\?\.cover_url\}">/, window: 4000 },
-    note: '[122-T3] AC-7/AC-17 燈箱：封面必須以 <template x-if> 掛 .cover-badges-part（含 !_maskVisible），消費 formatPartLabel(currentLightboxVideo.part_tokens)',
+    scope: { anchor: /<div class="lbx-band"/, window: 2600 },
+    note: '[122-T3] AC-7/AC-17 燈箱（199a-T2 搬到規格帶）：影片燈箱的分集標記必須掛在封面規格帶 .lbx-band 內（class="lbx-part"），消費 formatPartLabel(currentLightboxVideo.part_tokens)——漏掉時使用者開分集作品，封面上看不到 CD1-2 之類標記。window 2600：實測 anchor 到 class="lbx-part" 結尾 1962 字元（199a-T3 在版本膠囊加 7 個屬性後由 1285 增至 1962），加約 30% 餘裕',
   },
 
   // ==== [123-T5] CD-123-13：三個唯讀表面 + 燈箱既有插入點的粗顆粒守衛（AC-4/5/6） ====
@@ -5736,9 +5915,7 @@ const RULES = [
       'actressCupValue',
     ], stripLineComments: true, note: '[lint-guard 162c-TestShowcaseActressState.test_actress_js_contains] 使用者切到女優模式/排序後重新整理 → 缺 saveState 的 persist 寫入就回到預設、每次要重切；其餘為女優模式 state/method 識別字清單 — 遷自 test_frontend_lint.py' },
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: [
-      '_videoChipsExpanded',
       'currentLightboxActress = null',
-      '_videoChipsExpanded = false',
       'this.currentLightboxActress',
       'this.prevActressLightbox()',
       'this.nextActressLightbox()',
@@ -5799,7 +5976,7 @@ const RULES = [
 
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'showFavoriteActresses', scope: /<button\b[^>]*openRemoveActressModal\(\)[^>]*>/, note: '[lint-guard 162c-TestShowcaseLightboxSentinel.test_showcase_html_contains] 使用者在影片模式(非女優模式)開燈箱 → 「移除女優」破壞性鈕不該露出；缺 showFavoriteActresses gate 則影片燈箱出現移除女優入口 — 遷自 test_frontend_lint.py' },
 
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ['lb-delete-btn', 'bi-trash', "t('showcase.video.delete')"], scope: /<div class="lb-details">(?:(?!<\/div>)[\s\S])*?(<button\b[^>]*openDeleteVideoModal\(\)[^>]*>[\s\S]*?<\/button>)/, note: '[lint-guard 162c-test_t7_delete_trash_button_in_lightbox_details_row] 使用者在影片燈箱找刪除鈕 → 垃圾桶鈕必須在 .lb-details 行末(綁 openDeleteVideoModal，含 icon/i18n)；漂走則找不到刪除鈕 — 遷自 test_frontend_lint.py' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ['lbx-menu-item--delete', 'bi-trash', "t('showcase.video.delete')"], scope: /<div class="lbx-menu">(?:(?!<\/div>)[\s\S])*?(<button\b[^>]*openDeleteVideoModal\(\)[^>]*>[\s\S]*?<\/button>)/, note: '[lint-guard 162c-test_t7_delete_trash_button_in_lightbox_details_row] 使用者在影片燈箱找刪除鈕 → 垃圾桶項目必須在 ⋯ 選單內(綁 openDeleteVideoModal，含 icon/i18n)；漂走則找不到刪除鈕 — 遷自 test_frontend_lint.py' },
 
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ['showcase.video.delete_modal.title', 'confirmDeleteVideo()', 'cancelDeleteVideo()'], scope: /<dialog\b[^>]*deleteVideoModalOpen[^>]*>([\s\S]*?)<\/dialog>/, note: '[lint-guard 162c-test_t7_delete_modal_contract] 使用者按垃圾桶 → 刪除確認視窗必須有標題/確認/取消 handler；缺了則無法完成或放棄刪除 — 遷自 test_frontend_lint.py' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'fluent-modal', scope: /<dialog\b[^>]*deleteVideoModalOpen[^>]*>/, note: '[lint-guard 162c-test_t7_delete_modal_contract] 使用者按垃圾桶 → 刪除確認視窗必須有標題/確認/取消 handler；缺了則無法完成或放棄刪除 — 遷自 test_frontend_lint.py' },
@@ -6251,11 +6428,11 @@ const RULES = [
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: [
-      'sg-open-btn',
+      'lbx-sg-btn',
       'openSampleGallery(',
-      'lb-header',
+      'lbx-title-row',
     ],
-    note: '[lint-guard 162c-test_showcase_sample_gallery_html_structure] showcase 劇照集 bindings／lb-header／縮圖高亮須存在 — 遷自 test_frontend_lint.py',
+    note: '[lint-guard 162c-test_showcase_sample_gallery_html_structure] showcase 劇照集 bindings／lbx-title-row／縮圖高亮須存在 — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
@@ -6270,9 +6447,9 @@ const RULES = [
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: 'sg-open-btn',
-    scope: { anchor: /<div class="lb-header">/, window: 5000 },
-    note: '[lint-guard 162c-test_showcase_sample_gallery_html_structure] sg-open-btn 須在 lb-header 窗內（FIX6：窗由 1800 放寬到 5000，避免按鈕前合法加標記/註解誤報） — 遷自 test_frontend_lint.py',
+    pattern: 'lbx-sg-btn',
+    scope: { anchor: /<div class="lbx-title-row"/, window: 2600 }, // 實測 anchor 到 lbx-sg-btn 1957 字元（含 123-T8 星鈕本體與註解），加約 33% 餘裕
+    note: '[lint-guard 162c-test_showcase_sample_gallery_html_structure] lbx-sg-btn 須在 lbx-title-row 窗內（FIX6：窗由 1800 放寬到 5000，避免按鈕前合法加標記/註解誤報） — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
@@ -9473,16 +9650,8 @@ const RULES = [
   },
   // ---- [172-T5] 燈箱翻譯鈕接線（node:test 繞過 Alpine runtime，接線只能靠 required-string）----
   {
-    file: 'web/templates/showcase.html', kind: 'structure-count', pattern: /(?<![\w:-])@click\.stop="lbTranslate\(\)"/, count: 2,
-    note: '[lint-guard 172-T5-click] 翻譯圖示（標題行尾＋原文行尾共兩顆）少了或多了點擊接線 → 圖示還在但按了沒反應，或第三顆圖示冒在不該出現的地方，而測試全綠',
-  },
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="lbTrShowOnTitle\(\)"/,
-    note: '[lint-guard 172-T5-show-title] 標題行尾圖示少了顯示條件 → 中文標題、翻譯關閉的片也看到翻譯圖示，按下去才被擋',
-  },
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="lbTrShowOnOtitle\(\)"/,
-    note: '[lint-guard 172-T5-show-otitle] 原文行尾圖示少了顯示條件 → 沒翻過的片原文行也冒出圖示，或翻譯關閉後仍看得到入口',
+    file: 'web/templates/showcase.html', kind: 'structure-count', pattern: /(?<![\w:-])@click\.stop="(?:lbxPopClose\((?:\{ restoreFocus: true \}|)\); )?lbTranslate\(\)"/, count: 1,
+    note: '[lint-guard 172-T5-click] ⋯ 選單的「翻譯片名」項目（全檔恰 1 個）少了或多了點擊接線 → 項目還在但按了沒反應，或第二顆翻譯入口冒在不該出現的地方，而測試全綠',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'window.__SHOWCASE_TRANSLATE__ =',
@@ -9503,14 +9672,23 @@ const RULES = [
     note: '[lint-guard 187b-T5a-main-import] main.js 漏掉簡介分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
   },
   {
-    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
-    pattern: /(?<![\w:-])if \(this\.lbPlotOpen\) \{ e\.preventDefault\(\); this\.lbPlotClose\(\); return; \}/,
-    note: '[lint-guard 187b-T5a-esc] 影片 Esc 少了簡介先關層 → 使用者想收起簡介按 Esc，整座燈箱一起關掉',
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
+    pattern: /^import\s*\{[^}]*\bstateLightboxPop\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-pop\.js'/m,
+    note: '[lint-guard:199a-T3-main-import] main.js 漏掉浮層分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
+  },
+  {
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
+    pattern: /^import\s*\{[^}]*\bstateLightboxFit\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-fit\.js'/m,
+    note: '[lint-guard:199a-T5-main-import] main.js 漏掉第 3 列量測分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
   },
   {
     file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',
-    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\._lbPlotReset\?\.\(\);\s*\}\)/,
-    note: '[lint-guard 187b-T5a-watch] 換片 $watch 少了 _lbPlotReset → 切片後簡介面仍開著、內容可能是上一片的',
+    // 199a-T6 刻意加嚴（舊：回呼只要含 reset）：回呼內必須依序含 reset 與 load——簡介列常駐，沒有「點開才載入」的入口了
+    // 收據：舊定位器 `…\{\s*this\._lbPlotReset\?\.\(\);\s*\}\)`（回呼只能是 reset）→ 新定位器（reset 後、`}` 之前須出現 `this._lbPlotLoad?.()`）；
+    // 合法改寫格＝`{ this._lbPlotReset?.(); if (this.lbPlotRowVisible?.()) this._lbPlotLoad?.(); }`（單一 if 條件，不含 `}`）；
+    // 比舊寬反例格＝回呼只剩 `{ this._lbPlotReset?.(); }`（舊綠、新紅，正是本卡 M3 要它紅的形狀）
+    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\._lbPlotReset\?\.\(\);[^}]*this\._lbPlotLoad\?\.\(\)[^}]*\}\s*\)/,
+    note: '[lint-guard 187b-T5a-watch] 換片 $watch 少了 _lbPlotReset 或 _lbPlotLoad → 使用者開一部有簡介的片、什麼都不點，簡介列只有灰色骨架線、文字永遠不來（或換片後還顯示上一片的簡介）',
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
@@ -9597,18 +9775,7 @@ const RULES = [
     note: '[177-T2-no-innerHTML] 分析頁 JS 不得用 innerHTML／insertAdjacentHTML：標籤、導演名稱來自外部刮削的 NFO，當 HTML 插入會執行其中的 script／載入外部圖',
   },
 
-  // 187b-T5b：燈箱簡介鈕／簡介面接線（模板接線存在；邏輯由 T5a node:test 守）
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-click',
-    pattern: /(?<![\w:-])@click\.stop="lbPlotToggle\(\)"/,
-    scope: { anchor: /class="lb-plot-btn"/, window: 700 },
-    note: '[187b-T5b-click] 使用者點標題行的簡介 icon → 按了沒有反應、簡介面永遠打不開（.lb-plot-btn 要綁 @click.stop="lbPlotToggle()"）',
-  },
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-inert',
-    pattern: /(?<![\w:-]):inert="!lbPlotOpen"/,
-    note: '[187b-T5b-inert] 使用者沒開簡介卻用 Tab 鍵走進看不見的簡介面按鈕（.lb-plot-face 要綁 :inert="!lbPlotOpen"）',
-  },
+  // 187b-T5b：簡介翻譯鈕接線（199a-T6 起在簡介浮層內；模板接線存在，邏輯由 T5a node:test 守）
   {
     file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-translate',
     pattern: /(?<![\w:-])@click\.stop="lbPlotTranslate\(\)"/,

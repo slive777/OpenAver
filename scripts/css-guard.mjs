@@ -1563,7 +1563,7 @@ const RULES = [
     },
   },
 
-  // CG-PC-11 ← TestUserTagCSSGuard（雙檔 --text-inverse 負向，search + showcase）
+  // CG-PC-11 ← TestUserTagCSSGuard（--text-inverse 負向；search.css 的 .tag-badge.user-tag。showcase 那半 .lb-user-tag 已隨 199a-T8 刪除）
   {
     id: 'CG-PC-11',
     file: 'pages/search.css',
@@ -1572,10 +1572,6 @@ const RULES = [
       const searchBlock = ruleBody(ctx.raw, '\\.tag-badge\\.user-tag');
       if (searchBlock === null) ctx.fail('CG-PC-11: search.css 找不到 .tag-badge.user-tag 規則');
       else if (searchBlock.includes('--text-inverse')) ctx.fail('CG-PC-11: .tag-badge.user-tag 應用 --color-primary-content，非 --text-inverse');
-      const scRaw = ctx.load(SHOWCASE_FULL).raw;
-      const scBlock = ruleBody(scRaw, '\\.lb-user-tag');
-      if (scBlock === null) ctx.fail('CG-PC-11: showcase.css 找不到 .lb-user-tag 規則');
-      else if (scBlock.includes('--text-inverse')) ctx.fail('CG-PC-11: .lb-user-tag 應用 --color-primary-content，非 --text-inverse');
     },
   },
 
@@ -3112,6 +3108,45 @@ const RULES = [
   //
   //
   //
+  // 199a-T1：09-lightbox-v2.css 影片燈箱 v2 外框隔離。該檔同時被 search.html／design-system.html 載入，
+  // 隔離全靠選擇器結構：① 每條選擇器都必含 .lbx- 或 .lb-video-branch（在其他頁零命中）；
+  // ② 帶外框尺寸（96dvh／17rem／13.875rem）的 block 每條選擇器都必須掛 :has(> .lb-video-branch)。
+  // 外框規則包在 @media 內，必須 flattenRuleBlocks 展平逐一檢查（頂層只看得到一個 @media block ⇒ fail-open，FE-GUARD-14）。
+  {
+    id: 'CG-199A-01',
+    file: 'pages/showcase/09-lightbox-v2.css',
+    kind: 'fn',
+    check(ctx) {
+      const splitSelectors = (sel) => {
+        const out = [];
+        let depth = 0;
+        let cur = '';
+        for (const ch of sel) {
+          if (ch === '(' || ch === '[') depth += 1;
+          else if (ch === ')' || ch === ']') depth -= 1;
+          if (ch === ',' && depth === 0) { out.push(cur.trim()); cur = ''; } else cur += ch;
+        }
+        if (cur.trim()) out.push(cur.trim());
+        return out;
+      };
+      const styleBlocks = flattenRuleBlocks(ctx.blocks);
+      if (styleBlocks.length === 0) {
+        ctx.fail('CG-199A-01: 09-lightbox-v2.css 解析不到任何 style block（空檔會讓隔離守衛靜默通過）');
+        return;
+      }
+      for (const { selector, declarations } of styleBlocks) {
+        const sized = /96dvh|17rem|13\.875rem/.test(declarations);
+        for (const one of splitSelectors(selector)) {
+          if (!/\.lbx-|\.lb-video-branch/.test(one)) {
+            ctx.fail(`CG-199A-01: 選擇器缺 .lbx- 或 .lb-video-branch 隔離標記（會在女優／搜尋頁燈箱命中）— ${one}`);
+          }
+          if (sized && !/:has\(\s*>\s*\.lb-video-branch\s*\)/.test(one)) {
+            ctx.fail(`CG-199A-01: 帶外框尺寸（96dvh／17rem／13.875rem）的選擇器必須掛 :has(> .lb-video-branch) — ${one}`);
+          }
+        }
+      }
+    },
+  },
 ];
 
 // 解析 _showcase_css.html 的 <link href> 出現順序——單一來源＝ CD-148a-3 的 template，
