@@ -1004,6 +1004,10 @@ export function stateLightbox() {
                     // path 比對（FE-ALPINE-14）。必須在寫入之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。
                     const lbNow = this.currentLightboxVideo;
                     if (lbNow && lbNow.path && byPath[lbNow.path]) {
+                        // 199a-T6 branch review：patch 路徑 path／has_plot 都沒變、$watch 不 fire，簡介 view 會停在重刮前的舊內容
+                        // （此時按翻譯會拿舊簡介覆蓋 NFO）。先失效（_lbPlotGen++ 丟掉在途舊讀取）再重讀。
+                        this._lbPlotReset?.();
+                        if (this.lbPlotRowVisible?.()) this._lbPlotLoad?.();
                         this._refreshLbFullBlurUp();
                         this._refreshLbActorAges();
                     }

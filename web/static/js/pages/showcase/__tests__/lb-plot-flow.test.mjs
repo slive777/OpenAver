@@ -388,3 +388,75 @@ test('test_undo_ignored_while_retranslate_in_flight', async () => {
         assert.equal(A.path, c._lbPlotView.path);
     });
 });
+
+// 199a-T6 branch review P2：重刮成功走 refreshVideoData 的 patch 路徑（path 不變、$watch 不 fire）
+// → 簡介 view 必須失效重讀；重刮前發出的舊 GET 不得寫進新 view（_lbPlotGen）。
+test('test_refresh_video_data_patch_reloads_plot', async () => {
+    const { _setAllVideos, _setVideos } = await import('../state-base.js');
+    await withEnv(async ({ A, c, f }) => {
+        _setAllVideos([A]);
+        _setVideos([A]);
+        try {
+            // 載入 A 的舊簡介
+            const p0 = c._lbPlotLoad();
+            f.pending.plotGet[0]({ success: true, plot: '舊簡介', original_plot: '', has_original: false });
+            await p0;
+            assert.equal(c._lbPlotView.plot, '舊簡介');
+
+            // 重刮前發出的讀取（掛起中）
+            const pStale = c._lbPlotLoad();
+            assert.equal(f.count('plotGet'), 2);
+            const genBefore = c._lbPlotGen;
+
+            // refreshVideoData 打的 /api/showcase/video 由包一層的 fetch 直接回新資料，其餘交給原 harness
+            const baseFetch = globalThis.fetch;
+            let nextHasPlot = true;
+            globalThis.fetch = (url, opts) => {
+                if (typeof url === 'string' && url.startsWith('/api/showcase/video?path=')) {
+                    return Promise.resolve({
+                        ok: true,
+                        status: 200,
+                        json: async () => ({ success: true, video: { path: A.path, number: A.number, title: '新片名', actresses: A.actresses, has_plot: nextHasPlot } }),
+                    });
+                }
+                return baseFetch(url, opts);
+            };
+            await c.refreshVideoData(A);
+            await tick();
+
+            assert.equal(A.title, '新片名', 'patch 路徑已就地改寫燈箱那片（path 不變）');
+            assert.ok(c._lbPlotGen > genBefore, '簡介快取失效：世代遞增');
+            assert.equal(f.count('plotGet'), 3, '重刮後重新讀一次簡介');
+
+            // 先放行新讀取，再放行遲到的舊讀取
+            f.pending.plotGet[2]({ success: true, plot: '新簡介', original_plot: '', has_original: false });
+            await tick();
+            assert.equal(c._lbPlotView.plot, '新簡介', '簡介列換成重刮後的內容');
+            f.pending.plotGet[1]({ success: true, plot: '舊簡介（遲到）', original_plot: '', has_original: false });
+            await pStale;
+            await tick();
+            assert.equal(c._lbPlotView.plot, '新簡介', '重刮前發出的舊讀取不得寫進新 view');
+            assert.equal(c._lbPlotView.loading, false);
+
+            // 重刮後來源沒有簡介（has_plot 變 false）：不再重讀，但舊 view 必須清掉、在途舊讀取不得寫回
+            const pStale2 = c._lbPlotLoad();
+            const staleIdx = f.count('plotGet') - 1;
+            const gen2 = c._lbPlotGen;
+            nextHasPlot = false;
+            await c.refreshVideoData(A);
+            await tick();
+            assert.equal(A.has_plot, false);
+            assert.ok(c._lbPlotGen > gen2, '沒有簡介時也要失效（丟掉在途舊讀取）');
+            assert.equal(f.count('plotGet'), staleIdx + 1, '沒有簡介就不再打 plot API');
+            assert.equal(c._lbPlotView.plot, '', '舊簡介已清掉');
+            assert.equal(c._lbPlotView.path, '', 'view 回到空白，之後 has_plot 補完才會重讀');
+            f.pending.plotGet[staleIdx]({ success: true, plot: '舊簡介（遲到２）', original_plot: '', has_original: false });
+            await pStale2;
+            await tick();
+            assert.equal(c._lbPlotView.plot, '', '重刮前發出的舊讀取不得寫進清空後的 view');
+        } finally {
+            _setAllVideos([]);
+            _setVideos([]);
+        }
+    });
+});
