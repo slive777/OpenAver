@@ -500,6 +500,48 @@ const RULES = [
     note: '[lint-guard:199a-T3-root-listeners] 燈箱根節點少了「點外面收浮層」或「改視窗大小收浮層」→ 使用者點別處或拉大視窗後，浮層停在舊位置不消失、蓋住不該蓋的東西',
   },
 
+  // ---- 199a-T4：文字區第 1、2 列＋⋯ 選單（片名／原文全文浮層共用 lbxPop）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['data-lbx-anchor="title"', 'data-lbx-anchor="otitle"', 'data-lbx-anchor="menu"'],
+    note: '[lint-guard:199a-T4-anchors] 片名／原文／⋯ 少了 data-lbx-anchor → 使用者點 ⋯ 想收起選單，點擊被判成「點外面」先收掉、click 又把它重開，選單永遠關不掉',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxMenuHas\('samples'\) && !_fetchSamplesLoading"/,
+    scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--samples"[^>]*>/,
+    note: '[lint-guard:199a-T4-menu-wired] ⋯ 選單「補劇照」項目元素本身少了 x-show 顯示條件 → 已有劇照的片、或沒有對應檔的片也看到「補劇照」，按下去重複向外站抓取或被後端拒絕',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxMenuHas\('samples'\) && _fetchSamplesLoading"/,
+    scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--busy"[^>]*>/,
+    note: '[lint-guard:199a-T4-menu-wired] ⋯ 選單「抓取中」項目元素本身少了 x-show 顯示條件 → 沒在抓取（或不該有補劇照的片）也顯示「抓取中...」',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxMenuHas\('translate'\)"/,
+    scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--translate"[^>]*>/,
+    note: '[lint-guard:199a-T4-menu-wired] ⋯ 選單「翻譯片名」項目元素本身少了 x-show 顯示條件 → 中文片名、翻譯關閉的片也看到「翻譯片名」，按下去才被擋（舊 172-T5-show-* 的元素屬性強度）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxMenuHas\('delete'\)"/,
+    scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--delete"[^>]*>/,
+    note: '[lint-guard:199a-T4-menu-wired] ⋯ 選單「從收藏移除」項目元素本身少了 x-show 顯示條件 → 沒有對應檔的片還能按「從收藏移除」，按下去後端找不到那筆而失敗',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', pattern: '<div class="lbx-menu">',
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 2300 }, // 實測 anchor 到 <div class="lbx-menu"> 1713 字元（隔著 verTip／title／otitle 三個 template），加約 34% 餘裕
+    note: '[lint-guard:199a-T4-menu-in-host] ⋯ 選單必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點 ⋯ 看不到選單',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'required-string',
+    pattern: ['lbTrShowOnTitle()', 'lbTrShowOnOtitle()', 'sample_images', '?.path'],
+    scope: { anchor: /lbxMenuItems\(\) \{/, braceBalanced: true },
+    note: '[lint-guard:199a-T4-menu-gates] lbxMenuItems 少了翻譯／劇照／對應檔條件 → 沒翻譯條件的片也看到「翻譯片名」、有劇照的片還出現「補劇照」（按下去重複向外站抓取）、沒有對應檔的片還能按「從收藏移除」',
+  },
+
   // 星空等待動畫函式定義存在（ghost-fly.js）+ callsite（state-lightbox.js openMask，唯一啟動點）。
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'function playFocalDetectWait', note: '[TestMaskToggleGuard] 99a-T5：ghost-fly.js 定義星空等待迴圈動畫（start）' },
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'function stopFocalDetectWait', note: '[TestMaskToggleGuard] 99a-T5：ghost-fly.js 定義星空等待動畫停止（stop）' },
@@ -2221,32 +2263,32 @@ const RULES = [
   // ---- [TestRescrapeEntryGuard] showcase ⚙ gear 唯一進階重刮入口（62b-1 → 74b US4 → 74c-T1/T3）----
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: /<button[^>]*\bclass="lb-rescrape-gear"[^>]*>\s*<i[^>]*\bbi-gear\b/,
+    pattern: /<button[^>]*\bclass="lbx-menu-item lbx-menu-item--rescrape"[^>]*>\s*<i[^>]*\bbi-gear\b/,
     note: '[TestRescrapeEntryGuard] test_gear_has_bi_gear_icon — ⚙ gear button 內必須含 bi-gear icon',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: "openRescrape(currentLightboxVideo, 'lightbox')",
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: "[TestRescrapeEntryGuard] test_gear_opens_rescrape_lightbox — ⚙ @click 必須 openRescrape(currentLightboxVideo, 'lightbox')",
   },
   {
     file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: /x-show="[^"]*"/,
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: '[TestRescrapeEntryGuard] test_gear_gated_by_rescrape_enabled — 74c-T1：⚙ 齒輪已退役 x-show gate（negative 半邊）',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: "openRescrape(currentLightboxVideo, 'lightbox')",
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: "[TestRescrapeEntryGuard] test_gear_gated_by_rescrape_enabled — @click 仍在（齒輪行為不變，positive 半邊，冗餘但忠實 port）",
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: "t('showcase.rescrape.entry_tooltip')",
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: '[TestRescrapeEntryGuard] test_gear_tooltip_uses_i18n_key — ⚙ 用 i18n key，不硬編碼',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: /[\s:]aria-label="[^"]*entry_tooltip/,
-    scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
+    scope: /<button\b[^>]*?\bclass="lbx-menu-item lbx-menu-item--rescrape".*?<\/button>/s,
     note: '[TASK-104-T4] test_gear_tooltip_uses_i18n_key — ⚙ 缺 aria-label（可及性）；104-T4 移除 readonly 三元後改靜態 Jinja 屬性（原僅接受 Alpine `:aria-label` 動態綁定，拓寬比對前綴涵蓋兩種形式）。round-3 P3：改用 `[\\s:]` 前綴取代 `\\b`（`-` 也是 word-boundary，`\\baria-label` 會誤過 `data-aria-label`）',
   },
   { file: 'web/static/js/shared/long-press.js', kind: 'file-absent', note: '[TestRescrapeEntryGuard] test_long_press_helper_retired — 74c-T3：long-press.js 已刪除，不得再存在' },
@@ -3748,13 +3790,13 @@ const RULES = [
   // + test_core_js_contains（Opus 裁決 3：內部機制歸屬 96e，字串 pin 到實際所在檔）----
   {
     file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
-    tagName: 'button', className: 'fetch-samples-btn',
-    required: ['x-show=', 'sample_images', '@click=', 'fetchSamples', ':disabled=', '_fetchSamplesFailed'],
+    tagName: 'button', className: 'lbx-menu-item--samples',
+    required: ['x-show=', '@click=', 'fetchSamples', ':disabled=', '_fetchSamplesFailed'],
     note: '[TestFetchSamplesButton] test_html_contains — fetch-samples-btn 開標籤必要屬性',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', anyOf: true, pattern: [/^!!/, '=== true'],
-    scope: /<button\b(?=[^>]*class="[^"]*(?<![\w-])fetch-samples-btn(?![\w-])[^"]*")[^>]*:disabled=["']([^"']+)["'][^>]*>/,
+    scope: /<button\b(?=[^>]*class="[^"]*(?<![\w-])lbx-menu-item--samples(?![\w-])[^"]*")[^>]*:disabled=["']([^"']+)["'][^>]*>/,
     note: '[TestFetchSamplesButton] test_html_contains — :disabled boolean coercion（!! 開頭或 === true，§11 gotcha #1 AV capture-group scope）',
   },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-text=', note: '[TestFetchSamplesButton] test_html_contains（pytest 原斷言 or-html 恆等 WF，照抄行為）' },
@@ -3764,7 +3806,7 @@ const RULES = [
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'showcase.samples.fetching', note: '[TestFetchSamplesButton] test_html_contains' },
   {
     file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: '☁',
-    scope: /<button\b(?=[^>]*class="[^"]*(?<![\w-])fetch-samples-btn(?![\w-])[^"]*")[^>]*>[\s\S]*?<\/button>/,
+    scope: /<button\b(?=[^>]*class="[^"]*(?<![\w-])lbx-menu-item--samples(?![\w-])[^"]*")[^>]*>[\s\S]*?<\/button>/,
     note: '[TestFetchSamplesButton] test_html_contains — btn_region 內不可含 ☁ emoji（element-region-scoped）',
   },
   {
@@ -5836,7 +5878,7 @@ const RULES = [
 
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'showFavoriteActresses', scope: /<button\b[^>]*openRemoveActressModal\(\)[^>]*>/, note: '[lint-guard 162c-TestShowcaseLightboxSentinel.test_showcase_html_contains] 使用者在影片模式(非女優模式)開燈箱 → 「移除女優」破壞性鈕不該露出；缺 showFavoriteActresses gate 則影片燈箱出現移除女優入口 — 遷自 test_frontend_lint.py' },
 
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ['lb-delete-btn', 'bi-trash', "t('showcase.video.delete')"], scope: /<div class="lb-details">(?:(?!<\/div>)[\s\S])*?(<button\b[^>]*openDeleteVideoModal\(\)[^>]*>[\s\S]*?<\/button>)/, note: '[lint-guard 162c-test_t7_delete_trash_button_in_lightbox_details_row] 使用者在影片燈箱找刪除鈕 → 垃圾桶鈕必須在 .lb-details 行末(綁 openDeleteVideoModal，含 icon/i18n)；漂走則找不到刪除鈕 — 遷自 test_frontend_lint.py' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ['lbx-menu-item--delete', 'bi-trash', "t('showcase.video.delete')"], scope: /<div class="lbx-menu">(?:(?!<\/div>)[\s\S])*?(<button\b[^>]*openDeleteVideoModal\(\)[^>]*>[\s\S]*?<\/button>)/, note: '[lint-guard 162c-test_t7_delete_trash_button_in_lightbox_details_row] 使用者在影片燈箱找刪除鈕 → 垃圾桶項目必須在 ⋯ 選單內(綁 openDeleteVideoModal，含 icon/i18n)；漂走則找不到刪除鈕 — 遷自 test_frontend_lint.py' },
 
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ['showcase.video.delete_modal.title', 'confirmDeleteVideo()', 'cancelDeleteVideo()'], scope: /<dialog\b[^>]*deleteVideoModalOpen[^>]*>([\s\S]*?)<\/dialog>/, note: '[lint-guard 162c-test_t7_delete_modal_contract] 使用者按垃圾桶 → 刪除確認視窗必須有標題/確認/取消 handler；缺了則無法完成或放棄刪除 — 遷自 test_frontend_lint.py' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'fluent-modal', scope: /<dialog\b[^>]*deleteVideoModalOpen[^>]*>/, note: '[lint-guard 162c-test_t7_delete_modal_contract] 使用者按垃圾桶 → 刪除確認視窗必須有標題/確認/取消 handler；缺了則無法完成或放棄刪除 — 遷自 test_frontend_lint.py' },
@@ -6288,11 +6330,11 @@ const RULES = [
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: [
-      'sg-open-btn',
+      'lbx-sg-btn',
       'openSampleGallery(',
-      'lb-header',
+      'lbx-title-row',
     ],
-    note: '[lint-guard 162c-test_showcase_sample_gallery_html_structure] showcase 劇照集 bindings／lb-header／縮圖高亮須存在 — 遷自 test_frontend_lint.py',
+    note: '[lint-guard 162c-test_showcase_sample_gallery_html_structure] showcase 劇照集 bindings／lbx-title-row／縮圖高亮須存在 — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
@@ -6307,9 +6349,9 @@ const RULES = [
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: 'sg-open-btn',
-    scope: { anchor: /<div class="lb-header">/, window: 5000 },
-    note: '[lint-guard 162c-test_showcase_sample_gallery_html_structure] sg-open-btn 須在 lb-header 窗內（FIX6：窗由 1800 放寬到 5000，避免按鈕前合法加標記/註解誤報） — 遷自 test_frontend_lint.py',
+    pattern: 'lbx-sg-btn',
+    scope: { anchor: /<div class="lbx-title-row"/, window: 2600 }, // 實測 anchor 到 lbx-sg-btn 1957 字元（含 123-T8 星鈕本體與註解），加約 33% 餘裕
+    note: '[lint-guard 162c-test_showcase_sample_gallery_html_structure] lbx-sg-btn 須在 lbx-title-row 窗內（FIX6：窗由 1800 放寬到 5000，避免按鈕前合法加標記/註解誤報） — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
@@ -9510,16 +9552,8 @@ const RULES = [
   },
   // ---- [172-T5] 燈箱翻譯鈕接線（node:test 繞過 Alpine runtime，接線只能靠 required-string）----
   {
-    file: 'web/templates/showcase.html', kind: 'structure-count', pattern: /(?<![\w:-])@click\.stop="lbTranslate\(\)"/, count: 2,
-    note: '[lint-guard 172-T5-click] 翻譯圖示（標題行尾＋原文行尾共兩顆）少了或多了點擊接線 → 圖示還在但按了沒反應，或第三顆圖示冒在不該出現的地方，而測試全綠',
-  },
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="lbTrShowOnTitle\(\)"/,
-    note: '[lint-guard 172-T5-show-title] 標題行尾圖示少了顯示條件 → 中文標題、翻譯關閉的片也看到翻譯圖示，按下去才被擋',
-  },
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="lbTrShowOnOtitle\(\)"/,
-    note: '[lint-guard 172-T5-show-otitle] 原文行尾圖示少了顯示條件 → 沒翻過的片原文行也冒出圖示，或翻譯關閉後仍看得到入口',
+    file: 'web/templates/showcase.html', kind: 'structure-count', pattern: /(?<![\w:-])@click\.stop="(?:lbxPopClose\((?:\{ restoreFocus: true \}|)\); )?lbTranslate\(\)"/, count: 1,
+    note: '[lint-guard 172-T5-click] ⋯ 選單的「翻譯片名」項目（全檔恰 1 個）少了或多了點擊接線 → 項目還在但按了沒反應，或第二顆翻譯入口冒在不該出現的地方，而測試全綠',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'window.__SHOWCASE_TRANSLATE__ =',
@@ -9640,12 +9674,6 @@ const RULES = [
   },
 
   // 187b-T5b：燈箱簡介鈕／簡介面接線（模板接線存在；邏輯由 T5a node:test 守）
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-click',
-    pattern: /(?<![\w:-])@click\.stop="lbPlotToggle\(\)"/,
-    scope: { anchor: /class="lb-plot-btn"/, window: 700 },
-    note: '[187b-T5b-click] 使用者點標題行的簡介 icon → 按了沒有反應、簡介面永遠打不開（.lb-plot-btn 要綁 @click.stop="lbPlotToggle()"）',
-  },
   {
     file: 'web/templates/showcase.html', kind: 'required-string', id: '187b-T5b-inert',
     pattern: /(?<![\w:-]):inert="!lbPlotOpen"/,

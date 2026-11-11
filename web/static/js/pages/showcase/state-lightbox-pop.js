@@ -11,10 +11,15 @@
  */
 
 import { versionsOf } from './work-versions.js';
-import { bandParts, formatRuntime, placePop, isOutsidePop } from './lbx-logic.js';
+import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle } from './lbx-logic.js';
 
 const LBX_POP_HOVER_CLOSE_MS = 160;
 const LBX_POP_ANCHOR_SEL = '[data-lbx-anchor]';
+
+// 片名／原文是塊級單行省略號元素：內容寬超過可視寬才算被截斷（FE-REVIEW-16：inline 元素量不到，恆 0）
+function isTruncated(el) {
+    return !!el && el.scrollWidth > el.clientWidth + 1;
+}
 
 export function stateLightboxPop() {
     return {
@@ -54,15 +59,17 @@ export function stateLightboxPop() {
             const popSize = { w: panel.offsetWidth, h: panel.offsetHeight };
             const vw = window.innerWidth;
             const vh = window.innerHeight;
-            const nums = [anchorRect.left, anchorRect.top, anchorRect.bottom, coverBottom, popSize.w, popSize.h, vw, vh];
+            const nums = [anchorRect.left, anchorRect.right, anchorRect.top, anchorRect.bottom, coverBottom, popSize.w, popSize.h, vw, vh];
             if (!nums.every(Number.isFinite)) return;
+            const placement = popPlacement(this.lbxPop.kind);
             const pos = placePop({
                 anchorRect,
                 coverBottom,
                 vw,
                 vh,
                 popSize,
-                mode: 'below',
+                mode: placement.mode,
+                align: placement.align,
                 interactive: this.lbxPop.mode === 'click',
             });
             const style = { left: pos.left + 'px', top: pos.top + 'px' };
@@ -98,13 +105,17 @@ export function stateLightboxPop() {
             if (!el) return;
             if (this._lightboxAnimating) return;
             if (this.lbxPop && this.lbxPop.mode === 'click') return;
-            if (e.type === 'pointerenter' && e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+            if (e.type === 'pointerenter') {
+                if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+                // hover 能力檢查只對指標；鍵盤 focus（:focus-visible）在無 hover 裝置（平板接鍵盤）上也要能開
+                if (window.matchMedia?.('(any-hover: hover)')?.matches === false) return;
+            }
             if (e.type === 'focus') {
                 let visible = false;
                 try { visible = !!el.matches?.(':focus-visible'); } catch (_) { visible = false; }
                 if (!visible) return;
             }
-            if (window.matchMedia?.('(any-hover: hover)')?.matches === false) return;
+            if ((kind === 'title' || kind === 'otitle') && !isTruncated(el)) return;
             this._lbxPopClearTimer();
             const cur = this.lbxPop;
             if (cur && cur.mode === 'hover' && cur.kind === kind && cur.anchorKey === anchorKey) return;
@@ -130,6 +141,34 @@ export function stateLightboxPop() {
             const touch = e.pointerType === 'touch' || window.matchMedia?.('(hover: none)')?.matches === true;
             if (!touch) return;
             this.lbxPopToggle('verTip', el, { mode: 'click', anchorKey: path });
+        },
+
+        // 觸控／無 hover 裝置：點片名／原文開關全文浮層（click 模式——hover 模式會被觸控放開後的 pointerleave 立刻收掉）。
+        // 滑鼠使用者點片名什麼都不發生（hover 已開，click 再 toggle 會把它關掉）。未截斷的片名不開。
+        lbxPopTapOpen(e, kind, anchorKey) {
+            const el = e?.currentTarget;
+            if (!el) return;
+            const noHover = window.matchMedia?.('(any-hover: hover)')?.matches === false;
+            if (e.pointerType !== 'touch' && !noHover) return;
+            if ((kind === 'title' || kind === 'otitle') && !isTruncated(el)) return;
+            this.lbxPopToggle(kind, el, { mode: 'click', anchorKey });
+        },
+
+        // ⋯ 選單項目（條件在 lbx-logic.menuItems；模板只讀 lbxMenuHas，不再各自寫一份 gate）
+        lbxMenuItems() {
+            return menuItems(this.currentLightboxVideo, {
+                sampleCount: (this.currentLightboxVideo?.sample_images || []).length,
+                trVisible: this.lbTrShowOnTitle() || this.lbTrShowOnOtitle(),
+                hasPath: !!this.currentLightboxVideo?.path,
+            });
+        },
+
+        lbxMenuHas(id) {
+            return this.lbxMenuItems().some((i) => i.id === id);
+        },
+
+        lbxHasOtitle() {
+            return hasDistinctOtitle(this.currentLightboxVideo);
         },
 
         // 燈箱根節點 @pointerdown.window：點在浮層與錨點之外 → 收（不還焦點）

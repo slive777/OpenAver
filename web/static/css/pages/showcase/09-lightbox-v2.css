@@ -242,3 +242,224 @@
     color: var(--text-secondary);
     font-size: .75rem;
 }
+
+/* ── 199a-T4：文字區第 1、2 列＋⋯ 選單＋片名／原文全文浮層 ──────────────────────
+   不在最上面的視窗閘內：新 markup 在所有視窗都存在，閘外也要排得好（<640 的縮字級是 T5 的 container query）。
+   片名列單行 flex：★＋一行片名（省略號）…〔劇照圖示〕〔⋯〕。`.lb-title` 是塊級（才量得到 scrollWidth／clientWidth，
+   FE-REVIEW-16），★ 的 focus 外框改畫在按鈕盒內側（outline-offset 為負），免得被 overflow:hidden 裁掉。
+   這一段全是中性色；單一 accent 原則——浮層與本段新元素內不出現 accent。 */
+.lbx-title-row {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    height: 1.875rem;
+    min-width: 0;
+}
+
+.lbx-meta .lbx-title-row .lb-title {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: 1.375rem;
+    font-weight: 600;
+    line-height: 1.875rem;
+    white-space: nowrap;
+    word-break: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lbx-meta .lbx-title-row .lb-title:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm);
+}
+
+.lbx-meta .lbx-title-row .lb-title .pick-star:focus-visible {
+    outline-offset: -2px;
+}
+
+.lbx-title-row .lb-borrowed,
+.lbx-title-acts {
+    flex: none;
+}
+
+.lbx-title-acts {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    margin-left: auto;
+}
+
+.lbx-sg-btn,
+.lbx-more-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: color var(--duration-fast) var(--ease-out),
+                background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-sg-btn:hover,
+.lbx-more-btn:hover,
+.lbx-more-btn[aria-expanded="true"] {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+}
+
+.lbx-sg-btn:focus-visible,
+.lbx-more-btn:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+}
+
+/* 劇照張數角標：方圓角小塊（不做 pill），蓋在圖示右上角 */
+.lbx-sg-count {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: .875rem;
+    padding: 0 .1875rem;
+    box-sizing: border-box;
+    border-radius: var(--radius-sm);
+    background: var(--text-secondary);
+    color: var(--surface-1);
+    font-size: .625rem;
+    font-weight: 600;
+    line-height: .875rem;
+    text-align: center;
+    pointer-events: none;
+}
+
+@media (pointer: coarse) {
+    .lbx-sg-btn,
+    .lbx-more-btn {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+}
+
+/* 第 2 列：原文一行，缺原文或與片名相同時整列不渲染（模板 x-if） */
+.lbx-otitle {
+    box-sizing: border-box;
+    font-size: .78125rem;
+    line-height: 1.125rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-otitle:hover {
+    color: var(--text-secondary);
+}
+
+.lbx-otitle:focus-visible {
+    color: var(--text-secondary);
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm);
+}
+
+/* 片名／原文全文浮層：純閱讀，字級粗細與來源列相同（「就地」感），寬度只靠 max-width；觸控點開（click 模式）時可內捲 */
+.lbx-pop-text {
+    max-width: min(44rem, calc(100vw - 1rem));
+    white-space: normal;
+    word-break: break-word;
+}
+
+.lbx-pop-text--title {
+    font-size: 1.375rem;
+    font-weight: 600;
+    line-height: 1.875rem;
+    color: var(--text-primary);
+}
+
+.lbx-pop-text--otitle {
+    font-size: .78125rem;
+    line-height: 1.125rem;
+    color: var(--text-secondary);
+}
+
+/* ⋯ 選單 */
+.lbx-pop[data-kind="menu"] {
+    padding: .25rem;
+}
+
+.lbx-menu {
+    display: flex;
+    flex-direction: column;
+    min-width: 12rem;
+}
+
+.lbx-menu-item {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    box-sizing: border-box;
+    width: 100%;
+    padding: .5rem .625rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: .8125rem;
+    line-height: 1.25rem;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.lbx-menu-item:hover,
+.lbx-menu-item:focus-visible {
+    background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+}
+
+.lbx-menu-item:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+}
+
+.lbx-menu-item:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.lbx-menu-item:disabled:hover {
+    background: transparent;
+}
+
+.lbx-menu-item > i {
+    flex: none;
+    color: var(--text-secondary);
+}
+
+.lbx-menu-item--busy {
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.lbx-menu-item--busy:hover {
+    background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-sg-btn,
+    .lbx-more-btn,
+    .lbx-otitle,
+    .lbx-menu-item {
+        transition: none;
+    }
+}

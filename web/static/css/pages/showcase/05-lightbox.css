@@ -417,21 +417,21 @@
 .lightbox-metadata .lb-title .pick-star:hover .pick-star-outline,
 .lightbox-metadata .lb-title .pick-star:focus-visible .pick-star-outline,
 .lightbox-metadata .lb-title .pick-star.is-picked .pick-star-outline {
-    color: var(--star-glow);      /* 未精選 hover/focus、已精選：金色 outline */
+    color: var(--text-primary);   /* 未精選 hover/focus、已精選：中性色 outline（199a） */
 }
 
 .lightbox-metadata .lb-title .pick-star-fill {
     position: absolute;
     inset: 0 auto 0 0;            /* 靠左：必須跟 outline 那層（justify-content:flex-start）同一個 x */
     margin: auto 0;               /* 上下 auto ＝ 垂直置中，比照 outline 的 align-items:center */
-    color: var(--star-glow);
+    color: var(--text-primary);   /* 中性色（199a） */
     clip-path: inset(var(--pick-fill, 100%) 0 0 0);
     pointer-events: none;
     z-index: 0;
 }
 
 .lightbox-metadata .lb-title .pick-star:focus-visible {
-    outline: 2px solid var(--star-glow);
+    outline: 2px solid var(--text-primary);   /* 中性色（199a） */
     outline-offset: 2px;
 }
 
@@ -456,7 +456,7 @@
     height: 4px;
     margin: -2px 0 0 -2px;
     border-radius: 50%;
-    background: var(--star-glow);
+    background: var(--text-primary);   /* 中性色（199a） */
     pointer-events: none;
     z-index: 2;
     opacity: 0;

@@ -1549,6 +1549,8 @@
       "ai_tags_not_configured": "請先到設定頁的 AI 標籤設定好",
       "ai_tags_failed": "AI 標籤失敗，請稍後再試",
       "translate_tooltip": "翻譯標題",
+      "more_menu": "更多",
+      "samples_open_aria": "看劇照（{count} 張）",
       "translate_done": "已翻譯標題",
       "translate_undo": "復原",
       "translate_skipped": "標題沒有需要翻譯的內容",

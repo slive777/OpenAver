@@ -36,3 +36,18 @@ test('test_band_parts_omit_missing_fixed_order', () => {
     // (c) 分集版本：media_duration_min 為 null 但來源片長有值 → 不顯示片長
     assert.deepEqual(ids({ media_duration_min: null, duration: 125, size: 7 }), ['size']);
 });
+
+// TASK-199a-T4：⋯ 選單項目條件（menuItems）。
+test('test_menu_items_follow_path_samples_and_translate_gate', async () => {
+    const { menuItems } = await import('../lbx-logic.js');
+    const ids = (o) => menuItems({}, o).map((i) => i.id);
+
+    // (a) 全條件成立 → 依序 samples、translate、rescrape、delete
+    assert.deepEqual(ids({ sampleCount: 0, trVisible: true, hasPath: true }), ['samples', 'translate', 'rescrape', 'delete']);
+    // (b) 沒有對應檔 → 只剩 rescrape（即使翻譯條件成立、沒劇照）
+    assert.deepEqual(ids({ sampleCount: 0, trVisible: true, hasPath: false }), ['rescrape']);
+    // (c) 已有劇照 → 不出 samples
+    assert.deepEqual(ids({ sampleCount: 3, trVisible: true, hasPath: true }), ['translate', 'rescrape', 'delete']);
+    // (d) 翻譯條件不成立 → 不出 translate
+    assert.deepEqual(ids({ sampleCount: 0, trVisible: false, hasPath: true }), ['samples', 'rescrape', 'delete']);
+});
