@@ -85,10 +85,10 @@ export function stateDelete() {
                         }
                     } else {
                         // 還有其他版本：卡留著、不減 videoCount，只把該作品縮減成剩下的版本（不經 refreshRoute，CD-198b-12）。
-                        // 先（縮減前）找格——縮減後被刪那版的 _versions 已改，sameWork 可能找不到。
-                        const allIdx = _allVideos.findIndex(v => sameWork(v, { path }));
-                        const idx = _videos.findIndex(v => sameWork(v, { path }));
-                        const work = allIdx >= 0 ? _allVideos[allIdx] : (idx >= 0 ? _videos[idx] : null);
+                        // 作品原物件先記下（縮減前，被刪那版的 _versions 還在，sameWork 找得到）當後備；
+                        // 格的位置不能在 await 前記——GET 等待期間 _videos 可能被重建（隱藏未連線硬碟的重算），
+                        // index 會指到別部作品，所以 GET 完成後、寫入前才重找（FE-ALPINE-14：path 比對）。
+                        const workBefore = _allVideos.find(v => sameWork(v, { path })) || _videos.find(v => sameWork(v, { path })) || null;
                         // DELETE 已成功：讀剩餘版本失敗一律當 fresh = null，不 throw、不 toast（落到外層 catch 會跳「移除失敗」）。
                         let fresh = null;
                         try {
@@ -100,6 +100,10 @@ export function stateDelete() {
                         } catch (e) {
                             fresh = null;
                         }
+                        // 縮減之前重找：_allVideos、_videos 各自重找；找不到就只縮減原 dict、不寫陣列格。
+                        const allIdx = _allVideos.findIndex(v => sameWork(v, { path }));
+                        const idx = _videos.findIndex(v => sameWork(v, { path }));
+                        const work = allIdx >= 0 ? _allVideos[allIdx] : (idx >= 0 ? _videos[idx] : workBefore);
                         if (work) {
                             const { defaultDict, byPath } = applyVersionRemoval(
                                 work, path, fresh,

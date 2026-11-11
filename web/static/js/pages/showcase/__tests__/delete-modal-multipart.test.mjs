@@ -79,7 +79,9 @@ function delComp198(lightbox, extra) {
 test('confirmDeleteVideo + applyVersionRemoval：移除 LTX 版 → 卡與其他版本留著、共 N 部不變；最後一版才整張消失', async () => {
     const prevFetch = globalThis.fetch;
     try {
-        for (const mode of ['ok', 'reject', 'http500']) {
+        for (const mode of ['ok', 'reject', 'http500', 'rebuilt', 'rebuilt-reject']) {
+            const rebuilt = mode.startsWith('rebuilt');   // GET 等待期間 _videos 被重建成別的順序（隱藏未連線硬碟重算）
+            const getFails = mode === 'reject' || mode === 'rebuilt-reject';
             const W = delWork198('ABF');
             const [zh, k4, ltx] = versionsOf198(W);
             const other = { path: 'file:///m/OTHER.mp4' };
@@ -94,20 +96,23 @@ test('confirmDeleteVideo + applyVersionRemoval：移除 LTX 版 → 卡與其他
             globalThis.fetch = async (url, opts) => {
                 methods.push(opts && opts.method ? opts.method : 'GET');
                 if (opts && opts.method === 'DELETE') return { ok: true, status: 200, json: async () => ({ deleted: 1 }) };
-                if (mode === 'reject') throw new Error('network down');
+                if (rebuilt) { wallVideos198.length = 0; wallVideos198.push(W, other); }
+                if (getFails) throw new Error('network down');
                 if (mode === 'http500') return { ok: false, status: 500, json: async () => ({}) };
                 const nk4 = { ...k4, title: 'NEW-4K' };
                 return { ok: true, status: 200, json: async () => ({ success: true, video: { ...nk4, versions: [nk4, { ...zh }] } }) };
             };
             await c.confirmDeleteVideo();
 
-            const want = mode === 'ok' ? k4 : zh;   // 回應決定新預設；讀不到就退成剩下的第一個
+            const want = (mode === 'ok' || mode === 'rebuilt') ? k4 : zh;
+            const slot = rebuilt ? 0 : 1;   // 重建後這部作品在 _videos 的位置   // 回應決定新預設；讀不到就退成剩下的第一個
             assert.deepEqual(c.toasts.map((x) => x.msg), ['showcase.video.delete_success'], mode + '：不能先跳「移除失敗」');
             assert.equal(c.videoCount, 8, mode + '：共 N 部不變');
-            assert.equal(wallVideos198[1], want, mode + '：_videos 那格是新預設的原物件');
+            assert.equal(wallVideos198[slot], want, mode + '：_videos 那格是新預設的原物件');
+            assert.equal(wallVideos198[1 - slot], other, mode + '：別部作品那格不變');
             assert.equal(wallAll198[1], want, mode + '：_allVideos 同');
-            assert.deepEqual(versionsOf198(want).map((x) => x.path), mode === 'ok' ? [k4.path, zh.path] : [zh.path, k4.path]);
-            assert.equal(want.title, mode === 'ok' ? 'NEW-4K' : 'T-C.mkv', mode + '：有回應就用回應資料');
+            assert.deepEqual(versionsOf198(want).map((x) => x.path), want === k4 ? [k4.path, zh.path] : [zh.path, k4.path]);
+            assert.equal(want.title, want === k4 ? 'NEW-4K' : 'T-C.mkv', mode + '：有回應就用回應資料');
             assert.ok(![zh, k4].some((d) => versionsOf198(d).some((x) => x.path === ltx.path)), mode + '：剩下版本的清單不含 LTX');
             assert.deepEqual([c.calls.filter, c.calls.close], [1, 1]);
             assert.deepEqual(methods, ['DELETE', 'GET']);
