@@ -84,7 +84,7 @@ def _organize_ltx(tmp_path, src_bytes):
     return result
 
 
-@pytest.mark.parametrize("case", ["a", "b", "c", "d", "e"])
+@pytest.mark.parametrize("case", ["a", "b", "c", "d", "e", "e2"])
 def test_i_org_7_marker_import_matrix(tmp_path, case):
     if case == "a":
         existing = tmp_path / "[ABF-348][maker] title.mp4"
@@ -179,6 +179,28 @@ def test_i_org_7_marker_import_matrix(tmp_path, case):
         got_side = sorted(n for n in os.listdir(tmp_path) if os.path.isfile(tmp_path / n) and n not in ("ABF-348.mp4", "ABF-348-LTX.mp4", "ABF-348-LTX.nfo", "ABF-348-LTX.jpg"))
         ctrl_side = sorted(n for n in os.listdir(ctrl_dir) if n not in ("ABF-348-LTX.mp4", "ABF-348-LTX.nfo", "ABF-348-LTX.jpg"))
         assert got_side == ctrl_side, (got_side, ctrl_side)
+    elif case == "e2":
+        existing = tmp_path / "ABF-348.mp4"
+        existing.write_bytes(b"orig")
+        for name, data in [
+            ("abf-348-ltx.mkv", b"other-video"),
+            ("abf-348-ltx.nfo", b"other-nfo"),
+            ("abf-348-ltx.jpg", b"other-cover"),
+        ]:
+            (tmp_path / name).write_bytes(data)
+        before_names = sorted(os.listdir(tmp_path))
+        before_bytes = {n: (tmp_path / n).read_bytes() for n in before_names}
+        src = tmp_path / "ABF-348-LTX.mp4"
+        src.write_bytes(b"src-ltx")
+        config = dict(_make_config("off", True))
+        config["filename_format"] = "{num}"
+        result = organize_file(str(src), _make_metadata(), config)
+        assert result.get("duplicate") is True, result
+        assert result["success"] is False
+        assert src.exists()
+        for n in before_names:
+            assert (tmp_path / n).read_bytes() == before_bytes[n]
+        assert sorted(os.listdir(tmp_path)) == sorted(before_names + ["ABF-348-LTX.mp4"])
     else:
         existing = tmp_path / "ABF-348.mp4"
         existing.write_bytes(b"orig")

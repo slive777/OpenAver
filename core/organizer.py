@@ -1204,11 +1204,13 @@ def _read_nfo_tags(nfo_path: str) -> List[str]:
 def _same_stem_others(target_dir: str, stem: str, file_path: str) -> List[str]:
     """同主幹的其他檔名（扣掉來源檔自身）。"""
     others: List[str] = []
+    folded_stem = stem.casefold()
     try:
         for entry in os.scandir(target_dir):
             if os.path.join(target_dir, entry.name) == file_path:
                 continue
-            if os.path.splitext(entry.name)[0] == stem or entry.name.startswith(stem + '-') or entry.name.startswith(stem + '.'):
+            folded_name = entry.name.casefold()
+            if os.path.splitext(folded_name)[0] == folded_stem or folded_name.startswith(folded_stem + '-') or folded_name.startswith(folded_stem + '.'):
                 others.append(entry.name)
     except OSError:
         return ["<unreadable>"]
