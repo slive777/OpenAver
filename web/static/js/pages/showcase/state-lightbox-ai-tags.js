@@ -22,7 +22,8 @@ export function stateLightboxAiTags() {
         lbAiVisible() {
             return this.lbAiTagsEnabled
                 && !!this.currentLightboxVideo?.path
-                && !!this.currentLightboxVideo?.has_cover;
+                && !!this.currentLightboxVideo?.has_cover
+                && !this.currentLightboxVideo?.borrowed_from;
         },
 
         lbAiIsBusy() {

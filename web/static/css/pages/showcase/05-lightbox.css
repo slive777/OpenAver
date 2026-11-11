@@ -487,6 +487,32 @@
     border: 1px solid var(--stroke-subtle);
 }
 
+/* 198b-T7a: 版本膠囊（複用 .lb-tag，button 補基本重置；active ＝ tonal，只用 token） */
+.lightbox-metadata .lb-version-cap {
+    cursor: pointer;
+    font-family: inherit;
+    line-height: inherit;
+}
+
+.lightbox-metadata .lb-version-cap.is-active {
+    background: color-mix(in oklch, var(--accent) 15%, transparent);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.lightbox-metadata .lb-version-cap:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* 198b-T7a: 「沿用」小字（標題旁） */
+.lightbox-metadata .lb-borrowed {
+    margin-left: 0.4rem;
+    font-size: 0.6875rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
 /* Cover Actions Overlay — 預設隱藏，hover / focus-within 時 fade in */
 .lightbox-cover .cover-actions {
     position: absolute;

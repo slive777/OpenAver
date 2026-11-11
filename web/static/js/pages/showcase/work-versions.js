@@ -100,3 +100,19 @@ function _patchOf(nv, nextVersions) {
     patch._versions = nextVersions;
     return patch;
 }
+
+// 版本膠囊文字（198b-T7a，CD-198b-10）：與 versionsOf(v) 同序同長；單版本回 []。
+// 每顆 ＝ 等級 ＋ 類型（類型取 kindName、依 version_kinds 陣列序；空 ＝ 原版）；
+// 文字（補大小之前）出現 2 次以上的那幾顆才補 formatSize(size)。
+export function versionCapsules(v, kindName, t, formatSize) {
+    const vs = versionsOf(v);
+    if (vs.length < 2) return [];
+    const texts = vs.map((ver) => {
+        const kinds = Array.isArray(ver.version_kinds) ? ver.version_kinds : [];
+        const typeText = kinds.length ? kinds.map((id) => kindName(id)).join(' ') : t('showcase.lightbox.version_original');
+        return ver.resolution_tier ? ver.resolution_tier + ' ' + typeText : typeText;
+    });
+    const dupCount = new Map();
+    texts.forEach((text) => dupCount.set(text, (dupCount.get(text) || 0) + 1));
+    return texts.map((text, i) => (dupCount.get(text) > 1 ? text + ' ' + formatSize(vs[i].size) : text));
+}

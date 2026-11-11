@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    normalizeWorkItem, versionsOf, pickDisplayVersion, sortSource, workMtime, refreshRoute, applyWorkUpdate,
+    normalizeWorkItem, versionsOf, pickDisplayVersion, sortSource, workMtime, refreshRoute, applyWorkUpdate, versionCapsules,
 } from '../work-versions.js';
 
 const ver = (path, o) => ({ path, title: 'T-' + path, mtime: 0, resolution_tier: 'FHD', cover_url: '/c?p=' + path, ...o });
@@ -87,4 +87,37 @@ test('applyWorkUpdate + refreshRoute: 同一部作品每個版本整批換新、
     const calls = [];
     assert.throws(() => applyWorkUpdate(mk(), reply(['A-C.mkv', 'D.mkv']), (t) => calls.push(t)));
     assert.equal(calls.length, 0);
+});
+
+// 膠囊文字：kindName 用 manifest 映射（非 identity）、t 查無 key 回 [key]（模擬 window.t）
+const KIND = { subtitle: '中字', cracked: 'AI', ltx: 'LTX', leaked: 'LEAK' };
+const kindName = (id) => KIND[id] ?? id;
+const t = (k) => ({ 'showcase.lightbox.version_original': '原版' })[k] ?? '[' + k + ']';
+const fmt = (b) => (b / 1e9).toFixed(1) + ' GB';
+const caps = (list) => versionCapsules(work(list), kindName, t, fmt);
+
+test('versionCapsules 類型文字: 看得出哪顆是 4K、哪顆是中字、哪顆是 LTX；單版本沒有膠囊', () => {
+    assert.deepEqual(caps([
+        ver('A-C.mkv', { version_kinds: ['subtitle'] }),
+        ver('A.mp4', { resolution_tier: '4K', version_kinds: [] }),
+        ver('A-LTX.mkv', { version_kinds: ['ltx'] }),
+    ]), ['FHD 中字', '4K 原版', 'FHD LTX']);
+    // 多個類型照陣列序串接不重排；缺等級只寫類型（無前導空白）
+    assert.deepEqual(caps([
+        ver('B1.mkv', { version_kinds: ['subtitle', 'ltx'] }),
+        ver('B2.mkv', { resolution_tier: null, version_kinds: ['leaked'] }),
+    ]), ['FHD 中字 LTX', 'LEAK']);
+    // 單版本：versions: []、缺 versions 鍵、從沒 normalize 的純物件
+    const singles = [normalizeWorkItem({ ...ver('S1.mp4'), versions: [] }), normalizeWorkItem(ver('S2.mp4')), ver('S3.mp4')];
+    for (const s of singles) assert.deepEqual(versionCapsules(s, kindName, t, fmt), []);
+});
+
+test('versionCapsules 同名補大小: 同名的靠大小分得出來、不同名的不多補', () => {
+    assert.deepEqual(caps([
+        ver('C1.mp4', { version_kinds: [], size: 5.8e9 }),
+        ver('C2.mp4', { version_kinds: [], size: 2.2e9 }),
+        ver('C3.mp4', { resolution_tier: '4K', version_kinds: ['subtitle'], size: 9e9 }),
+    ]), ['FHD 原版 5.8 GB', 'FHD 原版 2.2 GB', '4K 中字']);
+    // size 缺／0 不 throw
+    assert.doesNotThrow(() => caps([ver('D1.mp4', { version_kinds: [] }), ver('D2.mp4', { version_kinds: [], size: 0 })]));
 });

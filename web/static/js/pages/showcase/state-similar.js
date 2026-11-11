@@ -832,24 +832,24 @@ export function stateSimilar() {
      * （CD-56C-12 ordering）。play button 用 _videos read-only lookup 取對應 path，
      * 不呼叫 _setLightboxIndex（不違反 CD-56C-12：slip-through 期間不更新底層 lightbox state）。
      *
-     * fallback 鏈：
-     *   1. _similarLastDrilledNumber（最近一次 slip-through 鑽入的 number）
-     *   2. similarQueryVideo.number（進入 similar mode 時的 query video）
-     *   3. currentLightboxVideo.path（未 slip-through 過時最終 fallback）
+     * fallback 鏈（198b-T7a F22b）：
+     *   1. 未鑽入（_similarLastDrilledNumber 為假）→ 直接播 currentLightboxVideo.path（燈箱目前版本）
+     *   2. 鑽入 → 先在 _filteredVideos 以 number 找（牆上顯示版本），找不到再退 _videos
+     *   3. 都沒有 → currentLightboxVideo.path，仍無則 no-op
      */
     playSimilarMainVideo() {
       // T5 codex-fix2 (P1 二次修法): _videos（未過濾全庫）read-only lookup，
       // 避免 filtered view 下 slip-through 到範圍外影片時 fallback 舊片。
       // （_silentSwitchLightboxByNumber 的 _filteredVideos 用法是 by design，CD-56C-12，不改）
-      const targetNumber = this._similarLastDrilledNumber || this.similarQueryVideo?.number;
-      if (targetNumber) {
-        const found = _videos.find(v => v.number === targetNumber);
+      const drilled = this._similarLastDrilledNumber;
+      if (drilled) {
+        const found = _filteredVideos.find(v => v.number === drilled) || _videos.find(v => v.number === drilled);
         if (found?.path) {
           this.playVideo(found.path);
           return;
         }
       }
-      // fallback：未 slip-through 過 + similarQueryVideo 無 number → 播 lightbox 原影片
+      // fallback：未鑽入 → 播燈箱目前版本（多版本時可能不是牆上顯示版本）
       const path = this.currentLightboxVideo?.path;
       if (!path) return;  // graceful no-op，不 toast（避免重複錯誤訊息）
       this.playVideo(path);

@@ -1232,7 +1232,7 @@
                                         :aria-label="(currentLightboxVideo?.user_rating||0) > 0 ? t('showcase.pick.remove_aria') : t('showcase.pick.add_aria')"
                                         :aria-busy="!!_pickInFlight[currentLightboxVideo?.path]"
                                         @click.stop="togglePickStar()"><i class="bi bi-star pick-star-outline" aria-hidden="true"></i><i class="bi bi-star-fill pick-star-fill" aria-hidden="true"
-                                       :style="{ '--pick-fill': (currentLightboxVideo?.user_rating || 0) > 0 ? '0%' : '100%' }"></i></button><span x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></span><button type="button" class="lb-translate-btn"
+                                       :style="{ '--pick-fill': (currentLightboxVideo?.user_rating || 0) > 0 ? '0%' : '100%' }"></i></button><span x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></span><span class="lb-borrowed" x-show="lbIsBorrowed()" :title="t('showcase.lightbox.borrowed_hint')" x-text="t('showcase.lightbox.borrowed')"></span><button type="button" class="lb-translate-btn"
                                         x-show="lbTrShowOnTitle()"
                                         @click.stop="lbTranslate()"
                                         :disabled="lbTrIsBusy()"
@@ -1268,7 +1268,7 @@
                                      _focalIconVisible() 的 per-image 門檻刻意不同——根因：影片只在 ≤899px 裁、
                                      女優牆全寬度都裁（見 plan-101d §2.2）。改任一邊前先讀那張表，別「對齊」成同一套。 -->
                                 <button class="lb-mask-btn"
-                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded && _posterModeActive()"
+                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded && _posterModeActive() && !lbIsBorrowed()"
                                         @click="openMask()"
                                         :title="t('showcase.lightbox.mask_toggle')"
                                         :aria-label="t('showcase.lightbox.mask_toggle')">
@@ -1366,6 +1366,17 @@
                                         :aria-label="t('showcase.video.delete')">
                                     <i class="bi bi-trash"></i>
                                 </button>
+                            </div>
+                            <!-- 198b-T7a: 版本膠囊列（多版本作品才顯示；不得放進 .lb-details，見 static_guard_lint 的垃圾桶 scope） -->
+                            <div class="lb-tags lb-versions" role="group" x-show="lbVersions().length"
+                                 :aria-label="t('showcase.lightbox.versions_aria')">
+                                <template x-for="(ver, idx) in lbVersions()" :key="ver.path">
+                                    <button type="button" class="lb-tag lb-version-cap"
+                                            :class="{'is-active': ver.path === currentLightboxVideo?.path}"
+                                            :aria-pressed="ver.path === currentLightboxVideo?.path"
+                                            @click.stop="switchLightboxVersion(ver.path)"
+                                            x-text="lbVersionCapsules()[idx]"></button>
+                                </template>
                             </div>
                             <!-- Row 5: Tags (with +N chips, T4) -->
                             <div class="lb-tags" x-show="currentLightboxVideo?.tags">

@@ -8,6 +8,7 @@
  */
 
 import { translateFailureToastKey } from '@/shared/translate-provider.js';
+import { versionsOf } from './work-versions.js';
 
 const LB_TR_UNDO_TOAST_MS = 6000;
 
@@ -85,6 +86,7 @@ export function stateLightboxTranslate() {
                 }
                 if (data.success === true) {
                     this._lbTrApply(video, data);
+                    if (versionsOf(video).length > 1) this.refreshVideoData(video);
                     this.showToast(window.t('showcase.lightbox.translate_done'), 'success', LB_TR_UNDO_TOAST_MS, {
                         label: window.t('showcase.lightbox.translate_undo'),
                         onClick: () => this._lbTrUndo(video, snapshot),
@@ -122,6 +124,7 @@ export function stateLightboxTranslate() {
                 const data = await resp.json();
                 if (data.success !== true) throw new Error(data.error || 'API failed');
                 this._lbTrApply(video, data);
+                if (versionsOf(video).length > 1) this.refreshVideoData(video);
                 this.showToast(window.t('showcase.lightbox.translate_undone'), 'success');
             } catch (e) {
                 this.showToast(window.t('showcase.lightbox.translate_write_failed'), 'error');

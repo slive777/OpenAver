@@ -879,7 +879,7 @@ export function stateLightbox() {
             if (!video || !video.path) return;
             this._enriching = true;
             try {
-                const mode = !video.has_cover ? 'refresh_full' : 'fill_missing';
+                const mode = (!video.has_cover || video.borrowed_from) ? 'refresh_full' : 'fill_missing';
                 const resp = await fetch('/api/enrich-single', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
