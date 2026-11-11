@@ -756,18 +756,18 @@
                         </div>
                     </div>
 
-                    <!-- 3. lb-tag / lb-user-tag -->
+                    <!-- 3. lb-tag / lbx-utag / lbx-vcap -->
                     <div class="ds-pill-card">
                         <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
                             <span class="lb-tag">動作</span>
                             <span class="lb-tag">喜劇</span>
-                            <span class="lb-user-tag"><a href="#" class="lb-user-tag-link" style="pointer-events: none;" tabindex="-1"><span>自訂標籤</span></a><button type="button" class="lb-tag-remove" style="pointer-events: none;" tabindex="-1" aria-hidden="true">×</button></span>
+                            <div class="lbx-tags-pop"><div class="lbx-tags-pop-list"><span class="lb-tag lbx-utag"><span class="lbx-utag-link">自訂標籤</span><button type="button" class="lbx-utag-x" style="pointer-events: none;" tabindex="-1" aria-hidden="true">×</button></span></div></div>
                             <button type="button" class="maker-latest-chip" style="pointer-events: none;">示例片商</button>
-                            <button type="button" class="lb-tag lb-version-cap is-active" style="pointer-events: none;">FHD 中字</button>
+                            <button type="button" class="lb-tag lbx-vcap is-active" style="pointer-events: none;" tabindex="-1">FHD 中字</button>
                         </div>
                         <div class="ds-pill-card-meta">
-                            <span class="ds-pill-card-class">類 3 · <code>.lb-tag</code> / <code>.lb-user-tag</code></span>
-                            <p class="ds-pill-card-desc">Lightbox 元資料 tag chips；搜尋頁空狀態片商膠囊（可點變體）；燈箱版本膠囊（<code>.lb-version-cap.is-active</code> 為目前版本）</p>
+                            <span class="ds-pill-card-class">類 3 · <code>.lb-tag</code> / <code>.lbx-utag</code> / <code>.lbx-vcap</code></span>
+                            <p class="ds-pill-card-desc">Lightbox 元資料 tag chips；搜尋頁空狀態片商膠囊（可點變體）；燈箱你的標籤（<code>.lbx-utag</code>，中性色）；燈箱版本膠囊（<code>.lbx-vcap.is-active</code> 為目前版本）</p>
                             <code class="ds-pill-card-token">--radius-pill: 999px</code>
                         </div>
                     </div>
@@ -792,12 +792,9 @@
                             <button class="sg-open-btn" style="pointer-events: none;">
                                 <i class="bi bi-images"></i> 樣本圖
                             </button>
-                            <button class="fetch-samples-btn" style="pointer-events: none;">
-                                <i class="bi bi-download"></i> 取得
-                            </button>
                         </div>
                         <div class="ds-pill-card-meta">
-                            <span class="ds-pill-card-class">類 5 · <code>.sg-open-btn</code> / <code>.fetch-samples-btn</code> / <code>.mode-toggle</code></span>
+                            <span class="ds-pill-card-class">類 5 · <code>.sg-open-btn</code> / <code>.mode-toggle</code></span>
                             <p class="ds-pill-card-desc">Lightbox / control action pill</p>
                             <code class="ds-pill-card-token">--radius-pill: 999px</code>
                         </div>
@@ -836,7 +833,7 @@
                         </div>
                     </div>
 
-                    <!-- 8. filter-pill（Showcase 搜尋篩選；中性 tint + 常駐 ✕，與 .lb-user-tag 實心 accent 對照） -->
+                    <!-- 8. filter-pill（Showcase 搜尋篩選；中性 tint + 常駐 ✕，與燈箱你的標籤（.lbx-utag，中性色）對照） -->
                     <div class="ds-pill-card">
                         <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
                             <span class="filter-pill" role="listitem" title="系列：Madonna">
@@ -907,6 +904,94 @@
                             <span class="ds-pill-card-class">類 8c · <code>.auto-organize-panel</code></span>
                             <p class="ds-pill-card-desc">搜尋頁定時整理 popover（開關 ＋ 立刻執行 ＋ 路徑灰字；surface 沿用 .help-popover）</p>
                             <code class="ds-pill-card-token">.auto-organize-panel</code>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 影片燈箱新元件示意（199a）：全部靜態、不可互動；用真 class，不複製 CSS -->
+            <div class="ds-subsection">
+                <h3>燈箱規格帶／浮層（影片燈箱）</h3>
+                <p class="ds-desc">瀏覽頁影片燈箱的新元件示意，靜態、不可互動；樣式全部來自 <code>09-lightbox-v2.css</code>。</p>
+                <div class="ds-pill-whitelist-grid" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));">
+
+                    <!-- 作品資訊 pill（掛在 .lb-tag 基底上；番號、片商、系列、發行日、「另有 N 位」） -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: block;">
+                            <div class="lbx-people-row" style="min-height: 0; margin-top: 0; flex-wrap: wrap; min-width: 0; pointer-events: none;">
+                                <div class="lbx-works" style="flex: 0 1 auto; min-width: 0; flex-wrap: wrap;">
+                                    <span class="lb-tag lbx-work lbx-work--num">ABC-123</span>
+                                    <span class="lb-tag lbx-work lbx-work--maker">示例片商</span>
+                                    <span class="lb-tag lbx-work lbx-work--series">示例系列</span>
+                                    <span class="lb-tag lbx-work lbx-work--release">2025-01-01</span>
+                                </div>
+                                <button type="button" class="lb-tag lbx-more-actors" style="pointer-events: none;" tabindex="-1">另有 2 位</button>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">作品資訊 pill · <code>.lb-tag.lbx-work</code> / <code>.lbx-more-actors</code></span>
+                            <p class="ds-pill-card-desc">tonal 中性色（無 accent）；寬度不夠時由右往左省略，全部收在 ⓘ 浮層</p>
+                            <code class="ds-pill-card-token">--text-primary 8% tint · --text-secondary · --radius-pill</code>
+                        </div>
+                    </div>
+
+                    <!-- 規格帶（封面底部：版本膠囊 + 規格小膠囊） -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: block;">
+                            <div class="lbx-band" style="pointer-events: none;">
+                                <div class="lbx-versions" role="group">
+                                    <button type="button" class="lb-tag lbx-vcap is-active" style="pointer-events: none;" tabindex="-1">FHD 中字</button>
+                                    <button type="button" class="lb-tag lbx-vcap" style="pointer-events: none;" tabindex="-1">4K</button>
+                                </div>
+                                <span class="lb-tag lbx-spec">
+                                    <span class="lbx-spec-item"><button type="button" class="lbx-tier" style="pointer-events: none;" tabindex="-1">4K</button></span>
+                                    <span class="lbx-spec-item"><span>HEVC</span></span>
+                                    <span class="lbx-spec-item"><span>2:03</span></span>
+                                    <span class="lbx-spec-item"><span>5.8 GB</span></span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">規格帶 · <code>.lbx-band</code> / <code>.lbx-vcap</code> / <code>.lbx-spec</code></span>
+                            <p class="ds-pill-card-desc">左＝版本膠囊，右＝這個檔的規格；<code>.is-active</code> 是目前版本，整個燈箱唯一的 accent</p>
+                            <code class="ds-pill-card-token">--accent（僅目前版本）· --overlay-badge · --radius-pill</code>
+                        </div>
+                    </div>
+
+                    <!-- lbx-pop 浮層殼：verTip（滑到版本膠囊往下浮出檔名與規格） -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: block;">
+                            <div class="lbx-pop is-placed" data-mode="hover" data-kind="verTip" style="position: static; max-width: 100%; margin: 0; pointer-events: none;">
+                                <div class="lbx-pop-vertip">
+                                    <div class="lbx-pop-vertip__name">ABC-123-C.mp4</div>
+                                    <div class="lbx-pop-vertip__spec">4K · HEVC · 2:03 · 5.8 GB</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">浮層殼 · <code>.lbx-pop</code></span>
+                            <p class="ds-pill-card-desc">往下浮出的小視窗；純閱讀（<code>data-mode="hover"</code>）不吃指標，點開類（<code>data-mode="click"</code>）可點可捲；內部不出現 accent</p>
+                            <code class="ds-pill-card-token">--surface-2 · --stroke-default · --fluent-shadow-16 · --radius-md</code>
+                        </div>
+                    </div>
+
+                    <!-- ⋯ 選單殼 -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: block;">
+                            <div class="lbx-pop is-placed" data-mode="click" data-kind="menu" style="position: static; max-width: 100%; margin: 0; pointer-events: none;">
+                                <div class="lbx-menu" style="min-width: 0;">
+                                    <button type="button" class="lbx-menu-item lbx-menu-item--samples" style="pointer-events: none;" tabindex="-1"><i class="bi bi-cloud-download" aria-hidden="true"></i><span>補劇照</span></button>
+                                    <button type="button" class="lbx-menu-item lbx-menu-item--translate" style="pointer-events: none;" tabindex="-1"><i class="bi bi-translate" aria-hidden="true"></i><span>翻譯標題</span></button>
+                                    <button type="button" class="lbx-menu-item lbx-menu-item--rescrape" style="pointer-events: none;" tabindex="-1"><i class="bi bi-gear" aria-hidden="true"></i><span>進階重新刮削</span></button>
+                                    <button type="button" class="lbx-menu-item lbx-menu-item--delete" style="pointer-events: none;" tabindex="-1"><i class="bi bi-trash" aria-hidden="true"></i><span>從收藏移除</span></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">⋯ 選單 · <code>.lbx-menu</code> / <code>.lbx-menu-item</code></span>
+                            <p class="ds-pill-card-desc">片名右邊「⋯」收納的四個動作；項目是 <code>.lbx-menu</code> 的直接子節點，hover 只做中性 tint</p>
+                            <code class="ds-pill-card-token">--text-primary 8% tint · --text-secondary · --radius-sm</code>
                         </div>
                     </div>
 

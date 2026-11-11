@@ -266,11 +266,6 @@ body.similar-mobile-active [data-picker-ghost] {
     opacity: 1;
 }
 
-/* lb-size in lb-meta context */
-.lightbox-metadata .lb-meta .lb-size {
-    font-family: var(--font-mono);
-}
-
 /* Navigation Arrows */
 .lightbox-nav {
     position: absolute;
@@ -340,114 +335,14 @@ body.similar-mobile-active [data-picker-ghost] {
     text-decoration: none;
 }
 
-/* 62b-1: 進階重刮 ⚙ inline 細鈕（lb-details 番號旁）
- * 與 .lb-link metadata 同層的 inline icon button，非 cover-actions 玻璃圓鈕、非 999px pill。
- * 視覺對齊 .lb-details muted 文字（color inherit muted），hover → accent；ui-conventions §6 token 不硬編碼。 */
-.lightbox-metadata .lb-rescrape-gear {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
-    margin-left: 4px;             /* micro spacing（§4 micro 子網格）*/
-    padding: 0;
-    border: 1px solid transparent;
-    border-radius: var(--fluent-radius-md);   /* 互動小元件 4px（§1）*/
-    background: transparent;
-    color: var(--text-muted);     /* 與番號 muted 文字同色，融入 metadata 行 */
-    font-size: 0.8125rem;         /* icon optical 對齊 0.75rem 番號文字 */
-    line-height: 1;
-    cursor: pointer;
-    vertical-align: baseline;
-    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
-                background var(--fluent-duration-fast) var(--fluent-ease-standard),
-                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
-}
-
-.lightbox-metadata .lb-rescrape-gear:hover {
-    color: var(--accent);
-    background: var(--surface-1);
-    border-color: var(--stroke-subtle);
-}
-
-.lightbox-metadata .lb-rescrape-gear:active {
-    color: var(--accent);
-    background: var(--surface-1);
-}
-
-.lightbox-metadata .lb-rescrape-gear:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;          /* stroke / focus 級（§4）*/
-    color: var(--accent);
-    box-shadow: 0 0 0 4px var(--glow-subtle);   /* §6 #5 focus 4px glow */
-}
-
-/* 172-T5: 燈箱標題翻譯鈕（標題行尾／原文行尾共用）。尺寸、色階、hover、focus 逐項鏡像 .lb-rescrape-gear。 */
-.lightbox-metadata .lb-translate-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: 1.25rem;
-    height: 1.25rem;
-    margin-left: 4px;             /* micro spacing（§4 micro 子網格）*/
-    padding: 0;
-    border: 1px solid transparent;
-    border-radius: var(--fluent-radius-md);
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.8125rem;
-    line-height: 1;
-    cursor: pointer;
-    vertical-align: baseline;
-    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
-                background var(--fluent-duration-fast) var(--fluent-ease-standard),
-                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
-}
-
-.lightbox-metadata .lb-translate-btn:hover:not(:disabled) {
-    color: var(--accent);
-    background: var(--surface-1);
-    border-color: var(--stroke-subtle);
-}
-
-.lightbox-metadata .lb-translate-btn:active:not(:disabled) {
-    color: var(--accent);
-    background: var(--surface-1);
-}
-
-.lightbox-metadata .lb-translate-btn:disabled {
-    cursor: default;
-    color: var(--accent);
-}
-
-.lightbox-metadata .lb-translate-btn:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    color: var(--accent);
-    box-shadow: 0 0 0 4px var(--glow-subtle);
-}
-
-/* 原文行外包：.lb-otitle 自帶 nowrap＋ellipsis，圖示放同列兄弟才不會被省略號吃掉 */
-.lightbox-metadata .lb-otitle-row {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-}
-
-.lightbox-metadata .lb-otitle-row .lb-otitle {
-    flex: 0 1 auto;
-    min-width: 0;
-}
-
 /* 71b-T1: 單筆刪除常駐 muted icon（info panel，.lb-details size 行末，margin-left:auto 靠右）。
- * 從 hover overlay .cover-actions 搬進 metadata 行末，與 .lb-rescrape-gear 同尺寸同語言，
+ * 從 hover overlay .cover-actions 搬進 metadata 行末，muted icon 同尺寸同語言，
  * 鏡像其 muted 模式，差別只在 hover → danger（不是 accent）。 */
 .lightbox-metadata .lb-delete-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.25rem;                                   /* 與 .lb-rescrape-gear 同尺寸，融入 metadata 行 */
+    width: 1.25rem;                                   /* 1.25rem muted icon，融入 metadata 行 */
     height: 1.25rem;
     margin-left: auto;                                /* 推到 .lb-details flex 行末（靠右）*/
     padding: 0;

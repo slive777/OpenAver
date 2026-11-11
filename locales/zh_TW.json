@@ -1526,7 +1526,6 @@
       "close": "關閉 (ESC)",
       "prev": "上一部 (←)",
       "next": "下一部 (→)",
-      "unknown_number": "未知",
       "resolution_pill_title": "只看這個解析度的片",
       "version_original": "原版",
       "borrowed": "沿用",
@@ -1603,7 +1602,6 @@
     "gallery": {
       "prev": "上一張 (←)",
       "next": "下一張 (→)",
-      "sample_prefix": "劇照",
       "sample_alt": "劇照",
       "thumb_alt": "縮圖"
     },
@@ -1822,8 +1820,8 @@
       "h6_advanced_picker": "進階搜尋 Picker",
       "picker_longpress": "① 搜尋列輸入番號後，點「自動」膠囊可挑選單一來源搜尋",
       "picker_panel_switch": "② 結果面板點目前來源膠囊可換來源（picker 內「自動」＝循環下一個來源）",
-      "picker_showcase_enrich": "③④ 在瀏覽頁封面牆或燈箱中，點補資料鈕（🔍）即自動補缺",
-      "picker_lightbox_gear": "⑤ 在瀏覽頁燈箱中，點番號旁 ⚙ 可進階重刮並指定來源"
+      "picker_showcase_enrich": "③④ 在瀏覽頁封面牆或燈箱中，點補資料鈕（🔍）即自動補缺；燈箱裡要把滑鼠移到封面上才看得到",
+      "picker_lightbox_gear": "⑤ 在瀏覽頁燈箱中，點片名右邊的「⋯」→「進階重新刮削」，可進階重刮並指定來源"
     },
     "batch": {
       "title": "批次檔案搜尋",
@@ -1939,8 +1937,8 @@
       "other_lightbox": "Lightbox 全螢幕封面檢視（<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> 導航）",
       "other_lightbox_detail": "Lightbox 顯示導演、片長、系列、Label 等詳細資訊",
       "other_table_cols": "Table 模式新增「導演」和「片長」欄位",
-      "other_gallery": "Lightbox 可開啟劇照瀏覽（點擊「劇照」按鈕）",
-      "other_translate_title": "<strong>翻譯標題</strong>：已入庫、標題含日文、還沒有原文的片，Lightbox 標題旁會出現翻譯圖示（設定頁開啟翻譯功能後才有；片需要有 NFO）。翻好的標題會寫進 NFO，原標題留在 NFO 的 <code>originaltitle</code>。翻得不好，按畫面底部提示上的「復原」，或按原文行尾的圖示再翻一次。",
+      "other_gallery": "Lightbox 可開啟劇照瀏覽（點片名右邊的劇照圖示，圖示角落的數字是張數）",
+      "other_translate_title": "<strong>翻譯標題</strong>：已入庫、標題含日文、還沒有原文的片，點 Lightbox 片名右邊的「⋯」→「翻譯標題」即可翻譯（設定頁開啟翻譯功能後才有；片需要有 NFO）。翻好的標題會寫進 NFO，原標題留在 NFO 的 <code>originaltitle</code>。翻得不好，按畫面底部提示上的「復原」，或再按一次「⋯」→「翻譯標題」重翻。",
       "other_per_page": "每頁顯示數量可在<strong>設定頁</strong>調整"
     },
     "similar": {

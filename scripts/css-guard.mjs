@@ -1563,7 +1563,7 @@ const RULES = [
     },
   },
 
-  // CG-PC-11 ← TestUserTagCSSGuard（雙檔 --text-inverse 負向，search + showcase）
+  // CG-PC-11 ← TestUserTagCSSGuard（--text-inverse 負向；search.css 的 .tag-badge.user-tag。showcase 那半 .lb-user-tag 已隨 199a-T8 刪除）
   {
     id: 'CG-PC-11',
     file: 'pages/search.css',
@@ -1572,10 +1572,6 @@ const RULES = [
       const searchBlock = ruleBody(ctx.raw, '\\.tag-badge\\.user-tag');
       if (searchBlock === null) ctx.fail('CG-PC-11: search.css 找不到 .tag-badge.user-tag 規則');
       else if (searchBlock.includes('--text-inverse')) ctx.fail('CG-PC-11: .tag-badge.user-tag 應用 --color-primary-content，非 --text-inverse');
-      const scRaw = ctx.load(SHOWCASE_FULL).raw;
-      const scBlock = ruleBody(scRaw, '\\.lb-user-tag');
-      if (scBlock === null) ctx.fail('CG-PC-11: showcase.css 找不到 .lb-user-tag 規則');
-      else if (scBlock.includes('--text-inverse')) ctx.fail('CG-PC-11: .lb-user-tag 應用 --color-primary-content，非 --text-inverse');
     },
   },
 

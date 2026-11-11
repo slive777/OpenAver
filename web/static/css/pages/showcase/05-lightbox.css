@@ -298,20 +298,6 @@
     color: var(--text-muted);
 }
 
-/* Meta: Number · Maker · Date — 單行 flex */
-.lightbox-metadata .lb-meta {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-bottom: 0.5rem;
-    display: flex;
-    flex-wrap: wrap;
-}
-
-.lightbox-metadata .lb-meta span:not(:last-child)::after {
-    content: " · ";
-    margin: 0 0.35em;
-}
-
 /* Details: merged meta row (number · maker · director · duration · series · label · date · size)
    93-T9：字級層次 + 髮絲線 + 間距（不加色塊/玻璃/accent 底，封面仍主角，ui-conventions §0/§3）。
    中繼區以髮絲線與上方 actor 區克制分隔。 */
@@ -487,24 +473,6 @@
     border: 1px solid var(--stroke-subtle);
 }
 
-/* 198b-T7a: 版本膠囊（複用 .lb-tag，button 補基本重置；active ＝ tonal，只用 token） */
-.lightbox-metadata .lb-version-cap {
-    cursor: pointer;
-    font-family: inherit;
-    line-height: inherit;
-}
-
-.lightbox-metadata .lb-version-cap.is-active {
-    background: color-mix(in oklch, var(--accent) 15%, transparent);
-    border-color: var(--accent);
-    color: var(--accent);
-}
-
-.lightbox-metadata .lb-version-cap:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
-
 /* 198b-T7a: 「沿用」小字（標題旁） */
 .lightbox-metadata .lb-borrowed {
     margin-left: 0.4rem;
@@ -593,8 +561,7 @@
 
 /* 98b-T4：焦點裁切遮罩 toggle — styled-like .lb-action-btn（上方）但更小，掛 metadata .lb-header。
  * 低調玻璃圓鈕，退位不搶封面戲（feedback_ui_restraint_taste）。token only（§6）。 */
-.lightbox-metadata .lb-mask-btn,
-.lightbox-metadata .lb-plot-btn {
+.lightbox-metadata .lb-mask-btn {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
@@ -618,29 +585,20 @@
                 box-shadow var(--duration-fast) var(--ease-out);
 }
 
-.lightbox-metadata .lb-mask-btn:hover,
-.lightbox-metadata .lb-plot-btn:hover {
+.lightbox-metadata .lb-mask-btn:hover {
     color: var(--text-primary);
     border-color: var(--stroke-default);
     box-shadow: var(--fluent-shadow-16);
 }
 
-.lightbox-metadata .lb-mask-btn:active,
-.lightbox-metadata .lb-plot-btn:active {
+.lightbox-metadata .lb-mask-btn:active {
     transform: scale(0.95);
 }
 
-.lightbox-metadata .lb-mask-btn:focus-visible,
-.lightbox-metadata .lb-plot-btn:focus-visible {
+.lightbox-metadata .lb-mask-btn:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     box-shadow: 0 0 0 4px var(--glow-subtle);   /* §6 #5 focus 4px glow */
-}
-
-/* 187b-T5b：簡介鈕按下態（材質沿用上方 selector list，只換邊框與字色，不加色塊）。 */
-.lightbox-metadata .lb-plot-btn[aria-pressed="true"] {
-    border-color: var(--accent);
-    color: var(--text-primary);
 }
 
 /* 98b-T4：遮罩 overlay（疊在 .lightbox-cover 已 layout 的封面 rect 上，不裁圖）。 */

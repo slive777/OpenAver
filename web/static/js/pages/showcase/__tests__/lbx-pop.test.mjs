@@ -106,7 +106,6 @@ test('test_esc_closes_pop_before_lightbox', () => {
             _pillEditor: null,
             _releaseEditor: null,
             _maskVisible: false,
-            lbPlotOpen: false,
             $nextTick() {},
             $refs: {},
         });
@@ -149,7 +148,6 @@ test('test_esc_cancels_tag_input_before_closing_lightbox', () => {
             _pillEditor: null,
             _releaseEditor: null,
             _maskVisible: false,
-            lbPlotOpen: false,
             $nextTick() {},
             $refs: {},
         });
