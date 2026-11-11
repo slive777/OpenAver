@@ -14,6 +14,7 @@
 
 import { _videos, _allVideos, _filteredVideos, _setVideos } from '@/showcase/state-base.js';
 import { computeHiddenIndexes, isHiddenVideo, splitVisible, hiddenNumberSet, footerNotice } from '@/shared/hidden-sources.js';
+import { sameWork } from './work-versions.js';
 
 // 首屏最多等 source-status 這麼久（開關為開時）；逾時只是不再等，請求不取消、晚到的回應照樣套用。
 const STATUS_TIMEOUT_MS = 3000;
@@ -120,7 +121,8 @@ export function stateHiddenSources() {
             }
             // standalone 相似退出時 lightboxIndex 本來就是舊值（R-10 不納入），不重新對位
             if (this.similarExitVideo) return;
-            const idx = _filteredVideos.findIndex((v) => v.path === cur.path);   // 以 path 比對（FE-ALPINE-14）
+            // 198b-T6：燈箱可能停在非顯示版本，以「該作品含有 cur 這個 path」對位（FE-ALPINE-14：path 比對）
+            const idx = _filteredVideos.findIndex((v) => sameWork(v, cur));
             if (idx >= 0 && idx !== this.lightboxIndex) this.lightboxIndex = idx;
         },
 

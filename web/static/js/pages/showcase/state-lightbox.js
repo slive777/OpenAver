@@ -10,12 +10,13 @@
  * 從 state-base.js import 共用大陣列（F1：移出 Alpine reactive scope）。
  */
 
-import { _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER, _recomputeVideoBadges, _recomputeCardActorAges, _actresses, _nameToGroup } from '@/showcase/state-base.js';
+import { _videos, _allVideos, _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER, _recomputeVideoBadges, _recomputeCardActorAges, _actresses, _nameToGroup } from '@/showcase/state-base.js';
 import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
 import { detectSwipe } from '@/shared/swipe.js';
 import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/wheel-nav.js';
 import { shouldShowEnrichButton } from '@/shared/enrich-gate.js';
 import { computeActorAgesMap } from '@/shared/actress-release-age.js';
+import { versionsOf, sameWork, refreshRoute, applyWorkUpdate } from './work-versions.js';
 
 
 // 120a-T1：.lb-full @error 的遲到事件判定。比較對象是 Alpine :src 寫入的相對路徑
@@ -933,6 +934,9 @@ export function stateLightbox() {
             }
         },
 
+        // 198b-T6（CD-198b-8）：一部作品的所有版本一起刷新（燈箱補完／重刮後，另外的版本不會停在舊資料）。
+        // 版本集合沒變 → 'patch'：每個版本原物件只寫一次（身分不斷）；已渲染的卡／燈箱經 Proxy 寫才會重繪
+        // （raw 先寫、Proxy 再寫同值是 no-op，FE-ALPINE-20）。集合變了 → 'reload'：整牆重載（見 _reloadWallKeepLightbox）。
         async refreshVideoData(video) {
             try {
                 const resp = await fetch(`/api/showcase/video?path=${encodeURIComponent(video.path)}`);
@@ -940,6 +944,7 @@ export function stateLightbox() {
                 const data = await resp.json();
                 if (data.success && data.video) {
                     // BUGfix-lightbox-cover-stale: 共用同一個 timestamp，確保 grid 與 lightbox overlay 同步 bust。
+                    // 對回應裡每個版本做（versions 非空時頂層是其中之一的副本，一併處理）。
                     const _t = Date.now();
                     if (data.video.cover_url) {
                         data.video.cover_url = data.video.cover_url + '&t=' + _t;
@@ -949,17 +954,45 @@ export function stateLightbox() {
                     if (data.video.cover_full_url) {
                         data.video.cover_full_url = data.video.cover_full_url + '&t=' + _t;
                     }
-                    // 67-A2/CD-67-3b: data.video 不帶 _imgLoaded → 舊 true 殘留會讓新封面跳過 skeleton/fade。
-                    // Object.assign 前 reset，讓補封面/重抓的新 cover_url（含上面 &t= cache-bust）重走 skeleton→@load→淡入。
-                    if (data.video.cover_url) video._imgLoaded = false;
-                    Object.assign(video, data.video);
-                    _recomputeVideoBadges(video);
-                    _recomputeCardActorAges(video);
-                    // BUGfix-lightbox-cover-stale: 若燈箱正開在這支影片，重置 blur-up overlay，
+                    const versionsIn = Array.isArray(data.video.versions) ? data.video.versions : [];
+                    versionsIn.forEach((nv) => {
+                        if (nv.cover_url) nv.cover_url = nv.cover_url + '&t=' + _t;
+                        if (nv.cover_full_url) nv.cover_full_url = nv.cover_full_url + '&t=' + _t;
+                    });
+                    const incoming = [data.video].concat(versionsIn);
+                    // 原作品：優先取牆上那一份原物件（_allVideos 是 raw；video 可能是 Proxy）；不在牆上就用傳進來的。
+                    const work = _allVideos.find((w) => sameWork(w, video)) || video;
+                    if (refreshRoute(work, data.video) === 'reload') {
+                        const cur = this.currentLightboxVideo;
+                        const anchor = (this.lightboxOpen === true && cur && cur.path) ? cur.path : video.path;
+                        const bustPaths = incoming.map((nv) => nv.path).concat(versionsOf(work).map((v) => v.path));
+                        await this._reloadWallKeepLightbox(anchor, { bustPaths, t: _t });
+                        return;
+                    }
+                    // 已渲染的卡（paginatedVideos）與燈箱（currentLightboxVideo）經 Proxy 寫；其餘寫原物件。
+                    // 67-A2/CD-67-3b: 新 cover_url 的版本由 applyWorkUpdate 一併帶 _imgLoaded:false，重走 skeleton→@load→淡入。
+                    const viaOf = (target) => {
+                        const card = (this.paginatedVideos || []).find((p) => p.path === target.path);
+                        if (card) return card;
+                        const lb = this.currentLightboxVideo;
+                        return (lb && lb.path === target.path) ? lb : target;
+                    };
+                    const { defaultDict, byPath } = applyWorkUpdate(work, data.video, (target, patch) => Object.assign(viaOf(target), patch));
+                    Object.keys(byPath).forEach((p) => {
+                        const via = viaOf(byPath[p]);
+                        _recomputeVideoBadges(via);
+                        _recomputeCardActorAges(via);
+                    });
+                    // 預設版本可能換了：牆上資料陣列那一格換成新預設（_filteredVideos 維持，下次重篩才換；已接受的 residual）
+                    [_videos, _allVideos].forEach((arr) => {
+                        const i = arr.findIndex((w) => sameWork(w, defaultDict));
+                        if (i >= 0) arr[i] = defaultDict;
+                    });
+                    // BUGfix-lightbox-cover-stale: 若燈箱正開在這部作品（任一版本），重置 blur-up overlay，
                     // 讓 cover_full_url（已 bust）重新觸發 @load → _lbFullLoaded 淡入。
-                    // 用 === video 守住：燈箱開在別支影片時不誤 reset。
-                    // 必須在 Object.assign 之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。
-                    if (this.currentLightboxVideo === video) {
+                    // path 比對（FE-ALPINE-14）。必須在寫入之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。
+                    const lbNow = this.currentLightboxVideo;
+                    if (lbNow && lbNow.path && byPath[lbNow.path]) {
                         this._refreshLbFullBlurUp();
                         this._refreshLbActorAges();
                     }
