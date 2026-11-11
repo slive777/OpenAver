@@ -1,0 +1,31 @@
+/* 199a 影片燈箱 v2：外框（T1）。
+   本檔每條選擇器必含 `.lbx-` 或 `.lb-video-branch`（CG-199A-01 強制）——本檔也會被 search.html、
+   design-system.html 一起載入（共用 _showcase_css.html），隔離全靠選擇器在那兩頁結構上零命中。
+   隔離開關只有一個：影片分支包裝 div 的 `.lb-video-branch`；外框規則一律掛
+   `.lightbox-content:has(> .lb-video-branch)`，女優分支與搜尋頁結構上不帶它，不靠權重或載入順序。
+   不改 05／06／08 的任何既有規則。
+   閘：寬 ≥769（避開 06 的 max-width:768px）且高 ≥720（桌面最小保證）。閘外沿用今天的外框規則，
+   `.lbx-meta` 仍是 `.lightbox-metadata` 的 overflow-y:auto。
+   垂直預算全用 rem：1.5 上 padding + .75 gap + 13.875 文字區 + .875 下 padding = 17rem。
+   本檔不得出現 px 高度數字。 */
+@media (min-width: 769px) and (min-height: 720px) {
+    .lightbox-content:has(> .lb-video-branch) {
+        max-height: 96vh;
+        max-height: 96dvh;
+        padding: 1.5rem 1.5rem .875rem;
+        gap: .75rem;
+    }
+
+    .lightbox-content:has(> .lb-video-branch) .lightbox-cover.has-cover {
+        width: min(90vw, calc((96vh - 17rem) * var(--lb-cover-ar, 1.5)));
+        width: min(90vw, calc((96dvh - 17rem) * var(--lb-cover-ar, 1.5)));
+    }
+
+    .lightbox-content:has(> .lb-video-branch) .lbx-meta {
+        height: 13.875rem;
+        flex: none;
+        box-sizing: border-box;
+        overflow: hidden;
+        container: lbx-meta / inline-size;
+    }
+}

@@ -27,13 +27,26 @@ export function isStaleLbFullError(actualSrc, expectedSrc) {
     return actualSrc !== expectedSrc;
 }
 
+// 199a-T1：垂直滾輪「交還原生捲動」判定（handleWheel 的 vertical 分支）。
+// 交還：.lbx-pop 浮層內、女優 .lightbox-metadata（今天可捲），以及 .lbx-meta 在「可捲且真的溢出」時
+// （僅 overflow-y 為 auto／scroll 的閘外情況）。閘內 .lbx-meta 是 overflow:hidden 的固定高度文字區，
+// 就算內容溢出也不交還——滾輪換片，不讓使用者陷在既不捲也不換片的死區。
+export function shouldYieldVerticalWheel(target) {
+    if (target.closest(WHEEL_VERTICAL_EXCLUDE_SELECTOR)) return true;
+    const meta = target.closest('.lbx-meta');
+    if (!meta) return false;
+    const oy = getComputedStyle(meta).overflowY;
+    return (oy === 'auto' || oy === 'scroll') && meta.scrollHeight > meta.clientHeight;
+}
+
 // 排除清單容器（橫向捲動列表/表格）：命中即整條 wheel handler 提早 return，
 // 讓原生橫向捲動不受影響（見 TASK-102d-T1.md「技術要點」排除清單段）。
 const WHEEL_EXCLUDE_SELECTOR = '.sample-strip, .sg-thumbs, .picker-candidates-grid, .table-scroll-container, .overflow-x-auto';
-// 102d P2b（owner 拍板 2026-07-19）：overlay 內可垂直捲動的子容器（lightbox metadata 面板，
-// showcase.css:785/946 `.lightbox-metadata{overflow-y:auto}`）——垂直滾輪命中時交還原生捲動，
+// 102d P2b（owner 拍板 2026-07-19）：overlay 內可垂直捲動的子容器——垂直滾輪命中時交還原生捲動，
 // 不吃導航（僅 vertical 分支檢查，horizontal 分支不受影響、行為不變）。
-const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata';
+// 199a-T1：女優 .lightbox-metadata（無 .lbx-meta）一律交還；影片的 .lbx-meta 排除在外，改由
+// shouldYieldVerticalWheel 看實際可捲狀態決定；.lbx-pop 為影片燈箱浮層（T3 起才有此 DOM）。
+const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata:not(.lbx-meta), .lbx-pop';
 
 export function stateLightbox() {
     // TASK-102d-T1：四個獨立累積器（Lightbox 影片 / Lightbox 女優 / 劇照 / 牆翻頁）——
@@ -1203,8 +1216,8 @@ export function stateLightbox() {
 
             // 排除清單容器：原生橫向捲動優先，不吃導航。
             if (event.target.closest(WHEEL_EXCLUDE_SELECTOR)) return;
-            // overlay 內可垂直捲動的子容器（metadata 面板）：垂直滾輪交還原生捲動。
-            if (vertical && event.target.closest(WHEEL_VERTICAL_EXCLUDE_SELECTOR)) return;
+            // overlay 內可垂直捲動的子容器（metadata 面板／浮層）：垂直滾輪交還原生捲動。
+            if (vertical && shouldYieldVerticalWheel(event.target)) return;
 
             // 1. similar mode 最高優先（比照 handleKeydown 段 1）：獨佔，滾輪不穿透
             if (this.similarModeOpen || this.similarModeMobileOpen) return;

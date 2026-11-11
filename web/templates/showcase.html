@@ -1116,7 +1116,7 @@
 
                 <!-- Video Lightbox Branch (wrapped in x-if to prevent 44b hero card conflict) -->
                 <template x-if="currentLightboxVideo && !currentLightboxActress">
-                    <div style="display:contents">
+                    <div class="lb-video-branch" style="display:contents">
                         <!-- Cover Image -->
                         <!-- T8(Codex P2): has-cover 旗標 — 僅有封面時才讓 ≤480px min-height:0 塌到圖盒；
                              無封面時保留 min-height 避免 cover 區塌成 0 高（補封面入口會壞）。 -->
@@ -1218,7 +1218,7 @@
                              改為獨立全螢幕 .similar-mobile-panel（page-level sibling，見 .similar-stage 之後）。 -->
 
                         <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
-                        <div class="lightbox-metadata">
+                        <div class="lightbox-metadata lbx-meta">
                             <!-- Row 1: Header (title + sample gallery button) -->
                             <div class="lb-header">
                                 <!-- 123-T8：精選星掛在標題行最前面（owner 拍板：標題前比番號前更清楚，
