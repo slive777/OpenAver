@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    normalizeWorkItem, versionsOf, pickDisplayVersion, sortSource, workMtime, refreshRoute, applyWorkUpdate, versionCapsules,
+    normalizeWorkItem, versionsOf, pickDisplayVersion, sortSource, workMtime, refreshRoute, applyWorkUpdate, versionCapsules, sameNumber,
 } from '../work-versions.js';
 
 const ver = (path, o) => ({ path, title: 'T-' + path, mtime: 0, resolution_tier: 'FHD', cover_url: '/c?p=' + path, ...o });
@@ -120,4 +120,20 @@ test('versionCapsules 同名補大小: 同名的靠大小分得出來、不同�
     ]), ['FHD 原版 5.8 GB', 'FHD 原版 2.2 GB', '4K 中字']);
     // size 缺／0 不 throw
     assert.doesNotThrow(() => caps([ver('D1.mp4', { version_kinds: [] }), ver('D2.mp4', { version_kinds: [], size: 0 })]));
+});
+
+test('sameNumber: 番號大小寫／前後空白不同也算同一部、不同號或空值不算', () => {
+    assert.equal(sameNumber('abc-123', 'ABC-123'), true);   // NFO 小寫 vs 相似結果大寫
+    assert.equal(sameNumber('ABC-123', 'abc-123'), true);
+    assert.equal(sameNumber('  xyz-9 ', 'XYZ-9'), true);    // 前後空白
+    assert.equal(sameNumber('XYZ-9', 'XYZ-9'), true);       // 完全相同
+    assert.equal(sameNumber('ABC-123', 'ABC-124'), false);  // 找不到
+    for (const empty of ['', '   ', null, undefined]) {
+        assert.equal(sameNumber(empty, 'ABC-123'), false);
+        assert.equal(sameNumber('ABC-123', empty), false);
+        assert.equal(sameNumber(empty, empty), false);       // 空 number 不得互相命中
+    }
+    // 查找語意：牆上同號取第一個（find 順序不變）
+    const list = [{ number: 'XYZ-9' }, { number: 'abc-123', path: 'a' }, { number: 'ABC-123', path: 'b' }];
+    assert.equal(list.find((v) => sameNumber(v.number, 'ABC-123')).path, 'a');
 });

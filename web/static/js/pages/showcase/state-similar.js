@@ -25,6 +25,7 @@
  */
 
 import { _videos, _filteredVideos } from '@/showcase/state-base.js';
+import { sameNumber } from './work-versions.js';
 import {
   ANCHORS,
   pickEight,
@@ -451,7 +452,7 @@ export function stateSimilar() {
       // 到 filter 外影片）→ findIndex = -1 → _silentSwitchLightboxByNumber no-op → lightbox 顯示舊影片。
       // 修法：找不到時改用 similarResults 的最後一個鑽入 item 當 standalone lightbox source（similarExitVideo）。
       if (this._similarLastDrilledNumber) {
-        const drilledIdx = _filteredVideos.findIndex(v => v.number === this._similarLastDrilledNumber);
+        const drilledIdx = _filteredVideos.findIndex(v => sameNumber(v.number, this._similarLastDrilledNumber));
         if (drilledIdx >= 0) {
           // 找到 → 沿用既有邏輯（_setLightboxIndex + currentLightboxVideo 同步）
           this._silentSwitchLightboxByNumber(this._similarLastDrilledNumber);
@@ -459,7 +460,7 @@ export function stateSimilar() {
           // _filteredVideos 找不到 → BUGfix-mobile-similar-stale-cover P2 三層 fallback（對齊 onSimilarMobileCardClick）：
           // 先查 _videos（庫內、被 active filter 排除）→ standalone 但保完整 metadata + path，
           // 避免關閉 similar mode 時把 mobile tier2 的完整 metadata + path 重新降級成 5 欄 snapshot。
-          const drilledVIdx = _videos.findIndex(v => v.number === this._similarLastDrilledNumber);
+          const drilledVIdx = _videos.findIndex(v => sameNumber(v.number, this._similarLastDrilledNumber));
           if (drilledVIdx >= 0) {
             this.similarExitVideo = _videos[drilledVIdx];
             this.currentLightboxVideo = this.similarExitVideo;
@@ -843,7 +844,7 @@ export function stateSimilar() {
       // （_silentSwitchLightboxByNumber 的 _filteredVideos 用法是 by design，CD-56C-12，不改）
       const drilled = this._similarLastDrilledNumber;
       if (drilled) {
-        const found = _filteredVideos.find(v => v.number === drilled) || _videos.find(v => v.number === drilled);
+        const found = _filteredVideos.find(v => sameNumber(v.number, drilled)) || _videos.find(v => sameNumber(v.number, drilled));
         if (found?.path) {
           this.playVideo(found.path);
           return;
@@ -1699,7 +1700,7 @@ export function stateSimilar() {
       // tier 1: 命中 _filteredVideos → _setLightboxIndex（含自動清 similarExitVideo=null）
       if (this._silentSwitchLightboxByNumber(item.number)) return;
       // tier 2: 在 _videos（庫內、被 filter 排除）→ standalone，完整 metadata + path
-      const vIdx = _videos.findIndex(v => v.number === item.number);
+      const vIdx = _videos.findIndex(v => sameNumber(v.number, item.number));
       if (vIdx >= 0) {
         this.similarExitVideo = _videos[vIdx];
       } else {
@@ -1766,7 +1767,7 @@ export function stateSimilar() {
      */
     _silentSwitchLightboxByNumber(number) {
       if (!number) return false;
-      const idx = _filteredVideos.findIndex(v => v.number === number);
+      const idx = _filteredVideos.findIndex(v => sameNumber(v.number, number));
       if (idx >= 0) { this._setLightboxIndex(idx); return true; }
       return false;
     },

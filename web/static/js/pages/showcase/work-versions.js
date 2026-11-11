@@ -30,6 +30,14 @@ export function normalizeWorkItem(item) {
     return vers[0];
 }
 
+// 兩個番號字串是否指同一部（相似結果 → 牆上作品的查找用）。比對與後端 version_group 同一把尺：strip + upper
+// （NFO <num> 不 upper、檔名解析會 upper，同作品的版本可能只差大小寫）。任一邊空 → false。
+// 只比字串、不碰作品 dict 的番號欄位——分組仍完全是後端的事（lint-guard:work-versions-no-number）。
+export function sameNumber(a, b) {
+    const x = (a || '').trim().toUpperCase();
+    return x !== '' && x === (b || '').trim().toUpperCase();
+}
+
 // path 比對：a 這部作品是否含有 b 這個版本。b 缺或沒有 path（5 欄 snapshot）→ false。
 export function sameWork(a, b) {
     if (!a || !b || !b.path) return false;
