@@ -747,7 +747,8 @@ def post_user_tags(request: UserTagsRequest) -> dict:
     3. resolve_work → 對代表段中不等於請求檔的每個 path 各呼叫一次
        apply_user_tags(add, remove, ai_tagged=False)；其他版本失敗只 logger.warning
     4. 回傳 {success, user_tags, nfo_updated, readonly_no_output, nfo_write_blocked}
-      （請求那個檔自己的結果）＋ work_user_tags（全部寫完後重讀的作品聯集）
+      （user_tags／nfo_updated 是請求那個檔自己的結果；readonly_no_output／
+      nfo_write_blocked 是請求檔 OR 各版本的結果）＋ work_user_tags（全部寫完後重讀的作品聯集）
     """
     db_path = get_db_path()
     repo = VideoRepository(db_path)
@@ -804,6 +805,8 @@ def post_user_tags(request: UserTagsRequest) -> dict:
 
     work = resolve_work(repo, file_path, path_mappings)
     fan_out_paths = [p for p in representative_paths(work) if p != file_path] if work is not None else []
+    fan_out_readonly_no_output = False
+    fan_out_nfo_write_blocked = False
     for rep in fan_out_paths:
         _, rep_local = _resolve_user_tag_paths(rep, path_mappings)
         try:
@@ -815,6 +818,9 @@ def post_user_tags(request: UserTagsRequest) -> dict:
             )
             if not rep_result.ok:
                 logger.warning("[user-tags] fan-out 寫入失敗 %s: %s", rep, rep_result.error)
+            else:
+                fan_out_readonly_no_output = fan_out_readonly_no_output or rep_result.readonly_no_output
+                fan_out_nfo_write_blocked = fan_out_nfo_write_blocked or rep_result.nfo_write_blocked
         except Exception as e:
             logger.warning("[user-tags] fan-out 寫入例外 %s: %s", rep, e)
     try:
@@ -826,8 +832,8 @@ def post_user_tags(request: UserTagsRequest) -> dict:
         "success": True,
         "user_tags": result.user_tags,
         "nfo_updated": result.nfo_updated,
-        "readonly_no_output": result.readonly_no_output,
-        "nfo_write_blocked": result.nfo_write_blocked,
+        "readonly_no_output": result.readonly_no_output or fan_out_readonly_no_output,
+        "nfo_write_blocked": result.nfo_write_blocked or fan_out_nfo_write_blocked,
         "work_user_tags": union,
     }
 
