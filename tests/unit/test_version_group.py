@@ -154,13 +154,35 @@ def test_default_order(case):
     ("nfo_default", "nfo_second", "expected"),
     [(100, 200, 0), (0, 50, 1), (0, 0, None)],
 )
-def test_data_source(nfo_default, nfo_second, expected):
+def test_data_source(nfo_default, nfo_second, expected, monkeypatch):
     rows = [
         _v("/media/ds/ABF-348.mp4", number="ABF-348", mtime=100, nfo_mtime=nfo_second),
         _v("/media/ds/ABF-348-C.mkv", number="ABF-348", mtime=200, nfo_mtime=nfo_default),
     ]
     works = group_works(rows, _fs, tier_of=lambda r: "FHD")
     assert works[0].data_source == expected
+
+    import core.version_group as vg
+
+    kinds_calls = []
+    real_kinds = vg.version_kinds
+
+    def counting_kinds(*args, **kwargs):
+        kinds_calls.append(1)
+        return real_kinds(*args, **kwargs)
+
+    monkeypatch.setattr(vg, "version_kinds", counting_kinds)
+    tier_calls = []
+
+    def counting_tier(row):
+        tier_calls.append(row)
+        return "FHD"
+
+    solo = [_v("/media/s/SOLO-001.mp4", number="SOLO-001", nfo_mtime=nfo_default)]
+    solo_works = group_works(solo, _fs, tier_of=counting_tier)
+    assert tier_calls == []
+    assert kinds_calls == []
+    assert solo_works[0].data_source == (0 if nfo_default else None)
 
 
 def test_resolve_works_bulk():

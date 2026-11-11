@@ -58,6 +58,9 @@ def _build_work(
     fs_path_of: Callable[[T], str],
     tier_of: Optional[Callable[[T], Optional[str]]],
 ) -> Work[T]:
+    if len(groups) == 1:
+        sole = groups[0]
+        return Work(versions=list(groups), data_source=0 if _has_data(sole) else None)
     ranked = []
     for group in groups:
         fs_path = fs_path_of(group.members[0])
