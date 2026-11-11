@@ -167,3 +167,19 @@ def resolve_works_bulk(
             folder_index_cache[prefix] = index
         out[target_uri] = index.get(target_uri)
     return out
+
+
+def work_user_tags(work: Work) -> List[str]:
+    """整部作品的標籤聯集：依版本順序串接各版本 members[0].user_tags、逐字去重。"""
+    return list(dict.fromkeys(
+        t for version in work.versions for t in (version.members[0].user_tags or [])
+    ))
+
+
+def reread_work_user_tags(repo, target_uri: str, path_mappings: dict) -> List[str]:
+    """寫完後重讀作品聯集：內部重新 resolve_work（不傳 tier_of）；查無作品退回該 uri 那列自己的 user_tags，列也不存在回 []。"""
+    work = resolve_work(repo, target_uri, path_mappings)
+    if work is None:
+        video = repo.get_by_path(target_uri)
+        return list(video.user_tags) if video is not None else []
+    return work_user_tags(work)

@@ -711,7 +711,9 @@ _TOOLS: list[dict] = [
     {
         "name": "user_tags",
         "description": (
-            "管理用戶自訂標籤（評分、書籤、分類等）。存入 DB + NFO <user_tag> 元素，不被 scraper refresh 覆蓋。"
+            "管理用戶自訂標籤（評分、書籤、分類等）。加／刪作用到同一部作品（同資料夾同番號）的"
+            "全部版本，沒 NFO 的版本只更新資料庫、不新建 NFO。存入 DB + NFO <user_tag> 元素，"
+            "不被 scraper refresh 覆蓋。"
             "唯讀來源的片寫的是輸出夾那份 NFO（原始資料夾零寫入）；該片還沒產出輸出夾時，"
             "標籤仍會存進 DB，但回傳 readonly_no_output=true 表示這次沒有任何 NFO 被更新。"
         ),
@@ -732,7 +734,8 @@ _TOOLS: list[dict] = [
         },
         "output_schema": {
             "success": "boolean",
-            "user_tags": "[string] — 更新後的完整 user_tags 清單",
+            "user_tags": "[string] — 請求那個檔自己的更新後完整 user_tags 清單",
+            "work_user_tags": "[string] — 寫完後整部作品各版本的標籤聯集",
             "nfo_updated": "boolean — NFO 是否同步更新",
             "readonly_no_output": "boolean — 唯讀來源的片，這次沒有任何 NFO 被更新時為 true（標籤已存進 DB，但媒體伺服器讀到的 NFO 沒變：可能是還沒產出輸出夾、或那份 NFO 讀不到／壞掉）。一般片恆為 false",
         },
@@ -745,7 +748,7 @@ _TOOLS: list[dict] = [
     {
         "name": "user_rating",
         "description": (
-            "批次或單筆冪等設定「精選」狀態（picked: true/false）。"
+            "批次或單筆冪等設定「精選」狀態（picked: true/false)，效果套用到整部作品的全部版本。"
             "⚠️ side effect：一次呼叫可改動多部影片的精選狀態，批次取消無一鍵復原。"
             "精選是獨立欄位（user_rating），不是 user_tags 裡的 ★ 標籤——兩者互不影響、不會互相覆蓋。"
             "分集片（-cd1/-cd2 等）自動解析到代表段，效果套用到整組。"
@@ -765,7 +768,7 @@ _TOOLS: list[dict] = [
             "success": "boolean",
             "picked": "boolean — 本次設定的目標狀態",
             "results": "[{path, ok, reason?}] — 逐路徑回報，與輸入 1:1 對應；reason 目前只有 not_found",
-            "changed": "integer — 成功命中的影片組數（分集片去重後計數）。注意：本來就已是目標狀態的片也算命中，不代表這麼多片的星真的變了",
+            "changed": "integer — 成功命中的作品數（同一作品的多個輸入去重後計數；分集片去重後計數）。注意：本來就已是目標狀態的片也算命中，不代表這麼多片的星真的變了",
         },
         "side_effect": True,
         "confirmation_required": True,
@@ -776,7 +779,8 @@ _TOOLS: list[dict] = [
     {
         "name": "get_user_tags",
         "description": (
-            "查詢指定影片的現有 user_tags（user_tags POST 的對等讀取端點）。"
+            "查詢指定影片的現有 user_tags（user_tags POST 的對等讀取端點；回的是單一檔的清單，"
+            "作品聯集看 showcase_video 的 user_tags）。"
             "接受 file:/// URI 或 native FS 路徑（自動正規化）。影片不存在於 DB 時回 200 + 空清單。"
         ),
         "method": "GET",
@@ -1872,6 +1876,7 @@ _TOOLS: list[dict] = [
         "name": "ai_tags_tag_video",
         "description": (
             "叫 OpenAver 替一部片做 AI 標籤：把這部片的海報送到使用者在設定頁選好的 AI 連線，依詞表判讀後把標籤寫進資料庫與 NFO（user tag）。"
+            "只判斷、只寫目前版本；成功回應另帶 work_user_tags（整部作品各版本的標籤聯集）。"
             "會花使用者的錢（每部約一次請求）。"
             "使用者沒在設定頁開啟 AI 標籤時拒絕（reason=disabled），助理不能繞過。"
             "失敗時 HTTP 仍是 200，body 為 success=false 並帶 reason。"
@@ -1892,6 +1897,7 @@ _TOOLS: list[dict] = [
             "added": "[string] — 這次新增的標籤",
             "refused": "boolean — 模型拒絕判讀這張海報時為 true（此時沒有新增標籤，但這部片仍記為跑過）",
             "user_tags": "[string] — 更新後的完整 user_tags 清單",
+            "work_user_tags": "[string] — 寫完後整部作品各版本的標籤聯集",
             "nfo_updated": "boolean — NFO 是否同步更新",
             "readonly_no_output": "boolean — 唯讀來源且尚無輸出夾時為 true（標籤已存進 DB，但沒有 NFO 被更新）",
             "nfo_write_blocked": "boolean — NFO 寫入被擋下時為 true",

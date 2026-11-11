@@ -68,6 +68,7 @@ def test_post_without_ai_tagged_matches_legacy_response_and_always_rewrites_nfo(
     data = resp.json()
     assert set(data.keys()) == {
         "success", "user_tags", "nfo_updated", "readonly_no_output", "nfo_write_blocked",
+        "work_user_tags",
     }
     assert data["success"] is True
     assert "足" in data["user_tags"]

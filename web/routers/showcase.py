@@ -40,7 +40,7 @@ from core.focal.subprocess_runner import run_detection
 from core import thumbnail_cache
 from core.library_titles import tier_of_from_probe
 from core.multipart_group import resolve_group
-from core.version_group import group_works, resolve_work, version_containing
+from core.version_group import group_works, resolve_work, version_containing, work_user_tags
 
 logger = get_logger(__name__)
 
@@ -190,7 +190,7 @@ def _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=No
 
     firsts = [g.members[0] for g in work.versions]
     work_rating = 1 if any((m.user_rating or 0) > 0 for m in firsts) else 0
-    work_tags = list(dict.fromkeys(t for m in firsts for t in (m.user_tags or [])))
+    work_tags = work_user_tags(work)
     if len(work.versions) == 1:
         item = _serialize_group(work.versions[0], path_mappings, enabled, probe=probe_of(work.versions[0].members[0].path))
         item["borrowed_from"] = ""
