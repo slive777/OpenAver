@@ -29,3 +29,138 @@
         container: lbx-meta / inline-size;
     }
 }
+
+/* ── 199a-T2：封面 hover 層（上排 ▶📁🔍、下排規格帶）──────────────────────────
+   不在上面那個視窗閘內——新 markup 在所有視窗都存在，閘外也要排得好。
+   淡入／暗幕沿用 05 的 `.cover-actions`（opacity、transition、漸層底、pointer:coarse 常顯），這裡不重宣告，
+   只改版面（直欄、靠底）。hover 層純 CSS 驅動，不用 x-show／JS 切 class（FE-ALPINE-17）。
+   全區唯一 accent＝`.lbx-vcap.is-active`；其餘一律中性白。膠囊在媒體上，自帶底色（FE-CSS-18）。
+   `.lb-tag` 的基底樣式只在 `.lightbox-metadata` 內，封面上不會繼承，所以 `.lbx-vcap`／`.lbx-spec` 自帶完整樣式。
+   窄封面降級用 container query；容器放在 `.lbx-cover-layer`（不放 `.lightbox-cover`）。 */
+.lightbox-cover .cover-actions.lbx-cover-layer {
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    gap: .625rem;
+    padding: 1.5rem .75rem .625rem;
+    container: lbx-cover / inline-size;
+}
+
+.lbx-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: .75rem;
+}
+
+.lbx-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .375rem .5rem;
+    min-height: 1.625rem;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.lbx-versions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .375rem;
+    min-width: 0;
+}
+
+.lbx-vcap,
+.lbx-spec {
+    box-sizing: border-box;
+    padding: .1875rem .625rem;
+    background: var(--overlay-badge);
+    border: 1px solid color-mix(in oklch, white 45%, transparent);
+    border-radius: var(--radius-pill);
+    color: oklch(100% 0 0);
+    font-size: .6875rem;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.lbx-vcap {
+    font-family: inherit;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out);
+}
+
+.lbx-vcap:hover {
+    background: color-mix(in oklch, white 18%, var(--overlay-badge));
+}
+
+.lbx-vcap.is-active {
+    background: color-mix(in oklch, var(--accent) 22%, var(--overlay-badge));
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.lbx-vcap:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.lbx-part {
+    padding: .1875rem .5rem;
+    background: var(--overlay-badge);
+    border-radius: var(--radius-sm);
+    color: oklch(100% 0 0);
+    font-size: .6875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.lbx-spec {
+    display: inline-flex;
+    align-items: center;
+    margin-inline-start: auto;
+    max-width: 100%;
+}
+
+/* 項目間的分隔符只出現在「前面有項目」時——缺項不會留下孤立的 · */
+.lbx-spec-item + .lbx-spec-item::before {
+    content: "·";
+    margin-inline: .375rem;
+    opacity: .7;
+}
+
+.lbx-tier {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.lbx-tier:hover {
+    text-decoration: underline;
+}
+
+.lbx-tier:focus-visible {
+    outline: 2px solid currentcolor;
+    outline-offset: 2px;
+}
+
+@container lbx-cover (max-width: 620px) {
+    .lbx-band {
+        gap: .25rem;
+    }
+
+    .lbx-vcap,
+    .lbx-spec {
+        padding: .125rem .4375rem;
+        font-size: .625rem;
+    }
+
+    .lbx-spec-item + .lbx-spec-item::before {
+        margin-inline: .25rem;
+    }
+}

@@ -1532,6 +1532,7 @@
       "borrowed": "沿用",
       "borrowed_hint": "這個版本還沒有自己的資料，顯示的是同一部作品其他版本的",
       "versions_aria": "切換版本",
+      "band_aria": "檔案規格",
       "add_tag": "新增標籤",
       "tag_placeholder": "標籤名稱",
       "tag_api_failed": "標籤儲存失敗，請稍後再試",
