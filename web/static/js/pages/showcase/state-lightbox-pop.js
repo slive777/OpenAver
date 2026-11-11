@@ -28,6 +28,7 @@ export function stateLightboxPop() {
         _lbxPopAnchorEl: null,
         _lbxPopGen: 0,
         _lbxPopTimer: null,
+        _lbxPopSwallowClick: false,
 
         _lbxPopClearTimer() {
             if (this._lbxPopTimer) {
@@ -54,7 +55,15 @@ export function stateLightboxPop() {
             // 限定在燈箱內查封面（搜尋頁兩個燈箱共用 .showcase-lightbox，FE-JS-03）
             const coverEl = anchor.closest?.('.lightbox-content')?.querySelector('.lightbox-cover');
             if (!coverEl) return;
-            const anchorRect = anchor.getBoundingClientRect();
+            let anchorRect = anchor.getBoundingClientRect();
+            // 片名錨點是整個 .lb-title（★＋片名文字）：浮層左緣要從片名文字起算，免得蓋住 ★。
+            // 模板裡 .lb-title 的直接子 <span> 只有片名文字那一個（★ 是 <button>，內含 <i>）
+            if (this.lbxPop.kind === 'title') {
+                const textLeft = anchor.querySelector?.(':scope > span')?.getBoundingClientRect?.().left;
+                if (Number.isFinite(textLeft)) {
+                    anchorRect = { left: textLeft, right: anchorRect.right, top: anchorRect.top, bottom: anchorRect.bottom };
+                }
+            }
             const coverBottom = coverEl.getBoundingClientRect().bottom;
             const popSize = { w: panel.offsetWidth, h: panel.offsetHeight };
             const vw = window.innerWidth;
@@ -172,10 +181,15 @@ export function stateLightboxPop() {
         },
 
         // 燈箱根節點 @pointerdown.window：點在浮層與錨點之外 → 收（不還焦點）
+        // 同一下點擊若收掉了浮層，記下來：接著的 backdrop click 只當作「收浮層」，不關燈箱（與 Esc 先收浮層一致）
         lbxPopOnPointerDown(e) {
+            this._lbxPopSwallowClick = false;
             if (!this.lbxPop) return;
             const panel = this.$refs?.lbxPopHost?.querySelector?.('.lbx-pop');
-            if (isOutsidePop(e?.target, panel, LBX_POP_ANCHOR_SEL)) this.lbxPopClose();
+            if (isOutsidePop(e?.target, panel, LBX_POP_ANCHOR_SEL)) {
+                this.lbxPopClose();
+                this._lbxPopSwallowClick = true;
+            }
         },
 
         lbxPopIs(kind, anchorKey) {

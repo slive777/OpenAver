@@ -179,3 +179,88 @@ test('test_esc_cancels_tag_input_before_closing_lightbox', () => {
         _setFilteredVideos([]);
     }
 });
+
+// pre-merge fix 1: title pop starts at the title TEXT's left edge (the star in front of it stays visible)
+function popComponent() {
+    return mergeState(stateLightbox(), stateLightboxPicker(), stateLightboxMask(), stateLightboxPop(), {
+        lightboxOpen: true,
+        showFavoriteActresses: false,
+        currentLightboxActress: null,
+        lightboxIndex: 0,
+        actressLightboxIndex: 0,
+        similarModeOpen: false,
+        similarModeMobileOpen: false,
+        removeActressModalOpen: false,
+        actressAddPanelOpen: false,
+        _pickerOpen: false,
+        rescrapeOpen: false,
+        deleteVideoModalOpen: false,
+        sampleGalleryOpen: false,
+        _pillEditor: null,
+        _releaseEditor: null,
+        _maskVisible: false,
+        $nextTick() {},
+        $refs: { lbxPopHost: { querySelector: () => ({ offsetWidth: 300, offsetHeight: 60, contains: () => false }) } },
+    });
+}
+
+test('test_title_pop_left_edge_starts_at_title_text_not_star', () => {
+    const prevW = globalThis.innerWidth;
+    const prevH = globalThis.innerHeight;
+    globalThis.innerWidth = 1920;
+    globalThis.innerHeight = 1080;
+    try {
+        const rect = (left) => ({ left, right: left + 400, top: 700, bottom: 730 });
+        const content = { querySelector: () => ({ getBoundingClientRect: () => ({ bottom: 600 }) }) };
+        const mkAnchor = (textLeft) => ({
+            getBoundingClientRect: () => rect(377.5),
+            closest: () => content,
+            querySelector: (sel) => (sel === ':scope > span' ? { getBoundingClientRect: () => rect(textLeft) } : null),
+        });
+
+        const c = popComponent();
+        c.lbxPopOpen('title', mkAnchor(401.5), { mode: 'hover', anchorKey: 'title' });
+        c._lbxPopPlace(c._lbxPopGen);
+        assert.equal(c.lbxPop.placed, true);
+        assert.equal(c.lbxPop.style.left, '401.5px', 'title pop left = title text left, not the star-including anchor left');
+
+        // other kinds keep the whole anchor rect
+        c.lbxPopOpen('otitle', mkAnchor(401.5), { mode: 'hover', anchorKey: 'otitle' });
+        c._lbxPopPlace(c._lbxPopGen);
+        assert.equal(c.lbxPop.style.left, '377.5px');
+    } finally {
+        globalThis.innerWidth = prevW;
+        globalThis.innerHeight = prevH;
+    }
+});
+
+// pre-merge fix 2: the pointerdown that closes a pop must not also close the lightbox via the backdrop click
+test('test_outside_pointerdown_closing_pop_swallows_backdrop_click', () => {
+    const c = popComponent();
+    let closeCount = 0;
+    c.closeLightbox = () => { closeCount++; };
+    const outside = { closest: () => null };
+    const backdropClick = () => ({
+        target: { closest: () => null },
+        currentTarget: { style: {} },
+        clientX: 1,
+        clientY: 1,
+    });
+    const prevDoc = globalThis.document;
+    globalThis.document = { ...prevDoc, elementFromPoint: () => null };
+    try {
+        // pop open → outside pointerdown closes it → the click that follows must not close the lightbox
+        c.lbxPopOpen('verTip', {}, { mode: 'click' });
+        c.lbxPopOnPointerDown({ target: outside });
+        assert.equal(c.lbxPop, null);
+        c.handleLightboxBackdropClick(backdropClick());
+        assert.equal(closeCount, 0, 'click that closed the pop does not close the lightbox');
+
+        // control: no pop open → backdrop click closes the lightbox as before
+        c.lbxPopOnPointerDown({ target: outside });
+        c.handleLightboxBackdropClick(backdropClick());
+        assert.equal(closeCount, 1, 'without an open pop the backdrop click still closes the lightbox');
+    } finally {
+        globalThis.document = prevDoc;
+    }
+});

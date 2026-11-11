@@ -757,6 +757,11 @@ export function stateLightbox() {
          * Known Limitation: Click-Through Detection 技巧
          */
         handleLightboxBackdropClick(e) {
+            // 同一下點擊剛收掉了浮層（state-lightbox-pop.js 的 pointerdown 留的旗標）→ 只收浮層，不關燈箱、不穿透
+            if (this._lbxPopSwallowClick) {
+                this._lbxPopSwallowClick = false;
+                return;
+            }
             // 如果點擊的是 lightbox-content 內部，不處理
             if (e.target.closest('.lightbox-content')) return;
 
