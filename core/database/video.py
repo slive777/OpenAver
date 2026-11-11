@@ -1001,16 +1001,30 @@ class VideoRepository:
             conn.close()
 
     def get_library_title_rows(self) -> List[Video]:
-        """輕量取列：只填 path／number／maker／release_date（其餘取預設），不 SELECT *。"""
+        """輕量取列：片商／版本代表列判斷所需的欄位（CD-198b-14），不 SELECT *。
+
+        tags 以 json.loads 解成 list（壞值／NULL／非 list → []）；mtime／nfo_mtime
+        原值帶入（NULL 也行，下游全用 `or 0`；number 可為 NULL，見 BE-DATA-18）。
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
 
         try:
-            cursor.execute("SELECT path, number, maker, release_date FROM videos ORDER BY id")
-            return [
-                Video(path=path, number=number, maker=maker, release_date=release_date)
-                for path, number, maker, release_date in cursor.fetchall()
-            ]
+            cursor.execute("SELECT path, number, maker, release_date, tags, mtime, nfo_mtime FROM videos ORDER BY id")
+            rows = []
+            for path, number, maker, release_date, tags_raw, mtime, nfo_mtime in cursor.fetchall():
+                try:
+                    tags = json.loads(tags_raw) if tags_raw else []
+                except (TypeError, json.JSONDecodeError):
+                    tags = []
+                if not isinstance(tags, list):
+                    tags = []
+                rows.append(Video(
+                    path=path, number=number, maker=maker, release_date=release_date,
+                    tags=tags, mtime=mtime if mtime is not None else 0.0,
+                    nfo_mtime=nfo_mtime if nfo_mtime is not None else 0.0,
+                ))
+            return rows
         finally:
             conn.close()
 

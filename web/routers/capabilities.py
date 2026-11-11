@@ -453,6 +453,7 @@ _TOOLS: list[dict] = [
             " media_probe_status='ok' AND media_probe_mtime IS mtime AND media_probe_size IS size_bytes；"
             " 等級依寬高各判取較高（高≥720/1080/1440/2160/4320 或寬≥1280/1920/2560/3840/7680"
             " → HD/FHD/2K/4K/8K）。列 4K 片較簡：用 /api/showcase/videos 的 resolution_tier。"
+            " 同一部作品的多個版本是多列（同資料夾、同番號）；要一部作品一筆請用 `/api/showcase/videos`。"
         ),
         "method": "POST",
         "path": "/api/collection/sql",
@@ -798,11 +799,13 @@ _TOOLS: list[dict] = [
     {
         "name": "showcase_videos",
         "description": (
-            "列出當前 Showcase 設定資料夾下「所有」影片，每筆含 31 欄位 enrich 過的完整 metadata。"
+            "列出當前 Showcase 設定資料夾下「所有」影片，每筆含 33 欄位 enrich 過的完整 metadata。"
             " ⚠️ **分集片（`-cd1`/`-part2`…）一組只回一筆**（feature/122）：同資料夾同主幹的各段"
             "合併成單一 item，`path` 是**段號最小的那一段**（通常是 cd1，但不保證 cd1 存在）、"
             "`size` 是各段加總、`part_tokens` 列出段別。"
-            "因此 `total` 是**分組數不是檔案數**，做全庫盤點時不要當成檔案總數。"
+            " 一部作品一筆（feature/198b）：同資料夾同番號的多個版本收成一筆（`versions` 非空），"
+            "頂層是預設版本（中字優先、其次高等級），`versions` 列出全部版本。"
+            "因此 `total` 是**作品數（＝牆上卡數），不是檔案數**，做全庫盤點時不要當成檔案總數。"
             " ⚠️ 高 token 成本：回整個 configured directory（可能數百到數千筆）一次回完，無分頁。"
             " Routing 規則（依優先級）："
             " (1) 已知具體 path → 用 `showcase_video`（單筆，省 token）；"
@@ -820,10 +823,10 @@ _TOOLS: list[dict] = [
         },
         "output_schema": {
             "success": "boolean",
-            "total": "integer — videos 陣列長度",
+            "total": "integer — 作品數（＝牆上卡數），不是檔案數",
             "videos": {
                 "type": "array",
-                "description": "影片清單；每筆 item 為 31 欄位 dict（分集片一組一筆）",
+                "description": "影片清單；每筆 item 為 33 欄位 dict（分集片一組一筆；多版本一部作品一筆）",
                 "item_fields": {
                     "path": "string — file:/// URI（DB key 格式，可作為 showcase_video 查詢輸入）",
                     "title": "string",
@@ -836,7 +839,7 @@ _TOOLS: list[dict] = [
                         "string — ⚠️ 逗號分隔字串，**不是** array；"
                         "來源 4K 類標籤不出現（作品屬性，非檔案；檔案真相看 `resolution_tier`）"
                     ),
-                    "size": "integer — 檔案 bytes；分集片為各段加總",
+                    "size": "integer — 該版本自己的檔案 bytes；分集片為各段加總，多版本不加總",
                     "cover_url": "string — 後端代理 URL（/api/gallery/image?path=...），可直接 <img> 顯示",
                     "cover_full_url": "string — 恆為原圖代理 URL（不受縮圖快取開關影響）",
                     "mtime": "integer — Unix timestamp（秒）",
@@ -862,6 +865,9 @@ _TOOLS: list[dict] = [
                     "media_codec": "string | null — 視訊編碼標籤（如 H.264／HEVC）；無有效探針時 null",
                     "media_duration_min": "integer | null — 實際片長（分鐘）；無有效探針或 <1 時 null",
                     "source_duration": "integer | null — 來源片長（分鐘，NFO／刮削值）",
+                    "versions": "array — 單版本為空陣列；多版本列出每個版本、預設版本在 [0]，頂層＝預設版本",
+                    "borrowed_from": "string — 空字串＝自己有資料；非空＝片名／女優／封面等沿用自該 path",
+                    "version_kinds": "array — 只在多版本時出現；subtitle／cracked／ltx／leaked，空陣列＝原版",
                 },
             },
         },
@@ -872,7 +878,8 @@ _TOOLS: list[dict] = [
     {
         "name": "showcase_video",
         "description": (
-            "By-path 單筆查詢 Showcase 影片資料（showcase_videos 的單筆版本）。"
+            "By-path 單筆查詢 Showcase 影片資料（showcase_videos 的單筆版本），"
+            "頂層＝查詢 path 所在的版本，`versions` 列出整部作品。"
             " 比 `collection_sql WHERE path=...` 更省 prompt token，且回傳 schema 已 enrich"
             "（cover_url、has_cover、has_nfo 已預先計算）。"
             " 適合：(a) 前端 enrich-single / scrape-single 後刷新單張卡片；"
@@ -891,12 +898,13 @@ _TOOLS: list[dict] = [
         "output_schema": {
             "success": "boolean",
             "video": (
-                "object — 31 欄位 dict，schema 同 showcase_videos.videos.item_fields"
+                "object — 33 欄位 dict，schema 同 showcase_videos.videos.item_fields"
                 "（path/title/original_title/number/actresses[csv⚠️]/maker/release_date/tags[csv⚠️]/"
                 "size/cover_url/cover_full_url/mtime/director/duration/series/label/"
                 "sample_images[array]/user_tags[array]/user_rating[integer]/has_cover/has_nfo/auto_focal/crop_mode/"
                 "part_tokens[array]/needs_translate[boolean，標題含日文假名、沒有 original_title、且已有 NFO]/"
-                "resolution_tier/media_width/media_height/media_codec/media_duration_min/source_duration）。"
+                "resolution_tier/media_width/media_height/media_codec/media_duration_min/source_duration/"
+                "versions[array]/borrowed_from）。"
                 "注意 actresses 和 tags"
                 "是逗號分隔字串，其餘標記為 array 的欄位才是真正的 array。"
                 " 查詢分集片的任一段，回的都是該組的合併結果（`part_tokens` 非空）。"

@@ -46,7 +46,7 @@ from core.maker_mapping import load_prefix_mapping
 from core.source_config import validate_source_id
 from web.routers._custom_gate import refusal_for # noqa: PLC2701 — 卡片指定的 web 內部底線模組（165-T7b），同 router 層共用 gate 句表，尚未升格為公開名
 from core.source_settings import get_switchable_source_ids_ordered, is_uncensored_mode_effective
-from core.library_titles import logical_title_firsts, release_parts
+from core.library_titles import logical_title_firsts, release_parts, tier_of_from_probe
 from core.database.maker_javbus_map import list_not_found_keys
 from core.scrapers.javbus import JAVBUS_LIST_PAGE_SIZE
 from core.auto_organize_state import mark_manual_activity, request_abort, get_status
@@ -94,7 +94,10 @@ def _library_titles(db_path):
     """邏輯片單（設定片庫目錄內、分集合併取 part-1）。"""
     configured_dir_uris, path_mappings = get_configured_gallery_dirs(load_config())
     repo = VideoRepository(db_path)
-    titles = logical_title_firsts(repo.get_library_title_rows(), configured_dir_uris, path_mappings)
+    titles = logical_title_firsts(
+        repo.get_library_title_rows(), configured_dir_uris, path_mappings,
+        tier_of=tier_of_from_probe(repo.get_media_probe_map().get),
+    )
     return titles
 
 
