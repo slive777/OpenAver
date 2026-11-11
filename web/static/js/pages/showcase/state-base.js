@@ -548,6 +548,7 @@ export function stateBase() {
             this.$watch('currentLightboxVideo?.path', () => { if (this._maskVisible) this._resetMask(); })
             // 187b-T5a：換片關簡介面並清 view（結構性涵蓋所有改 currentLightboxVideo 的路徑）
             this.$watch('currentLightboxVideo?.path', () => { this._lbPlotReset?.(); })
+            this.$watch('currentLightboxVideo?.path', () => { this.lbxPopClose?.(); })
             // 100b-T2a（§B-1c 姊妹 watcher）：actress→actress 切換用（x-if 不重新掛載，watcher
             // 夠用）。video→actress／actress→video 的掛載瞬間已由 _setActressLightboxIndex()／
             // prevLightboxVideo()／nextLightboxVideo() 內的同步 _resetMask() 擋住（gotchas-frontend

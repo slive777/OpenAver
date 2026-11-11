@@ -895,6 +895,8 @@
              x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen && !rescrapeOpen && !deleteVideoModalOpen && !similarModeMobileOpen"
              @touchstart.passive="_lbTouchStart($event)"
              @touchend.passive="_lbTouchEnd($event)"
+             @pointerdown.window="lbxPopOnPointerDown($event)"
+             @resize.window="lbxPopClose()"
              @click="handleLightboxBackdropClick($event)">
 
             <div class="lightbox-content" @click.stop>
@@ -1202,7 +1204,15 @@
                                                 :class="{'is-active': ver.path === currentLightboxVideo?.path}"
                                                 :aria-pressed="ver.path === currentLightboxVideo?.path"
                                                 @click.stop="switchLightboxVersion(ver.path)"
-                                                x-text="lbVersionCapsules()[idx]"></button>
+                                                x-text="lbVersionCapsules()[idx]"
+                                                data-lbx-anchor="verTip"
+                                                :aria-expanded="lbxPopIs('verTip', ver.path)"
+                                                @pointerenter="lbxPopHoverStart($event, 'verTip', ver.path)"
+                                                @focus="lbxPopHoverStart($event, 'verTip', ver.path)"
+                                                @pointerleave="lbxPopHoverEnd()"
+                                                @blur="lbxPopHoverEnd()"
+                                                @click.capture="lbxVerCapTap($event, ver.path)"
+                                                ></button>
                                         </template>
                                     </div>
                                     <span class="lbx-part" x-show="formatPartLabel(currentLightboxVideo.part_tokens)" x-text="formatPartLabel(currentLightboxVideo.part_tokens)"></span>
@@ -1458,6 +1468,27 @@
                     </div>
                 </template>
 
+            </div>
+
+            <!-- 199a-T3：浮層宿主（單槽）。必須是 .showcase-lightbox 的直接子節點——放進 .lightbox-content 會被它的 transform／overflow 困住或裁掉；
+                 @click.stop 必須有：宿主不在 .lightbox-content 內，沒有它點浮層會被當成點背景而關燈箱。 -->
+            <div class="lbx-pop-host" x-ref="lbxPopHost" @click.stop>
+                <template x-if="lbxPop">
+                    <div class="lbx-pop"
+                         :class="{'is-placed': lbxPop.placed}"
+                         :data-mode="lbxPop.mode"
+                         :data-kind="lbxPop.kind"
+                         :style="lbxPop.style">
+                        <template x-if="lbxPop.kind === 'verTip'">
+                            <div class="lbx-pop-vertip">
+                                <div class="lbx-pop-vertip__name" x-text="lbxVerTipParts().name"></div>
+                                <template x-if="lbxVerTipParts().specs.length">
+                                    <div class="lbx-pop-vertip__spec" x-text="lbxVerTipParts().specs.join(' · ')"></div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
             </div>
 
             <!-- Picker Overlay（49c T1：z-axis overlay，fixed position；移出 lightbox-content） -->

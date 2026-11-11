@@ -164,3 +164,81 @@
         margin-inline: .25rem;
     }
 }
+
+/* ── 199a-T3：浮層底座 lbxPop（單槽、單一宿主）──────────────────────────────
+   宿主 `.lbx-pop-host` 是 `.showcase-lightbox` 的直接子節點（不在 `.lightbox-content` 的 transform／overflow 裡），
+   自己不佔版面（display: contents）；浮層 `position: fixed`，座標由 JS 量完一次寫入（placePop）。
+   同在 `.showcase-lightbox` 內互斥的 `.actress-picker-overlay` 是 z-index 1100，這裡同階。
+   不放進上面的視窗閘：浮層在所有視窗都存在。
+   材質走 overlay 玻璃（dim）／實色 surface（其他主題），與 `.lightbox-content` 同一套；單一 accent 原則——浮層內不出現 accent。
+   hover 類（data-mode="hover"）純閱讀、不吃指標；click 類（data-mode="click"）可點可捲（T4 起使用）。 */
+.lbx-pop-host {
+    display: contents;
+}
+
+.lbx-pop {
+    position: fixed;
+    z-index: 1100;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: calc(100vw - 1rem);
+    padding: .5rem .75rem;
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--fluent-shadow-16);
+    color: var(--text-primary);
+    font-size: .8125rem;
+    line-height: 1.4;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+[data-theme="dim"] .lbx-pop {
+    border: 1px solid transparent;
+    background:
+        var(--glass-overlay-fill-gradient) padding-box,
+        var(--glass-overlay-border-gradient) border-box;
+    backdrop-filter: blur(var(--fluent-blur)) saturate(var(--glass-overlay-saturate));
+    -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(var(--glass-overlay-saturate));
+}
+
+.lbx-pop.is-placed {
+    visibility: visible;
+    opacity: 1;
+}
+
+.lbx-pop[data-mode="hover"] {
+    pointer-events: none;
+}
+
+.lbx-pop[data-mode="click"] {
+    pointer-events: auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lbx-pop {
+        transition: none;
+    }
+}
+
+.lbx-pop-vertip {
+    display: flex;
+    flex-direction: column;
+    gap: .125rem;
+    max-width: min(28rem, calc(100vw - 1rem));
+}
+
+.lbx-pop-vertip__name {
+    color: var(--text-primary);
+    font-weight: 600;
+    word-break: break-all;
+}
+
+.lbx-pop-vertip__spec {
+    color: var(--text-secondary);
+    font-size: .75rem;
+}
