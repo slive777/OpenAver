@@ -199,6 +199,21 @@ def test_user_tags_follow_the_work_without_creating_nfo(tmp_path, monkeypatch):
     assert data["readonly_no_output"] is True
     assert data["nfo_write_blocked"] is False
 
+    monkeypatch.setattr(collection_mod, "apply_user_tags", real_apply)
+    resp = client.post(
+        "/api/user-tags",
+        json={"file_path": uris["c"], "add": ["客製"], "ai_tagged": True},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert "客製" in data["user_tags"]
+    assert "客製" in data["work_user_tags"]
+    assert "客製" in repo.get_by_path(uris["c"]).user_tags
+    assert "客製" not in repo.get_by_path(uris["uhd"]).user_tags
+    assert "客製" not in repo.get_by_path(uris["ltx"]).user_tags
+    assert "客製" not in _nfo_user_tags(nfo["uhd"])
+
 
 def test_ai_tag_reply_carries_work_user_tags_and_marks_only_current_version(tmp_path, monkeypatch):
     """使用者在中字版按 AI 標籤 → 回應 work_user_tags 含新字與 LTX 版「想看」；只有中字版記 ai_tagged_at。"""

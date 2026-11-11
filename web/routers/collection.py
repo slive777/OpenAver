@@ -744,11 +744,14 @@ def post_user_tags(request: UserTagsRequest) -> dict:
     1. get_by_path；不存在 → 自動建立 stub（Search 拖入未掃描）
     2. 請求檔先 apply_user_tags（鎖內：合併→DB→NFO→導出旗標；可選 ai_tagged）；
        失敗＝整個請求照今天回 {success: False, error}、不 fan-out
-    3. resolve_work → 對代表段中不等於請求檔的每個 path 各呼叫一次
-       apply_user_tags(add, remove, ai_tagged=False)；其他版本失敗只 logger.warning
+    3. 手動加刪（ai_tagged 為假）才 fan-out：resolve_work → 對代表段中不等於請求檔的
+       每個 path 各呼叫一次 apply_user_tags(add, remove, ai_tagged=False)；
+       其他版本失敗只 logger.warning。ai_tagged 為真（外部 AI 回寫 AI 判斷）時只寫
+       請求檔＋記 ai_tagged_at，不 fan-out（spec-198b §2.6、plan NC-2）
     4. 回傳 {success, user_tags, nfo_updated, readonly_no_output, nfo_write_blocked}
       （user_tags／nfo_updated 是請求那個檔自己的結果；readonly_no_output／
-      nfo_write_blocked 是請求檔 OR 各版本的結果）＋ work_user_tags（全部寫完後重讀的作品聯集）
+      nfo_write_blocked 是請求檔 OR 各版本的結果；ai_tagged 為真時自然只剩請求檔）＋
+      work_user_tags（全部寫完後重讀的作品聯集）
     """
     db_path = get_db_path()
     repo = VideoRepository(db_path)
@@ -803,7 +806,7 @@ def post_user_tags(request: UserTagsRequest) -> dict:
     if not result.ok:
         return {"success": False, "error": result.error}
 
-    work = resolve_work(repo, file_path, path_mappings)
+    work = resolve_work(repo, file_path, path_mappings) if not request.ai_tagged else None
     fan_out_paths = [p for p in representative_paths(work) if p != file_path] if work is not None else []
     fan_out_readonly_no_output = False
     fan_out_nfo_write_blocked = False

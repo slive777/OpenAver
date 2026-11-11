@@ -712,7 +712,8 @@ _TOOLS: list[dict] = [
         "name": "user_tags",
         "description": (
             "管理用戶自訂標籤（評分、書籤、分類等）。加／刪作用到同一部作品（同資料夾同番號）的"
-            "全部版本，沒 NFO 的版本只更新資料庫、不新建 NFO。存入 DB + NFO <user_tag> 元素，"
+            "全部版本，沒 NFO 的版本只更新資料庫、不新建 NFO；`ai_tagged:true`（外部 AI 回寫 AI 判斷）時只寫這個檔。"
+            "存入 DB + NFO <user_tag> 元素，"
             "不被 scraper refresh 覆蓋。"
             "唯讀來源的片寫的是輸出夾那份 NFO（原始資料夾零寫入）；該片還沒產出輸出夾時，"
             "標籤仍會存進 DB，但回傳 readonly_no_output=true 表示這次沒有任何 NFO 被更新。"
