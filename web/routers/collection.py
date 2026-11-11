@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from core.config import load_config
 from core.database import Video, VideoRepository, get_connection, get_db_path
 from core.logger import get_logger
-from core.multipart_group import resolve_groups_bulk
+from core.version_group import reread_work_user_tags, representative_paths, resolve_work, resolve_works_bulk
 from core.nfo_updater import update_nfo_user_tags
 from core.path_utils import CURRENT_ENV, reverse_path_mapping, to_file_uri, uri_to_fs_path
 from core.scraper import extract_number, is_number_format
@@ -737,13 +737,21 @@ class UserTagsRequest(BaseModel):
 @user_tags_router.post("/user-tags")
 def post_user_tags(request: UserTagsRequest) -> dict:
     """
-    新增 / 移除 user tags。
+    新增 / 移除 user tags（作品層 fan-out，TASK-198b-T3）。
 
     資料流：
     0. 解析路徑（canonical URI + local FS path）
     1. get_by_path；不存在 → 自動建立 stub（Search 拖入未掃描）
-    2. apply_user_tags（鎖內：合併→DB→NFO→導出旗標；可選 ai_tagged）
-    3. 回傳 {success, user_tags, nfo_updated, readonly_no_output, nfo_write_blocked}
+    2. 請求檔先 apply_user_tags（鎖內：合併→DB→NFO→導出旗標；可選 ai_tagged）；
+       失敗＝整個請求照今天回 {success: False, error}、不 fan-out
+    3. 手動加刪（ai_tagged 為假）才 fan-out：resolve_work → 對代表段中不等於請求檔的
+       每個 path 各呼叫一次 apply_user_tags(add, remove, ai_tagged=False)；
+       其他版本失敗只 logger.warning。ai_tagged 為真（外部 AI 回寫 AI 判斷）時只寫
+       請求檔＋記 ai_tagged_at，不 fan-out（spec-198b §2.6、plan NC-2）
+    4. 回傳 {success, user_tags, nfo_updated, readonly_no_output, nfo_write_blocked}
+      （user_tags／nfo_updated 是請求那個檔自己的結果；readonly_no_output／
+      nfo_write_blocked 是請求檔 OR 各版本的結果；ai_tagged 為真時自然只剩請求檔）＋
+      work_user_tags（全部寫完後重讀的作品聯集）
     """
     db_path = get_db_path()
     repo = VideoRepository(db_path)
@@ -797,12 +805,39 @@ def post_user_tags(request: UserTagsRequest) -> dict:
     )
     if not result.ok:
         return {"success": False, "error": result.error}
+
+    work = resolve_work(repo, file_path, path_mappings) if not request.ai_tagged else None
+    fan_out_paths = [p for p in representative_paths(work) if p != file_path] if work is not None else []
+    fan_out_readonly_no_output = False
+    fan_out_nfo_write_blocked = False
+    for rep in fan_out_paths:
+        _, rep_local = _resolve_user_tag_paths(rep, path_mappings)
+        try:
+            rep_result = apply_user_tags(
+                repo, rep, rep_local, config,
+                add=request.add, remove=request.remove,
+                ai_tagged=False,
+                nfo_writer=update_nfo_user_tags,
+            )
+            if not rep_result.ok:
+                logger.warning("[user-tags] fan-out 寫入失敗 %s: %s", rep, rep_result.error)
+            else:
+                fan_out_readonly_no_output = fan_out_readonly_no_output or rep_result.readonly_no_output
+                fan_out_nfo_write_blocked = fan_out_nfo_write_blocked or rep_result.nfo_write_blocked
+        except Exception as e:
+            logger.warning("[user-tags] fan-out 寫入例外 %s: %s", rep, e)
+    try:
+        union = reread_work_user_tags(repo, file_path, path_mappings)
+    except Exception as e:
+        logger.warning("[user-tags] 重讀作品聯集失敗: %s", e)
+        union = list(result.user_tags)
     return {
         "success": True,
         "user_tags": result.user_tags,
         "nfo_updated": result.nfo_updated,
-        "readonly_no_output": result.readonly_no_output,
-        "nfo_write_blocked": result.nfo_write_blocked,
+        "readonly_no_output": result.readonly_no_output or fan_out_readonly_no_output,
+        "nfo_write_blocked": result.nfo_write_blocked or fan_out_nfo_write_blocked,
+        "work_user_tags": union,
     }
 
 
@@ -841,16 +876,19 @@ class UserRatingRequest(BaseModel):
 @user_rating_router.post("/user-rating")
 def post_user_rating(request: UserRatingRequest) -> dict:
     """
-    批次／單筆冪等設定「精選」狀態（spec-123 CD-123-6/7/8）。
+    批次／單筆冪等設定「精選」狀態（spec-123 CD-123-6/7/8；作品層，TASK-198b-T3）。
 
     - `paths`（批次）與 `file_path`（單筆簡寫）二擇一，函式體內驗證（XOR），非 pydantic
       cross-field validator（跟隨本檔既有風格，見 TASK-123-T2.md「技術要點」）。
     - `picked` 必填，缺欄位由 pydantic 自動回 422，不在此處理。
-    - 路徑先正規化（`_normalize_to_uri`），再過分集組代表段解析（`resolve_groups_bulk`——
-      批次版，同一資料夾只查一次 DB、只分組一次；語意與逐一 `resolve_group()` 相同），
-      代表段 = `group.members[0].path`；查無一律回報 `not_found`，不建 stub 列（CD-123-8）。
+    - 路徑先正規化（`_normalize_to_uri`），再過作品解析（`resolve_works_bulk`——
+      批次版，同一資料夾只查一次 DB、只分組一次；語意與逐一 `resolve_work()` 相同），
+      寫入目標 = `representative_paths(work)`（各版本 `members[0]`，不寫 part-2 列）；
+      查無一律回報 `not_found`，不建 stub 列（CD-123-8）。
+    - 單筆 `ok` ＝ 該作品全部代表段都寫入成功（`all`）；`changed` ＝ 命中的**作品數**
+      （同一作品的多個輸入只算 1，去重鍵用 `tuple(representative_paths(work))`）。
     - 重複路徑：寫入端去重（set 過的代表段才進 `set_user_rating_bulk`），回報端不去重
-      （`results` 與輸入 1:1），`changed` 只計代表段去重後的成功寫入數（§C）。
+      （`results` 與輸入 1:1）。
     - **不寫 NFO**（spec §4.6，跟 `post_user_tags()` 不同，刻意不同步）。
     """
     value = 1 if request.picked else 0
@@ -884,42 +922,45 @@ def post_user_rating(request: UserRatingRequest) -> dict:
         #    而它每次都對整個資料夾重查 DB ＋ 重跑 group_rows()。扁平擺法的片庫實測
         #    47.6 ms/次 ⇒ 500 路徑 ≈ 24 秒。改用 resolve_groups_bulk()（同一資料夾只做
         #    一次、之後查表），語意逐位元相同。這是 §D 那條「迴圈內重複昂貴工作」的另一半。
+        #    TASK-198b-T3：分集組解析換成作品解析（resolve_works_bulk），寫入目標為
+        #    該作品全部代表段（representative_paths）。
         canonical_of: dict = {}   # raw_path -> canonical URI or None
         for raw in raw_paths:
             canonical_of[raw] = _normalize_to_uri(raw, path_mappings)
 
-        groups = resolve_groups_bulk(
+        works = resolve_works_bulk(
             repo,
             [c for c in canonical_of.values() if c],
             path_mappings,
         )
 
-        resolved: dict = {}  # raw_path -> representative_path or None
+        resolved: dict = {}  # raw_path -> representative paths or None
         for raw in raw_paths:
             canonical = canonical_of[raw]
-            group = groups.get(canonical) if canonical else None
-            resolved[raw] = group.members[0].path if group is not None else None
+            work = works.get(canonical) if canonical else None
+            resolved[raw] = representative_paths(work) if work is not None else None
 
         # 4. 去重後批次寫入（只對成功解析的代表段）
-        unique_targets = sorted({p for p in resolved.values() if p is not None})
+        unique_targets = sorted({p for paths in resolved.values() if paths is not None for p in paths})
         write_results = repo.set_user_rating_bulk(unique_targets, value) if unique_targets else {}
 
-        # 5. 組回應（逐 raw_path 回報，1:1 對應輸入；changed 只計代表段去重後的成功寫入數）
+        # 5. 組回應（逐 raw_path 回報，1:1 對應輸入；changed 只計作品去重後的成功數）
         results = []
         changed = 0
         counted = set()
         for raw in raw_paths:
-            rep = resolved[raw]
-            if rep is None:
+            paths = resolved[raw]
+            if paths is None:
                 results.append({"path": raw, "ok": False, "reason": "not_found"})
                 continue
-            ok = write_results.get(rep, False)
+            ok = all(write_results.get(p, False) for p in paths)
             if not ok:
                 results.append({"path": raw, "ok": False, "reason": "not_found"})
                 continue
             results.append({"path": raw, "ok": True})
-            if rep not in counted:
-                counted.add(rep)
+            key = tuple(paths)
+            if key not in counted:
+                counted.add(key)
                 changed += 1
 
         return {"success": True, "picked": request.picked, "results": results, "changed": changed}

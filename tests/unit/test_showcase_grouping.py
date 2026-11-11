@@ -151,6 +151,13 @@ class TestAC4BaselineFixtureComparison:
             assert actual_v.get("part_tokens") == [], (
                 f"單檔片 {path} 的 part_tokens 必為 []，實際 {actual_v.get('part_tokens')}"
             )
+            # 198b 新增（無條件輸出）：單版本作品 versions==[]、borrowed_from==''
+            assert actual_v.get("versions") == [], (
+                f"單檔片 {path} 的 versions 必為 []，實際 {actual_v.get('versions')}"
+            )
+            assert actual_v.get("borrowed_from") == "", (
+                f"單檔片 {path} 的 borrowed_from 必為 ''，實際 {actual_v.get('borrowed_from')!r}"
+            )
             for key, expected_value in expected_v.items():
                 assert key in actual_v, f"缺少既有 key: {key}（path={path}）"
                 assert actual_v[key] == expected_value, (
@@ -170,6 +177,7 @@ class TestAC4BaselineFixtureComparison:
             #   resolution_tier / media_width / media_height / media_codec /
             #   media_duration_min / source_duration —— 198a 新增、無條件輸出；
             #   行為由 tests/integration/test_4k_truth_display.py 守
+            #   versions / borrowed_from —— 198b 新增、無條件輸出（單版本 []／''）
             assert actual_v.get("user_rating") == 0, (
                 f"單檔片 {path} 的 user_rating 在 baseline fixture 情境下必為 0，"
                 f"實際 {actual_v.get('user_rating')}"
@@ -188,7 +196,7 @@ class TestAC4BaselineFixtureComparison:
                 - {
                     "part_tokens", "user_rating", "needs_translate", "has_plot", "src",
                     "resolution_tier", "media_width", "media_height", "media_codec",
-                    "media_duration_min", "source_duration",
+                    "media_duration_min", "source_duration", "versions", "borrowed_from",
                 }
             )
             assert not extra_keys, f"多出非預期 key: {extra_keys}（path={path}）"

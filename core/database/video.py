@@ -1001,16 +1001,30 @@ class VideoRepository:
             conn.close()
 
     def get_library_title_rows(self) -> List[Video]:
-        """輕量取列：只填 path／number／maker／release_date（其餘取預設），不 SELECT *。"""
+        """輕量取列：片商／版本代表列判斷所需的欄位（CD-198b-14），不 SELECT *。
+
+        tags 以 json.loads 解成 list（壞值／NULL／非 list → []）；mtime／nfo_mtime
+        原值帶入（NULL 也行，下游全用 `or 0`；number 可為 NULL，見 BE-DATA-18）。
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
 
         try:
-            cursor.execute("SELECT path, number, maker, release_date FROM videos ORDER BY id")
-            return [
-                Video(path=path, number=number, maker=maker, release_date=release_date)
-                for path, number, maker, release_date in cursor.fetchall()
-            ]
+            cursor.execute("SELECT path, number, maker, release_date, tags, mtime, nfo_mtime FROM videos ORDER BY id")
+            rows = []
+            for path, number, maker, release_date, tags_raw, mtime, nfo_mtime in cursor.fetchall():
+                try:
+                    tags = json.loads(tags_raw) if tags_raw else []
+                except (TypeError, json.JSONDecodeError):
+                    tags = []
+                if not isinstance(tags, list):
+                    tags = []
+                rows.append(Video(
+                    path=path, number=number, maker=maker, release_date=release_date,
+                    tags=tags, mtime=mtime if mtime is not None else 0.0,
+                    nfo_mtime=nfo_mtime if nfo_mtime is not None else 0.0,
+                ))
+            return rows
         finally:
             conn.close()
 
@@ -2033,7 +2047,7 @@ class VideoRepository:
         writable_prefixes,
         configured_dir_uris,
     ) -> list:
-        """不滿足 is_ok_current 的列；限目前設定資料夾；include_readonly 假時剔除唯讀。
+        """不滿足 key_matches（status NULL 或探針 key 對不上；failed＋key 相符不入 pending）的列；限目前設定資料夾；include_readonly 假時剔除唯讀。
 
         回 (path, mtime, size_bytes) list。含從未讀過的列（與 get_media_probe_map 範圍不同）。
         已移除來源仍留在 DB 的列、以及 ZERO_SIZE_EXTENSIONS（.strm 等）不入 pending。
@@ -2056,7 +2070,7 @@ class VideoRepository:
             view = MediaProbeView.from_row_dict(
                 dict(zip(_MEDIA_PROBE_COLS, row, strict=True))
             )
-            if view.is_ok_current:
+            if view.key_matches:
                 continue
             path = view.path
             if not any(is_path_under_dir(path, uri) for uri in configured_dir_uris):

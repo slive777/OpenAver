@@ -180,3 +180,115 @@ def manifest_payload() -> list[dict]:
         {key: _json_value(getattr(rule, key)) for key in _MANIFEST_KEYS}
         for rule in ATTRIBUTE_TABLE
     ]
+
+
+VERSION_KIND_IDS = ("subtitle", "cracked", "ltx", "leaked")
+
+MARKER_KIND_IDS = VERSION_KIND_IDS + ("4k",)
+
+
+def filename_marker_spans(filename: str) -> list[str]:
+    """原檔名中命中 MARKER_KIND_IDS 規則 token 的子字串（保留原大小寫、依出現位置）。"""
+    lowered = filename.lower()
+    spans: list[tuple[int, int, str]] = []
+    for rule, patterns in _RULE_PATTERNS:
+        if rule.id not in MARKER_KIND_IDS:
+            continue
+        for pattern in patterns:
+            for match in pattern.finditer(lowered):
+                spans.append((match.start(), match.end(), filename[match.start():match.end()]))
+    seen: set[tuple[int, int]] = set()
+    ordered: list[tuple[int, str]] = []
+    for start, end, text in sorted(spans, key=lambda item: (item[0], item[1])):
+        if (start, end) in seen:
+            continue
+        seen.add((start, end))
+        ordered.append((start, text))
+    return [text for _, text in ordered]
+
+
+def filename_marker_kinds(filename: str) -> frozenset:
+    """新檔原檔名的版本類型（只看檔名 token，套 supersedes）。"""
+    found: set[str] = set()
+    lowered = filename.lower()
+    for rule, patterns in _RULE_PATTERNS:
+        if rule.id not in MARKER_KIND_IDS:
+            continue
+        if any(pattern.search(lowered) for pattern in patterns):
+            found.add(rule.id)
+    for rule in ATTRIBUTE_TABLE:
+        if rule.id in found:
+            for covered in rule.supersedes:
+                found.discard(covered)
+    return frozenset(found)
+
+
+def marker_kinds_in_text(text: str) -> frozenset:
+    """文本中命中 MARKER_KIND_IDS token 的 kind（不套 supersedes，供同 kind 去重）。"""
+    found: set[str] = set()
+    lowered = text.lower()
+    for rule, patterns in _RULE_PATTERNS:
+        if rule.id not in MARKER_KIND_IDS:
+            continue
+        if any(pattern.search(lowered) for pattern in patterns):
+            found.add(rule.id)
+    return frozenset(found)
+
+
+def existing_marker_kinds(filename: str, tags) -> frozenset:
+    """既有檔的版本類型：檔名命中 ∪ NFO tags 命中，聯集後套 supersedes（4K 只看檔名）。"""
+    found: set[str] = set()
+    lowered = filename.lower()
+    for rule, patterns in _RULE_PATTERNS:
+        if rule.id not in MARKER_KIND_IDS:
+            continue
+        if any(pattern.search(lowered) for pattern in patterns):
+            found.add(rule.id)
+    if tags:
+        for tag in tags:
+            rule_id = _version_rule_id_for_tag(tag)
+            if rule_id is not None:
+                found.add(rule_id)
+    for rule in ATTRIBUTE_TABLE:
+        if rule.id in found:
+            for covered in rule.supersedes:
+                found.discard(covered)
+    return frozenset(found)
+
+
+_RULE_BY_ID = {rule.id: rule for rule in ATTRIBUTE_TABLE}
+_RULE_ORDER = {rule.id: index for index, rule in enumerate(ATTRIBUTE_TABLE)}
+
+
+def _version_rule_id_for_tag(tag) -> str | None:
+    if not isinstance(tag, str):
+        return None
+    key = tag.strip().lower()
+    for rule in ATTRIBUTE_TABLE:
+        if rule.id not in VERSION_KIND_IDS:
+            continue
+        if key == rule.canonical_tag.strip().lower():
+            return rule.id
+        for alias in rule.match_aliases:
+            if key == alias.strip().lower():
+                return rule.id
+    return None
+
+
+def version_kinds(filename: str, tags: Iterable[str] | None) -> tuple[str, ...]:
+    found: set[str] = set()
+    for item in effective_tags(filename, tags):
+        rule_id = _version_rule_id_for_tag(item)
+        if rule_id is not None:
+            found.add(rule_id)
+    for rule in ATTRIBUTE_TABLE:
+        if rule.id in found:
+            for covered in rule.supersedes:
+                found.discard(covered)
+    kinds = [rule_id for rule_id in found if rule_id in VERSION_KIND_IDS]
+    kinds.sort(key=lambda rule_id: (_RULE_BY_ID[rule_id].display_order, _RULE_ORDER[rule_id]))
+    return tuple(kinds)
+
+
+def is_version_kind_tag(tag) -> bool:
+    return _version_rule_id_for_tag(tag) is not None

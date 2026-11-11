@@ -27,6 +27,7 @@ from core.library_titles import (
     first_members,
     release_parts as _release_parts,
     rows_in_library_dirs,
+    tier_of_from_probe,
 )
 from core.actress_photo import get_local_photo_path
 from core.logger import get_logger
@@ -205,7 +206,7 @@ def get_insights_snapshot(request: Request):
 
         repo = VideoRepository(db_path)
         all_videos = rows_in_library_dirs(repo.get_all(), configured_dir_uris)
-        firsts = first_members(all_videos, path_mappings)
+        firsts = first_members(all_videos, path_mappings, tier_of=tier_of_from_probe(repo.get_media_probe_map().get))
 
         actress_lookup = _build_alias_lookup(AliasRepository(db_path).get_all())
         tag_lookup = _build_alias_lookup(TagAliasRepository(db_path).get_all())

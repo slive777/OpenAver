@@ -19,6 +19,7 @@ import { stateLightboxPicker } from '@/showcase/state-lightbox-picker.js';
 import { stateLightboxTags } from '@/showcase/state-lightbox-tags.js';
 import { stateLightboxTranslate } from '@/showcase/state-lightbox-translate.js';
 import { stateLightboxAiTags } from '@/showcase/state-lightbox-ai-tags.js';
+import { stateLightboxVersions } from '@/showcase/state-lightbox-versions.js';
 import { stateLightboxPlot } from '@/showcase/state-lightbox-plot.js';
 import { stateLightboxSamples } from '@/showcase/state-lightbox-samples.js';
 import { stateSimilar }  from '@/showcase/state-similar.js';
@@ -39,6 +40,7 @@ window.showcaseState = function() {
         stateLightboxTags.call(this),
         stateLightboxTranslate.call(this),
         stateLightboxAiTags.call(this),
+        stateLightboxVersions.call(this),
         stateLightboxPlot.call(this),
         stateLightboxSamples.call(this),
         stateSimilar.call(this),

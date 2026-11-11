@@ -22,10 +22,26 @@ from core.database import VideoRepository
 from core.logger import get_logger
 from core.path_utils import uri_to_local_fs_path
 from core.similar.ranker_cache import SimilarRankerCache
+from core.version_group import work_key_of_row
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["similar"])
+
+
+def _dedupe_by_work(videos: list, target, path_mappings: dict, limit: int) -> list:
+    target_num = (target.number or "").strip().upper()
+    seen: set = set()
+    kept: list = []
+    for v in videos:
+        if target_num and (v.number or "").strip().upper() == target_num:
+            continue
+        key = work_key_of_row(v, uri_to_local_fs_path(v.path, path_mappings))
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(v)
+    return kept[:limit]
 
 
 def _build_cover_url(video, enabled: bool = False, path_mappings: dict = None) -> str:
@@ -79,18 +95,21 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
     fused = vectors is not None and target.id in vectors
 
     ranker = SimilarRankerCache.get()
-    results_videos = ranker.rank(target, top_k=limit, vectors=vectors)
+    fetch_k = min(limit * 3, 150)
+    results_videos = ranker.rank(target, top_k=fetch_k, vectors=vectors)
+
+    # feature/71 T4：讀一次 thumbnail_cache flag，套用於 query_video + 每個 result
+    gallery_config = config.get('gallery', {})
+    path_mappings = gallery_config.get('path_mappings', {})
+    enabled = config.get('thumbnail_cache_enabled', False)
+
+    results_videos = _dedupe_by_work(results_videos, target, path_mappings, limit)
 
     # Codex PR#105 P2 修復：ranker.rank() 可能回 SimilarRankerCache 快取的 Video 物件（非
     # fresh DB row）。update_auto_focal()/update_manual_focal() 刻意不 invalidate 整個 ranker
     # cache（焦點/裁切模式是純顯示欄位、不影響排序特徵，比照 upsert/delete invalidate 代價
     # 不對稱），改為此處批次 fresh 覆蓋，避免卡片顯示 stale 焦點/裁切模式。
     focal_crop_map = repo.get_focal_crop_map([v.path for v in results_videos])
-
-    # feature/71 T4：讀一次 thumbnail_cache flag，套用於 query_video + 每個 result
-    gallery_config = config.get('gallery', {})
-    path_mappings = gallery_config.get('path_mappings', {})
-    enabled = config.get('thumbnail_cache_enabled', False)
 
     index_model = None
     if fused:

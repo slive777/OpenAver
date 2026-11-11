@@ -13,6 +13,8 @@ import { playVideo } from '@/shared/play-video.js';
 import { normalizePillValue, buildPillPredicate } from '@/shared/pill-filter.js';
 import { isDigitsOnlySearch } from '@/shared/digits-only-search.js';
 import { RESOLUTION_TIERS, tierRank } from '@/shared/resolution-tier.js';
+// TASK-198b-T6：一部作品多版本的純函式（CD-198b-8／9）。牆上每格是「作品」，不是檔案。
+import { normalizeWorkItem, versionsOf, sameWork, pickDisplayVersion, sortSource, workMtime } from './work-versions.js';
 // TASK-124a-T2：發售日 pill 浮層狀態機直接呼叫的 T1 六支純函式中的五支
 // （matchesReleasePill 屬 pill-filter.js 內部使用，state 層不直接呼叫）。
 import { parseReleaseKey, parseEndpoint, expandPill, composeEndpoint, videoYearRange } from '@/shared/release-window.js';
@@ -72,11 +74,13 @@ export function stateVideos() {
                 // Re-assign module-level var via splice/push to keep the same reference
                 // (core.js uses direct assignment; ESM re-exports work because we read
                 // _videos/_filteredVideos at call time, not at import time)
-                var vids = data.videos || [];
+                // 198b-T6：後端每筆是一部作品（頂層預設版本 ＋ versions[]）；normalizeWorkItem 回預設版本 dict，
+                // 並讓所有版本共用不可列舉的 _versions。缺 versions 的舊形狀 / 假資料當單版本。
+                var vids = (data.videos || []).map(normalizeWorkItem);
                 // 67-A2: per-card 三態旗標。video 物件由此唯一來源流穿整條 render 鏈
                 // （_videos → _filteredVideos → paginatedVideos slice，皆同 ref），故初始化一處即涵蓋
                 // 初次載入/retry/翻頁/搜尋/排序；後端不回此欄位。補封面走 refreshVideoData reset。
-                vids.forEach(function (v) { if (v._imgLoaded === undefined) v._imgLoaded = false; if (v._coverRequested === undefined) v._coverRequested = false; });
+                // 198b-T6：_imgLoaded／_coverRequested 初值改由 normalizeWorkItem 對每個版本補。
                 // 195b-T4：全庫存 _allVideos；_videos ＝ 扣掉被「隱藏未連線硬碟」藏起來的片（同一物件 ref）。
                 // _recomputeVisible 不呼叫 applyFilterAndSort；下面 _setFilteredVideos 與其後 init/retry 的重篩接手。
                 _setAllVideos(vids);
@@ -117,6 +121,76 @@ export function stateVideos() {
                     window.ShowcaseAnimations?.playSettle?.(grid);
                 }); });
             }
+        },
+
+        // 198b-T6（CD-198b-8 (e)）：單筆刷新回應的版本集合與原作品不同（重刮改番號使檔離開／併入別的作品）
+        // → 整批重載，不原地改（否則同一個檔會同時出現兩張卡，或原作品憑空少一張）。
+        // 資料流同 retry()（fetchVideos → 重算標章 → 重篩 → 還原頁碼 → 分頁），但不播 settle、不動 error。
+        // anchorPath：重載前燈箱開著 → 燈箱當下那個版本的 path，否則被刷新的 path；opts.bustPaths／opts.t：
+        // 重載後這些 path 的封面網址追加 &t=（同 refreshVideoData 的 cache-bust 理由）。
+        // fetchVideos 失敗時整牆被清空並設 error（既有語意，不另做保護）；此時 anchor 找不到 → 關燈箱。
+        async _reloadWallKeepLightbox(anchorPath, opts) {
+            const savedPage = this.page;
+            const lbCur = this.currentLightboxVideo;
+            const keepLb = this.lightboxOpen === true && !!lbCur && !!anchorPath;
+            const standalone = !!this.similarExitVideo;
+            await this.fetchVideos();
+            const bust = new Set((opts && opts.bustPaths) || []);
+            if (bust.size > 0) {
+                _allVideos.forEach(function (w) {
+                    versionsOf(w).forEach(function (ver) {
+                        if (!bust.has(ver.path)) return;
+                        if (ver.cover_url) ver.cover_url = ver.cover_url + '&t=' + opts.t;
+                        if (ver.cover_full_url) ver.cover_full_url = ver.cover_full_url + '&t=' + opts.t;
+                    });
+                });
+            }
+            _recomputeAllBadges();
+            this.applyFilterAndSort(true);
+            this.page = savedPage;
+            this.updatePagination();
+            if (!keepLb) return;
+
+            const findVersion = (path) => {
+                for (const w of _videos) {
+                    const hit = versionsOf(w).find((ver) => ver.path === path);
+                    if (hit) return hit;
+                }
+                return null;
+            };
+            // fetchVideos 的 await 期間使用者可能已切片或關燈箱：只在「燈箱仍開著、仍停在 anchor」時才做下面的對位
+            // （含找不到 → 關燈箱）；否則不碰燈箱狀態，只在使用者停在別片（in-grid）時用它現在的 path 重新對 lightboxIndex，
+            // 免得上一部／下一部因牆重排而錯位。
+            const now = this.lightboxOpen === true ? this.currentLightboxVideo : null;
+            if (!(now && now.path === anchorPath)) {
+                if (now && now.path && !this.similarExitVideo) {
+                    const moved = findVersion(now.path);
+                    const j = moved ? _filteredVideos.findIndex((v) => sameWork(v, moved)) : -1;
+                    if (j >= 0) {
+                        this.lightboxIndex = j;
+                        this.currentLightboxVideo = moved;
+                    }
+                }
+                return;
+            }
+
+            // 燈箱對位：停在 anchor 那個版本（不是顯示版本）。找不到該 path → 作品已不在庫（或被藏）→ 關燈箱。
+            const target = findVersion(anchorPath);
+            if (!target) { this.closeLightbox(); return; }
+            const idx = standalone ? -1 : _filteredVideos.findIndex((v) => sameWork(v, target));
+            if (idx >= 0) {
+                this.lightboxIndex = idx;
+                this.currentLightboxVideo = target;
+            } else {
+                // 被篩掉（或原本就是 standalone）→ 照 state-similar.js _mobileSilentSwitch tier 2 收尾形狀
+                this.similarExitVideo = target;
+                this.currentLightboxVideo = target;
+                this.currentLightboxActress = null;
+                this._videoChipsExpanded = false;
+                this.addingLbTag = false;
+            }
+            this._refreshLbFullBlurUp();
+            this._refreshLbActorAges();
         },
 
         // --- 互動邏輯 ---
@@ -801,14 +875,17 @@ export function stateVideos() {
         _computeFilteredVideos() {
             // --- Stage 1: pill 精準比對（TASK-115-T2, CD-6）---
             var pillPredicate = buildPillPredicate(this.pills, _nameToGroup, _tagToGroup);
-            var pillFiltered = _videos.filter(pillPredicate);
+            var hasPills = !!(this.pills && this.pills.length > 0);
 
             // --- Stage 2: 自由文字模糊比對 (M4a)（現況邏輯，body 逐字保留，僅改輸入來源陣列）---
+            // 198b-T6（CD-198b-9）：pill 與搜尋框合成「單一版本 dict 述詞」，牆上每部作品依 _versions 順序
+            // 取第一個符合者當顯示版本（都不符 → 整部作品不在牆上）。無 pill 且無搜尋字 → 傳 null 取預設版本。
+            var searchMatch = null;
             if (this.search && this.search.trim()) {
                 // 分割多個關鍵字（用空格分隔，過濾空字串）
                 const terms = this.search.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
 
-                var filtered = pillFiltered.filter(video => {
+                searchMatch = video => {
                     const searchable = [
                         video.title,
                         video.original_title,
@@ -843,11 +920,12 @@ export function stateVideos() {
                         }
                         return false;
                     });
-                });
-                return filtered;
+                };
             }
-            // 空搜尋：pill 篩選結果即為最終結果
-            return pillFiltered;
+            var matches = (hasPills || searchMatch)
+                ? function (version) { return pillPredicate(version) && (!searchMatch || searchMatch(version)); }
+                : null;
+            return _videos.map(function (w) { return pickDisplayVersion(w, matches); }).filter(Boolean);
         },
 
         applyFilterAndSort(skipPagination) {
@@ -868,39 +946,43 @@ export function stateVideos() {
                 }
 
                 // 3. 其他排序：取得比較值
+                // 198b-T6（CD-198b-9）：比較值取作品的預設版本（顯示版本可能是別的版本，但排序位置不隨篩選漂移）；
+                // 唯一例外 mdate 取各版本最新的加入時間。
+                const sa = sortSource(a);
+                const sb = sortSource(b);
                 let va, vb;
                 switch (this.sort) {
                     case 'title':
-                        va = a.title || '';
-                        vb = b.title || '';
+                        va = sa.title || '';
+                        vb = sb.title || '';
                         break;
                     case 'actor':
-                        va = a.actresses || '';
-                        vb = b.actresses || '';
+                        va = sa.actresses || '';
+                        vb = sb.actresses || '';
                         break;
                     case 'num':
-                        va = a.number || '';
-                        vb = b.number || '';
+                        va = sa.number || '';
+                        vb = sb.number || '';
                         break;
                     case 'maker':
-                        va = a.maker || '';
-                        vb = b.maker || '';
+                        va = sa.maker || '';
+                        vb = sb.maker || '';
                         break;
                     case 'date':
-                        va = a.release_date || '';
-                        vb = b.release_date || '';
+                        va = sa.release_date || '';
+                        vb = sb.release_date || '';
                         break;
                     case 'size':
-                        va = a.size || 0;
-                        vb = b.size || 0;
+                        va = sa.size || 0;
+                        vb = sb.size || 0;
                         break;
                     case 'mdate':
-                        va = a.mtime || 0;
-                        vb = b.mtime || 0;
+                        va = workMtime(a);
+                        vb = workMtime(b);
                         break;
                     default:
-                        va = a.path || '';
-                        vb = b.path || '';
+                        va = sa.path || '';
+                        vb = sb.path || '';
                 }
 
                 // 4. 比較邏輯

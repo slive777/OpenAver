@@ -6,6 +6,7 @@
  */
 
 import { _recomputeVideoBadges } from '@/showcase/state-base.js';
+import { versionsOf, writeWorkFields } from './work-versions.js';
 
 export function stateLightboxTags() {
     return {
@@ -23,6 +24,7 @@ export function stateLightboxTags() {
         // 確認新增 tag — 呼叫 POST /api/user-tags
         async confirmAddLbTag() {
             const video = this.currentLightboxVideo;
+            const dicts = versionsOf(video).slice();   // 198b-T7b：標籤是作品層的帳；第一個 await 前取快照（FE-TIMING-16）
             const tag = (this.newLbTagValue || '').trim();
             if (!tag) {
                 this.addingLbTag = false;
@@ -51,8 +53,8 @@ export function stateLightboxTags() {
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
                 if (data.success) {
-                    video.user_tags = data.user_tags;
-                    _recomputeVideoBadges(video);
+                    const list = Array.isArray(data.work_user_tags) ? data.work_user_tags : data.user_tags;
+                    writeWorkFields(dicts, { user_tags: list }, this.paginatedVideos, this.currentLightboxVideo).forEach((d) => _recomputeVideoBadges(d));
                     if (data.readonly_no_output) {
                         this.showToast(window.t('showcase.lightbox.tag_nfo_not_written'), 'info');
                     }
@@ -79,6 +81,7 @@ export function stateLightboxTags() {
         // 刪除 user tag — 呼叫 POST /api/user-tags {remove: [tag]}
         async removeLbUserTag(tag) {
             const video = this.currentLightboxVideo;
+            const dicts = versionsOf(video).slice();
             if (!video?.path) return;
             try {
                 const resp = await fetch('/api/user-tags', {
@@ -92,8 +95,8 @@ export function stateLightboxTags() {
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
                 if (data.success) {
-                    video.user_tags = data.user_tags;
-                    _recomputeVideoBadges(video);
+                    const list = Array.isArray(data.work_user_tags) ? data.work_user_tags : data.user_tags;
+                    writeWorkFields(dicts, { user_tags: list }, this.paginatedVideos, this.currentLightboxVideo).forEach((d) => _recomputeVideoBadges(d));
                     if (data.readonly_no_output) {
                         this.showToast(window.t('showcase.lightbox.tag_nfo_not_written'), 'info');
                     }

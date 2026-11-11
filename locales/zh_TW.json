@@ -1528,6 +1528,10 @@
       "next": "下一部 (→)",
       "unknown_number": "未知",
       "resolution_pill_title": "只看這個解析度的片",
+      "version_original": "原版",
+      "borrowed": "沿用",
+      "borrowed_hint": "這個版本還沒有自己的資料，顯示的是同一部作品其他版本的",
+      "versions_aria": "切換版本",
       "add_tag": "新增標籤",
       "tag_placeholder": "標籤名稱",
       "tag_api_failed": "標籤儲存失敗，請稍後再試",
@@ -1608,6 +1612,7 @@
       "delete_modal": {
         "title": "從收藏移除這部影片",
         "body": "只會從資料庫移除「{number}」這筆紀錄。影片檔會保留在磁碟，不會被刪除；若該檔仍在掃描目錄內，下次掃描會重新被加回。",
+        "body_version": "只會移除「{number}」的 {version} 這個版本的紀錄，其他版本會留著。影片檔會保留在磁碟，不會被刪除；若該檔仍在掃描目錄內，下次掃描會重新被加回。",
         "body_multipart": "這是分集片（{tokens}），確認後會一併移除全部 {n} 段的紀錄——影片檔一樣都留在磁碟上。",
         "cancel": "取消",
         "confirm": "確認移除"

@@ -321,7 +321,7 @@ def test_readonly_source_is_not_probed(tmp_path, monkeypatch, mocker):
 
 
 def test_same_mtime_different_size_is_reprobed(tmp_path, monkeypatch):
-    """換檔（mtime 同、大小不同）→ submit 一次、探針換新；no_video → pending 含該列。"""
+    """換檔（mtime 同、大小不同）→ submit 一次、探針換新；no_video → pending 不含該列。"""
     # 測試開頭一次保存真正的 unbound submit——同測會裝兩次 spy，不可把上一輪 spy 當 _orig
     real_submit = MediaProbeWorker.submit
 
@@ -373,7 +373,7 @@ def test_same_mtime_different_size_is_reprobed(tmp_path, monkeypatch):
     assert view.media_duration_ms == 1000
     assert (view.media_probe_mtime, view.media_probe_size) == (t, s2)
 
-    # ③ 同情境、假探針回 no_video → 必須真進 forward_nv 再寫 failed，再斷 pending
+    # ③ 同情境、假探針回 no_video → 必須真進 forward_nv 再寫 failed，再斷 pending 不含
     nv_calls = {"n": 0}
 
     def _counting_no_video(_path):
@@ -403,6 +403,7 @@ def test_same_mtime_different_size_is_reprobed(tmp_path, monkeypatch):
     from core.readonly_source import readonly_source_prefixes, writable_source_prefixes
 
     configured, _mappings = get_configured_gallery_dirs({"gallery": gallery})
+    assert view_nv.key_matches is True
     pending = repo2.list_media_probe_pending(
         include_readonly=False,
         readonly_prefixes=readonly_source_prefixes(gallery, {}),
@@ -410,7 +411,7 @@ def test_same_mtime_different_size_is_reprobed(tmp_path, monkeypatch):
         configured_dir_uris=configured,
     )
     pending_paths = {p for p, _m, _s in pending}
-    assert uri2 in pending_paths, f"③ no_video 後 pending 應含該列，實際={pending}"
+    assert uri2 not in pending_paths, f"③ no_video 後 key 相符不應在 pending，實際={pending}"
 
 
 # ── scrape-single ────────────────────────────────────────────────────────────

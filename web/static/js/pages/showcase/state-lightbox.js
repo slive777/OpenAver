@@ -10,12 +10,13 @@
  * 從 state-base.js import 共用大陣列（F1：移出 Alpine reactive scope）。
  */
 
-import { _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER, _recomputeVideoBadges, _recomputeCardActorAges, _actresses, _nameToGroup } from '@/showcase/state-base.js';
+import { _videos, _allVideos, _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER, _recomputeVideoBadges, _recomputeCardActorAges, _actresses, _nameToGroup } from '@/showcase/state-base.js';
 import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
 import { detectSwipe } from '@/shared/swipe.js';
 import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/wheel-nav.js';
 import { shouldShowEnrichButton } from '@/shared/enrich-gate.js';
 import { computeActorAgesMap } from '@/shared/actress-release-age.js';
+import { versionsOf, sameWork, refreshRoute, applyWorkUpdate, writeWorkFields } from './work-versions.js';
 
 
 // 120a-T1：.lb-full @error 的遲到事件判定。比較對象是 Alpine :src 寫入的相對路徑
@@ -816,13 +817,15 @@ export function stateLightbox() {
             var video = this.currentLightboxVideo;
             if (!video || !video.path) return;
             var path = video.path;
-            if (this._pickInFlight[path]) return;
+            // 198b-T7b：精選是作品層的帳——整部作品所有版本一起寫、一起鎖（FE-TIMING-16：第一個 await 前取快照）。
+            var dicts = versionsOf(video).slice();
+            if (dicts.some((d) => this._pickInFlight[d.path])) return;
 
             var oldValue = video.user_rating || 0;
             var newValue = oldValue > 0 ? 0 : 1;
 
-            this._pickInFlight[path] = true;
-            video.user_rating = newValue;
+            dicts.forEach((d) => { this._pickInFlight[d.path] = true; });
+            writeWorkFields(dicts, { user_rating: newValue }, this.paginatedVideos, this.currentLightboxVideo);
             this.$nextTick(() => {
                 window.ShowcaseAnimations?.playPickFill?.(
                     document.querySelector('.pick-star-fill'),
@@ -844,13 +847,13 @@ export function stateLightbox() {
                 if (data.results?.[0]?.ok !== true) throw new Error('not_found');
                 // 成功：樂觀更新已是最終狀態，什麼都不做
             } catch (e) {
-                video.user_rating = oldValue;
+                writeWorkFields(dicts, { user_rating: oldValue }, this.paginatedVideos, this.currentLightboxVideo);
                 // CD-123-15 在動畫層的同一個坑：回滾發生在 await 之後，燈箱裡那顆星是**常駐節點**，
                 // 這時候可能已經在顯示別片了。不檢查就會把「這一片的回滾動畫」畫到「另一片的星」
                 // 上——實測過：取消已精選的 A、飛行中滾到未精選的 B、A 失敗回滾 → B 的
                 // aria-pressed 還是 false，星卻被畫成滿金色。只有還停在同一片時才播回滾動畫；
                 // 換片的話 Alpine 的 :style 綁定本來就已經把星畫成新片該有的樣子了。
-                if (this.currentLightboxVideo === video) {
+                if (sameWork(this.currentLightboxVideo, video)) {
                     this.$nextTick(() => {
                         window.ShowcaseAnimations?.playPickFill?.(
                             document.querySelector('.pick-star-fill'),
@@ -862,7 +865,7 @@ export function stateLightbox() {
                 }
                 this.showToast(window.t('showcase.pick.save_failed'), 'error');
             } finally {
-                delete this._pickInFlight[path];   // 本次的鎖先解掉，_pickHasInFlight() 才不會被自己擋住
+                dicts.forEach((d) => { delete this._pickInFlight[d.path]; });   // 本次的鎖先解掉，_pickHasInFlight() 才不會被自己擋住
                 // 燈箱還開著就不重篩（spec §4.13：不能把使用者正在看的那片從腳下抽走）；
                 // 已經關了才補一次——這條涵蓋「點完馬上關燈箱、請求之後才回來（或失敗回滾）」，
                 // 以及「兩個不同 path 同時在飛，其中一個成功改變了成員關係」（沒有旗標可競爭，
@@ -878,7 +881,7 @@ export function stateLightbox() {
             if (!video || !video.path) return;
             this._enriching = true;
             try {
-                const mode = !video.has_cover ? 'refresh_full' : 'fill_missing';
+                const mode = (!video.has_cover || video.borrowed_from) ? 'refresh_full' : 'fill_missing';
                 const resp = await fetch('/api/enrich-single', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -933,6 +936,9 @@ export function stateLightbox() {
             }
         },
 
+        // 198b-T6（CD-198b-8）：一部作品的所有版本一起刷新（燈箱補完／重刮後，另外的版本不會停在舊資料）。
+        // 版本集合沒變 → 'patch'：每個版本原物件只寫一次（身分不斷）；已渲染的卡／燈箱經 Proxy 寫才會重繪
+        // （raw 先寫、Proxy 再寫同值是 no-op，FE-ALPINE-20）。集合變了 → 'reload'：整牆重載（見 _reloadWallKeepLightbox）。
         async refreshVideoData(video) {
             try {
                 const resp = await fetch(`/api/showcase/video?path=${encodeURIComponent(video.path)}`);
@@ -940,6 +946,7 @@ export function stateLightbox() {
                 const data = await resp.json();
                 if (data.success && data.video) {
                     // BUGfix-lightbox-cover-stale: 共用同一個 timestamp，確保 grid 與 lightbox overlay 同步 bust。
+                    // 對回應裡每個版本做（versions 非空時頂層是其中之一的副本，一併處理）。
                     const _t = Date.now();
                     if (data.video.cover_url) {
                         data.video.cover_url = data.video.cover_url + '&t=' + _t;
@@ -949,17 +956,45 @@ export function stateLightbox() {
                     if (data.video.cover_full_url) {
                         data.video.cover_full_url = data.video.cover_full_url + '&t=' + _t;
                     }
-                    // 67-A2/CD-67-3b: data.video 不帶 _imgLoaded → 舊 true 殘留會讓新封面跳過 skeleton/fade。
-                    // Object.assign 前 reset，讓補封面/重抓的新 cover_url（含上面 &t= cache-bust）重走 skeleton→@load→淡入。
-                    if (data.video.cover_url) video._imgLoaded = false;
-                    Object.assign(video, data.video);
-                    _recomputeVideoBadges(video);
-                    _recomputeCardActorAges(video);
-                    // BUGfix-lightbox-cover-stale: 若燈箱正開在這支影片，重置 blur-up overlay，
+                    const versionsIn = Array.isArray(data.video.versions) ? data.video.versions : [];
+                    versionsIn.forEach((nv) => {
+                        if (nv.cover_url) nv.cover_url = nv.cover_url + '&t=' + _t;
+                        if (nv.cover_full_url) nv.cover_full_url = nv.cover_full_url + '&t=' + _t;
+                    });
+                    const incoming = [data.video].concat(versionsIn);
+                    // 原作品：優先取牆上那一份原物件（_allVideos 是 raw；video 可能是 Proxy）；不在牆上就用傳進來的。
+                    const work = _allVideos.find((w) => sameWork(w, video)) || video;
+                    if (refreshRoute(work, data.video) === 'reload') {
+                        const cur = this.currentLightboxVideo;
+                        const anchor = (this.lightboxOpen === true && cur && cur.path) ? cur.path : video.path;
+                        const bustPaths = incoming.map((nv) => nv.path).concat(versionsOf(work).map((v) => v.path));
+                        await this._reloadWallKeepLightbox(anchor, { bustPaths, t: _t });
+                        return;
+                    }
+                    // 已渲染的卡（paginatedVideos）與燈箱（currentLightboxVideo）經 Proxy 寫；其餘寫原物件。
+                    // 67-A2/CD-67-3b: 新 cover_url 的版本由 applyWorkUpdate 一併帶 _imgLoaded:false，重走 skeleton→@load→淡入。
+                    const viaOf = (target) => {
+                        const card = (this.paginatedVideos || []).find((p) => p.path === target.path);
+                        if (card) return card;
+                        const lb = this.currentLightboxVideo;
+                        return (lb && lb.path === target.path) ? lb : target;
+                    };
+                    const { defaultDict, byPath } = applyWorkUpdate(work, data.video, (target, patch) => Object.assign(viaOf(target), patch));
+                    Object.keys(byPath).forEach((p) => {
+                        const via = viaOf(byPath[p]);
+                        _recomputeVideoBadges(via);
+                        _recomputeCardActorAges(via);
+                    });
+                    // 預設版本可能換了：牆上資料陣列那一格換成新預設（_filteredVideos 維持，下次重篩才換；已接受的 residual）
+                    [_videos, _allVideos].forEach((arr) => {
+                        const i = arr.findIndex((w) => sameWork(w, defaultDict));
+                        if (i >= 0) arr[i] = defaultDict;
+                    });
+                    // BUGfix-lightbox-cover-stale: 若燈箱正開在這部作品（任一版本），重置 blur-up overlay，
                     // 讓 cover_full_url（已 bust）重新觸發 @load → _lbFullLoaded 淡入。
-                    // 用 === video 守住：燈箱開在別支影片時不誤 reset。
-                    // 必須在 Object.assign 之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。
-                    if (this.currentLightboxVideo === video) {
+                    // path 比對（FE-ALPINE-14）。必須在寫入之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。
+                    const lbNow = this.currentLightboxVideo;
+                    if (lbNow && lbNow.path && byPath[lbNow.path]) {
                         this._refreshLbFullBlurUp();
                         this._refreshLbActorAges();
                     }

@@ -9,6 +9,7 @@
 
 import { computeMaskWinGeometry, computeMaskSettleGeometry } from '@/shared/mask-geometry.js';
 import { parseFocal, clampMaskWinLeft } from '@/shared/focal.js';
+import { versionsOf } from './work-versions.js';
 
 export function stateLightboxMask() {
     return {
@@ -485,6 +486,7 @@ export function stateLightboxMask() {
                     this._matchedActress.auto_focal = data.auto_focal;
                     this._matchedActress.crop_mode = 'manual';
                 }
+                if (kind === 'video' && versionsOf(targetObj).length > 1) this.refreshVideoData(targetObj);
             } catch (e) {
                 if (session === this._maskSession) {
                     this.showToast(window.t('showcase.lightbox.mask_save_failed'), 'error');   // 沿用既有 key

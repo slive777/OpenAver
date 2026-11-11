@@ -11,14 +11,18 @@ import threading
 import time
 import requests
 import html
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from PIL import Image
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, Callable, List, Tuple
 from urllib.parse import urlparse
 
 from core.atomic_write import atomic_move
 from core.config import STEM_IMAGE_MODES
-from core.cover_attributes import effective_tags
+from core.cover_attributes import effective_tags, existing_marker_kinds, filename_marker_kinds, filename_marker_spans, marker_kinds_in_text
+from core.nfo_read import nfo_merged_tags
+from core.nfo_utils import sanitize_nfo_bytes
+from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS
 from core.cover_layout import resolve_cover_target, same_target_verdict
 from core.image_codec import decode_image_payload, looks_like_image
 from core.image_host_policy import codec_for_host
@@ -1142,6 +1146,120 @@ def _reclaim_placeholder(file_path: str, target_path: str) -> None:
         pass
 
 
+def _assemble_filename_base(format_data: Dict[str, Any], filename_template: str, max_chars: int, original_ext: str, vr_tail: str, part_tail: str, version_tail: str = '') -> str:
+    """檔名組裝（含 vr／版本標記／part tail 與長度預算）。"""
+    suffix = format_data.get('suffix', '')
+    protect = ''  # 撞名重試補上的版本標記（連同其後的尾巴）：超長右截斷時不得被砍掉
+    if suffix and '{suffix}' in filename_template:
+        no_suffix_data = dict(format_data, suffix='')
+        base_without_suffix = format_string(filename_template, no_suffix_data)
+        reserve = len(vr_tail) + len(version_tail) + len(part_tail)
+        base_budget = max(0, max_chars - len(suffix) - reserve)
+        if base_budget == 0:
+            filename_base = truncate_to_chars(suffix, max(0, max_chars - reserve))
+        else:
+            base_without_suffix = truncate_to_chars(base_without_suffix, base_budget)
+            filename_base = base_without_suffix + version_tail + suffix
+            if version_tail:
+                protect = version_tail + suffix + vr_tail + part_tail
+            version_tail = ''
+    else:
+        if version_tail:
+            protect = version_tail + part_tail
+        reserve = len(vr_tail) + len(version_tail) + len(part_tail)
+        filename_base = format_string(filename_template, format_data)
+        filename_base = truncate_to_chars(filename_base, max(0, max_chars - reserve))
+    filename_base = filename_base + vr_tail
+    if part_tail:
+        filename_base = _strip_part_token(filename_base)
+    filename_base = filename_base + version_tail + part_tail
+    filename_base = truncate_to_chars(filename_base, max_chars)
+    byte_budget = 255 - len(original_ext.encode('utf-8'))
+    protect_bytes = len(protect.encode('utf-8'))
+    if protect and protect_bytes < byte_budget and filename_base.endswith(protect):
+        head = _fit_utf8_bytes(filename_base[:-len(protect)], byte_budget - protect_bytes)
+        return head + protect
+    return _fit_utf8_bytes(filename_base, byte_budget)
+
+
+def _version_tail(original_filename: str, filename_base: str) -> str:
+    """原檔名命中標記但主幹沒有同 kind 的段，轉成版本尾。"""
+    covered = set(marker_kinds_in_text(filename_base))
+    out: List[str] = []
+    for span in filename_marker_spans(original_filename):
+        if span[:1] in "_.":
+            piece = "-" + span[1:]
+        elif span[:1] == "-":
+            piece = span
+        else:
+            piece = "-" + span
+        piece_kinds = marker_kinds_in_text(piece)
+        if piece_kinds and piece_kinds <= covered:
+            continue
+        covered |= piece_kinds
+        out.append(piece)
+    return "".join(out)
+
+
+def _read_nfo_tags(nfo_path: str) -> List[str]:
+    """讀既有 NFO 的 genre／tag；不存在或解析失敗回空。"""
+    try:
+        return nfo_merged_tags(ET.fromstring(sanitize_nfo_bytes(Path(nfo_path).read_bytes())))
+    except (OSError, ET.ParseError):
+        return []
+
+
+def _same_stem_others(target_dir: str, stem: str, file_path: str) -> List[str]:
+    """同主幹的其他檔名（扣掉來源檔自身）。"""
+    others: List[str] = []
+    folded_stem = stem.casefold()
+    try:
+        for entry in os.scandir(target_dir):
+            if os.path.join(target_dir, entry.name) == file_path:
+                continue
+            folded_name = entry.name.casefold()
+            if os.path.splitext(folded_name)[0] == folded_stem or folded_name.startswith(folded_stem + '-') or folded_name.startswith(folded_stem + '.'):
+                others.append(entry.name)
+    except OSError:
+        return ["<unreadable>"]
+    return others
+
+
+def _claim_target(file_path: str, target_dir: str, target_path: str, original_filename: str, original_ext: str, assemble: Callable[[str], str]) -> Tuple[str, str, str]:
+    """佔位＋撞名重試；回 (state, filename_base, target_path)。"""
+    filename_base = os.path.splitext(os.path.basename(target_path))[0]
+    try:
+        fd = os.open(target_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        pass
+    else:
+        os.close(fd)
+        return ('claimed', filename_base, target_path)
+    new_kinds = filename_marker_kinds(original_filename)
+    nfo_tags = _read_nfo_tags(os.path.splitext(target_path)[0] + '.nfo')
+    existing_kinds = existing_marker_kinds(os.path.basename(target_path), nfo_tags)
+    if new_kinds == existing_kinds:
+        return ('duplicate', filename_base, target_path)
+    version_tail = _version_tail(original_filename, filename_base)
+    if not version_tail:
+        return ('duplicate', filename_base, target_path)
+    new_base = assemble(version_tail)
+    new_target = os.path.join(target_dir, new_base + original_ext)
+    others = _same_stem_others(target_dir, new_base, file_path)
+    if new_target == file_path:
+        if [name for name in others if os.path.splitext(name)[1].lower() in DEFAULT_VIDEO_EXTENSIONS]:
+            return ('duplicate', new_base, new_target)
+        return ('in_place', new_base, new_target)
+    if others:
+        return ('duplicate', new_base, new_target)
+    try:
+        fd = os.open(new_target, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return ('duplicate', new_base, new_target)
+    os.close(fd)
+    return ('claimed', new_base, new_target)
+
+
 def _acquire_cover(base_stem: str, ext_mode: str, metadata: Dict[str, Any],
                    uploaded_cover: Optional[str]) -> Optional[str]:
     """
@@ -1241,9 +1359,6 @@ def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在�
     # 多段（multipart）token 早偵測（CD-72b-T5）；off 模式恆不啟用（part_tail=''）
     part_match = _detect_multipart_token(original_filename) if ext_mode != 'off' else None
     part_tail = f'-{part_match[0]}' if part_match else ''   # e.g. '-cd1'；off 模式恆 ''
-
-    # budget reserve：兩分支共用，part_tail 也預留；off 模式 part_tail='' → 等同現狀（CD-68-7/CD-72b-T5）
-    reserve = len(vr_tail) + len(part_tail)
 
     # 準備格式化資料
     actors = metadata.get('actors', [])
@@ -1374,38 +1489,7 @@ def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在�
     max_filename_chars = min(config.get('max_filename_length', 60), 120)
     max_chars = max_filename_chars - len(original_ext)
 
-    suffix = format_data.get('suffix', '')
-    if suffix and '{suffix}' in filename_template:
-        # 先用空 suffix 產生 base，截斷後再接回 suffix；base_budget 扣 reserve（CD-68-5/7）
-        no_suffix_data = dict(format_data, suffix='')
-        base_without_suffix = format_string(filename_template, no_suffix_data)
-        base_budget = max(0, max_chars - len(suffix) - reserve)
-        if base_budget == 0:
-            filename_base = truncate_to_chars(suffix, max(0, max_chars - reserve))
-        else:
-            base_without_suffix = truncate_to_chars(base_without_suffix, base_budget)
-            filename_base = base_without_suffix + suffix
-    else:
-        filename_base = format_string(filename_template, format_data)
-        filename_base = truncate_to_chars(filename_base, max(0, max_chars - reserve))
-    # VR tail 永遠最後接（CD-68-6）；vr_tail='' 時零變化（CD-68-9）
-    filename_base = filename_base + vr_tail
-    # P1-A 修正（Codex）：{title} 欄位（尤其是 extracted_title）可能殘留多段 token
-    # （如 extract_chinese_title 保留 '某中文標題-part2[HD]'），導致 part_tail 雙寫。
-    # 在接 part_tail 之前，先從 filename_base 剝除最靠後的多段 token（_strip_part_token
-    # 無 token 時為 no-op → 乾淨標題案例完全不影響輸出）。
-    # off 模式 part_tail='' → if 分支不進入，行為與修前 byte-identical。
-    # 注意：不需另在 extracted_title 層剝除，組裝後整體剝更穩健（任何欄位來源均覆蓋）。
-    if part_tail:
-        filename_base = _strip_part_token(filename_base)  # 移除 {title} 等欄位遺留的多段 token
-    # part token 接在 VR tail 之後（最末）；off 模式 part_tail='' → no-op（CD-72b-T5）
-    # 順序：{base}{vr_tail}{part_tail}；Jellyfin stacking 要求 part token 落在 stem 最末
-    filename_base = filename_base + part_tail
-    # 最終長度上限保護（Codex PR P2）：即使退化情形也不突破 max_filename_length。
-    # 正常/spec 情形 reserve 已預留 → base+vr_tail+part_tail == max_chars → 此為 no-op；
-    # 僅 max_filename_length 被設到連 ext+VR cluster+part token 都裝不下時才作用。
-    filename_base = truncate_to_chars(filename_base, max_chars)
-    filename_base = _fit_utf8_bytes(filename_base, 255 - len(original_ext.encode('utf-8')))
+    filename_base = _assemble_filename_base(format_data, filename_template, max_chars, original_ext, vr_tail, part_tail)
 
     new_filename = filename_base + original_ext
     target_path = os.path.join(target_dir, new_filename)
@@ -1425,36 +1509,40 @@ def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在�
             result['new_folder'] = target_dir
 
         # 移動並重命名檔案
+        moved_video = False
         if file_path != target_path:
             containment_error = _containment_error(target_path, original_dir)
             if containment_error:
                 result['error'] = containment_error
                 return result
-            try:
-                fd = os.open(target_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            except FileExistsError:
+            state, filename_base, target_path = _claim_target(
+                file_path, target_dir, target_path, original_filename, original_ext,
+                lambda version_tail: _assemble_filename_base(format_data, filename_template, max_chars, original_ext, vr_tail, part_tail, version_tail))
+            if state == 'duplicate':
                 result['success'] = False
                 result['duplicate'] = True
                 result['duplicate_target'] = os.path.basename(target_path)
                 return result
-            os.close(fd)
-            try:
-                atomic_move(file_path, target_path)
-            except Exception:
-                _reclaim_placeholder(file_path, target_path)
-                raise
+            if state == 'claimed':
+                try:
+                    atomic_move(file_path, target_path)
+                except Exception:
+                    _reclaim_placeholder(file_path, target_path)
+                    raise
+                moved_video = True
 
             # 搬移字幕檔（影片有搬移時才執行）
-            subs_to_move = subtitle_files
-            video_stem = Path(file_path).stem
-            for sub_path in subs_to_move:
-                try:
-                    sub_name = os.path.basename(sub_path)
-                    sub_suffix = sub_name[len(video_stem):]  # e.g. ".cht.srt" or ".srt"
-                    sub_target = os.path.join(target_dir, filename_base + sub_suffix)
-                    shutil.move(sub_path, sub_target)
-                except Exception as e:
-                    logger.warning(f"字幕搬移失敗 {sub_path}: {e}")
+            if moved_video:
+                subs_to_move = subtitle_files
+                video_stem = Path(file_path).stem
+                for sub_path in subs_to_move:
+                    try:
+                        sub_name = os.path.basename(sub_path)
+                        sub_suffix = sub_name[len(video_stem):]  # e.g. ".cht.srt" or ".srt"
+                        sub_target = os.path.join(target_dir, filename_base + sub_suffix)
+                        shutil.move(sub_path, sub_target)
+                    except Exception as e:
+                        logger.warning(f"字幕搬移失敗 {sub_path}: {e}")
 
         result['new_filename'] = target_path
 

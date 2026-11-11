@@ -16,7 +16,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from core.cover_attributes import is_source_4k_tag
+from core.cover_attributes import effective_tags, is_source_4k_tag, is_version_kind_tag, version_kinds
 from core.database import VideoRepository, get_db_path, init_db
 from core.database.version_tracker import (
     compute_db_fingerprint,
@@ -38,7 +38,9 @@ from core.video_nfo_locate import locate_readonly_nfo
 from core.focal import device_state, format_focal, parse_focal
 from core.focal.subprocess_runner import run_detection
 from core import thumbnail_cache
-from core.multipart_group import group_rows, resolve_group
+from core.library_titles import tier_of_from_probe
+from core.multipart_group import resolve_group
+from core.version_group import group_works, resolve_work, version_containing, work_user_tags
 
 logger = get_logger(__name__)
 
@@ -169,6 +171,68 @@ def _serialize_group(group, path_mappings: dict, enabled: bool = False, probe=No
     return base
 
 
+_BORROWED_FIELDS = (
+    "title", "original_title", "actresses", "maker", "release_date", "director", "series", "label",
+    "cover_url", "cover_full_url", "has_cover", "auto_focal", "crop_mode",
+)
+
+
+def _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=None):
+    """各版本 dict（CD-198b-6／7）：以 `_serialize_group()` 為底，不含 `versions` 鍵。
+
+    自己沒 NFO 且別版有資料（`work.data_source is not None`）→ 沿用來源版本的
+    D2 欄位（`borrowed_from` 記來源 `members[0].path`）；其餘維持自己的。
+    `size`／`mtime`／探針衍生鍵等永遠是自己的，不沿用。只顯示：不寫 DB、不寫檔。
+    多版本的每個版本都帶作品層 `user_rating`／`user_tags` 聯集與 `version_kinds`。
+    單版本：原輸出 ＋ `borrowed_from: ''`，不算 kinds、不排序、不改既有鍵的值。
+    """
+    from core.source_reachability import owning_source_index
+
+    firsts = [g.members[0] for g in work.versions]
+    work_rating = 1 if any((m.user_rating or 0) > 0 for m in firsts) else 0
+    work_tags = work_user_tags(work)
+    if len(work.versions) == 1:
+        item = _serialize_group(work.versions[0], path_mappings, enabled, probe=probe_of(work.versions[0].members[0].path))
+        item["borrowed_from"] = ""
+        return [item]
+    bases = [_serialize_group(g, path_mappings, enabled, probe=probe_of(g.members[0].path)) for g in work.versions]
+    source = bases[work.data_source] if work.data_source is not None else None
+    items = []
+    for index, base in enumerate(bases):
+        first = firsts[index]
+        item = dict(base)
+        if source is not None and not item["has_nfo"]:
+            for key in _BORROWED_FIELDS:
+                item[key] = source[key]
+            src_tags = [t for t in source["tags"].split(",") if t and not is_version_kind_tag(t)]
+            own_kinds = [t for t in effective_tags(os.path.basename(uri_to_local_fs_path(first.path, path_mappings)), first.tags or []) if is_version_kind_tag(t)]
+            item["tags"] = ",".join(dict.fromkeys(src_tags + own_kinds))
+            item["borrowed_from"] = source["path"]
+        else:
+            item["borrowed_from"] = ""
+        item["user_rating"] = work_rating
+        item["user_tags"] = work_tags
+        item["version_kinds"] = list(version_kinds(os.path.basename(uri_to_local_fs_path(first.path, path_mappings)), first.tags or []))
+        if prefixes is not None:
+            idx = owning_source_index(first.path, prefixes)
+            if idx is not None:
+                item["src"] = idx
+        items.append(item)
+    return items
+
+
+def _serialize_work(work, top_index, path_mappings, enabled, probe_of, prefixes=None):
+    """一部作品的頂層 dict：某版本 dict 的淺拷貝 ＋ `versions`（CD-198b-7）。
+
+    多版本：`versions` 為全部版本 dict（不含 `versions` 鍵）；`size`／`mtime`／
+    `part_tokens` 都是各版本自己的，不加總。單版本：`versions: []`。
+    """
+    version_dicts = _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=prefixes)
+    top = dict(version_dicts[top_index])
+    top["versions"] = version_dicts if len(work.versions) > 1 else []
+    return top
+
+
 def _etag_matches(if_none_match: str, etag: str) -> bool:
     """比對 `If-None-Match` 語意（抄 Starlette `StaticFiles.is_not_modified()` 的比對方式，
     不 import 該函式本身——它綁定 `FileResponse` 用的 `Headers` 型別，這裡是手寫 JSON 端點）。
@@ -223,23 +287,23 @@ def get_videos(request: Request):
         all_videos = [v for v in repo.get_all()
                       if any(is_path_under_dir(v.path, uri) for uri in configured_dir_uris)]
 
-        # feature/122 CD-122-1：分組在序列化層收斂，前端拿到的 videos 陣列已是
-        # 合併後的一筆一組（多一個 part_tokens 欄位）。單檔片的 group 只有自己
-        # 一個 member，_serialize_group() 輸出與改動前逐鍵逐值相同（AC-4）。
-        groups = group_rows(all_videos, fs_path_of=lambda v: uri_to_local_fs_path(v.path, path_mappings))
-
         from core.source_reachability import owning_source_index, source_keys_and_prefixes
 
         sources, prefixes = source_keys_and_prefixes(gallery_config)
         probe_map = repo.get_media_probe_map()
+        tier_of = tier_of_from_probe(probe_map.get)
 
+        # feature/198b：分組在作品層收斂（CD-198b-7）——同資料夾同番號的多個版本
+        # 收成一部作品，頂層為預設版本（`top_index=0`），`total` 為作品數。
+        fs_path_of = lambda v: uri_to_local_fs_path(v.path, path_mappings)
+        probe_of = probe_map.get
         videos_json = []
-        for g in groups:
-            probe = probe_map.get(g.members[0].path)
-            item = _serialize_group(g, path_mappings, thumb_enabled, probe=probe)
-            idx = owning_source_index(g.members[0].path, prefixes)
-            if idx is not None:
-                item["src"] = idx
+        for work in group_works(all_videos, fs_path_of, tier_of):
+            item = _serialize_work(work, 0, path_mappings, thumb_enabled, probe_of, prefixes=prefixes)
+            if len(work.versions) == 1:
+                idx = owning_source_index(item["path"], prefixes)
+                if idx is not None:
+                    item["src"] = idx
             videos_json.append(item)
 
         resp = JSONResponse({
@@ -285,19 +349,31 @@ def get_video(path: str = Query(..., description="file:/// URI")):
 
         thumb_enabled = config.get('thumbnail_cache_enabled', False)
 
-        # feature/122：用查到列的 v.path（而非使用者傳入的原始 path 字面，更可靠）
-        # 算同資料夾候選列，反解該 path 所屬的組。找不到組（極端狀況：part-1 被
-        # 刪但 part-2 還在、或路徑不再是任何組的代表）→ fail-safe 退回單檔序列化，
-        # 不 500（CD-122-6）。
-        group = resolve_group(repo, path, path_mappings, folder_source_uri=v.path)
-        if group is None:
-            probe = repo.get_media_probe_view(v.path)
-            return JSONResponse({"success": True,
-                                 "video": _serialize_video(v, path_mappings, thumb_enabled, probe=probe)})
+        # feature/198b：以請求 path 所在版本為頂層（CD-198b-7）——先用列的
+        # v.path 反解同資料夾候選列、resolve_work 找整部作品；找不到（極端狀況）
+        # → fail-safe 退回單檔序列化，不 500（CD-122-6）。
+        probe_cache = {}
 
-        probe = repo.get_media_probe_view(group.members[0].path)
+        def probe_of(p):
+            if p not in probe_cache:
+                probe_cache[p] = repo.get_media_probe_view(p)
+            return probe_cache[p]
+
+        from core.source_reachability import source_keys_and_prefixes
+        work = resolve_work(repo, path, path_mappings, folder_source_uri=v.path, tier_of=tier_of_from_probe(probe_of))
+        if work is None:
+            probe = probe_of(v.path)
+            item = _serialize_video(v, path_mappings, thumb_enabled, probe=probe)
+            item["versions"] = []
+            item["borrowed_from"] = ""
+            return JSONResponse({"success": True, "video": item})
+
+        top_index = version_containing(work, path)
+        _, prefixes = source_keys_and_prefixes(config.get("gallery", {}))
+        if top_index is None:
+            top_index = 0
         return JSONResponse({"success": True,
-                             "video": _serialize_group(group, path_mappings, thumb_enabled, probe=probe)})
+                             "video": _serialize_work(work, top_index, path_mappings, thumb_enabled, probe_of, prefixes=prefixes)})
 
     except Exception as e:
         logger.error("取得單筆影片失敗: %s", e)

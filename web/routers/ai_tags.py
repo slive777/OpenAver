@@ -207,6 +207,19 @@ def get_poster(file_path: str):
     return _poster_bytes(file_path)
 
 
+def _reread_union_sync(file_uri: str) -> list:
+    """成功回應的作品聯集重讀（同步 helper，呼叫端走 asyncio.to_thread，BE-ASYNC-01）。
+
+    `tag_video` 只寫目前版本；切版本時燈箱要看到剛加的標籤，回應帶整部作品聯集。
+    """
+    from core.version_group import reread_work_user_tags
+
+    config = load_config()
+    path_mappings = config.get("gallery", {}).get("path_mappings", {}) or {}
+    repo = VideoRepository()
+    return reread_work_user_tags(repo, file_uri, path_mappings)
+
+
 @router.post("/tags/videos")
 async def post_tag_video(body: TagVideoRequest):
     if not (body.file_path or "").strip():
@@ -218,6 +231,11 @@ async def post_tag_video(body: TagVideoRequest):
         outcome = await tag_video(file_uri)
     except TaggingFailure as exc:
         return _failure_body(exc)
+    try:
+        union = await asyncio.to_thread(_reread_union_sync, file_uri)
+    except Exception as e:
+        logger.warning("[ai-tags] 重讀作品聯集失敗: %s", e)
+        union = list(outcome.user_tags)
     return {
         "success": True,
         "added": outcome.added,
@@ -226,6 +244,7 @@ async def post_tag_video(body: TagVideoRequest):
         "nfo_updated": outcome.nfo_updated,
         "readonly_no_output": outcome.readonly_no_output,
         "nfo_write_blocked": outcome.nfo_write_blocked,
+        "work_user_tags": union,
     }
 
 

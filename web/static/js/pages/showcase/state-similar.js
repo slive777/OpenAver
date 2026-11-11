@@ -25,6 +25,7 @@
  */
 
 import { _videos, _filteredVideos } from '@/showcase/state-base.js';
+import { sameNumber } from './work-versions.js';
 import {
   ANCHORS,
   pickEight,
@@ -451,7 +452,7 @@ export function stateSimilar() {
       // 到 filter 外影片）→ findIndex = -1 → _silentSwitchLightboxByNumber no-op → lightbox 顯示舊影片。
       // 修法：找不到時改用 similarResults 的最後一個鑽入 item 當 standalone lightbox source（similarExitVideo）。
       if (this._similarLastDrilledNumber) {
-        const drilledIdx = _filteredVideos.findIndex(v => v.number === this._similarLastDrilledNumber);
+        const drilledIdx = _filteredVideos.findIndex(v => sameNumber(v.number, this._similarLastDrilledNumber));
         if (drilledIdx >= 0) {
           // 找到 → 沿用既有邏輯（_setLightboxIndex + currentLightboxVideo 同步）
           this._silentSwitchLightboxByNumber(this._similarLastDrilledNumber);
@@ -459,7 +460,7 @@ export function stateSimilar() {
           // _filteredVideos 找不到 → BUGfix-mobile-similar-stale-cover P2 三層 fallback（對齊 onSimilarMobileCardClick）：
           // 先查 _videos（庫內、被 active filter 排除）→ standalone 但保完整 metadata + path，
           // 避免關閉 similar mode 時把 mobile tier2 的完整 metadata + path 重新降級成 5 欄 snapshot。
-          const drilledVIdx = _videos.findIndex(v => v.number === this._similarLastDrilledNumber);
+          const drilledVIdx = _videos.findIndex(v => sameNumber(v.number, this._similarLastDrilledNumber));
           if (drilledVIdx >= 0) {
             this.similarExitVideo = _videos[drilledVIdx];
             this.currentLightboxVideo = this.similarExitVideo;
@@ -832,24 +833,24 @@ export function stateSimilar() {
      * （CD-56C-12 ordering）。play button 用 _videos read-only lookup 取對應 path，
      * 不呼叫 _setLightboxIndex（不違反 CD-56C-12：slip-through 期間不更新底層 lightbox state）。
      *
-     * fallback 鏈：
-     *   1. _similarLastDrilledNumber（最近一次 slip-through 鑽入的 number）
-     *   2. similarQueryVideo.number（進入 similar mode 時的 query video）
-     *   3. currentLightboxVideo.path（未 slip-through 過時最終 fallback）
+     * fallback 鏈（198b-T7a F22b）：
+     *   1. 未鑽入（_similarLastDrilledNumber 為假）→ 直接播 currentLightboxVideo.path（燈箱目前版本）
+     *   2. 鑽入 → 先在 _filteredVideos 以 number 找（牆上顯示版本），找不到再退 _videos
+     *   3. 都沒有 → currentLightboxVideo.path，仍無則 no-op
      */
     playSimilarMainVideo() {
       // T5 codex-fix2 (P1 二次修法): _videos（未過濾全庫）read-only lookup，
       // 避免 filtered view 下 slip-through 到範圍外影片時 fallback 舊片。
       // （_silentSwitchLightboxByNumber 的 _filteredVideos 用法是 by design，CD-56C-12，不改）
-      const targetNumber = this._similarLastDrilledNumber || this.similarQueryVideo?.number;
-      if (targetNumber) {
-        const found = _videos.find(v => v.number === targetNumber);
+      const drilled = this._similarLastDrilledNumber;
+      if (drilled) {
+        const found = _filteredVideos.find(v => sameNumber(v.number, drilled)) || _videos.find(v => sameNumber(v.number, drilled));
         if (found?.path) {
           this.playVideo(found.path);
           return;
         }
       }
-      // fallback：未 slip-through 過 + similarQueryVideo 無 number → 播 lightbox 原影片
+      // fallback：未鑽入 → 播燈箱目前版本（多版本時可能不是牆上顯示版本）
       const path = this.currentLightboxVideo?.path;
       if (!path) return;  // graceful no-op，不 toast（避免重複錯誤訊息）
       this.playVideo(path);
@@ -1699,7 +1700,7 @@ export function stateSimilar() {
       // tier 1: 命中 _filteredVideos → _setLightboxIndex（含自動清 similarExitVideo=null）
       if (this._silentSwitchLightboxByNumber(item.number)) return;
       // tier 2: 在 _videos（庫內、被 filter 排除）→ standalone，完整 metadata + path
-      const vIdx = _videos.findIndex(v => v.number === item.number);
+      const vIdx = _videos.findIndex(v => sameNumber(v.number, item.number));
       if (vIdx >= 0) {
         this.similarExitVideo = _videos[vIdx];
       } else {
@@ -1766,7 +1767,7 @@ export function stateSimilar() {
      */
     _silentSwitchLightboxByNumber(number) {
       if (!number) return false;
-      const idx = _filteredVideos.findIndex(v => v.number === number);
+      const idx = _filteredVideos.findIndex(v => sameNumber(v.number, number));
       if (idx >= 0) { this._setLightboxIndex(idx); return true; }
       return false;
     },

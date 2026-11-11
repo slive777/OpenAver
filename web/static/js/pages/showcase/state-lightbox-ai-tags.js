@@ -7,6 +7,7 @@
  */
 
 import { _recomputeVideoBadges } from '@/showcase/state-base.js';
+import { versionsOf, writeWorkFields } from './work-versions.js';
 import { aiTagsFailureToast, aiTagsSuccessToasts } from './lb-ai-tags-logic.js';
 
 export function stateLightboxAiTags() {
@@ -22,7 +23,8 @@ export function stateLightboxAiTags() {
         lbAiVisible() {
             return this.lbAiTagsEnabled
                 && !!this.currentLightboxVideo?.path
-                && !!this.currentLightboxVideo?.has_cover;
+                && !!this.currentLightboxVideo?.has_cover
+                && !this.currentLightboxVideo?.borrowed_from;
         },
 
         lbAiIsBusy() {
@@ -33,6 +35,7 @@ export function stateLightboxAiTags() {
             const video = this.currentLightboxVideo;
             if (!video?.path) return;
             const path = video.path;
+            const dicts = versionsOf(video).slice();   // 198b-T7b：標籤寫整部作品；第一個 await 前取快照（FE-TIMING-16）
             if (this._lbAiInFlight[path]) return;
             this._lbAiInFlight[path] = true;
             try {
@@ -56,8 +59,8 @@ export function stateLightboxAiTags() {
                     this.showToast(window.t(toast.key, toast.params), 'error');
                     return;
                 }
-                video.user_tags = data.user_tags;
-                _recomputeVideoBadges(video);
+                const list = Array.isArray(data.work_user_tags) ? data.work_user_tags : data.user_tags;
+                writeWorkFields(dicts, { user_tags: list }, this.paginatedVideos, this.currentLightboxVideo).forEach((d) => _recomputeVideoBadges(d));
                 for (const toast of aiTagsSuccessToasts(data)) {
                     this.showToast(window.t(toast.key, toast.params), toast.type);
                 }

@@ -88,7 +88,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "scrape_single",
-        "description": "新片整理：搜尋 metadata → 下載封面 → 生成 NFO → 重命名搬移。帶 metadata 時直接採用你給的那份，不重查來源。不帶 metadata 時：number 是完整番號格式 → 問第一家有結果的來源、整包拿，不跨站合併（與搜尋頁整理、定時整理同一套規則）；number 不是完整番號格式（打錯、傳成標題或女優名）→ 退回逐站精確查詢並跨站合併欄位，也就是今天的既有行為（無碼模式開啟時例外：改問無碼來源白名單、命中第一家即回，與定時整理一致）。想要多來源聚合，自己對每個來源各查一次 /api/search、組好 metadata 再傳進來。所有來源都查不到這片時（/api/search 無結果、或本端點回查無），你可以自行決定要不要用自己的工具（例如網路搜尋）找到這片的資料，自己組好 metadata（番號、標題、演員、片商、發行日、封面圖網址 cover 等）再呼叫本端點補完；要不要這樣做由你判斷，資料正確性由你負責。這種自己查來的 metadata 請帶 manual_entry: true：資料夾、檔名、NFO 才會用你給的標題，不會被檔名裡殘留的中文字蓋掉；番號欄不檢查格式，沒有標準番號的片可給可辨識的字串。整理成功且該片進了片庫追蹤資料夾後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；不會拖慢本端點的回應；已排進背景的不必再叫 AI 標籤端點，背景沒跑成（見 debug.log 或該片仍無 AI 標籤）才單片補。三項全關則不發任何請求。",
+        "description": "新片整理：搜尋 metadata → 下載封面 → 生成 NFO → 重命名搬移。帶 metadata 時直接採用你給的那份，不重查來源。不帶 metadata 時：number 是完整番號格式 → 問第一家有結果的來源、整包拿，不跨站合併（與搜尋頁整理、定時整理同一套規則）；number 不是完整番號格式（打錯、傳成標題或女優名）→ 退回逐站精確查詢並跨站合併欄位，也就是今天的既有行為（無碼模式開啟時例外：改問無碼來源白名單、命中第一家即回，與定時整理一致）。想要多來源聚合，自己對每個來源各查一次 /api/search、組好 metadata 再傳進來。所有來源都查不到這片時（/api/search 無結果、或本端點回查無），你可以自行決定要不要用自己的工具（例如網路搜尋）找到這片的資料，自己組好 metadata（番號、標題、演員、片商、發行日、封面圖網址 cover 等）再呼叫本端點補完；要不要這樣做由你判斷，資料正確性由你負責。這種自己查來的 metadata 請帶 manual_entry: true：資料夾、檔名、NFO 才會用你給的標題，不會被檔名裡殘留的中文字蓋掉；番號欄不檢查格式，沒有標準番號的片可給可辨識的字串。整理成功且該片進了片庫追蹤資料夾後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；不會拖慢本端點的回應；已排進背景的不必再叫 AI 標籤端點，背景沒跑成（見 debug.log 或該片仍無 AI 標籤）才單片補。三項全關則不發任何請求。目標檔名已存在時：新檔原檔名帶版本標記（中字／破解／LTX／流出／4K）且與既有檔的版本類型不同，會自動在檔名尾補上該標記後照常入庫（既有檔不動）；版本類型相同、或原檔名看不出任何標記，仍回 duplicate、檔案留在原處。",
         "method": "POST",
         "path": "/api/scrape-single",
         "input_schema": {
@@ -453,6 +453,7 @@ _TOOLS: list[dict] = [
             " media_probe_status='ok' AND media_probe_mtime IS mtime AND media_probe_size IS size_bytes；"
             " 等級依寬高各判取較高（高≥720/1080/1440/2160/4320 或寬≥1280/1920/2560/3840/7680"
             " → HD/FHD/2K/4K/8K）。列 4K 片較簡：用 /api/showcase/videos 的 resolution_tier。"
+            " 同一部作品的多個版本是多列（同資料夾、同番號）；要一部作品一筆請用 `/api/showcase/videos`。"
         ),
         "method": "POST",
         "path": "/api/collection/sql",
@@ -710,7 +711,10 @@ _TOOLS: list[dict] = [
     {
         "name": "user_tags",
         "description": (
-            "管理用戶自訂標籤（評分、書籤、分類等）。存入 DB + NFO <user_tag> 元素，不被 scraper refresh 覆蓋。"
+            "管理用戶自訂標籤（評分、書籤、分類等）。加／刪作用到同一部作品（同資料夾同番號）的"
+            "全部版本，沒 NFO 的版本只更新資料庫、不新建 NFO；`ai_tagged:true`（外部 AI 回寫 AI 判斷）時只寫這個檔。"
+            "存入 DB + NFO <user_tag> 元素，"
+            "不被 scraper refresh 覆蓋。"
             "唯讀來源的片寫的是輸出夾那份 NFO（原始資料夾零寫入）；該片還沒產出輸出夾時，"
             "標籤仍會存進 DB，但回傳 readonly_no_output=true 表示這次沒有任何 NFO 被更新。"
         ),
@@ -731,7 +735,8 @@ _TOOLS: list[dict] = [
         },
         "output_schema": {
             "success": "boolean",
-            "user_tags": "[string] — 更新後的完整 user_tags 清單",
+            "user_tags": "[string] — 請求那個檔自己的更新後完整 user_tags 清單",
+            "work_user_tags": "[string] — 寫完後整部作品各版本的標籤聯集",
             "nfo_updated": "boolean — NFO 是否同步更新",
             "readonly_no_output": "boolean — 唯讀來源的片，這次沒有任何 NFO 被更新時為 true（標籤已存進 DB，但媒體伺服器讀到的 NFO 沒變：可能是還沒產出輸出夾、或那份 NFO 讀不到／壞掉）。一般片恆為 false",
         },
@@ -744,7 +749,7 @@ _TOOLS: list[dict] = [
     {
         "name": "user_rating",
         "description": (
-            "批次或單筆冪等設定「精選」狀態（picked: true/false）。"
+            "批次或單筆冪等設定「精選」狀態（picked: true/false)，效果套用到整部作品的全部版本。"
             "⚠️ side effect：一次呼叫可改動多部影片的精選狀態，批次取消無一鍵復原。"
             "精選是獨立欄位（user_rating），不是 user_tags 裡的 ★ 標籤——兩者互不影響、不會互相覆蓋。"
             "分集片（-cd1/-cd2 等）自動解析到代表段，效果套用到整組。"
@@ -764,7 +769,7 @@ _TOOLS: list[dict] = [
             "success": "boolean",
             "picked": "boolean — 本次設定的目標狀態",
             "results": "[{path, ok, reason?}] — 逐路徑回報，與輸入 1:1 對應；reason 目前只有 not_found",
-            "changed": "integer — 成功命中的影片組數（分集片去重後計數）。注意：本來就已是目標狀態的片也算命中，不代表這麼多片的星真的變了",
+            "changed": "integer — 成功命中的作品數（同一作品的多個輸入去重後計數；分集片去重後計數）。注意：本來就已是目標狀態的片也算命中，不代表這麼多片的星真的變了",
         },
         "side_effect": True,
         "confirmation_required": True,
@@ -775,7 +780,8 @@ _TOOLS: list[dict] = [
     {
         "name": "get_user_tags",
         "description": (
-            "查詢指定影片的現有 user_tags（user_tags POST 的對等讀取端點）。"
+            "查詢指定影片的現有 user_tags（user_tags POST 的對等讀取端點；回的是單一檔的清單，"
+            "作品聯集看 showcase_video 的 user_tags）。"
             "接受 file:/// URI 或 native FS 路徑（自動正規化）。影片不存在於 DB 時回 200 + 空清單。"
         ),
         "method": "GET",
@@ -798,11 +804,13 @@ _TOOLS: list[dict] = [
     {
         "name": "showcase_videos",
         "description": (
-            "列出當前 Showcase 設定資料夾下「所有」影片，每筆含 31 欄位 enrich 過的完整 metadata。"
+            "列出當前 Showcase 設定資料夾下「所有」影片，每筆含 33 欄位 enrich 過的完整 metadata。"
             " ⚠️ **分集片（`-cd1`/`-part2`…）一組只回一筆**（feature/122）：同資料夾同主幹的各段"
             "合併成單一 item，`path` 是**段號最小的那一段**（通常是 cd1，但不保證 cd1 存在）、"
             "`size` 是各段加總、`part_tokens` 列出段別。"
-            "因此 `total` 是**分組數不是檔案數**，做全庫盤點時不要當成檔案總數。"
+            " 一部作品一筆（feature/198b）：同資料夾同番號的多個版本收成一筆（`versions` 非空），"
+            "頂層是預設版本（中字優先、其次高等級），`versions` 列出全部版本。"
+            "因此 `total` 是**作品數（＝牆上卡數），不是檔案數**，做全庫盤點時不要當成檔案總數。"
             " ⚠️ 高 token 成本：回整個 configured directory（可能數百到數千筆）一次回完，無分頁。"
             " Routing 規則（依優先級）："
             " (1) 已知具體 path → 用 `showcase_video`（單筆，省 token）；"
@@ -820,10 +828,10 @@ _TOOLS: list[dict] = [
         },
         "output_schema": {
             "success": "boolean",
-            "total": "integer — videos 陣列長度",
+            "total": "integer — 作品數（＝牆上卡數），不是檔案數",
             "videos": {
                 "type": "array",
-                "description": "影片清單；每筆 item 為 31 欄位 dict（分集片一組一筆）",
+                "description": "影片清單；每筆 item 為 33 欄位 dict（分集片一組一筆；多版本一部作品一筆）",
                 "item_fields": {
                     "path": "string — file:/// URI（DB key 格式，可作為 showcase_video 查詢輸入）",
                     "title": "string",
@@ -836,7 +844,7 @@ _TOOLS: list[dict] = [
                         "string — ⚠️ 逗號分隔字串，**不是** array；"
                         "來源 4K 類標籤不出現（作品屬性，非檔案；檔案真相看 `resolution_tier`）"
                     ),
-                    "size": "integer — 檔案 bytes；分集片為各段加總",
+                    "size": "integer — 該版本自己的檔案 bytes；分集片為各段加總，多版本不加總",
                     "cover_url": "string — 後端代理 URL（/api/gallery/image?path=...），可直接 <img> 顯示",
                     "cover_full_url": "string — 恆為原圖代理 URL（不受縮圖快取開關影響）",
                     "mtime": "integer — Unix timestamp（秒）",
@@ -862,6 +870,9 @@ _TOOLS: list[dict] = [
                     "media_codec": "string | null — 視訊編碼標籤（如 H.264／HEVC）；無有效探針時 null",
                     "media_duration_min": "integer | null — 實際片長（分鐘）；無有效探針或 <1 時 null",
                     "source_duration": "integer | null — 來源片長（分鐘，NFO／刮削值）",
+                    "versions": "array — 單版本為空陣列；多版本列出每個版本、預設版本在 [0]，頂層＝預設版本",
+                    "borrowed_from": "string — 空字串＝自己有資料；非空＝片名／女優／封面等沿用自該 path",
+                    "version_kinds": "array — 只在多版本時出現；subtitle／cracked／ltx／leaked，空陣列＝原版",
                 },
             },
         },
@@ -872,7 +883,8 @@ _TOOLS: list[dict] = [
     {
         "name": "showcase_video",
         "description": (
-            "By-path 單筆查詢 Showcase 影片資料（showcase_videos 的單筆版本）。"
+            "By-path 單筆查詢 Showcase 影片資料（showcase_videos 的單筆版本），"
+            "頂層＝查詢 path 所在的版本，`versions` 列出整部作品。"
             " 比 `collection_sql WHERE path=...` 更省 prompt token，且回傳 schema 已 enrich"
             "（cover_url、has_cover、has_nfo 已預先計算）。"
             " 適合：(a) 前端 enrich-single / scrape-single 後刷新單張卡片；"
@@ -891,12 +903,13 @@ _TOOLS: list[dict] = [
         "output_schema": {
             "success": "boolean",
             "video": (
-                "object — 31 欄位 dict，schema 同 showcase_videos.videos.item_fields"
+                "object — 33 欄位 dict，schema 同 showcase_videos.videos.item_fields"
                 "（path/title/original_title/number/actresses[csv⚠️]/maker/release_date/tags[csv⚠️]/"
                 "size/cover_url/cover_full_url/mtime/director/duration/series/label/"
                 "sample_images[array]/user_tags[array]/user_rating[integer]/has_cover/has_nfo/auto_focal/crop_mode/"
                 "part_tokens[array]/needs_translate[boolean，標題含日文假名、沒有 original_title、且已有 NFO]/"
-                "resolution_tier/media_width/media_height/media_codec/media_duration_min/source_duration）。"
+                "resolution_tier/media_width/media_height/media_codec/media_duration_min/source_duration/"
+                "versions[array]/borrowed_from）。"
                 "注意 actresses 和 tags"
                 "是逗號分隔字串，其餘標記為 array 的欄位才是真正的 array。"
                 " 查詢分集片的任一段，回的都是該組的合併結果（`part_tokens` 非空）。"
@@ -1502,7 +1515,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "similar_covers_by_number",
-        "description": "規則式相似度排序：基於 tag IDF-weighted Jaccard + 系列 / 片商 / 年份多訊號 + MMR diversity；給定番號回傳 12 部探索星空候選。不修改資料庫。",
+        "description": "規則式相似度排序：基於 tag IDF-weighted Jaccard + 系列 / 片商 / 年份多訊號 + MMR diversity；給定番號回傳 12 部探索星空候選。結果不含與查詢片同番號的任何列（包含同一部作品的其他版本、其他資料夾的同番號複本），同一部作品只出現一次。不修改資料庫。",
         "side_effect": False,
         "method": "GET",
         "path": "/api/similar-covers/by-number/{number}",
@@ -1527,7 +1540,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "similar_covers",
-        "description": "同 similar_covers_by_number，但用 DB 內部 video_id 查詢。一般 AI agent 用 by-number 即可，本端點為內部識別保留。",
+        "description": "同 similar_covers_by_number，但用 DB 內部 video_id 查詢。結果不含與查詢片同番號的任何列（包含同一部作品的其他版本、其他資料夾的同番號複本），同一部作品只出現一次。一般 AI agent 用 by-number 即可，本端點為內部識別保留。",
         "side_effect": False,
         "method": "GET",
         "path": "/api/similar-covers/{video_id}",
@@ -1864,6 +1877,7 @@ _TOOLS: list[dict] = [
         "name": "ai_tags_tag_video",
         "description": (
             "叫 OpenAver 替一部片做 AI 標籤：把這部片的海報送到使用者在設定頁選好的 AI 連線，依詞表判讀後把標籤寫進資料庫與 NFO（user tag）。"
+            "只判斷、只寫目前版本；成功回應另帶 work_user_tags（整部作品各版本的標籤聯集）。"
             "會花使用者的錢（每部約一次請求）。"
             "使用者沒在設定頁開啟 AI 標籤時拒絕（reason=disabled），助理不能繞過。"
             "失敗時 HTTP 仍是 200，body 為 success=false 並帶 reason。"
@@ -1884,6 +1898,7 @@ _TOOLS: list[dict] = [
             "added": "[string] — 這次新增的標籤",
             "refused": "boolean — 模型拒絕判讀這張海報時為 true（此時沒有新增標籤，但這部片仍記為跑過）",
             "user_tags": "[string] — 更新後的完整 user_tags 清單",
+            "work_user_tags": "[string] — 寫完後整部作品各版本的標籤聯集",
             "nfo_updated": "boolean — NFO 是否同步更新",
             "readonly_no_output": "boolean — 唯讀來源且尚無輸出夾時為 true（標籤已存進 DB，但沒有 NFO 被更新）",
             "nfo_write_blocked": "boolean — NFO 寫入被擋下時為 true",

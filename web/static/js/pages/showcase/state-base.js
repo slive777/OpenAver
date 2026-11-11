@@ -13,6 +13,7 @@ import { serializePills, deserializePills } from '@/shared/pill-filter.js';
 import { computeBadges, resolveEnabledIds } from '@/shared/cover-badges.js';
 import { formatPartLabel } from '@/shared/part-label.js';
 import { computeActorAgesMap, singleActorAge } from '@/shared/actress-release-age.js';
+import { versionsOf } from './work-versions.js';
 
 // 53a codex F3: $persist 對 localStorage 壞 JSON 沒 try/catch（會在 Alpine init 階段拋錯炸整頁），
 // 必須在 Alpine.data 註冊前先清掃壞值，讓 $persist fallback 走預設物件
@@ -215,8 +216,12 @@ export function _recomputeVideoBadges(video, enabledIds) {
  */
 export function _recomputeAllBadges() {
     var enabledIds = _resolveCoverBadgeEnabledIds();
+    // 198b-T6：_allVideos 每格是一部作品的預設版本；每個版本各算各的 _badges（篩選時顯示版本會換）。
     for (var i = 0; i < _allVideos.length; i++) {
-        _recomputeVideoBadges(_allVideos[i], enabledIds);
+        var vers = versionsOf(_allVideos[i]);
+        for (var j = 0; j < vers.length; j++) {
+            _recomputeVideoBadges(vers[j], enabledIds);
+        }
     }
 }
 

@@ -189,6 +189,7 @@ const RULES = [
   })),
   // 175b-T9：膠囊列開關欄位已由 javbus_enabled 改名 maker_search_enabled（後端不再送舊欄位）。
   { file: 'web/static/js/pages/search/state/maker-latest.js', kind: 'forbidden-string', pattern: 'javbus_enabled', note: '[lint-guard:javbus_enabled-retired] 片商膠囊開關欄位已改名 maker_search_enabled，舊欄位名不得復活（後端不送，開關訊號會整條失效）' },
+  { file: 'web/static/js/pages/showcase/work-versions.js', kind: 'forbidden-string', pattern: /\.number\b/, note: '[lint-guard:work-versions-no-number] 前端不得用番號自己把檔案分組成作品（spec-122 §4.1：分組只由後端 version_group 決定；牆上只讀 _versions）' },
   // 98b-T6：亮窗幾何改 reactive data（imperative $nextTick 算），禁量測-in-binding 復活。
   // 100b-T1（CD-4/CD-5）：遮罩 DOM 抽出 web/templates/_macros/focal_mask.html partial，
   // 下列 6 條（原標 #2/#3/#4/#5/#6/#9）file: 改指向 partial——守護對象（遮罩互動綁定 /
