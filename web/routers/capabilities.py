@@ -1514,7 +1514,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "similar_covers_by_number",
-        "description": "規則式相似度排序：基於 tag IDF-weighted Jaccard + 系列 / 片商 / 年份多訊號 + MMR diversity；給定番號回傳 12 部探索星空候選。不修改資料庫。",
+        "description": "規則式相似度排序：基於 tag IDF-weighted Jaccard + 系列 / 片商 / 年份多訊號 + MMR diversity；給定番號回傳 12 部探索星空候選。結果不含與查詢片同番號的任何列（包含同一部作品的其他版本、其他資料夾的同番號複本），同一部作品只出現一次。不修改資料庫。",
         "side_effect": False,
         "method": "GET",
         "path": "/api/similar-covers/by-number/{number}",
@@ -1539,7 +1539,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "similar_covers",
-        "description": "同 similar_covers_by_number，但用 DB 內部 video_id 查詢。一般 AI agent 用 by-number 即可，本端點為內部識別保留。",
+        "description": "同 similar_covers_by_number，但用 DB 內部 video_id 查詢。結果不含與查詢片同番號的任何列（包含同一部作品的其他版本、其他資料夾的同番號複本），同一部作品只出現一次。一般 AI agent 用 by-number 即可，本端點為內部識別保留。",
         "side_effect": False,
         "method": "GET",
         "path": "/api/similar-covers/{video_id}",
