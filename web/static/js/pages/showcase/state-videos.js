@@ -151,12 +151,31 @@ export function stateVideos() {
             this.updatePagination();
             if (!keepLb) return;
 
-            // 燈箱對位：停在 anchor 那個版本（不是顯示版本）。找不到該 path → 作品已不在庫（或被藏）→ 關燈箱。
-            let target = null;
-            for (const w of _videos) {
-                target = versionsOf(w).find((ver) => ver.path === anchorPath) || null;
-                if (target) break;
+            const findVersion = (path) => {
+                for (const w of _videos) {
+                    const hit = versionsOf(w).find((ver) => ver.path === path);
+                    if (hit) return hit;
+                }
+                return null;
+            };
+            // fetchVideos 的 await 期間使用者可能已切片或關燈箱：只在「燈箱仍開著、仍停在 anchor」時才做下面的對位
+            // （含找不到 → 關燈箱）；否則不碰燈箱狀態，只在使用者停在別片（in-grid）時用它現在的 path 重新對 lightboxIndex，
+            // 免得上一部／下一部因牆重排而錯位。
+            const now = this.lightboxOpen === true ? this.currentLightboxVideo : null;
+            if (!(now && now.path === anchorPath)) {
+                if (now && now.path && !this.similarExitVideo) {
+                    const moved = findVersion(now.path);
+                    const j = moved ? _filteredVideos.findIndex((v) => sameWork(v, moved)) : -1;
+                    if (j >= 0) {
+                        this.lightboxIndex = j;
+                        this.currentLightboxVideo = moved;
+                    }
+                }
+                return;
             }
+
+            // 燈箱對位：停在 anchor 那個版本（不是顯示版本）。找不到該 path → 作品已不在庫（或被藏）→ 關燈箱。
+            const target = findVersion(anchorPath);
             if (!target) { this.closeLightbox(); return; }
             const idx = standalone ? -1 : _filteredVideos.findIndex((v) => sameWork(v, target));
             if (idx >= 0) {
