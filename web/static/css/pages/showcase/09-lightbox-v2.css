@@ -599,7 +599,7 @@ button.lbx-avatar {
 
 .lbx-pop-row .lbx-avatar--sm {
     align-self: center;
-    margin-inline-end: -.625rem;
+    margin-inline-end: -.375rem;
 }
 
 .lbx-people-row .lb-actor-age,
