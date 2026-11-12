@@ -36,7 +36,7 @@
         min-height: 0;
     }
 
-    /* 資料區是內容高度（不是固定高）；平常不得出現捲軸，展開後才可捲 */
+    /* T5 起閘內資料區固定 13.875rem（＝影片燈箱文字區高）；revert T5 會回到 T4 的 height:auto＋max-height。平常不得出現捲軸，展開後才可捲 */
     .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta {
         height: 13.875rem;
         max-height: 13.875rem;
