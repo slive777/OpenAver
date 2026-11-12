@@ -1742,11 +1742,11 @@ const RULES = [
   // 116a-T3：anchor 由 _actressCoreMetadata 改為 _actressCoreMetadataParts（函式被結構化陣列版原地取代）。
   // 199b-T4b：作品數來源由伺服器的 video_count 改為 actressWorkCount()（null ＝ 未就緒、整格不推）。
   // 舊 4 條／新 4 條；scope 不變，只換 pattern：① video_count → actressWorkCount(；② 不變；
-  // ③ video_count 的 push → key: 'count' 的 push（仍須在 .age push 之前）；④ typeof number 守門 → null 守門。
+  // ③ video_count 的 push → key: 'count' 且含 workCount 的 push（仍須在 .age push 之前）；④ typeof number 守門 → null 守門。
   {
-    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string', pattern: 'actressWorkCount(',
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string', pattern: /\bworkCount\s*=\s*this\.actressWorkCount\(/,
     scope: { anchor: /(?:^|\n)\s*_actressCoreMetadataParts\s*\([^)]*\)\s*\{/, braceBalanced: true },
-    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 方法體含 actressWorkCount(（199b-T4b 遷移：作品數改讀 actressWorkCount，不再讀伺服器 video_count；使用者後果：燈箱數值列的作品數與牆上「共 N 部」不一致）',
+    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 方法體把 workCount 綁到 this.actressWorkCount(…)（綁來源，讓 ③④ 綁 workCount 等同舊規則綁 .video_count；199b-T4b 遷移 + review F2 sibling：作品數改讀 actressWorkCount，不再讀伺服器 video_count；使用者後果：燈箱數值列的作品數與牆上「共 N 部」不一致）',
   },
   {
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string', pattern: 'showcase.unit.films',
@@ -1757,10 +1757,10 @@ const RULES = [
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order',
     scope: { anchor: /(?:^|\n)\s*_actressCoreMetadataParts\s*\([^)]*\)\s*\{/, braceBalanced: true },
     items: [
-      { pattern: /parts\.push\([^)]*key:\s*'count'[^)]*\)/ },
+      { pattern: /parts\.push\((?=[^)]*key:\s*'count')[^)]*\bworkCount\b[^)]*\)/ },
       { pattern: /parts\.push\([^)]*\.age[^)]*\)/ },
     ],
-    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 作品數（key: \'count\'）的 push 必須在 age push 之前（前置，brace-balanced scope；199b-T4b 遷移：舊 pattern 鎖 video_count 的 push）',
+    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 作品數（key: \'count\' 且顯示值含 workCount）的 push 必須在 age push 之前（review F2 sibling：顯示值綁 workCount，等同舊規則綁 video_count；把顯示值改成常數 0 → 燈箱寫 0部作品、與卡片不一致）（前置，brace-balanced scope；199b-T4b 遷移：舊 pattern 鎖 video_count 的 push）',
   },
   {
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
