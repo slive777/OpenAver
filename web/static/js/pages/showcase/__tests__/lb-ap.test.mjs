@@ -132,3 +132,74 @@ test('test_ap_cover_reset_on_switch', () => {
         _setFilteredActresses([]);
     }
 });
+
+test('test_ap_cover_cleared_when_work_hidden', async () => {
+    // 片庫重算（隱藏未連線硬碟、重新載入片庫失敗）後，封面那部片不在可見清單了 → 封面必須回照片，
+    // 否則縮圖排（回照片的唯一入口）整排消失、大圖卻停在離線檔的封面。
+    const { _setVideos, _setVideosReady, _setActressIndex, _loadAliasMap } = await import('../state-base.js');
+    const { buildActressIndex } = await import('../../../shared/actress-lookup.js');
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({ ok: false });
+    try {
+        await _loadAliasMap();
+        _setActressIndex(buildActressIndex([{ name: 'A' }], {}));
+        const v1 = { path: 'file:///C:/a1.mp4', number: 'AAA-001', actresses: 'A', release_date: '2022-01-01' };
+        const v2 = { path: 'file:///C:/a2.mp4', number: 'AAA-002', actresses: 'A', release_date: '2022-02-01' };
+        // 多版本：預設版本 m1（路徑 m1），另一個版本 m1b；封面點的是非預設版本
+        const m1 = { path: 'file:///C:/m1.mp4', number: 'MMM-001', actresses: 'A', release_date: '2021-01-01' };
+        const m1b = { path: 'file:///C:/m1b.mp4', number: 'MMM-001', actresses: 'A', release_date: '2021-01-01' };
+        m1._versions = [m1, m1b];
+        m1b._versions = m1._versions;
+        const fresh = () => makeComponent({ currentLightboxActress: { name: 'A' }, lbxApCoverFailed: true, lbxApCoverShown: true });
+
+        // 封面那部片仍在可見清單 → 封面不動（含旗標）
+        _setVideosReady(true);
+        _setVideos([v1, v2, m1]);
+        let c = fresh();
+        c.lbxApCover = { path: v1.path, number: v1.number };
+        c.lbxApRebuild();
+        assert.equal(c.lbxApTotal, 3);
+        assert.equal(c.lbxApCover?.path, v1.path, '封面那部還在 → 不動');
+        assert.equal(c.lbxApCoverShown, true, '封面沒清 → 旗標也不動');
+
+        // 多版本：封面是非預設版本、同一部作品還在 → 不動（只比 path 會誤清）
+        c = fresh();
+        c.lbxApCover = { path: m1b.path, number: m1b.number };
+        c.lbxApRebuild();
+        assert.equal(c.lbxApCover?.path, m1b.path, '同一部作品的另一個版本還在 → 不動');
+
+        // 封面那部片被藏起來（不在可見清單）但她還有別的片 → 封面清掉、旗標回初值
+        _setVideos([v2, m1]);
+        c = fresh();
+        c.lbxApCover = { path: v1.path, number: v1.number };
+        c.lbxApRebuild();
+        assert.equal(c.lbxApTotal, 2, '縮圖排還在');
+        assert.equal(c.lbxApCover, null, '封面那部片消失 → 回照片');
+        assert.equal(c.lbxApCoverFailed, false);
+        assert.equal(c.lbxApCoverShown, false);
+
+        // 她的片全消失（總數 0）→ 封面清掉
+        _setVideos([]);
+        c = fresh();
+        c.lbxApCover = { path: v1.path, number: v1.number };
+        c.lbxApRebuild();
+        assert.equal(c.lbxApTotal, 0);
+        assert.equal(c.lbxApCover, null, '她的片全沒了 → 回照片');
+
+        // 片庫沒就緒（fetchVideos 失敗）→ 封面清掉
+        _setVideos([v1, v2]);
+        _setVideosReady(false);
+        c = fresh();
+        c.lbxApCover = { path: v1.path, number: v1.number };
+        c.lbxApRebuild();
+        assert.equal(c.lbxApTotal, 0);
+        assert.equal(c.lbxApCover, null, '片庫沒就緒 → 回照片');
+        assert.equal(c.lbxApCoverShown, false);
+    } finally {
+        globalThis.fetch = realFetch;
+        const sb = await import('../state-base.js');
+        sb._setVideos([]);
+        sb._setVideosReady(false);
+        sb._setActressIndex(null);
+    }
+});

@@ -14,13 +14,16 @@
  * 199b-T6（點縮圖看封面）：lbxApCover＝點擊當下的快照（逐欄位挑選的新物件，不是 video 本身；null＝顯示照片）。
  * 「讀不到」「已顯示」兩個旗標是分片純量，不寫到 video 或 lbxApCover。封面開著與對焦／換照片互斥：
  * 封面端由 _focalIconVisible 與 .cover-actions 的 x-show 擋（P 擋 Q），縮圖排端由 lbxApStripLocked 擋（Q 擋 P）。
- * lbxApRebuild／lbxApStripVisible 不讀封面（封面開著時縮圖排仍要渲染，最左格是回照片的唯一入口）。
+ * lbxApStripVisible 不讀封面（封面開著時縮圖排仍要渲染，最左格是回照片的唯一入口）。
+ * lbxApRebuild 只在「封面那部片已不在可見清單、或片庫沒就緒」時清封面回照片（branch review F2：片庫重算後縮圖排可能整排消失，
+ * 大圖卻停在離線檔的封面，回照片的入口跟著不見）；封面那部還在就不動，換批、隱藏切換都不影響已選的那部。
  */
 
 import { _videos, _videosReady, _aliasMapLoaded, _actressIndex } from '@/showcase/state-base.js';
 import { worksOfActress } from '@/shared/actress-lookup.js';
 import { focalCellObjectPosition } from '@/shared/focal.js';
 import { batchLabel, nextBatchStart, sortWorksByRelease } from './lbx-logic.js';
+import { sameWork } from './work-versions.js';
 
 const LBX_AP_BATCH_SIZE = 6;
 
@@ -46,9 +49,13 @@ export function stateLightboxAp() {
                 this.lbxApStart = 0;
                 this.lbxApTotal = 0;
                 this.lbxApBatch = [];
+                this.lbxApBackToPhoto();   // 片庫沒就緒：縮圖排沒了，封面也要回照片（否則回照片的入口不見）
                 return;
             }
             items = sortWorksByRelease(worksOfActress(_videos, _actressIndex, actress));
+            // 封面那部片已不在可見清單（被「隱藏未連線硬碟」藏起、或她的片全沒了）→ 回照片。
+            // 用 sameWork（任一版本的 path 相符）不只比 path：多版本作品換過預設版本不會誤清。
+            if (this.lbxApCover && !items.some((v) => sameWork(v, this.lbxApCover))) this.lbxApBackToPhoto();
             const total = items.length;
             const start = this.lbxApStart < total ? this.lbxApStart : 0;
             this.lbxApTotal = total;
