@@ -1,0 +1,192 @@
+/* 199b 女優燈箱 v2：外框＋資料區（T4）。
+   本檔每條選擇器必含 `.lbx-`（CG-199B-01 強制）——本檔也會被 search.html、design-system.html 一起載入
+   （共用 _showcase_css.html），隔離全靠選擇器在那兩頁與影片分支結構上零命中。
+   隔離開關只有一個：女優分支包裝 div 的 `.lbx-actress-branch`；外框規則一律掛
+   `.lightbox-content:has(> .lbx-actress-branch)`，影片分支與搜尋頁結構上不帶它，不靠權重或載入順序。
+   不改 05／06／08／09 的任何既有規則（搜尋頁的女優燈箱仍在用 08 的舊列規則）。
+   閘：寬 ≥769（避開 06 的 max-width:768px）且高 ≥720（桌面最小保證），與 09 同閘。
+   垂直預算全用 rem（與影片燈箱同一條公式）：1.5 上 padding + .75 gap + 13.875 資料區 + .875 下 padding = 17rem。
+   本檔不得出現 px 高度數字。 */
+
+/* 資料區寬度不被資料列撐開（I-10）：不分閘——閘外的別名＋資訊列同樣是單行 nowrap，沒有 containment 會把卡片撐寬。 */
+.lbx-ap-meta {
+    container: lbx-ap-meta / inline-size;
+}
+
+@media (min-width: 769px) and (min-height: 720px) {
+    .lightbox-content:has(> .lbx-actress-branch) {
+        max-height: 96vh;
+        max-height: 96dvh;
+        padding: 1.5rem 1.5rem .875rem;
+        gap: .75rem;
+    }
+
+    /* 照片高 ＝ 影片封面同一條公式；直接子 `>` 才不會命中日後疊在 frame 內的其他 img */
+    .lightbox-content:has(> .lbx-actress-branch) .actress-lb-photo-frame > img {
+        height: calc(96vh - 17rem);
+        height: calc(96dvh - 17rem);
+        width: auto;
+        max-width: 100%;
+    }
+
+    /* 無照片：外框不因有無照片而變矮 */
+    .lightbox-content:has(> .lbx-actress-branch) .actress-lb-cover-placeholder {
+        height: calc(96vh - 17rem);
+        height: calc(96dvh - 17rem);
+        min-height: 0;
+    }
+
+    /* 資料區是內容高度（不是固定高）；平常不得出現捲軸，展開後才可捲 */
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta {
+        height: auto;
+        max-height: 13.875rem;
+        flex: none;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta[data-expanded] {
+        overflow-y: auto;
+    }
+
+    /* 第 1 行：名字列單行，長名走省略號 */
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta .actress-lb-header {
+        flex-wrap: nowrap;
+    }
+
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta .actress-lb-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* 第 2 行：數值列單行 */
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta .lb-actress-core {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* ── 名字列右端：部落格／官網小圖示（沒有該連結的女優 DOM 裡不存在）──────────────
+   形狀沿用 06 的 `.lb-delete-btn`（muted 小圖示），hover 換成 --text-primary（不 accent 常駐，克制）。 */
+.lbx-ap-meta .lbx-ap-link {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 1px solid transparent;
+    border-radius: var(--fluent-radius-md);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: .8125rem;
+    line-height: 1;
+    text-decoration: none;
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.lbx-ap-meta .lbx-ap-link:hover {
+    color: var(--text-primary);
+    background: var(--surface-1);
+    border-color: var(--stroke-subtle);
+}
+
+.lbx-ap-meta .lbx-ap-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ── 第 3 行：別名＋資訊同一行（放不下收成「+N」，點開全看得到）──────────────────
+   可見層 `.lbx-ap-list` 單行 nowrap、overflow:hidden；露出幾顆由 lbxApFit 分片量 `.lbx-ap-measure`
+   （可見層的隱形複本，共用同一組 class 寬度才一致）。展開（資料區 [data-expanded]）後換行排開。
+   `.is-measuring` 只用 visibility:hidden（版面保留，不用 display:none——會讓 clientWidth 變 0、量測失效）。
+   chip 沿用 `.lightbox-metadata .lb-tag` 的底色／邊框，這裡只定高度、單顆上限與省略號。 */
+.lbx-ap-meta .lbx-ap-chips {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-width: 0;
+    margin: .25rem 0;
+}
+
+.lbx-ap-meta .lbx-ap-chips.is-measuring {
+    visibility: hidden;
+}
+
+.lbx-ap-meta .lbx-ap-label {
+    flex: none;
+    align-self: flex-start;
+    font-size: .75rem;
+    line-height: 1.375rem;
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.lbx-ap-meta .lbx-ap-list {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.lbx-ap-meta[data-expanded] .lbx-ap-list {
+    flex-wrap: wrap;
+    overflow: visible;
+}
+
+.lbx-ap-meta .lbx-ap-chips .lbx-ap-chip,
+.lbx-ap-meta .lbx-ap-chips .lbx-ap-more {
+    box-sizing: border-box;
+    flex: none;
+    height: 1.375rem;
+    padding: 0 .5rem;
+    font-family: inherit;
+    line-height: 1.25rem;
+    white-space: nowrap;
+}
+
+.lbx-ap-meta .lbx-ap-chips .lbx-ap-chip {
+    max-width: min(16rem, 60cqw);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lbx-ap-meta .lbx-ap-chips .lbx-ap-more {
+    cursor: pointer;
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.lbx-ap-meta .lbx-ap-chips .lbx-ap-more:hover {
+    color: var(--text-primary);
+    border-color: var(--stroke-default);
+}
+
+.lbx-ap-meta .lbx-ap-chips .lbx-ap-more:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: 1px;
+}
+
+/* 量測層：全部 chip 的隱形複本＋最壞位數的「+(n−1)」；不佔版面也不影響 `.lbx-ap-list` 的 clientWidth */
+.lbx-ap-meta .lbx-ap-measure {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: max-content;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    white-space: nowrap;
+}

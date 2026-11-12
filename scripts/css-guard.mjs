@@ -3147,6 +3147,44 @@ const RULES = [
       }
     },
   },
+  // 199b-T4：10-lightbox-actress-v2.css 女優燈箱 v2 外框隔離（形狀鏡射 CG-199A-01）。
+  // ① 每條選擇器都必含 .lbx-（在影片／搜尋頁零命中）；② 帶外框尺寸（96dvh／17rem／13.875rem）的 block
+  // 每條選擇器都必須掛 :has(> .lbx-actress-branch)。外框規則包在 @media 內，必須 flattenRuleBlocks 展平（FE-GUARD-14）。
+  {
+    id: 'CG-199B-01',
+    file: 'pages/showcase/10-lightbox-actress-v2.css',
+    kind: 'fn',
+    check(ctx) {
+      const splitSelectors = (sel) => {
+        const out = [];
+        let depth = 0;
+        let cur = '';
+        for (const ch of sel) {
+          if (ch === '(' || ch === '[') depth += 1;
+          else if (ch === ')' || ch === ']') depth -= 1;
+          if (ch === ',' && depth === 0) { out.push(cur.trim()); cur = ''; } else cur += ch;
+        }
+        if (cur.trim()) out.push(cur.trim());
+        return out;
+      };
+      const styleBlocks = flattenRuleBlocks(ctx.blocks);
+      if (styleBlocks.length === 0) {
+        ctx.fail('CG-199B-01: 10-lightbox-actress-v2.css 解析不到任何 style block（空檔會讓隔離守衛靜默通過）');
+        return;
+      }
+      for (const { selector, declarations } of styleBlocks) {
+        const sized = /96dvh|17rem|13\.875rem/.test(declarations);
+        for (const one of splitSelectors(selector)) {
+          if (!/\.lbx-/.test(one)) {
+            ctx.fail(`CG-199B-01: 選擇器缺 .lbx- 隔離標記（會在影片／搜尋頁燈箱命中）— ${one}`);
+          }
+          if (sized && !/:has\(\s*>\s*\.lbx-actress-branch\s*\)/.test(one)) {
+            ctx.fail(`CG-199B-01: 帶外框尺寸（96dvh／17rem／13.875rem）的選擇器必須掛 :has(> .lbx-actress-branch) — ${one}`);
+          }
+        }
+      }
+    },
+  },
 ];
 
 // 解析 _showcase_css.html 的 <link href> 出現順序——單一來源＝ CD-148a-3 的 template，

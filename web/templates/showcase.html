@@ -920,7 +920,7 @@
 
                 <!-- 44a T4: Actress Lightbox Branch -->
                 <template x-if="currentLightboxActress">
-                    <div style="display:contents">
+                    <div class="lbx-actress-branch" style="display:contents">
                         <!-- Actress Cover -->
                         <div class="lightbox-cover">
                             <!-- 100b-T2b（§B-2b lifecycle 契約的另一半，見下）：@load 是
@@ -1014,7 +1014,10 @@
                         </div>
 
                         <!-- Actress Metadata Panel -->
-                        <div class="lightbox-metadata actress-lightbox-meta">
+                        <!-- 199b-T4：資料區 = 名字列（右端：部落格／官網小圖示）／數值列／別名＋資訊同一行（放不下收成 +N）。
+                             :data-expanded 讀 _actressChipsIsExpanded()（點 +N 展開後才可捲、滾輪才交還），其餘重置沿用既有三處。 -->
+                        <div class="lightbox-metadata actress-lightbox-meta lbx-ap-meta"
+                             :data-expanded="_actressChipsIsExpanded()">
                             <!-- Row 1: Header — name + name_en + heart icon -->
                             <div class="actress-lb-header">
                                 <div class="actress-lb-title">
@@ -1058,6 +1061,18 @@
                                         :aria-label="t('showcase.actress.remove')">
                                     <i class="bi bi-trash"></i>
                                 </button>
+                                <template x-if="currentLightboxActress?.blog_url">
+                                    <a class="lbx-ap-link" target="_blank" rel="noopener"
+                                       :href="currentLightboxActress.blog_url?.startsWith('http') ? currentLightboxActress.blog_url : ''"
+                                       :title="t('showcase.actress.link_blog')"
+                                       :aria-label="t('showcase.actress.link_blog')"><i class="bi bi-journal-text" aria-hidden="true"></i></a>
+                                </template>
+                                <template x-if="currentLightboxActress?.official_url">
+                                    <a class="lbx-ap-link" target="_blank" rel="noopener"
+                                       :href="currentLightboxActress.official_url?.startsWith('http') ? currentLightboxActress.official_url : ''"
+                                       :title="t('showcase.actress.link_official')"
+                                       :aria-label="t('showcase.actress.link_official')"><i class="bi bi-globe" aria-hidden="true"></i></a>
+                                </template>
                             </div>
                             <!-- Row 2: Core metadata (age · birth · height · cup · BWH) -->
                             <div class="lb-actress-core" x-show="_actressCoreMetadataParts().length">
@@ -1071,46 +1086,36 @@
                                     </span>
                                 </template>
                             </div>
-                            <!-- Row 3: Aliases chips +N -->
-                            <div class="lb-chips-row"
-                                 x-show="(currentLightboxActress?.aliases || []).length > 0">
-                                <!-- T3: alias label + tooltip -->
-                                <span class="lb-chips-label"
-                                      :title="t('showcase.lightbox.alias_source_hint')"
-                                      x-text="t('showcase.lightbox.alias_label')"></span>
-                                <template x-for="alias in _visibleAliases()" :key="alias">
-                                    <span class="lb-tag" x-text="alias"></span>
-                                </template>
-                                <span class="lb-tag lb-chips-more"
-                                      x-show="_aliasesOverflow() > 0 && !_actressChipsExpanded.aliases"
-                                      x-text="'+' + _aliasesOverflow()"
-                                      @click="_actressChipsExpanded.aliases = true"></span>
-                            </div>
-                            <!-- Row 4: Info chips +N (tags + hometown + nickname + agency + hobby + debut_work) -->
-                            <div class="lb-chips-row"
-                                 x-show="_allInfoChips().length > 0">
-                                <template x-for="chip in _visibleInfoChips()" :key="chip">
-                                    <span class="lb-tag" x-text="chip"></span>
-                                </template>
-                                <span class="lb-tag lb-chips-more"
-                                      x-show="_infoChipsOverflow() > 0 && !_actressChipsExpanded.info"
-                                      x-text="'+' + _infoChipsOverflow()"
-                                      @click="_actressChipsExpanded.info = true"></span>
-                            </div>
-                            <!-- Row 5: URLs -->
-                            <div class="lb-actress-urls"
-                                 x-show="currentLightboxActress?.blog_url || currentLightboxActress?.official_url">
-                                <a x-show="currentLightboxActress?.blog_url"
-                                   :href="currentLightboxActress?.blog_url?.startsWith('http') ? currentLightboxActress.blog_url : ''"
-                                   target="_blank"
-                                   rel="noopener"
-                                   x-text="currentLightboxActress?.blog_url"></a>
-                                <a x-show="currentLightboxActress?.official_url"
-                                   :href="currentLightboxActress?.official_url?.startsWith('http') ? currentLightboxActress.official_url : ''"
-                                   target="_blank"
-                                   rel="noopener"
-                                   x-text="currentLightboxActress?.official_url"></a>
-                            </div>
+                            <!-- Row 3（199b-T4）：別名＋資訊同一行，放不下收成 +N（點了展開全部）。沒有別名也沒有資訊 chip 就整行不畫。
+                                 露出數由 lbxApFit 分片量 .lbx-ap-measure（可見層的隱形複本，共用同一組 class 寬度才一致）；
+                                 量完前列帶 is-measuring（visibility:hidden，版面保留）。x-effect 與 :class 只傳引數給 lbxApFit*，分片不讀別片的狀態。
+                                 量測層與可見層的 chip 各自一整行寫完（不夾空白），+N 的 N 只准用 lbxApFitHidden。 -->
+                            <template x-if="_actressLbChips().length > 0">
+                                <div class="lbx-ap-chips"
+                                     :class="{'is-measuring': lbxApFitMeasuring(lbxApFitSig(currentLightboxActress?.name, _actressLbChips(), _actressChipsIsExpanded()))}"
+                                     x-effect="lbxApFitSchedule($el, lbxApFitSig(currentLightboxActress?.name, _actressLbChips(), _actressChipsIsExpanded()))">
+                                    <template x-if="(currentLightboxActress?.aliases || []).length > 0">
+                                        <span class="lbx-ap-label"
+                                              :title="t('showcase.lightbox.alias_source_hint')"
+                                              x-text="t('showcase.lightbox.alias_label')"></span>
+                                    </template>
+                                    <div class="lbx-ap-list">
+                                        <template x-for="chip in (_actressChipsIsExpanded() ? _actressLbChips() : _actressLbChips().slice(0, lbxApFitShown(_actressLbChips().length)))" :key="chip.kind + ':' + chip.text"><span class="lb-tag lbx-ap-chip" :title="chip.text" x-text="chip.text"></span></template>
+                                        <template x-if="!_actressChipsIsExpanded() && lbxApFitHidden(_actressLbChips().length) > 0">
+                                            <button type="button" class="lb-tag lbx-ap-more"
+                                                    :aria-label="t('showcase.actress.chips_more_aria', { n: lbxApFitHidden(_actressLbChips().length) })"
+                                                    @click="_actressChipsExpanded = { aliases: true, info: true }"
+                                                    x-text="'+' + lbxApFitHidden(_actressLbChips().length)"></button>
+                                        </template>
+                                    </div>
+                                    <!-- 量測層：不可見、不可聚焦、不念給螢幕閱讀器；沒有 @click／<a>／<button>（可見層才是互動站點）。
+                                         「+N」只在多於 1 顆時畫，N＝最壞情況（只露 1 顆）。 -->
+                                    <div class="lbx-ap-measure" aria-hidden="true" inert>
+                                        <template x-for="chip in _actressLbChips()" :key="chip.kind + ':' + chip.text"><span class="lb-tag lbx-ap-chip" x-text="chip.text"></span></template>
+                                        <template x-if="_actressLbChips().length > 1"><span class="lb-tag lbx-ap-more" x-text="'+' + (_actressLbChips().length - 1)"></span></template>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
 
                     </div>

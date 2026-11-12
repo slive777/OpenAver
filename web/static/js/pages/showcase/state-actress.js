@@ -811,10 +811,6 @@ export function stateActress() {
 
         // --- 44a T4: Lightbox chips + metadata helpers ---
 
-        _chipsLimit() {
-            return window.innerWidth >= 768 ? 10 : 6;
-        },
-
         // TASK-116a-T3: 取代 _actressCoreMetadata()——回傳結構化陣列，年齡/身高/罩杯三格可點（CD-116a-6）
         _actressCoreMetadataParts() {
             var a = this.currentLightboxActress; if (!a) return [];
@@ -993,22 +989,18 @@ export function stateActress() {
             return [].concat(a.tags || [], [a.hometown, a.nickname, a.agency, a.hobby, a.debut_work]).filter(Boolean);
         },
 
-        _visibleAliases() {
-            var all = this.currentLightboxActress?.aliases || [];
-            return this._actressChipsExpanded.aliases ? all : all.slice(0, this._chipsLimit());
+        // 199b-T4：女優燈箱「別名＋資訊」同一行的全部 chip（別名在前、資訊在後）；露出幾顆由 lbxApFit 分片量測
+        _actressLbChips() {
+            var aliases = (this.currentLightboxActress?.aliases || []).map(function (text) { return { kind: 'alias', text: text }; });
+            var info = this._allInfoChips().map(function (text) { return { kind: 'info', text: text }; });
+            return aliases.concat(info);
         },
 
-        _aliasesOverflow() {
-            return Math.max(0, (this.currentLightboxActress?.aliases || []).length - this._chipsLimit());
-        },
-
-        _visibleInfoChips() {
-            var all = this._allInfoChips();
-            return this._actressChipsExpanded.info ? all : all.slice(0, this._chipsLimit());
-        },
-
-        _infoChipsOverflow() {
-            return Math.max(0, this._allInfoChips().length - this._chipsLimit());
+        // 無條件讀兩個旗標再組合（短路會漏訂閱，FE-ALPINE-08）
+        _actressChipsIsExpanded() {
+            var aliases = this._actressChipsExpanded.aliases;
+            var info = this._actressChipsExpanded.info;
+            return aliases || info;
         },
 
         // --- 117-T3/T4: Actress add panel（T5 queue stubs 仍在） ---

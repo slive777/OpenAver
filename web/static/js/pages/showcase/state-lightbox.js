@@ -34,7 +34,7 @@ export function isStaleLbFullError(actualSrc, expectedSrc) {
 // 就算內容溢出也不交還——滾輪換片，不讓使用者陷在既不捲也不換片的死區。
 export function shouldYieldVerticalWheel(target) {
     if (target.closest(WHEEL_VERTICAL_EXCLUDE_SELECTOR)) return true;
-    const meta = target.closest('.lbx-meta');
+    const meta = target.closest('.lbx-meta, .lbx-ap-meta');
     if (!meta) return false;
     const oy = getComputedStyle(meta).overflowY;
     return (oy === 'auto' || oy === 'scroll') && meta.scrollHeight > meta.clientHeight;
@@ -47,7 +47,8 @@ const WHEEL_EXCLUDE_SELECTOR = '.sample-strip, .sg-thumbs, .picker-candidates-gr
 // 不吃導航（僅 vertical 分支檢查，horizontal 分支不受影響、行為不變）。
 // 199a-T1：女優 .lightbox-metadata（無 .lbx-meta）一律交還；影片的 .lbx-meta 排除在外，改由
 // shouldYieldVerticalWheel 看實際可捲狀態決定；.lbx-pop 為影片燈箱浮層（T3 起才有此 DOM）。
-const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata:not(.lbx-meta), .lbx-pop';
+// 199b-T4：女優資料區 .lbx-ap-meta 平常 overflow:hidden（捲不動）→ 與 .lbx-meta 同一套「可捲且真溢出才交還」。
+const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata:not(.lbx-meta):not(.lbx-ap-meta), .lbx-pop';
 
 export function stateLightbox() {
     // TASK-102d-T1：四個獨立累積器（Lightbox 影片 / Lightbox 女優 / 劇照 / 牆翻頁）——

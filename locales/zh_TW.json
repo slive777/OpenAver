@@ -1659,6 +1659,9 @@
       "addFavorite": "加入收藏",
       "favorited": "已收藏",
       "change_photo": "換照片",
+      "link_blog": "部落格",
+      "link_official": "官方網站",
+      "chips_more_aria": "顯示其餘 {n} 項",
       "panel": {
         "title": "從片庫加入女優",
         "search_placeholder": "搜尋片庫女優，或輸入完整姓名新增",

@@ -93,6 +93,14 @@ export function fitActresses({ chipWidths, moreChipWidth, available, gap, max = 
     return shown;
 }
 
+/**
+ * fitChipRow：女優燈箱「別名＋資訊」單行 chips 的露出數（199b-T4，CD-199b-3）。
+ * fitActresses 的 max＝全部數薄包裝；至少露 1 顆（min: 1），被收起的個數＝總數 − 露出數。
+ */
+export function fitChipRow({ chipWidths, moreChipWidth, available, gap }) {
+    return fitActresses({ chipWidths, moreChipWidth, available, gap, max: chipWidths.length, min: 1 });
+}
+
 /** workInfoFields：作品資訊欄位（199a-T5，CD-199a-10）。空欄位不列；廠牌等於片商不重複列；來源片長 >0 才列。 */
 export function workInfoFields(video, { releaseClickable = false } = {}) {
     if (!video) return [];
