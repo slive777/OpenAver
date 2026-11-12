@@ -586,6 +586,22 @@ button.lbx-avatar {
     outline-offset: -2px;
 }
 
+/* 199b-T2：名單列小頭像（非互動 span 純顯示）。放在 T1 .lbx-avatar 全套之後，同特異性靠順序覆寫自訂屬性。
+   列是 flex + baseline + gap .75rem：用負 margin-inline-end 抵銷 T1 的 .375rem 與 gap 相加過寬，讓小頭像右緣到名字左緣約 .5rem；
+   align-self center 讓 20px 圓不推高列（列高由 line-height 1.25rem 決定）。 */
+.lbx-avatar--sm {
+    --lbx-avatar-size: 1.25rem;
+}
+
+.lbx-avatar--sm .lbx-avatar-initial {
+    font-size: .625rem;
+}
+
+.lbx-pop-row .lbx-avatar--sm {
+    align-self: center;
+    margin-inline-end: -.625rem;
+}
+
 .lbx-people-row .lb-actor-age,
 .lbx-pop .lb-actor-age {
     color: var(--text-muted);

@@ -11,7 +11,7 @@
  */
 
 import { versionsOf } from './work-versions.js';
-import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields } from './lbx-logic.js';
+import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields, orderFavoritesFirst } from './lbx-logic.js';
 
 const LBX_POP_HOVER_CLOSE_MS = 160;
 const LBX_POP_ANCHOR_SEL = '[data-lbx-anchor]';
@@ -211,7 +211,7 @@ export function stateLightboxPop() {
 
         // 第 3 列（199a-T5）：女優名單／作品資訊欄位。讀 currentLightboxVideo，屬 pop 分片的外求（CD-199a-3 已接受）；不放進 fit 分片
         lbxActressList() {
-            return parseActresses(this.currentLightboxVideo);
+            return orderFavoritesFirst(parseActresses(this.currentLightboxVideo), (n) => !!this._lbActorFavs?.[n]);
         },
 
         // 頭像表鍵集合（199b-T1，D3）：排序後串成字串，餵給 lbxFitSig 的第三引數；放這裡不放 fit 分片（fit 外求 0）

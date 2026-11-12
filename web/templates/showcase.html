@@ -1507,7 +1507,7 @@
                             <div class="lbx-pop-list">
                                 <div class="lbx-pop-title" x-text="t('showcase.lightbox.actresses_all_title', { n: lbxActressList().length })"></div>
                                 <template x-for="name in lbxActressList()" :key="name">
-                                    <div class="lbx-pop-row"><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></div>
+                                    <div class="lbx-pop-row"><template x-if="_lbActorFavs[name]"><span class="lbx-avatar lbx-avatar--sm" aria-hidden="true"><span class="lbx-avatar-initial" x-text="_lbActorFavs[name].initial"></span><template x-if="_lbActorFavs[name].photo_url"><img alt="" loading="lazy" decoding="async" :src="_lbActorFavs[name].photo_url" @error="$el.hidden = true" @load="$el.hidden = false"></template></span></template><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></div>
                                 </template>
                             </div>
                         </template>

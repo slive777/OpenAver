@@ -123,6 +123,12 @@ export function parseActresses(video) {
     return String(video?.actresses || '').split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+/** orderFavoritesFirst：收藏者優先穩定分組（199b-T2，CD-199b-8）。isFav 為真的在前、其餘在後，兩群各自維持原順序；回傳新陣列。 */
+export function orderFavoritesFirst(names, isFav) {
+    const list = Array.isArray(names) ? names : [];
+    return [...list.filter((n) => isFav(n)), ...list.filter((n) => !isFav(n))];
+}
+
 /**
  * actorFavsOf：影片女優頭像表（199b-T1，CD-199b-7）。key＝片上寫的名字（trim 過、同名只留一筆），
  * 只收 index.lookup(片上名字) 查得到的；name＝收藏名、photo_url＝當下的 a.photo_url（無照片為 ''）、

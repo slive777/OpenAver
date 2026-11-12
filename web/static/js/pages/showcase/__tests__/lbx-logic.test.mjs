@@ -109,3 +109,37 @@ test('test_fit_tag_row_user_tags_first_then_overflow_to_more', async () => {
     // (c) 都沒有標籤 → 0／0
     assert.deepEqual(fitTagRow({ ...base, rowWidth: 1000, userWidths: [], workWidths: [] }), { userShown: 0, workShown: 0 });
 });
+
+// TASK-199b-T2：收藏者優先穩定分組（純函式）。
+test('test_orderFavoritesFirst_favs_first_stable_groups', async () => {
+    const { orderFavoritesFirst } = await import('../lbx-logic.js');
+    const names = ['丙', '丁', '壬', '戊', '癸'];
+    const isFav = (n) => n === '壬' || n === '癸';
+
+    // (a) 收藏者在前、兩群各自維持資料順序
+    assert.deepEqual(orderFavoritesFirst(names, isFav), ['壬', '癸', '丙', '丁', '戊']);
+    // (b) 全沒收藏 → 同序且回傳新陣列、輸入未被改動
+    const plain = orderFavoritesFirst(names, () => false);
+    assert.deepEqual(plain, names);
+    assert.notEqual(plain, names);
+    assert.deepEqual(names, ['丙', '丁', '壬', '戊', '癸']);
+    // (c) 全收藏 → 同序；非陣列 → []
+    assert.deepEqual(orderFavoritesFirst(names, () => true), names);
+    assert.deepEqual(orderFavoritesFirst(null, isFav), []);
+    assert.deepEqual(orderFavoritesFirst('壬', isFav), []);
+});
+
+// TASK-199b-T2：lbxActressList 接線（收藏者優先排進第 3 列與名單）。
+test('test_lbxActressList_puts_favs_first_same_order_as_data', async () => {
+    const { stateLightboxPop } = await import('../state-lightbox-pop.js');
+    const call = (currentLightboxVideo, _lbActorFavs) =>
+        stateLightboxPop().lbxActressList.call({ currentLightboxVideo, _lbActorFavs });
+
+    const video = { actresses: '丙, 丁, 壬, 戊, 癸' };
+    const favs = { 壬: { name: '壬' }, 癸: { name: '癸' } };
+    // (a) 有收藏 → 收藏者排前面、兩群各自維持資料順序
+    assert.deepEqual(call(video, favs), ['壬', '癸', '丙', '丁', '戊']);
+    // (b) 無收藏表 → 資料順序
+    assert.deepEqual(call(video, {}), ['丙', '丁', '壬', '戊', '癸']);
+    assert.deepEqual(call(video, undefined), ['丙', '丁', '壬', '戊', '癸']);
+});
