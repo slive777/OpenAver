@@ -650,6 +650,47 @@ const RULES = [
     scope: { anchor: /<div class="lbx-measure" aria-hidden="true" inert>/, window: 360 }, // 實測 anchor 到 <span class="lbx-avatar" 結尾 272 字元（人物列那一個量測層，先出現；標籤列的量測層不放頭像），加約 32% 餘裕
     note: '[lint-guard:199b-T1-measure-avatar] 量測層 chip 少了與頭像同尺寸的空圓 → 使用者開三位都收藏的片，量測層算出的 chip 比實際窄，名字被擠斷或「另有 N 位」的數字不對',
   },
+
+  // ---- 199b-T3：收藏女優小卡（滑過／聚焦／觸控頭像 → 往下浮出，純顯示）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: "lbxPop.kind === 'actorCard'",
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 19500 }, // 實測 anchor 到 actorCard template 的 kind 判斷結尾 14990 字元（隔著 verTip／title／otitle／menu／actresses／info／plot／moreTags），加約 30% 餘裕
+    note: '[lint-guard:199b-T3-card-in-host] 收藏女優小卡必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者把滑鼠停在頭像上什麼都看不到',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [
+      'data-lbx-anchor="actorCard"',
+      "lbxPopHoverStart($event, 'actorCard', name, { dwell: true })",
+      "@focus=\"lbxPopHoverStart($event, 'actorCard', name)\"",
+      '@pointerleave="lbxPopHoverEnd()"',
+      '@blur="lbxPopHoverEnd()"',
+      'lbxActorAvatarTap($event, name)',
+    ],
+    scope: { anchor: /<button\b[^>]*\bclass="lbx-avatar"[^>]*>/, window: 480 }, // 實測 anchor（可見層頭像開標籤，量測層是 <span>）到最遠的 lbxActorAvatarTap($event, name) 結尾 369 字元，加約 30% 餘裕
+    note: '[lint-guard:199b-T3-avatar-wired] 可見層頭像少了錨點或 hover／focus／tap 接線 → 缺錨點：使用者點頭像想收起小卡，被判成「點外面」先收掉又重開；缺 lbxActorAvatarTap：鍵盤 Enter 變成開小卡，進不了她的片牆',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'order',
+    scope: { anchor: /lbxPopClose\(\{ restoreFocus = false \} = \{\}\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: /this\._lbxPopClearOpenTimer\(\);/ },
+      { pattern: 'if (!cur) return;' },
+    ],
+    note: '[lint-guard:199b-T3-close-clears-open-timer] lbxPopClose 沒清停留計時器或排到「浮層為空就早退」之後 → 使用者滑鼠剛掃到頭像就按 Esc 關燈箱，0.3 秒後小卡在已經關掉的燈箱位置自己冒出來',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'order',
+    scope: { anchor: /lbxPopHoverEnd\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: /this\._lbxPopClearOpenTimer\(\);/ },
+      { pattern: "if (!this.lbxPop || this.lbxPop.mode !== 'hover') return;" },
+    ],
+    note: '[lint-guard:199b-T3-hoverend-clears-open-timer] lbxPopHoverEnd 沒清停留計時器或排到早退之後 → 使用者只是把滑鼠橫越頭像、沒打算停，0.3 秒後小卡也彈出來蓋住下面的內容',
+  },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: ['data-lbx-anchor="actresses"', 'data-lbx-anchor="info"'],

@@ -1302,7 +1302,7 @@
                                  x-effect="lbxFitSchedule($el, lbxFitSig(currentLightboxVideo, addingLbTag, lbxFavKey()))">
                                 <div class="lbx-actors">
                                     <template x-for="name in lbxActressList().slice(0, lbxFit.actressShown)" :key="name">
-                                        <span class="lbx-actor-chip"><template x-if="_lbActorFavs[name]"><button type="button" class="lbx-avatar" :aria-label="t('showcase.lightbox.actor_avatar_aria', { name })" @click.prevent="searchFromMetadata(name, 'actress')"><span class="lbx-avatar-initial" x-text="_lbActorFavs[name].initial"></span><template x-if="_lbActorFavs[name].photo_url"><img alt="" loading="lazy" decoding="async" :src="_lbActorFavs[name].photo_url" @error="$el.hidden = true" @load="$el.hidden = false"></template></button></template><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
+                                        <span class="lbx-actor-chip"><template x-if="_lbActorFavs[name]"><button type="button" class="lbx-avatar" data-lbx-anchor="actorCard" :aria-label="t('showcase.lightbox.actor_avatar_aria', { name })" @pointerenter="lbxPopHoverStart($event, 'actorCard', name, { dwell: true })" @focus="lbxPopHoverStart($event, 'actorCard', name)" @pointerleave="lbxPopHoverEnd()" @blur="lbxPopHoverEnd()" @click.prevent="lbxActorAvatarTap($event, name)"><span class="lbx-avatar-initial" x-text="_lbActorFavs[name].initial"></span><template x-if="_lbActorFavs[name].photo_url"><img alt="" loading="lazy" decoding="async" :src="_lbActorFavs[name].photo_url" @error="$el.hidden = true" @load="$el.hidden = false"></template></button></template><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
                                     </template>
                                     <template x-if="lbxActressList().length > lbxFit.actressShown">
                                         <button type="button" class="lb-tag lbx-more-actors" data-lbx-anchor="actresses" aria-haspopup="true"
@@ -1605,6 +1605,20 @@
                                         </div>
                                     </div>
                                 </template>
+                            </div>
+                        </template>
+                        <!-- 199b-T3：收藏女優小卡（純顯示；hover 模式 pointer-events:none，內部不放任何可點／可聚焦的東西） -->
+                        <template x-if="lbxPop.kind === 'actorCard'">
+                            <div class="lbx-actor-card">
+                                <template x-if="lbxActorCard().photo">
+                                    <img class="lbx-actor-card__photo" alt="" decoding="async" :src="lbxActorCard().photo" @error="$el.hidden = true">
+                                </template>
+                                <div class="lbx-actor-card__body">
+                                    <div class="lbx-actor-card__name" x-text="lbxActorCard().name"></div>
+                                    <template x-for="row in lbxActorCard().rows" :key="row.id">
+                                        <div class="lbx-actor-card__row" x-text="row.text"></div>
+                                    </template>
+                                </div>
                             </div>
                         </template>
                     </div>

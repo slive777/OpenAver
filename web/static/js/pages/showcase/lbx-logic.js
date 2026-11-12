@@ -65,6 +65,7 @@ export function menuItems(video, { sampleCount, trVisible, hasPath }) {
 /** popPlacement：各 kind 的位置模式與水平對齊（199a-T4）。 */
 export function popPlacement(kind) {
     if (kind === 'title' || kind === 'otitle') return { mode: 'inplace', align: 'left' };
+    if (kind === 'actorCard') return { mode: 'below', align: 'left' };
     if (kind === 'menu') return { mode: 'below', align: 'right' };
     if (kind === 'info') return { mode: 'below', align: 'right' };
     return { mode: 'below', align: 'left' };
@@ -144,6 +145,29 @@ export function actorFavsOf(video, index) {
         out[name] = { name: a.name, photo_url: a.photo_url || '', initial: Array.from(name)[0] || '' };
     }
     return out;
+}
+
+/**
+ * 收藏女優小卡的內容（199b-T3，CD-199b-9）。純函式，t 由呼叫端注入（鏡射 bandParts 注入 formatSize）。
+ * rows 依序 age／body／count，缺哪項整行不放進去。age 行看現在年齡（entity.age），沒生日就整行沒有；
+ * ageAtRelease 只決定要不要附「拍這部時」。age／count 用 != null 判（count 的 0 是合法值），
+ * height／cup／bwh 用 truthy 判——兩套缺值判定刻意不統一，鏡射 state-actress.js 的 _actressHoverInfo。
+ */
+export function actorCardLines(entity, { ageAtRelease, count, t }) {
+    const rows = [];
+    if (entity.age != null) {
+        const parts = [];
+        if (ageAtRelease != null) parts.push(t('showcase.lightbox.actor_card_age_release', { n: ageAtRelease }));
+        parts.push(t('showcase.lightbox.actor_card_age_now', { n: entity.age }));
+        rows.push({ id: 'age', text: parts.join(' · ') });
+    }
+    const body = [];
+    if (entity.height) body.push(entity.height);
+    if (entity.cup) body.push(entity.cup + t('search.unit.cup'));
+    if (entity.bust && entity.waist && entity.hip) body.push(entity.bust + '-' + entity.waist + '-' + entity.hip);
+    if (body.length) rows.push({ id: 'body', text: body.join(' · ') });
+    if (count != null) rows.push({ id: 'count', text: t('showcase.lightbox.actor_card_count', { n: count }) });
+    return { name: entity.name, photo: entity.photo_url || '', rows };
 }
 
 /**

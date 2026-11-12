@@ -179,6 +179,11 @@ export function stateLightbox() {
             this._lbActorFavs = actorFavsOf(this.currentLightboxVideo, _actressIndex);
         },
 
+        // 小卡（199b-T3）用：片上名字 → 收藏女優物件（含 age、身材、photo_url）；分片不能 import 索引，走這裡
+        lbxActorEntity(name) {
+            return _actressIndex ? _actressIndex.lookup(name) : null;
+        },
+
         // 120a-T1：.lb-full 原圖載入失敗。第一行 AC-A6 短路（DB 無封面 cover_full_url
         // 恆為空字串，<img :src=""> 的 error 不是「拿不到」）。$refs 防呆後用
         // getAttribute('src') 對當下 cover_full_url 做 stale 判定（AC-A4），通過才設旗標。

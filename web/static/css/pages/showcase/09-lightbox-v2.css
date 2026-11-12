@@ -1393,3 +1393,45 @@ a.lbx-utag-link:focus-visible {
         display: none;
     }
 }
+
+/* 199b-T3：收藏女優小卡（滑過／聚焦／觸控頭像往下浮出，純顯示）。照片塊固定尺寸：圖載入前後浮層大小不變，定位不抖。
+   不用 accent；底色與頭像同一個 color-mix。 */
+.lbx-pop[data-kind="actorCard"] {
+    padding: .5rem .625rem;
+}
+
+.lbx-actor-card {
+    display: flex;
+    align-items: flex-start;
+    gap: .625rem;
+    max-width: min(20rem, calc(100vw - 2rem));
+}
+
+.lbx-actor-card__photo {
+    flex: none;
+    width: 3.5rem;
+    height: 4.75rem;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    object-position: 50% 20%;
+    background: color-mix(in oklch, var(--text-primary) 12%, transparent);
+}
+
+.lbx-actor-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: .125rem;
+    min-width: 0;
+}
+
+.lbx-actor-card__name {
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.lbx-actor-card__row {
+    font-size: .75rem;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
