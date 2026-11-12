@@ -206,3 +206,31 @@ export function fitTagRow({ userWidths, workWidths, plusWidth, moreChipWidth, ro
 export function parseWorkTags(video) {
     return String(video?.tags || '').split(',').map((s) => s.trim()).filter(Boolean);
 }
+
+// ---- 199b-T5：女優燈箱資料區最下面的縮圖排（批次標籤、下一批、發行日排序）----
+
+/** batchLabel：目前這批「第幾到第幾／共幾」。回物件不回字串（顯示文字由 i18n 組）；to 要 clamp 到 total（最後一批不湊滿）。 */
+export function batchLabel(start, size, total) {
+    return { from: start + 1, to: Math.min(start + size, total), total };
+}
+
+/** nextBatchStart：下一批的起點；超過尾端繞回 0。 */
+export function nextBatchStart(start, size, total) {
+    return start + size < total ? start + size : 0;
+}
+
+/**
+ * sortWorksByRelease：作品（預設版本物件）依發行日新→舊排，回新陣列、不改輸入。
+ * 以 release_date 字串比較（YYYY-MM-DD 字串序＝時間序），空／缺值排最後；同值維持輸入順序（穩定）。
+ */
+export function sortWorksByRelease(works) {
+    const key = (w) => (w && w.release_date) || '';
+    return (works || []).slice().sort((a, b) => {
+        const ka = key(a);
+        const kb = key(b);
+        if (ka === kb) return 0;
+        if (!ka) return 1;
+        if (!kb) return -1;
+        return ka < kb ? 1 : -1;
+    });
+}

@@ -201,11 +201,13 @@ export function stateActress() {
         // $watch 姊妹 watcher 是非同步 effect flush，對掛載那一幀擋不住）。
         _setActressLightboxIndex(idx) {
             this._resetMask();
+            this.lbxApReset?.();                 // 199b-T5：縮圖排清空，排在賦值之前（x-if 重新掛載那一幀不能看到舊批）
             this.actressLightboxIndex = idx;
             this.currentLightboxActress = (idx >= 0 && idx < _filteredActresses.length)
                 ? _filteredActresses[idx] : null;
             this.currentLightboxVideo = null;    // 互斥：清除影片
             this._actressChipsExpanded = { aliases: false, info: false };
+            this.lbxApRebuild?.();               // 199b-T5：賦值之後重建（來源在顯示時判，這裡不看來源）
             this._refreshActressPhotoLoaded();   // §B-2b：切換/開啟女優皆走此函式，唯一呼叫點
         },
 
@@ -358,7 +360,7 @@ export function stateActress() {
         },
 
         // 承重順序：① 建索引 → ② 算數字（讀 ①）→ ③ 遞增版本號 → ④ 刷燈箱年齡表 → ⑥ 最後才重排。
-        // ⑤（燈箱縮圖排重建）屬 T5，本卡不寫。輸入一律是 _videos（可見子集）。
+        // ⑤ 燈箱縮圖排重建（199b-T5，排在 ④ 之後、⑥ 之前）。輸入一律是 _videos（可見子集）。
         _refreshActressDerived() {
             _setActressIndex(buildActressIndex(_actresses, _nameToGroup));
             if (_videosReady && _aliasMapLoaded) {
@@ -368,6 +370,7 @@ export function stateActress() {
             }
             this.actressWorkRev++;
             this._refreshLbActorAges?.();
+            this.lbxApRebuild?.();
             if (_actressesLoaded) this.applyActressFilterAndSort();
         },
 

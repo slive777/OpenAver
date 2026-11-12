@@ -38,7 +38,7 @@
 
     /* 資料區是內容高度（不是固定高）；平常不得出現捲軸，展開後才可捲 */
     .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta {
-        height: auto;
+        height: 13.875rem;
         max-height: 13.875rem;
         flex: none;
         box-sizing: border-box;
@@ -189,4 +189,137 @@
     align-items: center;
     gap: .25rem;
     white-space: nowrap;
+}
+
+/* ── 第 4 行：縮圖排（199b-T5）──────────────────────────────────────────────────
+   照片格＋最多 6 張她的片＋「下一批」格，固定 8 欄等寬（minmax(0,1fr) 防長番號撐寬欄，FE-CSS-12）。
+   格子裁法與牆上海報形狀同一套：aspect-ratio 讀 --poster-crop-ratio、object-position 預設 right center，
+   焦點由 applyCellFocal 的 inline object-position 蓋過（不另寫第二套裁切）。
+   「下一批」恆在第 8 欄（片格不足時中間留空）。鎖死（拖曳對焦／換照片流程中）整排不能點。 */
+.lbx-ap-meta .lbx-ap-strip {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: .375rem;
+    margin-top: .25rem;
+    flex: none;
+    overflow: hidden;
+}
+
+.lbx-ap-meta .lbx-ap-strip[aria-disabled="true"] {
+    pointer-events: none;
+    opacity: .5;
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-cell {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: start;
+    min-width: 0;
+    aspect-ratio: var(--poster-crop-ratio);
+    overflow: hidden;
+    border: 1px solid var(--stroke-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    color: var(--text-muted);
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-cell > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: right center;
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-photo > .bi {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+/* 沒有封面或封面載入失敗：格內寫番號（x-show 切換，不寫回 video 物件） */
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-film-number {
+    max-width: 100%;
+    padding: 0 .125rem;
+    font-size: .625rem;
+    line-height: 1.2;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-next {
+    grid-column: 8;
+    flex-direction: column;
+    gap: .125rem;
+    padding: .125rem;
+    font-family: inherit;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-next:hover {
+    color: var(--text-primary);
+    border-color: var(--stroke-default);
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-next:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-next > .bi {
+    font-size: .875rem;
+    line-height: 1;
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-next-text {
+    max-width: 100%;
+    font-size: .6875rem;
+    line-height: 1.2;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+/* 閘內：資料區是固定高度的直欄 flex——前三行各自 flex:none（高度與 T4 相同），縮圖排吃剩下的高度。
+   flex 不做 margin 折疊：原本數值列下緣 8px 與別名列上緣 4px 折成 8px，這裡把別名列上緣歸零，兩者相加仍是 8px。
+   格高 = min(格寬 ÷ 海報比例, 縮圖排可用高度)：row 是 minmax(0,1fr)（高度確定），格子 max-height:100%。
+   展開（[data-expanded]）後資料區可捲：縮圖排 flex:none、row 回自然高度，格高由格寬推出、不被壓扁。 */
+@media (min-width: 769px) and (min-height: 720px) {
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta > .actress-lb-header,
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta > .lb-actress-core,
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta > .lbx-ap-chips {
+        flex: none;
+    }
+
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta > .lbx-ap-chips {
+        margin-top: 0;
+    }
+
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta .lbx-ap-strip {
+        flex: 1 1 0;
+        min-height: 0;
+        grid-template-rows: minmax(0, 1fr);
+    }
+
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta .lbx-ap-strip .lbx-ap-cell {
+        max-height: 100%;
+    }
+
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta[data-expanded] .lbx-ap-strip {
+        flex: none;
+        grid-template-rows: none;
+    }
+
+    .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta[data-expanded] .lbx-ap-strip .lbx-ap-cell {
+        max-height: none;
+    }
 }

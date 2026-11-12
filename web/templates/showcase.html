@@ -1116,6 +1116,43 @@
                                     </div>
                                 </div>
                             </template>
+                            <!-- 199b-T5：第 4 行縮圖排 = 照片格 + 最多 6 張她的片（新→舊）+「下一批」格，固定 8 欄。
+                                 出現與消失只靠 x-if（DOM 裡不存在即不出現）；來源（只有女優牆開的才有）在 lbxApStripVisible 顯示時判。
+                                 鎖死（拖曳對焦／換照片流程中）= :inert + :aria-disabled，CSS 另有 pointer-events:none。
+                                 片格目前是不可點的 role="img"（點縮圖換大圖是 T6）。封面缺或載入失敗 → 格內寫番號（失敗旗標只放格內 x-data，不寫到 video 物件）。 -->
+                            <template x-if="lbxApStripVisible()">
+                                <div class="lbx-ap-strip" :inert="lbxApStripLocked()" :aria-disabled="lbxApStripLocked()">
+                                    <div class="lbx-ap-cell lbx-ap-photo" role="img" :aria-label="t('showcase.actress.films_photo_cell_aria')">
+                                        <template x-if="currentLightboxActress?.photo_url">
+                                            <img :src="currentLightboxActress.photo_url" alt=""
+                                                 @load="applyCellFocal($el, currentLightboxActress, '--actress-crop-ratio')"
+                                                 x-init="$watch('currentLightboxActress?.auto_focal', () => applyCellFocal($el, currentLightboxActress, '--actress-crop-ratio'));
+                                                         $watch('currentLightboxActress?.crop_mode', () => applyCellFocal($el, currentLightboxActress, '--actress-crop-ratio'))">
+                                        </template>
+                                        <template x-if="!currentLightboxActress?.photo_url">
+                                            <i class="bi bi-person-circle" aria-hidden="true"></i>
+                                        </template>
+                                    </div>
+                                    <template x-for="video in lbxApBatch" :key="video.path">
+                                        <div class="lbx-ap-cell lbx-ap-film" role="img" x-data="{ failed: false }"
+                                             :title="video.number + ' ' + (video.title || '')"
+                                             :aria-label="t('showcase.actress.films_cell_aria', { number: video.number, title: video.title || '' })">
+                                            <img :src="video.cover_url || null" :alt="video.number"
+                                                 x-show="video.cover_url && !failed"
+                                                 @load="applyCellFocal($el, video)"
+                                                 @error="failed = true">
+                                            <span class="lbx-ap-film-number" x-show="!video.cover_url || failed" x-text="video.number"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="lbxApHasNext()">
+                                        <button type="button" class="lbx-ap-cell lbx-ap-next" @click="lbxApNext()"
+                                                :aria-label="t('showcase.actress.films_next_aria', { label: lbxApLabel().from === lbxApLabel().to ? t('showcase.actress.films_next_one', lbxApLabel()) : t('showcase.actress.films_next', lbxApLabel()) })">
+                                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                            <span class="lbx-ap-next-text" x-text="lbxApLabel().from === lbxApLabel().to ? t('showcase.actress.films_next_one', lbxApLabel()) : t('showcase.actress.films_next', lbxApLabel())"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
                         </div>
 
                     </div>

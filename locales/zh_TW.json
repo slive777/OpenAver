@@ -1662,6 +1662,11 @@
       "link_blog": "部落格",
       "link_official": "官方網站",
       "chips_more_aria": "顯示其餘 {n} 項",
+      "films_next": "{from}–{to}／{total}",
+      "films_next_one": "{from}／{total}",
+      "films_next_aria": "下一批，{label}",
+      "films_photo_cell_aria": "她的照片",
+      "films_cell_aria": "{number} {title}",
       "panel": {
         "title": "從片庫加入女優",
         "search_placeholder": "搜尋片庫女優，或輸入完整姓名新增",

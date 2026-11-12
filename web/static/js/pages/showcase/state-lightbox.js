@@ -400,6 +400,7 @@ export function stateLightbox() {
             this._resetMask();           // 98b-T4：關燈箱丟棄未提交遮罩態（不 commit）
             this._lbPlotReset?.();       // 187b-T5a：關燈箱清簡介面（defense-in-depth）
             this.lbxPopClose?.();        // 199a-T3：關燈箱收浮層（可選呼叫：只合併部分分片的 harness 沒有它）
+            this.lbxApReset?.();         // 199b-T5：關燈箱清女優縮圖排（回第一批；可選呼叫）
             this._fetchSamplesFailed = {};
 
             // ★ C11: fly-back — 必須在 generation++ / lightboxOpen = false 之前捕獲

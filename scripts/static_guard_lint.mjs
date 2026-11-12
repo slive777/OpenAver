@@ -87,6 +87,7 @@ const LIGHTBOX_SLICE_FILES = [
   'web/static/js/pages/showcase/state-lightbox-pop.js',
   'web/static/js/pages/showcase/state-lightbox-fit.js',
   'web/static/js/pages/showcase/state-lightbox-apfit.js',
+  'web/static/js/pages/showcase/state-lightbox-ap.js',
   'web/static/js/pages/showcase/state-lightbox-ai-tags.js',
 ];
 
@@ -2123,6 +2124,7 @@ const RULES = [
     ['state-lightbox-pop.js', 'stateLightboxPop'],
     ['state-lightbox-fit.js', 'stateLightboxFit'],
     ['state-lightbox-apfit.js', 'stateLightboxApFit'],
+    ['state-lightbox-ap.js', 'stateLightboxAp'],
     ['state-lightbox-ai-tags.js', 'stateLightboxAiTags'],
   ].map(([file, fn]) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'required-string',
@@ -2159,18 +2161,18 @@ const RULES = [
     pattern: /^[ \t]*return[ \t]*mergeState\(/m,
     note: '[TestShowcaseESMGuard] test_main_js_calls_merge_state — 實際呼叫 mergeState(...)，非 Object.assign 等替代品（防 descriptor 丟失假綠，Codex P2）',
   },
-  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()', 'stateLightboxPlot()', 'stateLightboxPop()', 'stateLightboxFit()', 'stateLightboxApFit()', 'stateLightboxAiTags()'].map((fn) => ({
+  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()', 'stateLightboxPlot()', 'stateLightboxPop()', 'stateLightboxFit()', 'stateLightboxApFit()', 'stateLightboxAp()', 'stateLightboxAiTags()'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'forbidden-string', pattern: `...${fn}`,
     note: '[TestShowcaseESMGuard] test_main_js_no_plain_spread_merge — 8 factory 全禁',
   })),
-  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate', 'stateLightboxPlot', 'stateLightboxPop', 'stateLightboxFit', 'stateLightboxApFit', 'stateLightboxAiTags'].map((fn) => ({
+  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate', 'stateLightboxPlot', 'stateLightboxPop', 'stateLightboxFit', 'stateLightboxApFit', 'stateLightboxAp', 'stateLightboxAiTags'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: `${fn}.call(this)`,
     note: '[TestShowcaseESMGuard] test_main_js_factory_calls_use_call_this — 唯一有此斷言的頁（settings/scanner/search 皆未檢查）',
   })),
   { file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: 'window.showcaseState', note: '[TestShowcaseESMGuard] test_main_js_has_window_showcase_state_bridge — 唯一有 window bridge 斷言的頁' },
-  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ai-tags.js'].map((file) => ({
+  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ap.js', 'state-lightbox-ai-tags.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
-    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate|stateLightboxPlot|stateLightboxPop|stateLightboxFit|stateLightboxApFit|stateLightboxAiTags)\b/m,
+    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate|stateLightboxPlot|stateLightboxPop|stateLightboxFit|stateLightboxApFit|stateLightboxAp|stateLightboxAiTags)\b/m,
     note: `[TestShowcaseESMGuard] test_no_circular_state_factory_imports — ${file} 頂層 import 不可含 6 個 factory 函式名（判斷單位是 factory 名非檔名；state-base.js 本身不驗）`,
   })),
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
@@ -2180,17 +2182,17 @@ const RULES = [
   { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'forbidden-string', pattern: 'addFavoriteActress', note: '[TestShowcaseESMGuard] test_state_videos_no_actress_functions' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+openLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions — 方法定義 regex（行首縮排+openLightbox(，防誤殺 this.openLightbox(...) 呼叫）' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+closeLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions' },
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ap.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^(?!\s)(?!\/\/)(?!\*)[^\n]*window\.gsap/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層非註解行不可含 window.gsap`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ap.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^gsap\b/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層行不可以 gsap 識別字開頭`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ai-tags.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ap.js', 'state-lightbox-ai-tags.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string', pattern: 'this._PICKER_PARAMS',
     note: `[TestShowcaseESMGuard] test_no_this_picker_params_in_state_modules — ${file} 不可 this._PICKER_PARAMS（main.js 不在此列）`,
   })),
@@ -9859,6 +9861,91 @@ const RULES = [
     file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
     pattern: /^import\s*\{[^}]*\bstateLightboxApFit\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-apfit\.js'/m,
     note: '[lint-guard:199b-T4-apfit-main-import] main.js 漏掉女優資料區量測分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
+  },
+
+  // ---- 199b-T5：女優燈箱資料區最下面的縮圖排（照片格＋最多 6 張她的片＋下一批；分片 state-lightbox-ap.js）----
+  {
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
+    pattern: /^import\s*\{[^}]*\bstateLightboxAp\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-ap\.js'/m,
+    note: '[lint-guard:199b-T5-ap-main-import] main.js 漏掉女優縮圖排分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order',
+    scope: { anchor: /_setActressLightboxIndex\(idx\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: 'this.lbxApReset?.(' },
+      { pattern: 'this.currentLightboxActress =' },
+    ],
+    note: '[lint-guard:199b-T5-reset-before-assign] 換人時清縮圖排排在賦值 currentLightboxActress 之後 → 使用者按下一位，新那位的資料區第一幀先閃出上一位的縮圖（x-if 重新掛載那一幀看到舊批）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order',
+    scope: { anchor: /_setActressLightboxIndex\(idx\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: 'this.currentLightboxActress =' },
+      { pattern: 'this.lbxApRebuild?.(' },
+    ],
+    note: '[lint-guard:199b-T5-rebuild-in-setindex] 開啟／換人時沒有重建縮圖排，或重建排在賦值之前 → 使用者開一位有片的女優，資料區最下面沒有縮圖排（或是上一位的）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'this.lbxApReset?.(',
+    scope: { anchor: /closeLightbox\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T5-close-resets] closeLightbox 沒清縮圖排 → 使用者看了她的第三批片、關掉燈箱再開，縮圖排停在上次的第三批而不是回到第一批',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order',
+    scope: { anchor: /_refreshActressDerived\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: 'this.lbxApRebuild?.(' },
+      { pattern: 'this.applyActressFilterAndSort(' },
+    ],
+    note: '[lint-guard:199b-T5-derived-rebuild] _refreshActressDerived 沒重建縮圖排或排在重排女優牆之後 → 使用者開著燈箱時片庫／別名表才到齊（或切換隱藏未連線硬碟），縮圖排停在舊內容，總數和數值列的「N部作品」對不上',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string',
+    pattern: "actressLightboxSource === 'grid'",
+    scope: { anchor: /lbxApStripVisible\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T5-strip-visible-source] 縮圖排的顯示條件少了「從女優牆開的」 → 使用者從女優大卡或影片橋接進女優燈箱，也冒出縮圖排（那兩個入口的資料區不該有）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'forbidden-string',
+    pattern: 'actressLightboxSource',
+    scope: { anchor: /lbxApRebuild\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T5-rebuild-no-source] 重建縮圖排的當下去判斷開燈箱的來源 → 使用者關掉女優燈箱再開同一位，第一次開啟（來源此刻還是 null）沒有縮圖排，得換人再換回來才出現',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string',
+    pattern: [
+      /const\s+\w+\s*=\s*this\._maskVisible\s*;/,
+      /const\s+\w+\s*=\s*this\._pickerOpen\s*;/,
+      /const\s+\w+\s*=\s*this\._pickerLoading\s*;/,
+      /const\s+\w+\s*=\s*this\._pickerSelected\s*;/,
+    ],
+    scope: { anchor: /lbxApStripLocked\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T5-strip-locked-reads] 縮圖排鎖死判斷漏讀其中一個旗標（短路求值漏訂閱）→ 使用者在拖曳對焦或挑換照片時，縮圖排仍可點，點到會中斷正在進行的編輯',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [':inert="lbxApStripLocked()"', ':aria-disabled="lbxApStripLocked()"'],
+    scope: { anchor: /<template x-if="lbxApStripVisible\(\)">/, window: 210 }, // 實測 anchor 到 :aria-disabled="lbxApStripLocked()" 結尾 159 字元（:inert 在 96），加約 30% 餘裕
+    note: '[lint-guard:199b-T5-strip-wired] 縮圖排少了 :inert 或 :aria-disabled 綁定 → 使用者拖曳對焦或挑換照片時，鍵盤 Tab 仍進得了縮圖排、輔助科技不知道它鎖住了',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'order',
+    scope: { anchor: /lightbox-metadata actress-lightbox-meta lbx-ap-meta/, window: 12000 }, // 實測 anchor 到 class="lbx-ap-chips" 6076、到 class="lbx-ap-strip" 9190 字元，加約 30% 餘裕
+    items: [
+      { pattern: 'class="lbx-ap-chips"' },
+      { pattern: 'class="lbx-ap-strip"' },
+    ],
+    note: '[lint-guard:199b-T5-strip-after-chips] 縮圖排排到別名＋資訊那一行之前，或跑出資料區外 → 使用者看到縮圖排夾在名字與別名之間，或固定高度的資料區把它裁掉',
   },
   {
     file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',
