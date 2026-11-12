@@ -441,6 +441,21 @@ export function stateActress() {
             this.actressCount = _actresses.length;
             this.filteredActressCount = _filteredActresses.length;
             this.paginatedActresses = _filteredActresses.slice();  // CD-9: 全量，不分頁
+
+            // 199b 修正：女優燈箱開著（來源＝女優牆）時牆被重排，索引要跟著「目前那位」走，
+            // 否則上一位／下一位會指到別人、關燈箱飛回錯的卡。用 name 找（_fetchLiveAliases 會把
+            // currentLightboxActress 換成 Object.assign 副本，物件身分不可靠）；直接賦值，
+            // 不走 _setActressLightboxIndex（它會重置遮罩／縮圖排／封面）。找不到＝保持原索引。
+            if (this.lightboxOpen && this.showFavoriteActresses
+                && this.actressLightboxSource === 'grid' && this.currentLightboxActress) {
+                var curName = this.currentLightboxActress.name;
+                for (var i = 0; i < _filteredActresses.length; i++) {
+                    if (_filteredActresses[i].name === curName) {
+                        this.actressLightboxIndex = i;
+                        break;
+                    }
+                }
+            }
         },
 
         // CD-116b-1b：寫入 actressPills 的單一所有者（正規化 ＋ 同維度整包取代 ＋ apply）
