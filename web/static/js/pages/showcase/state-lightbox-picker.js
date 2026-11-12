@@ -98,12 +98,12 @@ export function stateLightboxPicker() {
             });
         },
 
-        // 100c-T2：女優 focal icon 的五條件判斷收成 method，不在 showcase.html 直接寫
+        // 100c-T2：女優 focal icon 的判斷（199b-T6 起六條件：加封面沒開著）收成 method，不在 showcase.html 直接寫
         // `x-show="a && b && c && d && e"` 字面 && 鏈。病灶：Alpine 的 effect 依賴收集是
         // 「這次求值實際讀了哪些屬性」，JS `&&` 短路時，一旦前段某條件為 false，後段條件
         // **完全不會被讀取**，Alpine 因此不會訂閱它們的變化——之後那些漏訂閱的旗標翻真時
         // effect 不會重跑，icon 可能卡在錯的顯示狀態。
-        // 修法：method 內用獨立陳述式**無條件**讀出全部 5 個旗標存成區域變數，讓 Alpine 的
+        // 修法：method 內用獨立陳述式**無條件**讀出全部 6 個旗標存成區域變數，讓 Alpine 的
         // effect 每次呼叫本 method 都保證訂閱到全部依賴，不受 && 短路影響——回傳值仍是同一個
         // && 鏈，語意不變，只是把「讀取」與「短路組合」拆開兩步。showcase.html 仍用 x-show
         // 綁定本 method（與影片版一致）。
@@ -113,7 +113,8 @@ export function stateLightboxPicker() {
             const loaded = this._actressPhotoLoaded;
             const wideEnough = this._actressPhotoWideEnough;
             const pickerClosed = !this._pickerOpen;
-            return notEditing && hasPhoto && loaded && wideEnough && pickerClosed;
+            const coverClosed = !this.lbxApCover;   // 199b-T6：縮圖排的封面開著時收起（沒合併 ap 分片的 harness 為 undefined → 真）
+            return notEditing && hasPhoto && loaded && wideEnough && pickerClosed && coverClosed;
         },
 
         /**

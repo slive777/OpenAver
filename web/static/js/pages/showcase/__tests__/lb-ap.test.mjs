@@ -3,6 +3,21 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { register } from 'node:module';
+
+// 199b-T6：T6 的兩支要合成 picker／ap／actress 分片，分片 import 鏈需要 alias loader 與瀏覽器全域 stub。
+// 必須在動態 import 各分片之前（形狀照 mask-nav-block.test.mjs）。
+globalThis.window = globalThis;
+globalThis.window.t = (key) => key;
+globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+globalThis.Alpine = globalThis.Alpine || {
+    store: () => ({ toolbarOpen: false, showcaseHasSearch: false }),
+};
+globalThis.document = globalThis.document || {
+    querySelector() { return null; },
+    body: { classList: { add() {}, remove() {}, contains() { return false; } } },
+};
+register(new URL('../../search/__tests__/alias-loader.mjs', import.meta.url), import.meta.url);
 
 const { batchLabel, nextBatchStart, sortWorksByRelease } = await import('../lbx-logic.js');
 
@@ -48,4 +63,72 @@ test('test_ap_sort_release_desc', () => {
     // 不改輸入
     assert.deepEqual(input.map((w) => w.id), ['A', 'B', 'C', 'D', 'E']);
     assert.notEqual(out, input);
+});
+
+// ---- TASK-199b-T6：點縮圖看封面 ----
+const { stateLightbox } = await import('../state-lightbox.js');
+const { stateLightboxPicker } = await import('../state-lightbox-picker.js');
+const { stateLightboxMask } = await import('../state-lightbox-mask.js');
+const { stateLightboxAp } = await import('../state-lightbox-ap.js');
+const { stateActress } = await import('../state-actress.js');
+const { _setFilteredActresses } = await import('../state-base.js');
+
+function makeComponent(overrides) {
+    return Object.assign({}, stateLightbox(), stateLightboxPicker(), stateLightboxMask(), stateActress(), stateLightboxAp(), {
+        lightboxOpen: true,
+        showFavoriteActresses: true,
+        currentLightboxActress: null,
+        actressLightboxIndex: 0,
+        _pickerOpen: false,
+        _maskVisible: false,
+        $nextTick() {},
+        $refs: {},
+        _fetchLiveAliases() {},
+    }, overrides);
+}
+
+test('test_ap_cover_exclusive', () => {
+    // 其餘五個條件全滿足：照片有、已載入、夠寬、遮罩沒開、picker 沒開
+    const ready = {
+        currentLightboxActress: { name: 'A', photo_url: '/a.jpg' },
+        _maskVisible: false,
+        _actressPhotoLoaded: true,
+        _actressPhotoWideEnough: true,
+        _pickerOpen: false,
+    };
+    const closedCover = makeComponent({ ...ready, lbxApCover: null });
+    assert.equal(closedCover._focalIconVisible(), true, '封面關閉：對焦鈕放行（防「永遠 false」假綠）');
+    const openCover = makeComponent({ ...ready, lbxApCover: { path: 'file:///C:/a.mp4', number: 'AAA-001' } });
+    assert.equal(openCover._focalIconVisible(), false, '封面開著：對焦鈕必須收起');
+
+    // 縮圖排鎖死：四個旗標各自單獨為真都要鎖，全假才放行
+    for (const flag of ['_maskVisible', '_pickerOpen', '_pickerLoading', '_pickerSelected']) {
+        const c = makeComponent({ _maskVisible: false, _pickerOpen: false, _pickerLoading: false, _pickerSelected: false, [flag]: true });
+        assert.equal(c.lbxApStripLocked(), true, `${flag} 為真 → 縮圖排鎖死`);
+    }
+    const idle = makeComponent({ _maskVisible: false, _pickerOpen: false, _pickerLoading: false, _pickerSelected: false });
+    assert.equal(idle.lbxApStripLocked(), false, '全假 → 不鎖');
+});
+
+test('test_ap_cover_reset_on_switch', () => {
+    _setFilteredActresses([{ name: 'A' }, { name: 'B' }]);
+    try {
+        const c = makeComponent({ currentLightboxActress: { name: 'A' }, actressLightboxIndex: 0 });
+        c.lbxApCover = { path: 'file:///C:/a.mp4', number: 'AAA-001' };
+        c.lbxApStart = 6;
+        const seen = [];
+        const real = c.lbxApReset;
+        c.lbxApReset = function (...args) {
+            seen.push(this.currentLightboxActress?.name);
+            return real.apply(this, args);
+        };
+        c._setActressLightboxIndex(1);
+        assert.equal(c.currentLightboxActress.name, 'B', '換到下一位');
+        assert.equal(c.lbxApCover, null, '換人後封面必須清掉');
+        assert.equal(c.lbxApStart, 0);
+        assert.deepEqual(c.lbxApBatch, []);
+        assert.deepEqual(seen, ['A'], 'lbxApReset 必須在賦值之前呼叫（當下還是舊那位）');
+    } finally {
+        _setFilteredActresses([]);
+    }
 });

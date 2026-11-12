@@ -536,7 +536,7 @@ const RULES = [
   // 拆成兩條 scope-anchored 規則，各自錨到專屬 <template x-if> 分支（全檔僅出現一次，
   // 唯一性已用 grep 確認），window 只需蓋過該分支內的 ✓/✗ 兩處、且在下一分支的同 pattern
   // 之前收尾，兩個分支才能被「各自」的 count:2 下限獨立守住。
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 8800 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解，與下一條影片 scope 的 anchor 相距 15069 字元，仍安全不重疊）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 11300 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解與 199b-T6 封面疊層；199b-T6 後 anchor 到第二個 ✗ 結尾實測 8814 字元〔超過原 8800〕，window 8800→11300＝實測＋約 28%；與下一條影片 scope 的 anchor 相距 22373 字元，仍安全不重疊）' },
   // 199a-T2：影片分支的 ✓/✗ 隨封面對焦入口一起移除，上面只剩女優那條（影片那條 count:2 規則已刪）。
   { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'lb-video-branch', count: 1, note: '[lint-guard:199a-T1-video-branch-count] 影片燈箱外框隔離標記 lb-video-branch 全檔恰 1 處——多了＝女優／其他燈箱也被套上影片版外框（封面忽然變大、版面跑掉），少了＝影片燈箱外框整組失效；模板內任何註解都不得寫到這個字樣' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'class="lb-video-branch"', scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 200 }, note: '[lint-guard:199a-T1-video-branch-scope] lb-video-branch 必須掛在影片分支 <template x-if> 緊接的包裝 div 上——class 被搬到女優分支時計數仍是 1，但影片燈箱外框失效、女優燈箱被改版' },
@@ -1361,9 +1361,9 @@ const RULES = [
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox-picker.js', kind: 'required-string',
-    pattern: 'return notEditing && hasPhoto && loaded && wideEnough && pickerClosed;',
+    pattern: 'return notEditing && hasPhoto && loaded && wideEnough && pickerClosed && coverClosed;',
     scope: { anchor: /_focalIconVisible\s*\(\s*\)\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] 100c-T2（CD-1）：_focalIconVisible 完整五條件組合（錨完整 return 字面，防片段假綠）',
+    note: '[TestMaskToggleGuard] 100c-T2（CD-1）：_focalIconVisible 完整五條件組合（錨完整 return 字面，防片段假綠；199b-T6 加第六個 coverClosed：舊 `…&& pickerClosed;` → 新 `…&& pickerClosed && coverClosed;`）',
   },
   // DOM 位置：icon 必須在 .actress-lb-header 內（搬遷目的地），不得殘留在 .cover-actions。
   // scope-anchor 到 .actress-lb-header 的 brace-balanced 視窗內斷言 class/click/title 三個
@@ -4446,14 +4446,14 @@ const RULES = [
   // 108-T3 把「隱藏 folder 按鈕」的判斷全部收斂到 CSS 的 .js-open-folder marker（G3，
   // css-guard.mjs CG-TOUCH-03）；若這個 class 被誤搬到 play/enrich 鈕、或多加了第三個，
   // CSS gate 會安靜地隱藏/漏藏錯的按鈕（跑起來看不出來，要點兩下才發現）。三條互補：
-  //  G4a：全檔恰好 2 個 .js-open-folder（防「多加了一個」）。
+  //  G4a：全檔恰好 3 個 .js-open-folder（防「多加了一個」；199b-T6 由 2 改 3：多了女優大圖封面底條那顆）。
   //  G4b/G4c：卡片格 / 燈箱 各自的 folder 按鈕，逐 element scope 綁 openLocal(＋bi-folder2-open
   //           圖示（防「搬到別的按鈕」——被搬走那顆的 scope 內容不再含這兩者）。
   {
     file: 'web/templates/showcase.html', kind: 'structure-count',
     pattern: /\bjs-open-folder\b/,
-    count: 2,
-    note: '[lint-guard:108-T4] G4a：js-open-folder marker 須恰好出現在 2 顆按鈕（卡片格 + 燈箱），不多不少',
+    count: 3,
+    note: '[lint-guard:108-T4] G4a：js-open-folder marker 須恰好出現在 3 顆按鈕（牆卡片 + 影片燈箱 + 女優大圖封面底條〔199b-T6〕），不多不少',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
@@ -9946,6 +9946,81 @@ const RULES = [
       { pattern: 'class="lbx-ap-strip"' },
     ],
     note: '[lint-guard:199b-T5-strip-after-chips] 縮圖排排到別名＋資訊那一行之前，或跑出資料區外 → 使用者看到縮圖排夾在名字與別名之間，或固定高度的資料區把它裁掉',
+  },
+
+  // ---- 199b-T6：點縮圖 → 大圖換成那部片的封面（疊層在照片外框內；互斥、換人重置、底條 ▶📁）----
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string',
+    pattern: 'this.lbxApCover = null;',
+    scope: { anchor: /lbxApReset\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T6-cover-reset] lbxApReset 沒清封面 → 使用者看著某部片的封面按「下一位」，新那位女優的大圖還是上一位點的那部片封面，得再點最左格才回到她的照片',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: 'x-show="!lbxApCover"',
+    scope: /<div class="cover-actions"\s*\n\s*:data-picker-open[^>]*>/,
+    note: '[lint-guard:199b-T6-cover-actions-gated] 女優大圖的 .cover-actions 少了「封面開著就收起」 → 使用者點縮圖看封面，「看她的片」「換照片」鈕還浮在封面上，點下去在封面上開出換照片候選列',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-picker.js', kind: 'required-string',
+    pattern: 'const coverClosed = !this.lbxApCover;',
+    scope: { anchor: /_focalIconVisible\s*\(\s*\)\s*\{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T6-focal-cover-closed] _focalIconVisible 沒有無條件讀封面旗標（或把它寫進 && 鏈、短路漏訂閱）→ 使用者點縮圖把大圖換成封面，名字旁的對焦鈕還在，按下去對焦遮罩蓋在封面上，存下去改的是照片的對焦而畫面上看的是封面',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'order',
+    scope: { anchor: /<div class="actress-lb-photo-frame">/, window: 4700 }, // 實測 anchor 到 x-ref="pickerCoverImg" 74、到 class="lbx-ap-cover" 1465、到 <div class="cover-actions" 3672（結尾 3698）字元，加約 30% 餘裕
+    items: [
+      { pattern: 'x-ref="pickerCoverImg"' },
+      { pattern: 'class="lbx-ap-cover"' },
+      { pattern: '<div class="cover-actions"' },
+    ],
+    note: '[lint-guard:199b-T6-cover-in-frame] 封面疊層排到照片 <img> 之前，或跑出照片外框 → 使用者點縮圖，疊層蓋不齊照片（或 document.querySelector(".lightbox-cover img") 取到封面，關燈箱飛回牆上的動畫抓錯圖）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['playVideo(lbxApCover.path)', 'openLocal(lbxApCover.path)'],
+    scope: { anchor: /class="lbx-ap-bar"/, window: 1000 }, // 實測 anchor 到 playVideo(lbxApCover.path) 結尾 410、到 openLocal(lbxApCover.path) 結尾 766 字元，加約 30% 餘裕
+    note: '[lint-guard:199b-T6-bar-wired] 封面底條的 ▶ 或 📁 沒接到那部片的路徑 → 使用者看著封面按 ▶ 沒反應、或播到別部片、或 📁 開錯資料夾',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: '<button class="lb-action-btn js-open-folder"', count: 1,
+    note: '[lint-guard:199b-T6-g4c-first-hit] 影片燈箱 📁 的開標籤（class 在前）全檔須恰 1 個 → 否則 G4c 的 scope 正則（只取第一個命中）會換去守大圖那顆，影片燈箱的「開資料夾」鈕失去逐元素守衛，之後被誤綁成播放也不會被擋',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: '<button type="button" class="lb-action-btn js-open-folder"', count: 1,
+    note: '[lint-guard:199b-T6-g4d-count] 女優大圖底條的 📁（type 在前）全檔須恰 1 個 → 使用者看封面按 📁 開資料夾；多一顆或少一顆，純觸控隱藏與 G4d 的逐元素守衛就對不上',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['openLocal(', 'bi-folder2-open'],
+    scope: /<button type="button" class="lb-action-btn js-open-folder"[\s\S]*?<\/button>/,
+    note: '[lint-guard:199b-T6-g4d] 女優大圖底條的 📁 沒綁 openLocal( 或圖示不是 bi-folder2-open → 使用者看封面按 📁 沒有開資料夾',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'forbidden-string',
+    pattern: ['playVideo(', 'enrichVideo(', 'bi-play-fill', 'enrich-btn'],
+    scope: /<button type="button" class="lb-action-btn js-open-folder"[\s\S]*?<\/button>/,
+    note: '[lint-guard:199b-T6-g4d-neg] 女優大圖底條的 📁 混進播放／補完的 handler 或圖示 → 使用者按 📁 卻開始播放影片',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: '@click="lbxApOpenCover(video)"', count: 1,
+    note: '[lint-guard:199b-T6-strip-cells-wired-open] 縮圖排的片格沒接點擊 → 使用者點縮圖大圖沒有換成那部片的封面',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: '@click="lbxApBackToPhoto()"', count: 1,
+    note: '[lint-guard:199b-T6-strip-cells-wired-back] 縮圖排最左的照片格沒接點擊 → 使用者看著封面，沒有任何入口能回到女優照片',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: 'lbxApCover?.path === video.path', count: 2,
+    note: '[lint-guard:199b-T6-strip-cells-wired-selected] 片格的選中比對（:class 與 :aria-pressed 各一處）不是用 path → 使用者點縮圖後，選中框不見或選到別格（Alpine Proxy 之下比物件身分永遠不等）',
   },
   {
     file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',

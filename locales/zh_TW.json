@@ -1667,6 +1667,7 @@
       "films_next_aria": "下一批，{label}",
       "films_photo_cell_aria": "她的照片",
       "films_cell_aria": "{number} {title}",
+      "films_cover_aria": "{number} 的封面",
       "panel": {
         "title": "從片庫加入女優",
         "search_placeholder": "搜尋片庫女優，或輸入完整姓名新增",

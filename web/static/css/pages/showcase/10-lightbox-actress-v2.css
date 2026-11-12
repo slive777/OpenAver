@@ -224,6 +224,28 @@
     border-radius: var(--radius-sm);
     background: var(--surface-1);
     color: var(--text-muted);
+    /* 199b-T6：片格／照片格是 <button>——歸零瀏覽器預設的內距與字型，游標與 hover 邊框比照「下一批」格 */
+    padding: 0;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-film:hover,
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-photo:hover {
+    border-color: var(--stroke-default);
+}
+
+/* 選中框與鍵盤焦點：往內畫（負的 outline-offset）——外偏移會被 .lbx-ap-strip 的 overflow:hidden 裁掉，
+   也不用 border 寬度變化（會推動格子尺寸，點擊化前後格寬格高要相同） */
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-film.is-selected {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-film:focus-visible,
+.lbx-ap-meta .lbx-ap-strip .lbx-ap-photo:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
 }
 
 .lbx-ap-meta .lbx-ap-strip .lbx-ap-cell > img {
@@ -322,4 +344,70 @@
     .lightbox-content:has(> .lbx-actress-branch) .lbx-ap-meta[data-expanded] .lbx-ap-strip .lbx-ap-cell {
         max-height: none;
     }
+}
+
+/* ── 封面疊層（199b-T6）──────────────────────────────────────────────────────
+   點縮圖後蓋在照片外框（.actress-lb-photo-frame，position:relative）上的絕對定位兄弟：inset:0 貼齊外框，
+   不參與外框尺寸（外框寬高點擊前後不變）。不分視窗閘——閘外也要貼齊。
+   z-index 3：高於遮罩 overlay（2）、低於對焦編輯中的 .cover-actions--focal-edit（5）；CG-FOCAL-04 鎖的是那兩個既有數值，這裡不動它們。
+   淡入：疊層自己 opacity 0→1（第一張封面載入完成才加 .is-shown），載入中底下的女優照片仍看得到；
+   A→B 時 .is-shown 不歸零、同一個 <img> 直接換 src，瀏覽器在新圖到之前保持舊圖——不會閃出照片。
+   不透明底（--surface-1）：無封面／讀不到時不透出底下的照片。 */
+.lightbox-cover .lbx-ap-cover {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: var(--surface-1);
+    opacity: 0;
+    transition: opacity var(--fluent-duration-normal) var(--fluent-ease-decel);
+}
+
+.lightbox-cover .lbx-ap-cover.is-shown {
+    opacity: 1;
+}
+
+/* 覆寫 05 的 .lightbox-cover img（height:60vh; width:auto; object-fit:contain）：填滿外框、cover 裁法、預設右半邊；
+   有對焦的片由 lbxApCoverLoaded 的 inline object-position 蓋過。原圖放大，不用縮圖端點。 */
+.lightbox-cover .lbx-ap-cover .lbx-ap-cover-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: right center;
+}
+
+/* 底條：常駐（不靠 hover）貼疊層下緣；文字單行省略號、按鈕沿用 .lb-action-btn（46px 玻璃鈕）不縮不被擠出。
+   文字色用 color 的 alpha（不用元素 opacity，FE-CSS-18），漸層底讓字在亮封面上也讀得出來。 */
+.lightbox-cover .lbx-ap-cover .lbx-ap-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    box-sizing: border-box;
+    padding: 1.5rem .75rem .625rem;
+    background: linear-gradient(to top, var(--overlay-gradient), transparent);
+}
+
+.lightbox-cover .lbx-ap-cover .lbx-ap-bar-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: color-mix(in oklch, white 92%, transparent);
+    font-size: .875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.lightbox-cover .lbx-ap-cover .lbx-ap-bar > .lb-action-btn {
+    flex: none;
 }

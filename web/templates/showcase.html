@@ -972,11 +972,36 @@
                                      nextLightboxVideo() 三處，gotchas-frontend §8b），兩者必須同批落地
                                      才安全，故此刻才 include。 -->
                                 {% include '_macros/focal_mask.html' %}
+
+                                <!-- 199b-T6：封面疊層（在照片與遮罩之後，點縮圖才有） -->
+                                <template x-if="lbxApCover">
+                                    <div class="lbx-ap-cover" role="group" :class="{ 'is-shown': lbxApCoverShown }" :aria-label="t('showcase.actress.films_cover_aria', { number: lbxApCover.number })">
+                                        <img class="lbx-ap-cover-img" :src="lbxApCover.cover_full_url || lbxApCover.cover_url || null" :alt="lbxApCover.number"
+                                             x-show="!lbxApCoverNoImage()"
+                                             @load="lbxApCoverLoaded($el)"
+                                             x-init="$el.complete && $el.naturalWidth > 0 && lbxApCoverLoaded($el)"
+                                             @error="lbxApCoverError()">
+                                        <div class="av-card-no-cover" x-show="lbxApCoverNoImage()">
+                                            <i class="bi bi-image"></i>
+                                            <span x-text="t('common.no_image')"></span>
+                                        </div>
+                                        <div class="lbx-ap-bar">
+                                            <span class="lbx-ap-bar-text" :title="lbxApCover.title ? lbxApCover.number + ' · ' + lbxApCover.title : lbxApCover.number" x-text="lbxApCover.title ? lbxApCover.number + ' · ' + lbxApCover.title : lbxApCover.number"></span>
+                                            <button type="button" class="lb-action-btn" @click="playVideo(lbxApCover.path)" :data-tooltip="t('showcase.action.play')" :aria-label="t('showcase.action.play')">
+                                                <i class="bi bi-play-fill"></i>
+                                            </button>
+                                            <button type="button" class="lb-action-btn js-open-folder" @click="openLocal(lbxApCover.path)" :data-tooltip="t('search.action.open_folder')" :aria-label="t('search.action.open_folder')">
+                                                <i class="bi bi-folder2-open"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
 
                             <div class="cover-actions"
                                  :data-picker-open="_pickerOpen"
-                                 :class="{'cover-actions--focal-edit': _maskVisible}">
+                                 :class="{'cover-actions--focal-edit': _maskVisible}"
+                                 x-show="!lbxApCover">
                                 <button class="lb-action-btn"
                                         x-show="actressLightboxSource === 'grid' && !_maskVisible"
                                         @click.stop="searchActressFilms(currentLightboxActress?.name, $el)"
@@ -1119,10 +1144,10 @@
                             <!-- 199b-T5：第 4 行縮圖排 = 照片格 + 最多 6 張她的片（新→舊）+「下一批」格，固定 8 欄。
                                  出現與消失只靠 x-if（DOM 裡不存在即不出現）；來源（只有女優牆開的才有）在 lbxApStripVisible 顯示時判。
                                  鎖死（拖曳對焦／換照片流程中）= :inert + :aria-disabled，CSS 另有 pointer-events:none。
-                                 片格目前是不可點的 role="img"（點縮圖換大圖是 T6）。封面缺或載入失敗 → 格內寫番號（失敗旗標只放格內 x-data，不寫到 video 物件）。 -->
+                                 照片格／片格是按鈕：點片格＝大圖換成那部片的封面（199b-T6），點最左的照片格＝回照片。封面缺或載入失敗 → 格內寫番號（失敗旗標只放格內 x-data，不寫到 video 物件）。 -->
                             <template x-if="lbxApStripVisible()">
                                 <div class="lbx-ap-strip" :inert="lbxApStripLocked()" :aria-disabled="lbxApStripLocked()">
-                                    <div class="lbx-ap-cell lbx-ap-photo" role="img" :aria-label="t('showcase.actress.films_photo_cell_aria')">
+                                    <button type="button" class="lbx-ap-cell lbx-ap-photo" @click="lbxApBackToPhoto()" :aria-pressed="!lbxApCover" :aria-label="t('showcase.actress.films_photo_cell_aria')">
                                         <template x-if="currentLightboxActress?.photo_url">
                                             <img :src="currentLightboxActress.photo_url" alt=""
                                                  @load="applyCellFocal($el, currentLightboxActress, '--actress-crop-ratio')"
@@ -1132,9 +1157,12 @@
                                         <template x-if="!currentLightboxActress?.photo_url">
                                             <i class="bi bi-person-circle" aria-hidden="true"></i>
                                         </template>
-                                    </div>
+                                    </button>
                                     <template x-for="video in lbxApBatch" :key="video.path">
-                                        <div class="lbx-ap-cell lbx-ap-film" role="img" x-data="{ failed: false }"
+                                        <button type="button" class="lbx-ap-cell lbx-ap-film" x-data="{ failed: false }"
+                                             @click="lbxApOpenCover(video)"
+                                             :class="{ 'is-selected': lbxApCover?.path === video.path }"
+                                             :aria-pressed="lbxApCover?.path === video.path"
                                              :title="video.number + ' ' + (video.title || '')"
                                              :aria-label="t('showcase.actress.films_cell_aria', { number: video.number, title: video.title || '' })">
                                             <img :src="video.cover_url || null" :alt="video.number"
@@ -1142,7 +1170,7 @@
                                                  @load="applyCellFocal($el, video)"
                                                  @error="failed = true">
                                             <span class="lbx-ap-film-number" x-show="!video.cover_url || failed" x-text="video.number"></span>
-                                        </div>
+                                        </button>
                                     </template>
                                     <template x-if="lbxApHasNext()">
                                         <button type="button" class="lbx-ap-cell lbx-ap-next" @click="lbxApNext()"

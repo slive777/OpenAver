@@ -10,10 +10,16 @@
  * 整份排好序的清單放工廠閉包 items（不放 this、不進 reactive scope，FE-ALPINE-18）；響應式只有 lbxApBatch／lbxApStart／lbxApTotal，
  * 且一律整包賦值，不就地 push／splice（FE-ALPINE-20）。清單裡的每一項就是 _videos 的格子本身，這裡不在它上面寫任何欄位（會污染牆）。
  * 分片頂層不讀 window／document（FE-GUARD-11）。
+ *
+ * 199b-T6（點縮圖看封面）：lbxApCover＝點擊當下的快照（逐欄位挑選的新物件，不是 video 本身；null＝顯示照片）。
+ * 「讀不到」「已顯示」兩個旗標是分片純量，不寫到 video 或 lbxApCover。封面開著與對焦／換照片互斥：
+ * 封面端由 _focalIconVisible 與 .cover-actions 的 x-show 擋（P 擋 Q），縮圖排端由 lbxApStripLocked 擋（Q 擋 P）。
+ * lbxApRebuild／lbxApStripVisible 不讀封面（封面開著時縮圖排仍要渲染，最左格是回照片的唯一入口）。
  */
 
 import { _videos, _videosReady, _aliasMapLoaded, _actressIndex } from '@/showcase/state-base.js';
 import { worksOfActress } from '@/shared/actress-lookup.js';
+import { focalCellObjectPosition } from '@/shared/focal.js';
 import { batchLabel, nextBatchStart, sortWorksByRelease } from './lbx-logic.js';
 
 const LBX_AP_BATCH_SIZE = 6;
@@ -26,6 +32,9 @@ export function stateLightboxAp() {
         lbxApBatch: [],
         lbxApStart: 0,
         lbxApTotal: 0,
+        lbxApCover: null,
+        lbxApCoverFailed: false,   // 封面讀不到（@error）；沒有任何封面網址由 lbxApCoverNoImage 另判
+        lbxApCoverShown: false,    // 封面疊層已淡入：第一張封面載入完成（或無圖可載）後恆真，A→B 不再歸零（歸零會露出底下的女優照片）
 
         // 重建：只看「她是誰」與「片庫就緒沒」。開燈箱的來源（牆／hero／影片橋接）一律不在這裡判，
         // 而是在 lbxApStripVisible 顯示時判——openActressLightbox 先賦值、之後才設來源，
@@ -53,6 +62,56 @@ export function stateLightboxAp() {
             this.lbxApStart = 0;
             this.lbxApTotal = 0;
             this.lbxApBatch = [];
+            this.lbxApCover = null;
+            this.lbxApCoverFailed = false;
+            this.lbxApCoverShown = false;
+        },
+
+        // 點縮圖看封面：逐欄位挑選組新物件（不 spread／Object.assign video，不在 video 上寫欄位——video 是牆上同一個物件，
+        // 且是 Alpine Proxy，直接存參考會讓比對失效）。同一部再點不動；換成不同的片時清「讀不到」。
+        // 這裡不判 lbxApStripLocked：鎖死只靠縮圖排的 :inert，多一道保險會讓「:inert 接線遺失」無人發現（FE-GUARD-25）。
+        lbxApOpenCover(video) {
+            if (!video || this.lbxApCover?.path === video.path) return;
+            this.lbxApCover = {
+                path: video.path,
+                number: video.number,
+                title: video.title,
+                cover_url: video.cover_url,
+                cover_full_url: video.cover_full_url,
+                auto_focal: video.auto_focal,
+                crop_mode: video.crop_mode,
+            };
+            this.lbxApCoverFailed = false;
+            // 沒有封面網址：沒有圖要等，直接顯示無封面塊（不透明底）
+            this.lbxApCoverShown = !(video.cover_full_url || video.cover_url) || this.lbxApCoverShown;
+        },
+
+        lbxApBackToPhoto() { this.lbxApCover = null; this.lbxApCoverFailed = false; this.lbxApCoverShown = false; },
+
+        // 封面 <img> @error：讀不到 → 顯示無封面塊，同時結束淡入等待
+        lbxApCoverError() {
+            this.lbxApCoverFailed = true;
+            this.lbxApCoverShown = true;
+        },
+
+        // 封面 <img> @load：疊層盒（imgEl 的父層）比例量得到就套焦點裁法，量不到或不需裁就清成 ''（退 CSS 的右半邊基線）。
+        // 回 null 也要清 inline——同一個 <img> 在 A→B 時是重用的，不清會把 A 的裁法殘留到 B。
+        lbxApCoverLoaded(imgEl) {
+            this.lbxApCoverShown = true;
+            if (!imgEl) return;
+            const box = imgEl.parentElement?.getBoundingClientRect?.();
+            const boxRatio = box && box.height > 0 ? box.width / box.height : 0;
+            const pos = boxRatio > 0
+                ? focalCellObjectPosition(this.lbxApCover, imgEl.naturalWidth / imgEl.naturalHeight, boxRatio)
+                : null;
+            imgEl.style.objectPosition = pos || '';
+        },
+
+        // 無封面：沒開、或兩個網址皆空、或讀不到
+        lbxApCoverNoImage() {
+            const cover = this.lbxApCover;
+            const failed = this.lbxApCoverFailed;
+            return !cover || !(cover.cover_full_url || cover.cover_url) || failed;
         },
 
         lbxApNext() {
