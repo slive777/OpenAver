@@ -51,6 +51,8 @@ export function stateHiddenSources() {
             this.videoCount = _videos.length;
             this.hiddenCount = _allVideos.length - _videos.length;
             this._hsHiddenNumbers = hiddenNumberSet(hidden, visible);
+            // 199b-T4b：可見片庫變了，女優片數與排序跟著重算
+            this._refreshActressDerived?.();
         },
 
         // 隱藏集合沒變就整段 no-op（applyFilterAndSort 會把頁碼重置為 1）；有變才重篩並收斂燈箱。

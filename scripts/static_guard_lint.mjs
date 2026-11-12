@@ -434,12 +434,85 @@ const RULES = [
   },
   {
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'structure-count',
-    pattern: 'this._refreshLbActorAges?.();', count: 1,
-    note: '[LbActorAgeRefresh] 149b-CD-3 刷新契約第 6 點：生日資料是非同步到位的，'
-        + '這一行是「燈箱已經開著時，資料到了要重算一次」的唯一觸發點。刪掉它 → 使用者在資料還沒回來時開燈箱，'
+    pattern: 'this._refreshLbActorAges?.();', count: 2,
+    note: '[LbActorAgeRefresh] 149b-CD-3 刷新契約第 6 點（199b-T4b 起兩處）：生日資料是非同步到位的，'
+        + '「燈箱已經開著時，資料到了要重算一次」的觸發點有兩處——loadActresses 成功路徑（原第 6 點）與 _refreshActressDerived 本體④'
+        + '（片庫／別名表／收藏增減後的重算）。刪掉任一處 → 使用者在資料還沒回來時開燈箱，'
         + '年齡永遠不出現，除非他關掉燈箱再開一次。exact count 而非 required-string：後者 count 是下限，'
-        + '第二個誤增的呼叫點會被放行。⚠ 這一行的字面帶 ?.，與另外五處不同，所以不會被 state-lightbox.js／'
+        + '第三個誤增的呼叫點會被放行。⚠ 這一行的字面帶 ?.，與另外五處不同，所以不會被 state-lightbox.js／'
         + 'state-similar.js 那四條的計數涵蓋——必須獨立一條。',
+  },
+
+  // ---- 199b-T4b：女優片數統一（索引＋計數 ＋ 十二個刷新出口）----
+  // 第 3 列：十個出口函式各自必須至少有一處 _refreshActressDerived?.( 呼叫（pattern 不含接收者：this.／self. 都算）。
+  // 收斂宣稱：整個出口函式完全失去呼叫時該函式的規則紅；不宣稱「刪掉函式內某一個分支的呼叫會紅」
+  // （fetchVideos 三個失敗分支共用同一字面，互相餵飽——分支逐一補齊靠 card DoD 的 rg 數 12 處）。
+  ...[
+    ['state-hidden-sources.js', '_recomputeVisible', /_recomputeVisible\(\) \{/, '使用者切換「隱藏未連線硬碟」或片庫晚到 → 牆上的片少了，女優卡片的片數與排序卻停在舊值，要重新整理才對得上'],
+    ['state-videos.js', 'fetchVideos', /async fetchVideos\(\) \{/, '使用者重新整理遇到片庫載入失敗 → 女優卡片殘留上一次的片數，與牆對不上'],
+    ['state-delete.js', 'confirmDeleteVideo', /async confirmDeleteVideo\(\) \{/, '使用者刪掉一部片（或多版本片的其中一版）→ 影片牆少了一部，女優卡片的片數與排序卻沒跟著少'],
+    ['state-lightbox.js', 'refreshVideoData', /async refreshVideoData\(video\) \{/, '使用者在燈箱補完／重刮、女優欄位改了 → 牆上篩選結果變了，女優卡片的片數與排序仍是舊的'],
+    ['state-actress.js', '_fetchActressesAndApply', /async function _fetchActressesAndApply\(\) \{/, '使用者重新整理停在女優牆 → 每張卡片先出現舊檔數或空白、之後才跳成新數字，順序也會重排'],
+    ['state-actress.js', '_clearActressesOnLoadFailure', /function _clearActressesOnLoadFailure\(self\) \{/, '使用者遇到女優載入失敗後重試 → 索引與片數殘留上一次的內容，重試成功前畫面與資料對不上'],
+    ['state-actress.js', '_libAddToWall', /_libAddToWall\(actress\) \{/, '使用者從片庫把一位女優加進女優牆 → 新卡片沒有片數、排序位置不對'],
+    ['state-actress.js', 'addFavoriteActress', /async addFavoriteActress\(\) \{/, '使用者新增收藏女優 → 新卡片沒有片數、排序位置不對'],
+    ['state-actress.js', 'addFavoriteFromSearch', /async addFavoriteFromSearch\(\) \{/, '使用者從搜尋結果收藏女優 → 新卡片沒有片數、排序位置不對'],
+    ['state-actress.js', 'confirmRemoveActress', /async confirmRemoveActress\(\) \{/, '使用者移除收藏女優 → 索引仍含已移除的人，其餘女優的片數與排序基準不一致'],
+  ].map(([file, fn, anchor, consequence]) => ({
+    file: 'web/static/js/pages/showcase/' + file, kind: 'required-string',
+    pattern: /_refreshActressDerived\?\.\(/,
+    scope: { anchor, braceBalanced: true },
+    stripLineComments: true,
+    note: `[lint-guard:199b-T4b-refresh-${fn}] ${fn} 完全沒有 _refreshActressDerived?.( 呼叫 → ${consequence}`,
+  })),
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
+    pattern: '_setActressIndex(',
+    scope: { anchor: /_refreshActressDerived\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T4b-derived-body-index] _refreshActressDerived 沒有重建收藏女優索引 → 使用者新增／移除收藏女優後，片數仍用舊名單算，新收藏的人永遠是 0 部作品或消失',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
+    pattern: 'actressWorkRev',
+    scope: { anchor: /_refreshActressDerived\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T4b-derived-body-rev] _refreshActressDerived 沒有遞增版本號 → 數字重算了但卡片文字不重繪（keyed x-for 沿用 DOM，FE-ALPINE-20），使用者看到的片數停在舊值',
+  },
+  // 第 2 列：actress-lookup.js 與牆共用唯一一份切欄／別名展開（tokenizer 只有一份）。
+  {
+    file: 'web/static/js/shared/actress-lookup.js', kind: 'forbidden-string',
+    pattern: '.split(',
+    stripLineComments: true,
+    note: '[lint-guard:199b-T4b-lookup-no-split] actress-lookup.js 自己切欄 → 全形逗號／大小寫／全形英數的口徑和牆分叉，使用者看到女優卡片寫 30 部、點進去牆上只有 28 部',
+  },
+  {
+    file: 'web/static/js/shared/actress-lookup.js', kind: 'required-string',
+    pattern: /import\s*\{[^}]*\b_splitField\b[^}]*\}\s*from\s*'\.\/pill-filter\.js'/,
+    note: '[lint-guard:199b-T4b-lookup-import-split] actress-lookup.js 沒有從 pill-filter.js 匯入 _splitField → 切欄另有一份實作，女優卡片的片數與牆上的「共 N 部」對不上',
+  },
+  {
+    file: 'web/static/js/shared/actress-lookup.js', kind: 'required-string',
+    pattern: /import\s*\{[^}]*\b_buildAliasSet\b[^}]*\}\s*from\s*'\.\/pill-filter\.js'/,
+    note: '[lint-guard:199b-T4b-lookup-import-alias] actress-lookup.js 沒有從 pill-filter.js 匯入 _buildAliasSet → 別名組的展開另有一份實作，有別名的女優片數與牆上對不上',
+  },
+  // 第 4 列：女優牆不得再讀伺服器的 video_count（片數唯一來源是 actressWorkCount）。
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string',
+    pattern: /\.video_count\b/,
+    stripLineComments: true,
+    note: '[lint-guard:199b-T4b-no-video-count] state-actress.js 又讀了女優物件上的 .video_count（伺服器算的檔數）→ 使用者看到的片數是「檔案數」不是「作品數」，多版本片被算兩次，與牆上「共 N 部」對不上，且隱藏未連線硬碟時不會跟著少',
+  },
+  // 第 4a 列：F5 停在女優牆時，片庫（fetchVideos）必須先於女優載入（loadActresses），片數第一次出現就是最終值。
+  {
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'order',
+    scope: { anchor: /async init\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: 'await this.fetchVideos();' },
+      { pattern: 'if (!_actressesLoaded) this.loadActresses();' },
+    ],
+    note: '[lint-guard:199b-T4b-init-order] init() 把 loadActresses 排到 fetchVideos 之前 → 使用者重新整理停在女優牆，卡片先以空白／舊值出現、片庫到了才跳成新數字，卡片順序也會重排',
   },
 
   // ---- [TestMaskToggleGuard] 99a-T5：detect-first 重新設計（Bug 1 修法）+ 星空等待動畫 lifecycle ----
@@ -1667,11 +1740,13 @@ const RULES = [
 
   // ---- [TestActressCoreMetadataVideoCount]（order + required，brace-balanced scope，handoff 已解除留置 AD-96b-2） ----
   // 116a-T3：anchor 由 _actressCoreMetadata 改為 _actressCoreMetadataParts（函式被結構化陣列版原地取代）。
-  // 等價遷移：4 條規則、scope 語意、鎖的內容全部不變，只換錨定的函式名。
+  // 199b-T4b：作品數來源由伺服器的 video_count 改為 actressWorkCount()（null ＝ 未就緒、整格不推）。
+  // 舊 4 條／新 4 條；scope 不變，只換 pattern：① video_count → actressWorkCount(；② 不變；
+  // ③ video_count 的 push → key: 'count' 的 push（仍須在 .age push 之前）；④ typeof number 守門 → null 守門。
   {
-    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string', pattern: 'video_count',
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string', pattern: 'actressWorkCount(',
     scope: { anchor: /(?:^|\n)\s*_actressCoreMetadataParts\s*\([^)]*\)\s*\{/, braceBalanced: true },
-    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 方法體含 video_count',
+    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 方法體含 actressWorkCount(（199b-T4b 遷移：作品數改讀 actressWorkCount，不再讀伺服器 video_count；使用者後果：燈箱數值列的作品數與牆上「共 N 部」不一致）',
   },
   {
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string', pattern: 'showcase.unit.films',
@@ -1682,16 +1757,16 @@ const RULES = [
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order',
     scope: { anchor: /(?:^|\n)\s*_actressCoreMetadataParts\s*\([^)]*\)\s*\{/, braceBalanced: true },
     items: [
-      { pattern: /parts\.push\([^)]*video_count[^)]*\)/ },
+      { pattern: /parts\.push\([^)]*key:\s*'count'[^)]*\)/ },
       { pattern: /parts\.push\([^)]*\.age[^)]*\)/ },
     ],
-    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — video_count push 必須在 age push 之前（前置，brace-balanced scope）',
+    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 作品數（key: \'count\'）的 push 必須在 age push 之前（前置，brace-balanced scope；199b-T4b 遷移：舊 pattern 鎖 video_count 的 push）',
   },
   {
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
-    pattern: /typeof\s+\w+\.video_count\s*===\s*['"]number['"]/,
+    pattern: /if\s*\(\s*\w+\s*!==?\s*null\s*\)/,
     scope: { anchor: /(?:^|\n)\s*_actressCoreMetadataParts\s*\([^)]*\)\s*\{/, braceBalanced: true },
-    note: '[TestActressCoreMetadataVideoCount] test_video_count_typeof_number_guard — typeof a.video_count === \'number\' guard',
+    note: '[TestActressCoreMetadataVideoCount] test_video_count_typeof_number_guard — null 守門（199b-T4b 遷移：舊 typeof video_count === \'number\' 守門改鎖 actressWorkCount 的 null；拿掉它 → 片庫還沒到時燈箱顯示「0部作品」而不是不顯示）',
   },
 
   // ---- [TestNoHardcodedColors] HTML inline hex（非遞迴頂層 + exclude 2 個 demo 頁，discrepancy：CSS 半邊已由 stylelint 接管） ----

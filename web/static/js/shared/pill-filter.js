@@ -86,7 +86,7 @@ function _buildSingleMatcher(pill, nameToGroup, tagToGroup) {
 }
 
 // D4：正規化順序固定為「先 normalize 整欄，再 split」——全形逗號要先靠 NFKC 折成 ASCII 逗號才切得開。
-function _splitField(rawFieldValue) {
+export function _splitField(rawFieldValue) {
     return normalizePillValue(rawFieldValue).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 }
 

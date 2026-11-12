@@ -51,7 +51,7 @@ export async function resolve(specifier, context, nextResolve) {
 register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.url);
 
 const { stateActress } = await import('../state-actress.js');
-const { _setActresses } = await import('../state-base.js');
+const { _setActresses, _setActressWorkCounts } = await import('../state-base.js');
 
 /**
  * Fixture：同時含有值與缺值的女優。
@@ -122,22 +122,29 @@ test('height asc：有值升冪、缺值（noHt）恆排最後', () => {
 
 test('recent 排序：分數降冪、同分依作品數、asc 整份反過來、缺分數視同 0', () => {
     // 給定順序刻意打亂：拿掉第二級或 asc 沒反轉都會算出不同順序
+    // 199b-T4b：作品數改由 _setActressWorkCounts 餵（不再讀伺服器的 video_count）
     const LIST = [
-        { name: 'lowA',   recent_score: 1,  video_count: 5 },
-        { name: 'zeroB',  recent_score: 0,  video_count: 9 },
-        { name: 'topC',   recent_score: 10, video_count: 2 },
-        { name: 'noneD',  video_count: 3 },                    // 缺 recent_score ＝ 0
-        { name: 'tieE',   recent_score: 5,  video_count: 1 },
-        { name: 'tieF',   recent_score: 5,  video_count: 8 },
-        { name: 'zeroG',  recent_score: 0,  video_count: 4 },
+        { name: 'lowA',   recent_score: 1 },
+        { name: 'zeroB',  recent_score: 0 },
+        { name: 'topC',   recent_score: 10 },
+        { name: 'noneD' },                                      // 缺 recent_score ＝ 0
+        { name: 'tieE',   recent_score: 5 },
+        { name: 'tieF',   recent_score: 5 },
+        { name: 'zeroG',  recent_score: 0 },
     ];
+    const COUNTS = { lowA: 5, zeroB: 9, topC: 2, noneD: 3, tieE: 1, tieF: 8, zeroG: 4 };
     const run = (order) => {
         const c = Object.assign({}, stateActress(), {
             actressSort: 'recent', actressOrder: order, actressSearch: '',
         });
         _setActresses(LIST);
-        c.applyActressFilterAndSort();
-        return namesOf(c.paginatedActresses);
+        _setActressWorkCounts(new Map(Object.entries(COUNTS)));
+        try {
+            c.applyActressFilterAndSort();
+            return namesOf(c.paginatedActresses);
+        } finally {
+            _setActressWorkCounts(null);
+        }
     };
     const desc = ['topC', 'tieF', 'tieE', 'lowA', 'zeroB', 'zeroG', 'noneD'];
     assert.deepEqual(run('desc'), desc);

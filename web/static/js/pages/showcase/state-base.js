@@ -36,6 +36,14 @@ export var _actresses = [];
 export var _filteredActresses = [];
 export var _actressesLoaded = false;
 export function _setActressesLoaded(v) { _actressesLoaded = v; }
+// 199b-T4b（CD-199b-4／5）：收藏女優索引、各女優作品數、片庫就緒旗標。與大陣列同理放模組層級（非響應式，
+// FE-ALPINE-18）；響應式只有 state-actress.js 的 actressWorkRev 一個純量。
+export var _actressIndex = null;        // buildActressIndex() 的結果（shared/actress-lookup.js）
+export function _setActressIndex(v) { _actressIndex = v; }
+export var _actressWorkCounts = null;   // Map<收藏女優名, 作品數>；null ＝ 未就緒（片庫或別名表還沒到）
+export function _setActressWorkCounts(v) { _actressWorkCounts = v; }
+export var _videosReady = false;        // fetchVideos 成功才為真；任何失敗分支設回假
+export function _setVideosReady(v) { _videosReady = v; }
 export function _setVideos(v) {
     _videos.length = 0;
     for (const item of (v || [])) _videos.push(item);

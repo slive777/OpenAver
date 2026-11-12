@@ -1017,6 +1017,7 @@ export function stateLightbox() {
                         const i = arr.findIndex((w) => sameWork(w, defaultDict));
                         if (i >= 0) arr[i] = defaultDict;
                     });
+                    this._refreshActressDerived?.();   // 199b-T4b：補完／重刮可能改了女優欄位，片數與排序跟著重算
                     // BUGfix-lightbox-cover-stale: 若燈箱正開在這部作品（任一版本），重置 blur-up overlay，
                     // 讓 cover_full_url（已 bust）重新觸發 @load → _lbFullLoaded 淡入。
                     // path 比對（FE-ALPINE-14）。必須在寫入之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。
