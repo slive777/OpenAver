@@ -1114,15 +1114,6 @@ body.sidebar-collapsed .showcase-footer {
     opacity: 0.4;
 }
 
-/* 49a-T3: Actress Lightbox alias label（Row 3 chips 前方淡色標籤 + tooltip） */
-.lb-chips-row .lb-chips-label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-right: 4px;
-    cursor: default;
-    align-self: center;
-}
-
 /* ── 49b T4cd / 49c T5fix.B (V2 viewport overlay)：Actress Photo Picker ── */
 .actress-picker-overlay {
     position: fixed;
