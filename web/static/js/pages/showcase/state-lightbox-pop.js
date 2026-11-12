@@ -214,6 +214,11 @@ export function stateLightboxPop() {
             return parseActresses(this.currentLightboxVideo);
         },
 
+        // 頭像表鍵集合（199b-T1，D3）：排序後串成字串，餵給 lbxFitSig 的第三引數；放這裡不放 fit 分片（fit 外求 0）
+        lbxFavKey() {
+            return Object.keys(this._lbActorFavs || {}).sort().join('\u0000');
+        },
+
         lbxInfoField(id) {
             return workInfoFields(this.currentLightboxVideo, { releaseClickable: this._isReleaseClickable(this.currentLightboxVideo) }).find((f) => f.id === id);
         },

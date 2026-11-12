@@ -10,13 +10,14 @@
  * 從 state-base.js import 共用大陣列（F1：移出 Alpine reactive scope）。
  */
 
-import { _videos, _allVideos, _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER, _recomputeVideoBadges, _recomputeCardActorAges, _actresses, _nameToGroup } from '@/showcase/state-base.js';
+import { _videos, _allVideos, _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER, _recomputeVideoBadges, _recomputeCardActorAges, _actresses, _nameToGroup, _actressIndex } from '@/showcase/state-base.js';
 import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
 import { detectSwipe } from '@/shared/swipe.js';
 import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/wheel-nav.js';
 import { shouldShowEnrichButton } from '@/shared/enrich-gate.js';
 import { computeActorAgesMap } from '@/shared/actress-release-age.js';
 import { versionsOf, sameWork, refreshRoute, applyWorkUpdate, writeWorkFields } from './work-versions.js';
+import { actorFavsOf } from './lbx-logic.js';
 
 
 // 120a-T1：.lb-full @error 的遲到事件判定。比較對象是 Alpine :src 寫入的相對路徑
@@ -97,6 +98,10 @@ export function stateLightbox() {
         // 時算出的值。
         _lbActorAges: {},
 
+        // 199b-T1（CD-199b-7）：{ 片上名字: { name, photo_url, initial } } 女優頭像表。同樣明確重新賦值（新物件參照），
+        // 只含查得到收藏女優的名字；資料未到／失敗為 {}。
+        _lbActorFavs: {},
+
         // 101d-T1：影片焦點 icon gate（CD-1/CD-3）。「窄」＝畫面正以 poster（0.71 直式）裁切呈現，
         // 今天＝ ≤899px（grid 小格的 poster-crop 只在 @media (max-width:899px) 套，plan-101d §2.1）。
         // 用 matchMedia 非 innerWidth：裁切由 CSS media query 驅動 → matchMedia 與裁切逐像素同步
@@ -171,6 +176,7 @@ export function stateLightbox() {
         // 不到，見 mutation 點①）。
         _refreshLbActorAges() {
             this._lbActorAges = { ...computeActorAgesMap(this.currentLightboxVideo, _actresses, _nameToGroup) };
+            this._lbActorFavs = actorFavsOf(this.currentLightboxVideo, _actressIndex);
         },
 
         // 120a-T1：.lb-full 原圖載入失敗。第一行 AC-A6 短路（DB 無封面 cover_full_url

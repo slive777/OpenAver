@@ -1554,6 +1554,7 @@
       "translate_tooltip": "翻譯標題",
       "more_menu": "更多",
       "actresses_more": "另有 {n} 位",
+      "actor_avatar_aria": "看 {name} 的片",
       "actresses_all_title": "全部女優（{n} 位）",
       "info_open": "作品資訊",
       "info_title": "作品資訊",

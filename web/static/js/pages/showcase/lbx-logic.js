@@ -107,15 +107,37 @@ export function workInfoFields(video, { releaseClickable = false } = {}) {
     return fields;
 }
 
-/** fitSig：量測簽章（199a-T5，CD-199a-9）。簽章變 ⇒ 重量測；分隔字元避免欄位內容互相拼出相同字串。 */
-export function fitSig(video, adding) {
+/**
+ * fitSig：量測簽章（199a-T5，CD-199a-9）。簽章變 ⇒ 重量測；分隔字元避免欄位內容互相拼出相同字串。
+ * favKey（199b-T1）：頭像表的鍵集合（頭像會讓 chip 變寬，頭像表一變就要重量）；空字串＝與舊版逐字相同。
+ */
+export function fitSig(video, adding, favKey = '') {
     if (!video) return '';
-    return [video.path || '', video.actresses || '', video.tags || '', (video.user_tags || []).join('\u0001'), adding ? '1' : '0'].join('\u0000');
+    const parts = [video.path || '', video.actresses || '', video.tags || '', (video.user_tags || []).join('\u0001'), adding ? '1' : '0'];
+    if (favKey) parts.push(favKey);
+    return parts.join('\u0000');
 }
 
 /** parseActresses：影片的女優名單（逗號分隔、去空白、去空字串）。 */
 export function parseActresses(video) {
     return String(video?.actresses || '').split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * actorFavsOf：影片女優頭像表（199b-T1，CD-199b-7）。key＝片上寫的名字（trim 過、同名只留一筆），
+ * 只收 index.lookup(片上名字) 查得到的；name＝收藏名、photo_url＝當下的 a.photo_url（無照片為 ''）、
+ * initial＝片上名字的第一個字（Array.from 處理代理對）。index 為空或沒有影片 ⇒ {}。純函式。
+ */
+export function actorFavsOf(video, index) {
+    const out = {};
+    if (!video || !index || typeof index.lookup !== 'function') return out;
+    for (const name of parseActresses(video)) {
+        if (Object.prototype.hasOwnProperty.call(out, name)) continue;
+        const a = index.lookup(name);
+        if (!a) continue;
+        out[name] = { name: a.name, photo_url: a.photo_url || '', initial: Array.from(name)[0] || '' };
+    }
+    return out;
 }
 
 /**

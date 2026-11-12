@@ -1298,11 +1298,11 @@
                                  這一列永遠渲染（沒有女優就左側空）。露出數由 lbxFit 分片量 .lbx-measure（可見層的隱形複本，共用同一組 class 寬度才一致）；
                                  量完前列帶 is-measuring（visibility:hidden，版面保留）。x-effect 與 :class 只傳引數給 lbxFit*，分片不讀別片的狀態。 -->
                             <div class="lbx-people-row"
-                                 :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag))}"
-                                 x-effect="lbxFitSchedule($el, lbxFitSig(currentLightboxVideo, addingLbTag))">
+                                 :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag, lbxFavKey()))}"
+                                 x-effect="lbxFitSchedule($el, lbxFitSig(currentLightboxVideo, addingLbTag, lbxFavKey()))">
                                 <div class="lbx-actors">
                                     <template x-for="name in lbxActressList().slice(0, lbxFit.actressShown)" :key="name">
-                                        <span class="lbx-actor-chip"><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
+                                        <span class="lbx-actor-chip"><template x-if="_lbActorFavs[name]"><button type="button" class="lbx-avatar" :aria-label="t('showcase.lightbox.actor_avatar_aria', { name })" @click.prevent="searchFromMetadata(name, 'actress')"><span class="lbx-avatar-initial" x-text="_lbActorFavs[name].initial"></span><template x-if="_lbActorFavs[name].photo_url"><img alt="" loading="lazy" decoding="async" :src="_lbActorFavs[name].photo_url" @error="$el.hidden = true" @load="$el.hidden = false"></template></button></template><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
                                     </template>
                                     <template x-if="lbxActressList().length > lbxFit.actressShown">
                                         <button type="button" class="lb-tag lbx-more-actors" data-lbx-anchor="actresses" aria-haspopup="true"
@@ -1342,7 +1342,7 @@
                                      「另有 N 位」只在多於 1 位時畫，N＝最壞情況（只露 1 位）。 -->
                                 <div class="lbx-measure" aria-hidden="true" inert>
                                     <template x-for="name in lbxActressList()" :key="name">
-                                        <span class="lbx-actor-chip"><span class="lbx-link" x-text="name"></span><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
+                                        <span class="lbx-actor-chip"><template x-if="_lbActorFavs[name]"><span class="lbx-avatar" aria-hidden="true"></span></template><span class="lbx-link" x-text="name"></span><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
                                     </template>
                                     <template x-if="lbxActressList().length > 1">
                                         <span class="lb-tag lbx-more-actors" x-text="t('showcase.lightbox.actresses_more', { n: lbxActressList().length - 1 })"></span>
@@ -1368,7 +1368,7 @@
                                  露出數由 lbxFit 量 .lbx-measure（可見層的隱形複本，共用同一組 class 寬度才一致；複本沒有 <a>／<button>／<input>）；
                                  量完前兩個內容區 visibility:hidden（控制區不藏：按「＋」讓簽章變、列進入量測，輸入框要能立刻 focus）。
                                  「＋」⇄展開區用 .is-adding class＋CSS 切換、不用 x-show（FE-ALPINE-17）；展開區一直在 DOM。 -->
-                            <div class="lbx-tag-row" :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag))}">
+                            <div class="lbx-tag-row" :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag, lbxFavKey()))}">
                                 <div class="lbx-tags-work">
                                     <template x-for="tag in lbxWorkTags().slice(0, lbxTagShown('work'))" :key="tag">
                                         <a href="#" class="lb-tag lbx-tag" @click.prevent="searchFromMetadata(tag, 'tag')" x-text="tag"></a>

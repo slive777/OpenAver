@@ -29,6 +29,7 @@ function _clearActressesOnLoadFailure(self) {
     self.actressCount = 0;
     self.filteredActressCount = 0;
     self._lbActorAges = {};
+    self._lbActorFavs = {};
     _setActressesLoaded(false);
     self._refreshActressDerived?.();   // 199b-T4b：此處沒有 this（模組層級函式），不能寫 this.
 }

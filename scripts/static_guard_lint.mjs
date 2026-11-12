@@ -620,8 +620,35 @@ const RULES = [
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: [/x-effect="lbxFitSchedule\(\$el,\s*lbxFitSig\(/, /lbxFitMeasuring\(lbxFitSig\(/],
-    scope: { anchor: /<div class="lbx-people-row"/, window: 340 }, // 實測 anchor 到 x-effect 結尾 259 字元，加約 31% 餘裕
+    scope: { anchor: /<div class="lbx-people-row"/, window: 370 }, // 實測 anchor 到 x-effect 結尾 286 字元（199b-T1 兩處各多 `, lbxFavKey()`，原 259），加約 29% 餘裕
     note: '[lint-guard:199a-T5-fit-wired] 第 3 列少了 x-effect 排程量測或 is-measuring 隱藏 → 使用者換片後女優列不重算，露出數停在上一片（「另有 N 位」數字對不上），或整列永遠 visibility:hidden 看不到女優',
+  },
+  // ---- 199b-T1：影片燈箱女優頭像（頭像表 _lbActorFavs 的賦值／失敗清空／三個簽章呼叫點／量測層同寬空圓）----
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: /this\._lbActorFavs\s*=\s*actorFavsOf\(/,
+    scope: { anchor: /_refreshLbActorAges\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T1-favs-assign] _refreshLbActorAges 沒有重新賦值頭像表 → 使用者開一部寫了收藏女優的片，名字前沒有頭像（或換片後留著上一部片的人），畫面看起來正常只是少了該有的東西',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
+    pattern: /self\._lbActorFavs\s*=\s*\{\};/,
+    scope: { anchor: /function _clearActressesOnLoadFailure\(self\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T1-favs-clear] 女優載入失敗時沒有清空頭像表 → 使用者在女優資料載入失敗後開影片燈箱，名字前還掛著失敗前的頭像',
+  },
+  {
+    // 舊兩引數形式不得出現在模板任何地方（人物列 :class／x-effect、標籤列 :class 三處都要帶 lbxFavKey()）
+    file: 'web/templates/showcase.html', kind: 'forbidden-string',
+    pattern: /lbxFitSig\(currentLightboxVideo,\s*addingLbTag\)/,
+    note: '[lint-guard:199b-T1-favkey-all-sites] 有一個 lbxFitSig( 呼叫沒帶 lbxFavKey() → 使用者開任何一部有收藏女優的片，那一列（人物列或標籤列）的「量完了」簽章永遠對不上而整列看不見',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: '<span class="lbx-avatar"',
+    scope: { anchor: /<div class="lbx-measure" aria-hidden="true" inert>/, window: 360 }, // 實測 anchor 到 <span class="lbx-avatar" 結尾 272 字元（人物列那一個量測層，先出現；標籤列的量測層不放頭像），加約 32% 餘裕
+    note: '[lint-guard:199b-T1-measure-avatar] 量測層 chip 少了與頭像同尺寸的空圓 → 使用者開三位都收藏的片，量測層算出的 chip 比實際窄，名字被擠斷或「另有 N 位」的數字不對',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',

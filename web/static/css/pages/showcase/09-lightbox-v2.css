@@ -537,6 +537,55 @@ a.lbx-link:focus-visible {
     text-decoration: underline;
 }
 
+/* 199b-T1：收藏女優名字前的圓頭像（可見層 button、量測層 span 共用同一組尺寸與 margin，兩層 chip 才同寬）。
+   有照片＝照片（固定 object-position，不可調）；沒照片／圖壞掉＝片上名字的第一個字。單一 accent 原則：不用 accent。
+   --lbx-avatar-size 預設 2rem，留給名單浮層的小尺寸變體覆寫。 */
+.lbx-avatar {
+    --lbx-avatar-size: 2rem;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    box-sizing: border-box;
+    width: var(--lbx-avatar-size);
+    height: var(--lbx-avatar-size);
+    margin-inline-end: .375rem;
+    vertical-align: middle;
+    border-radius: 50%;
+    overflow: hidden;
+    background: color-mix(in oklch, var(--text-primary) 12%, transparent);
+}
+
+button.lbx-avatar {
+    padding: 0;
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+}
+
+.lbx-avatar-initial {
+    font-size: .8125rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--text-secondary);
+}
+
+.lbx-avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 20%;
+}
+
+/* 頭像貼著 chip 左緣、chip 有 overflow:hidden：焦點環畫在頭像內側，不被裁 */
+.lbx-avatar:focus-visible {
+    outline: 2px solid var(--text-secondary);
+    outline-offset: -2px;
+}
+
 .lbx-people-row .lb-actor-age,
 .lbx-pop .lb-actor-age {
     color: var(--text-muted);
