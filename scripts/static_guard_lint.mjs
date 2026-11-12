@@ -1764,9 +1764,9 @@ const RULES = [
   },
   {
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
-    pattern: /if\s*\(\s*\w+\s*!==?\s*null\s*\)/,
+    pattern: /if\s*\(\s*workCount\s*!==?\s*null\s*\)/,
     scope: { anchor: /(?:^|\n)\s*_actressCoreMetadataParts\s*\([^)]*\)\s*\{/, braceBalanced: true },
-    note: '[TestActressCoreMetadataVideoCount] test_video_count_typeof_number_guard — null 守門（199b-T4b 遷移：舊 typeof video_count === \'number\' 守門改鎖 actressWorkCount 的 null；拿掉它 → 片庫還沒到時燈箱顯示「0部作品」而不是不顯示）',
+    note: '[TestActressCoreMetadataVideoCount] test_video_count_typeof_number_guard — workCount 的 null 守門（綁變數名 workCount，不接受別的變數的 null 判斷；199b-T4b 遷移 + Codex review F2：舊 typeof video_count === \'number\' 守門改鎖 actressWorkCount 的 null；拿掉它 → 片庫還沒到時燈箱數值列會出現「null部作品」而不是不顯示）',
   },
 
   // ---- [TestNoHardcodedColors] HTML inline hex（非遞迴頂層 + exclude 2 個 demo 頁，discrepancy：CSS 半邊已由 stylelint 接管） ----
