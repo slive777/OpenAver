@@ -380,8 +380,10 @@
     object-position: right center;
 }
 
-/* 底條：常駐（不靠 hover）貼疊層下緣；文字單行省略號、按鈕沿用 .lb-action-btn（46px 玻璃鈕）不縮不被擠出。
-   文字色用 color 的 alpha（不用元素 opacity，FE-CSS-18），漸層底讓字在亮封面上也讀得出來。 */
+/* 底條：常駐（不靠 hover）貼疊層下緣，版面照影片燈箱的封面層（09 的 .lbx-cover-layer）：直欄、鈕列在上且水平置中，
+   鈕列直接沿用 09 的 .lbx-actions（置中、間距 .75rem）與 .lb-action-btn（46px 玻璃鈕），不新增按鈕外觀；
+   番號·片名單獨一行置於鈕列下方（佔影片燈箱規格帶的位置：min-height 1.625rem、與鈕列間距 .625rem、下內距 .625rem），
+   單行省略號、不與鈕重疊。文字色用 color 的 alpha（不用元素 opacity，FE-CSS-18），漸層底讓字在亮封面上也讀得出來。 */
 .lightbox-cover .lbx-ap-cover .lbx-ap-bar {
     position: absolute;
     left: 0;
@@ -389,25 +391,25 @@
     bottom: 0;
     z-index: 1;
     display: flex;
-    align-items: center;
-    gap: .5rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .625rem;
     box-sizing: border-box;
     padding: 1.5rem .75rem .625rem;
     background: linear-gradient(to top, var(--overlay-gradient), transparent);
 }
 
 .lightbox-cover .lbx-ap-cover .lbx-ap-bar-text {
-    flex: 1 1 auto;
+    display: block;
+    box-sizing: border-box;
     min-width: 0;
+    min-height: 1.625rem;
     overflow: hidden;
     color: color-mix(in oklch, white 92%, transparent);
     font-size: .875rem;
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.625rem;
+    text-align: center;
     white-space: nowrap;
     text-overflow: ellipsis;
-}
-
-.lightbox-cover .lbx-ap-cover .lbx-ap-bar > .lb-action-btn {
-    flex: none;
 }

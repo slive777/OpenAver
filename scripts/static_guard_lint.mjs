@@ -536,7 +536,7 @@ const RULES = [
   // 拆成兩條 scope-anchored 規則，各自錨到專屬 <template x-if> 分支（全檔僅出現一次，
   // 唯一性已用 grep 確認），window 只需蓋過該分支內的 ✓/✗ 兩處、且在下一分支的同 pattern
   // 之前收尾，兩個分支才能被「各自」的 count:2 下限獨立守住。
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 11300 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解與 199b-T6 封面疊層；199b-T6 後 anchor 到第二個 ✗ 結尾實測 8814 字元〔超過原 8800〕，window 8800→11300＝實測＋約 28%；與下一條影片 scope 的 anchor 相距 22373 字元，仍安全不重疊）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 11300 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解與 199b-T6 封面疊層；199b-T6 後 anchor 到第二個 ✗ 結尾實測 8959 字元〔owner 修正後；超過原 8800〕，window 8800→11300＝實測＋約 26%；與下一條影片 scope 的 anchor 相距 22373 字元，仍安全不重疊）' },
   // 199a-T2：影片分支的 ✓/✗ 隨封面對焦入口一起移除，上面只剩女優那條（影片那條 count:2 規則已刪）。
   { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'lb-video-branch', count: 1, note: '[lint-guard:199a-T1-video-branch-count] 影片燈箱外框隔離標記 lb-video-branch 全檔恰 1 處——多了＝女優／其他燈箱也被套上影片版外框（封面忽然變大、版面跑掉），少了＝影片燈箱外框整組失效；模板內任何註解都不得寫到這個字樣' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'class="lb-video-branch"', scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 200 }, note: '[lint-guard:199a-T1-video-branch-scope] lb-video-branch 必須掛在影片分支 <template x-if> 緊接的包裝 div 上——class 被搬到女優分支時計數仍是 1，但影片燈箱外框失效、女優燈箱被改版' },
@@ -9971,7 +9971,7 @@ const RULES = [
   },
   {
     file: 'web/templates/showcase.html', kind: 'order',
-    scope: { anchor: /<div class="actress-lb-photo-frame">/, window: 4700 }, // 實測 anchor 到 x-ref="pickerCoverImg" 74、到 class="lbx-ap-cover" 1465、到 <div class="cover-actions" 3672（結尾 3698）字元，加約 30% 餘裕
+    scope: { anchor: /<div class="actress-lb-photo-frame">/, window: 5000 }, // 實測 anchor 到 x-ref="pickerCoverImg" 74、到 class="lbx-ap-cover" 1465、到 <div class="cover-actions" 3817（結尾 3843）字元，加約 30% 餘裕（T6 owner 修正：底條包進 .lbx-actions 後 3672→3817，窗 4700→5000）
     items: [
       { pattern: 'x-ref="pickerCoverImg"' },
       { pattern: 'class="lbx-ap-cover"' },
@@ -9982,7 +9982,7 @@ const RULES = [
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: ['playVideo(lbxApCover.path)', 'openLocal(lbxApCover.path)'],
-    scope: { anchor: /class="lbx-ap-bar"/, window: 1000 }, // 實測 anchor 到 playVideo(lbxApCover.path) 結尾 410、到 openLocal(lbxApCover.path) 結尾 766 字元，加約 30% 餘裕
+    scope: { anchor: /class="lbx-ap-bar"/, window: 760 }, // 實測 anchor 到 playVideo(lbxApCover.path) 結尾 216、到 openLocal(lbxApCover.path) 結尾 584 字元，加約 30% 餘裕（T6 owner 修正：鈕列移到文字之前，766→584，窗 1000→760）
     note: '[lint-guard:199b-T6-bar-wired] 封面底條的 ▶ 或 📁 沒接到那部片的路徑 → 使用者看著封面按 ▶ 沒反應、或播到別部片、或 📁 開錯資料夾',
   },
   {

@@ -986,13 +986,15 @@
                                             <span x-text="t('common.no_image')"></span>
                                         </div>
                                         <div class="lbx-ap-bar">
+                                            <div class="lbx-actions">
+                                                <button type="button" class="lb-action-btn" @click="playVideo(lbxApCover.path)" :data-tooltip="t('showcase.action.play')" :aria-label="t('showcase.action.play')">
+                                                    <i class="bi bi-play-fill"></i>
+                                                </button>
+                                                <button type="button" class="lb-action-btn js-open-folder" @click="openLocal(lbxApCover.path)" :data-tooltip="t('search.action.open_folder')" :aria-label="t('search.action.open_folder')">
+                                                    <i class="bi bi-folder2-open"></i>
+                                                </button>
+                                            </div>
                                             <span class="lbx-ap-bar-text" :title="lbxApCover.title ? lbxApCover.number + ' · ' + lbxApCover.title : lbxApCover.number" x-text="lbxApCover.title ? lbxApCover.number + ' · ' + lbxApCover.title : lbxApCover.number"></span>
-                                            <button type="button" class="lb-action-btn" @click="playVideo(lbxApCover.path)" :data-tooltip="t('showcase.action.play')" :aria-label="t('showcase.action.play')">
-                                                <i class="bi bi-play-fill"></i>
-                                            </button>
-                                            <button type="button" class="lb-action-btn js-open-folder" @click="openLocal(lbxApCover.path)" :data-tooltip="t('search.action.open_folder')" :aria-label="t('search.action.open_folder')">
-                                                <i class="bi bi-folder2-open"></i>
-                                            </button>
                                         </div>
                                     </div>
                                 </template>
