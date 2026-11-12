@@ -995,6 +995,122 @@
                         </div>
                     </div>
 
+                    <!-- 頭像（收藏女優名字前的圓頭像；示意不放照片，只放首字圓）＋名單浮層裡的小頭像 -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: block;">
+                            <div style="display: flex; align-items: center; gap: 1rem; pointer-events: none;">
+                                <span style="display: inline-flex; align-items: center;"><span class="lbx-avatar"><span class="lbx-avatar-initial">丑</span></span>示例女優</span>
+                                <span style="display: inline-flex; align-items: center;"><span class="lbx-avatar lbx-avatar--sm"><span class="lbx-avatar-initial">丑</span></span>示例女優</span>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">頭像 · <code>.lbx-avatar</code> / <code>.lbx-avatar--sm</code></span>
+                            <p class="ds-pill-card-desc">只有收藏的女優有；有照片是她的照片（固定取偏上位置），沒照片是名字第一個字。右邊是「另有 N 位」名單裡的小尺寸；不用 accent</p>
+                            <code class="ds-pill-card-token">--lbx-avatar-size 2rem／1.25rem · --text-primary 12% tint · --text-secondary</code>
+                        </div>
+                    </div>
+
+                    <!-- lbx-pop 浮層殼：actorCard（滑過頭像停一下浮出；純顯示） -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: block;">
+                            <div class="lbx-pop is-placed" data-mode="hover" data-kind="actorCard" style="position: static; max-width: 100%; margin: 0; pointer-events: none;">
+                                <div class="lbx-actor-card">
+                                    <span class="lbx-actor-card__photo"></span>
+                                    <div class="lbx-actor-card__body">
+                                        <div class="lbx-actor-card__name">示例女優</div>
+                                        <div class="lbx-actor-card__row">拍這部時 24 歲 · 現在 28 歲</div>
+                                        <div class="lbx-actor-card__row">160cm · C罩杯 · 84-58-85</div>
+                                        <div class="lbx-actor-card__row">片庫裡有 28 部</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">女優小卡 · <code>.lbx-pop[data-kind="actorCard"]</code> / <code>.lbx-actor-card</code></span>
+                            <p class="ds-pill-card-desc">照片塊固定尺寸（圖載入前後浮層大小不變）；只能看、不能點；示意裡的照片塊留空</p>
+                            <code class="ds-pill-card-token">--surface-2 · --stroke-default · --text-secondary · --radius-sm</code>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 女優燈箱新元件示意（199b）：全部靜態、不可互動；用真 class，不複製 CSS。示意在「閘外」形狀（資料區高度跟著內容走） -->
+            <div class="ds-subsection">
+                <h3>女優燈箱（資料區）</h3>
+                <p class="ds-desc">瀏覽頁女優燈箱下半部的資料區與縮圖排示意，靜態、不可互動；樣式全部來自 <code>10-lightbox-actress-v2.css</code>。</p>
+                <div class="ds-pill-whitelist-grid" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));">
+
+                    <!-- 資料區：名字列／數值列／別名＋資訊一行／她的片縮圖排 -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: block;">
+                            <div class="lightbox-metadata actress-lightbox-meta lbx-ap-meta" style="width: min(100%, 28rem); margin: 0 auto; pointer-events: none;">
+                                <div class="actress-lb-header">
+                                    <div class="actress-lb-title">
+                                        <span>示例女優</span>
+                                        <span class="lb-name-en">Example Name</span>
+                                    </div>
+                                    <span class="lbx-ap-link"><i class="bi bi-journal-text" aria-hidden="true"></i></span>
+                                    <span class="lbx-ap-link"><i class="bi bi-globe" aria-hidden="true"></i></span>
+                                </div>
+                                <div class="lb-actress-core">28 部 · 28 歲 · 1995-01-01 · 160cm · C罩杯 · 84-58-85</div>
+                                <div class="lbx-ap-chips">
+                                    <span class="lbx-ap-label">別名</span>
+                                    <div class="lbx-ap-list">
+                                        <span class="lb-tag lbx-ap-chip">示例別名一</span>
+                                        <span class="lb-tag lbx-ap-chip">示例別名二</span>
+                                        <span class="lb-tag lbx-ap-chip">示例事務所</span>
+                                        <button type="button" class="lb-tag lbx-ap-more" tabindex="-1">+3</button>
+                                    </div>
+                                </div>
+                                <div class="lbx-ap-strip">
+                                    <button type="button" class="lbx-ap-cell lbx-ap-photo" tabindex="-1"><i class="bi bi-person-circle" aria-hidden="true"></i></button>
+                                    <button type="button" class="lbx-ap-cell lbx-ap-film is-selected" tabindex="-1"><span class="lbx-ap-film-number">ABC-123</span></button>
+                                    <button type="button" class="lbx-ap-cell lbx-ap-film" tabindex="-1"><span class="lbx-ap-film-number">ABC-122</span></button>
+                                    <button type="button" class="lbx-ap-cell lbx-ap-film" tabindex="-1"><span class="lbx-ap-film-number">ABC-121</span></button>
+                                    <button type="button" class="lbx-ap-cell lbx-ap-film" tabindex="-1"><span class="lbx-ap-film-number">ABC-120</span></button>
+                                    <button type="button" class="lbx-ap-cell lbx-ap-film" tabindex="-1"><span class="lbx-ap-film-number">ABC-119</span></button>
+                                    <button type="button" class="lbx-ap-cell lbx-ap-film" tabindex="-1"><span class="lbx-ap-film-number">ABC-118</span></button>
+                                    <button type="button" class="lbx-ap-cell lbx-ap-next" tabindex="-1">
+                                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                        <span class="lbx-ap-next-text">1–6／28</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">資料區 · <code>.lbx-ap-meta</code> / <code>.lbx-ap-chips</code> / <code>.lbx-ap-strip</code></span>
+                            <p class="ds-pill-card-desc">四行：名字列（右端部落格、官網小圖示 <code>.lbx-ap-link</code>）、數值列、別名＋資訊一行（放不下收成 <code>.lbx-ap-more</code>「+N」）、她的片縮圖排（最左照片格、最多 6 張片、最右「下一批」，固定 8 欄；<code>.is-selected</code> 是正在看封面的那一格）。沒有資料的行整行不出現</p>
+                            <code class="ds-pill-card-token">--stroke-subtle · --surface-1 · --text-muted · --text-secondary · --accent（選中框／焦點框）</code>
+                        </div>
+                    </div>
+
+                    <!-- 大圖疊層：點縮圖後蓋在女優照片上的那部片的封面＋底條（示意用站內底色當封面替身，不放外部圖） -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: block;">
+                            <div class="lightbox-cover" style="min-width: 0; min-height: 0; width: min(100%, 20rem); height: 14rem; margin: 0 auto; pointer-events: none;">
+                                <div class="lbx-ap-cover is-shown" role="group">
+                                    <div class="av-card-no-cover">
+                                        <i class="bi bi-image" aria-hidden="true"></i>
+                                        <span>封面</span>
+                                    </div>
+                                    <div class="lbx-ap-bar">
+                                        <div class="lbx-actions">
+                                            <button type="button" class="lb-action-btn" tabindex="-1"><i class="bi bi-play-fill" aria-hidden="true"></i></button>
+                                            <button type="button" class="lb-action-btn" tabindex="-1"><i class="bi bi-folder2-open" aria-hidden="true"></i></button>
+                                        </div>
+                                        <span class="lbx-ap-bar-text">ABC-123 · 示例片名</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">大圖疊層 · <code>.lbx-ap-cover</code> / <code>.lbx-ap-bar</code></span>
+                            <p class="ds-pill-card-desc">貼齊照片外框、不改外框大小；底條常駐：上排 ▶ 播放、📁 開資料夾（<code>.lbx-actions</code>，與影片燈箱同一套），下面一行「番號 · 片名」置中、單行省略號。示意用佔位圖代替封面；底條文字在真封面上的可讀性由真機確認</p>
+                            <code class="ds-pill-card-token">--surface-1 · --overlay-gradient · --radius-sm</code>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </section>

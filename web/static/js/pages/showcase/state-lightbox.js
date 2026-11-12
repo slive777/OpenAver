@@ -10,13 +10,14 @@
  * 從 state-base.js import 共用大陣列（F1：移出 Alpine reactive scope）。
  */
 
-import { _videos, _allVideos, _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER, _recomputeVideoBadges, _recomputeCardActorAges, _actresses, _nameToGroup } from '@/showcase/state-base.js';
+import { _videos, _allVideos, _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER, _recomputeVideoBadges, _recomputeCardActorAges, _actresses, _nameToGroup, _actressIndex } from '@/showcase/state-base.js';
 import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
 import { detectSwipe } from '@/shared/swipe.js';
 import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/wheel-nav.js';
 import { shouldShowEnrichButton } from '@/shared/enrich-gate.js';
 import { computeActorAgesMap } from '@/shared/actress-release-age.js';
 import { versionsOf, sameWork, refreshRoute, applyWorkUpdate, writeWorkFields } from './work-versions.js';
+import { actorFavsOf } from './lbx-logic.js';
 
 
 // 120a-T1：.lb-full @error 的遲到事件判定。比較對象是 Alpine :src 寫入的相對路徑
@@ -33,7 +34,7 @@ export function isStaleLbFullError(actualSrc, expectedSrc) {
 // 就算內容溢出也不交還——滾輪換片，不讓使用者陷在既不捲也不換片的死區。
 export function shouldYieldVerticalWheel(target) {
     if (target.closest(WHEEL_VERTICAL_EXCLUDE_SELECTOR)) return true;
-    const meta = target.closest('.lbx-meta');
+    const meta = target.closest('.lbx-meta, .lbx-ap-meta');
     if (!meta) return false;
     const oy = getComputedStyle(meta).overflowY;
     return (oy === 'auto' || oy === 'scroll') && meta.scrollHeight > meta.clientHeight;
@@ -46,7 +47,8 @@ const WHEEL_EXCLUDE_SELECTOR = '.sample-strip, .sg-thumbs, .picker-candidates-gr
 // 不吃導航（僅 vertical 分支檢查，horizontal 分支不受影響、行為不變）。
 // 199a-T1：女優 .lightbox-metadata（無 .lbx-meta）一律交還；影片的 .lbx-meta 排除在外，改由
 // shouldYieldVerticalWheel 看實際可捲狀態決定；.lbx-pop 為影片燈箱浮層（T3 起才有此 DOM）。
-const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata:not(.lbx-meta), .lbx-pop';
+// 199b-T4：女優資料區 .lbx-ap-meta 平常 overflow:hidden（捲不動）→ 與 .lbx-meta 同一套「可捲且真溢出才交還」。
+const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata:not(.lbx-meta):not(.lbx-ap-meta), .lbx-pop';
 
 export function stateLightbox() {
     // TASK-102d-T1：四個獨立累積器（Lightbox 影片 / Lightbox 女優 / 劇照 / 牆翻頁）——
@@ -96,6 +98,10 @@ export function stateLightbox() {
         // 註解），Alpine 的 proxy-only 依賴追蹤讀不到它們的變化，getter 會卡死在資料還沒到位
         // 時算出的值。
         _lbActorAges: {},
+
+        // 199b-T1（CD-199b-7）：{ 片上名字: { name, photo_url, initial } } 女優頭像表。同樣明確重新賦值（新物件參照），
+        // 只含查得到收藏女優的名字；資料未到／失敗為 {}。
+        _lbActorFavs: {},
 
         // 101d-T1：影片焦點 icon gate（CD-1/CD-3）。「窄」＝畫面正以 poster（0.71 直式）裁切呈現，
         // 今天＝ ≤899px（grid 小格的 poster-crop 只在 @media (max-width:899px) 套，plan-101d §2.1）。
@@ -171,6 +177,12 @@ export function stateLightbox() {
         // 不到，見 mutation 點①）。
         _refreshLbActorAges() {
             this._lbActorAges = { ...computeActorAgesMap(this.currentLightboxVideo, _actresses, _nameToGroup) };
+            this._lbActorFavs = actorFavsOf(this.currentLightboxVideo, _actressIndex);
+        },
+
+        // 小卡（199b-T3）用：片上名字 → 收藏女優物件（含 age、身材、photo_url）；分片不能 import 索引，走這裡
+        lbxActorEntity(name) {
+            return _actressIndex ? _actressIndex.lookup(name) : null;
         },
 
         // 120a-T1：.lb-full 原圖載入失敗。第一行 AC-A6 短路（DB 無封面 cover_full_url
@@ -388,6 +400,7 @@ export function stateLightbox() {
             this._resetMask();           // 98b-T4：關燈箱丟棄未提交遮罩態（不 commit）
             this._lbPlotReset?.();       // 187b-T5a：關燈箱清簡介面（defense-in-depth）
             this.lbxPopClose?.();        // 199a-T3：關燈箱收浮層（可選呼叫：只合併部分分片的 harness 沒有它）
+            this.lbxApReset?.();         // 199b-T5：關燈箱清女優縮圖排（回第一批；可選呼叫）
             this._fetchSamplesFailed = {};
 
             // ★ C11: fly-back — 必須在 generation++ / lightboxOpen = false 之前捕獲
@@ -1017,6 +1030,7 @@ export function stateLightbox() {
                         const i = arr.findIndex((w) => sameWork(w, defaultDict));
                         if (i >= 0) arr[i] = defaultDict;
                     });
+                    this._refreshActressDerived?.();   // 199b-T4b：補完／重刮可能改了女優欄位，片數與排序跟著重算
                     // BUGfix-lightbox-cover-stale: 若燈箱正開在這部作品（任一版本），重置 blur-up overlay，
                     // 讓 cover_full_url（已 bust）重新觸發 @load → _lbFullLoaded 淡入。
                     // path 比對（FE-ALPINE-14）。必須在寫入之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。

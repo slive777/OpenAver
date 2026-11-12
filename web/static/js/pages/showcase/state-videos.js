@@ -6,7 +6,7 @@
  * 從 state-base.js import 共用大陣列（F1：移出 Alpine reactive scope）。
  */
 
-import { _videos, _allVideos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setAllVideos, _setFilteredVideos, _recomputeAllBadges, _recomputeCardActorAges } from '@/showcase/state-base.js';
+import { _videos, _allVideos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setAllVideos, _setFilteredVideos, _setVideosReady, _recomputeAllBadges, _recomputeCardActorAges } from '@/showcase/state-base.js';
 import { applyCellFocal } from '@/shared/focal-cell.js';
 import { openLocal } from '@/shared/open-local.js';
 import { playVideo } from '@/shared/play-video.js';
@@ -58,6 +58,8 @@ export function stateVideos() {
                     _filteredVideos.length = 0;
                     this.filteredCount = 0;
                     this.error = window.t('showcase.error.server_error', { status: resp.status });
+                    _setVideosReady(false);
+                    this._refreshActressDerived?.();   // 199b-T4b：片庫失敗 → 女優片數回 null，不殘留上次的數字
                     return;
                 }
                 const data = await resp.json();
@@ -69,6 +71,8 @@ export function stateVideos() {
                     _filteredVideos.length = 0;
                     this.filteredCount = 0;
                     this.error = data.error || window.t('showcase.error.load_failed');
+                    _setVideosReady(false);
+                    this._refreshActressDerived?.();
                     return;
                 }
                 // Re-assign module-level var via splice/push to keep the same reference
@@ -84,6 +88,7 @@ export function stateVideos() {
                 // 195b-T4：全庫存 _allVideos；_videos ＝ 扣掉被「隱藏未連線硬碟」藏起來的片（同一物件 ref）。
                 // _recomputeVisible 不呼叫 applyFilterAndSort；下面 _setFilteredVideos 與其後 init/retry 的重篩接手。
                 _setAllVideos(vids);
+                _setVideosReady(true);   // 199b-T4b：成功路徑的女優片數刷新由 _recomputeVisible 負責
                 this._hsSources = Array.isArray(data.sources) ? data.sources : [];
                 this._recomputeVisible();
                 this.videoCount = _videos.length;
@@ -98,6 +103,8 @@ export function stateVideos() {
                 _filteredVideos.splice(0, _filteredVideos.length);
                 this.filteredCount = 0;
                 this.error = window.t('showcase.error.cannot_connect');
+                _setVideosReady(false);
+                this._refreshActressDerived?.();
             } finally {
                 this.loading = false;
             }

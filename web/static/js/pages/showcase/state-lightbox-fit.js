@@ -63,8 +63,9 @@ export function stateLightboxFit() {
         // workTagShown／userTagShown（199a-T7）：null＝量測失敗／尚未量到＝全露（模板的 lbxTagShown 把非整數視為 ∞）
         lbxFit: { sig: '', actressShown: LBX_FIT_DEFAULT_SHOWN, workTagShown: null, userTagShown: null },
 
-        lbxFitSig(video, adding) {
-            return fitSig(video, adding);
+        // favKey（199b-T1）：頭像表鍵集合，由呼叫端傳入（分片外求仍為 0）
+        lbxFitSig(video, adding, favKey) {
+            return fitSig(video, adding, favKey);
         },
 
         // 輸入改了、尚未量測 ⇒ 為真 ⇒ 列帶 is-measuring（visibility:hidden，版面保留）

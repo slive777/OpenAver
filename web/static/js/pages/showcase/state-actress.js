@@ -5,10 +5,11 @@
  * 從 state-base.js import 共用大陣列（F1：移出 Alpine reactive scope）。
  */
 
-import { _actresses, _filteredActresses, _actressesLoaded, _nameToGroup, _loadAliasMap, _killLightboxTimelines, _setActressesLoaded, _setActresses, _setFilteredActresses } from '@/showcase/state-base.js';
+import { _actresses, _filteredActresses, _actressesLoaded, _nameToGroup, _loadAliasMap, _killLightboxTimelines, _setActressesLoaded, _setActresses, _setFilteredActresses, _videos, _videosReady, _aliasMapLoaded, _actressIndex, _actressWorkCounts, _setActressIndex, _setActressWorkCounts } from '@/showcase/state-base.js';
 import { normalizePillValue } from '@/shared/pill-filter.js';
 import { actressAgeValue, actressHeightValue, actressCupValue, actressMetricRange } from '@/shared/actress-metric.js';
 import { buildActressPillPredicate } from '@/shared/actress-pill-filter.js';
+import { buildActressIndex, countWorksByActress } from '@/shared/actress-lookup.js';
 
 // TASK-149b-T3 CD-149b-2：in-flight promise 放模組層級 `let`，不放 Alpine 物件上——放到 `this`
 // 上會進 reactive scope，被撞名守衛與 map:state 掃到，且反應式範圍裡放 Promise 本身是壞味道。
@@ -28,7 +29,9 @@ function _clearActressesOnLoadFailure(self) {
     self.actressCount = 0;
     self.filteredActressCount = 0;
     self._lbActorAges = {};
+    self._lbActorFavs = {};
     _setActressesLoaded(false);
+    self._refreshActressDerived?.();   // 199b-T4b：此處沒有 this（模組層級函式），不能寫 this.
 }
 
 /**
@@ -55,6 +58,7 @@ async function _fetchActressesAndApply() {
         _setActresses(acts);
         // 45: alias map（冪等，init 可能已載入）
         await _loadAliasMap();
+        this._refreshActressDerived?.();   // 199b-T4b：女優與別名表都到齊的那一刻算出片數，排序才一次到位
         this.applyActressFilterAndSort();
         this._refreshCardActorAges?.();
         // CD-149b-2②：_setActressesLoaded(true) 從 finally 移到成功路徑。
@@ -147,6 +151,7 @@ export function stateActress() {
         actressSort: 'recent',          // 預設排序（184：最近常收）
         actressOrder: 'desc',           // 預設降冪
         actressLoading: false,          // 載入中
+        actressWorkRev: 0,              // 199b-T4b：作品數版本號（_refreshActressDerived 每次 ++，讀取端經 actressWorkCount() 訂閱）
         actressLightboxIndex: -1,       // 指向 _filteredActresses 的索引
         currentLightboxActress: null,   // 當前 lightbox 女優；與 currentLightboxVideo 互斥
         actressLightboxSource: null,    // T5: 'hero' | 'grid' | null — 進入路徑（CD-9）
@@ -196,11 +201,13 @@ export function stateActress() {
         // $watch 姊妹 watcher 是非同步 effect flush，對掛載那一幀擋不住）。
         _setActressLightboxIndex(idx) {
             this._resetMask();
+            this.lbxApReset?.();                 // 199b-T5：縮圖排清空，排在賦值之前（x-if 重新掛載那一幀不能看到舊批）
             this.actressLightboxIndex = idx;
             this.currentLightboxActress = (idx >= 0 && idx < _filteredActresses.length)
                 ? _filteredActresses[idx] : null;
             this.currentLightboxVideo = null;    // 互斥：清除影片
             this._actressChipsExpanded = { aliases: false, info: false };
+            this.lbxApRebuild?.();               // 199b-T5：賦值之後重建（來源在顯示時判，這裡不看來源）
             this._refreshActressPhotoLoaded();   // §B-2b：切換/開啟女優皆走此函式，唯一呼叫點
         },
 
@@ -342,6 +349,31 @@ export function stateActress() {
             try { return await _actressesLoadPromise; } finally { _actressesLoadPromise = null; }
         },
 
+        // 199b-T4b（CD-199b-5／6）：女優片數的唯一來源與刷新點。
+        // 片數＝以當下可見片庫（_videos）算出的作品數，與牆上只下她一個女優條件的「共 N 部」同一把尺；
+        // 片庫或別名表還沒就緒時為 null（不顯示、排序視為 0），絕不回頭讀伺服器給的舊檔數。
+        // 先讀 actressWorkRev 讓呼叫它的 binding 訂閱（索引與 Map 在 reactive scope 外，FE-ALPINE-18）。
+        actressWorkCount(actress) {
+            this.actressWorkRev;
+            if (_actressWorkCounts === null) return null;
+            return _actressWorkCounts.get(actress.name) ?? 0;   // 0 是合法值，禁用 ||（FE-JS-01）
+        },
+
+        // 承重順序：① 建索引 → ② 算數字（讀 ①）→ ③ 遞增版本號 → ④ 刷燈箱年齡表 → ⑥ 最後才重排。
+        // ⑤ 燈箱縮圖排重建（199b-T5，排在 ④ 之後、⑥ 之前）。輸入一律是 _videos（可見子集）。
+        _refreshActressDerived() {
+            _setActressIndex(buildActressIndex(_actresses, _nameToGroup));
+            if (_videosReady && _aliasMapLoaded) {
+                _setActressWorkCounts(countWorksByActress(_videos, _actressIndex));
+            } else {
+                _setActressWorkCounts(null);
+            }
+            this.actressWorkRev++;
+            this._refreshLbActorAges?.();
+            this.lbxApRebuild?.();
+            if (_actressesLoaded) this.applyActressFilterAndSort();
+        },
+
         applyActressFilterAndSort() {
             // Stage 0（116a-T2）：pill 精準比對，跑在既有名字模糊搜尋之前（鏡射 spec §3.1 步驟 6）
             var pillMatch = buildActressPillPredicate(this.actressPills);
@@ -361,6 +393,7 @@ export function stateActress() {
             // 2. Sort
             var sort = this.actressSort;
             var order = this.actressOrder;
+            var self = this;   // sort callback 的 this 不是 Alpine 實例（199b-T4b C4）
             filtered = filtered.slice().sort(function (a, b) {
                 if (sort === 'name') {
                     var cmp = a.name.localeCompare(b.name, 'ja');
@@ -369,13 +402,13 @@ export function stateActress() {
                 if (sort === 'recent') {
                     // 184: 先算 desc 的 cmp，asc 整份取負。`|| 0` 是刻意（缺 recent_score ＝ 0，FE-JS-01 勿改 ??）
                     var cmp = (b.recent_score || 0) - (a.recent_score || 0);
-                    if (cmp === 0) cmp = (b.video_count || 0) - (a.video_count || 0);
+                    if (cmp === 0) cmp = (self.actressWorkCount(b) ?? 0) - (self.actressWorkCount(a) ?? 0);
                     return order === 'asc' ? -cmp : cmp;
                 }
                 var va, vb;
                 if (sort === 'video_count') {
-                    va = a.video_count || 0;
-                    vb = b.video_count || 0;
+                    va = self.actressWorkCount(a) ?? 0;
+                    vb = self.actressWorkCount(b) ?? 0;
                 } else if (sort === 'added_at') {
                     va = a.created_at || '';
                     vb = b.created_at || '';
@@ -389,8 +422,8 @@ export function stateActress() {
                     va = actressCupValue(a);    va = va != null ? va : Infinity;
                     vb = actressCupValue(b);    vb = vb != null ? vb : Infinity;
                 } else {
-                    va = a.video_count || 0;
-                    vb = b.video_count || 0;
+                    va = self.actressWorkCount(a) ?? 0;
+                    vb = self.actressWorkCount(b) ?? 0;
                 }
                 // null-last：Infinity 值永遠排最後（不因 desc 翻轉）
                 if (va === Infinity && vb === Infinity) return 0;
@@ -408,6 +441,21 @@ export function stateActress() {
             this.actressCount = _actresses.length;
             this.filteredActressCount = _filteredActresses.length;
             this.paginatedActresses = _filteredActresses.slice();  // CD-9: 全量，不分頁
+
+            // 199b 修正：女優燈箱開著（來源＝女優牆）時牆被重排，索引要跟著「目前那位」走，
+            // 否則上一位／下一位會指到別人、關燈箱飛回錯的卡。用 name 找（_fetchLiveAliases 會把
+            // currentLightboxActress 換成 Object.assign 副本，物件身分不可靠）；直接賦值，
+            // 不走 _setActressLightboxIndex（它會重置遮罩／縮圖排／封面）。找不到＝保持原索引。
+            if (this.lightboxOpen && this.showFavoriteActresses
+                && this.actressLightboxSource === 'grid' && this.currentLightboxActress) {
+                var curName = this.currentLightboxActress.name;
+                for (var i = 0; i < _filteredActresses.length; i++) {
+                    if (_filteredActresses[i].name === curName) {
+                        this.actressLightboxIndex = i;
+                        break;
+                    }
+                }
+            }
         },
 
         // CD-116b-1b：寫入 actressPills 的單一所有者（正規化 ＋ 同維度整包取代 ＋ apply）
@@ -781,18 +829,15 @@ export function stateActress() {
 
         // --- 44a T4: Lightbox chips + metadata helpers ---
 
-        _chipsLimit() {
-            return window.innerWidth >= 768 ? 10 : 6;
-        },
-
         // TASK-116a-T3: 取代 _actressCoreMetadata()——回傳結構化陣列，年齡/身高/罩杯三格可點（CD-116a-6）
         _actressCoreMetadataParts() {
             var a = this.currentLightboxActress; if (!a) return [];
             var canClick = this.actressLightboxSource === 'grid';   // spec §4.2 的 gate，單一求值點
             // spec §4.3 第 2 條：取不到值一律不符合——比不了大小的值不該變成條件，否則只會產生一枚永遠篩不到人、且畫面不解釋為什麼的死 pill；fail-closed 提前到入口。
             var parts = [];
-            if (typeof a.video_count === 'number') {
-                parts.push({ key: 'count', text: a.video_count + window.t('showcase.unit.films'), clickable: false });
+            var workCount = this.actressWorkCount(a);
+            if (workCount !== null) {
+                parts.push({ key: 'count', text: workCount + window.t('showcase.unit.films'), clickable: false });
             }
             if (a.age) parts.push({ key: 'age', text: a.age + window.t('search.unit.age'), clickable: canClick && actressAgeValue({ age: a.age }) != null, dim: 'age', value: a.age });
             if (a.birth) parts.push({ key: 'birth', text: a.birth, clickable: false });
@@ -832,7 +877,9 @@ export function stateActress() {
 
         _actressCardMiddle(actress) {
             if (!actress) return '';
-            return (actress.video_count || 0) + window.t('showcase.unit.films');
+            var workCount = this.actressWorkCount(actress);
+            if (workCount === null) return '';   // 未就緒：整格空白，不是 0部作品
+            return workCount + window.t('showcase.unit.films');
         },
 
         _actressHoverInfo(actress) {
@@ -855,7 +902,7 @@ export function stateActress() {
         //   （寬螢幕 footer 那格還在，重複印沒有意義；年齡在寬螢幕上下各一份是刻意的，
         //    鏡射影片卡的女優名——footer 一份不可點、資訊區一份可點）。
         //
-        // 缺值判定刻意維持兩套，不得統一：video_count/age 用 != null（0 是合法值，
+        // 缺值判定刻意維持兩套，不得統一：作品數（actressWorkCount，199b-T4b 起）／age 用 null 判斷（0 是合法值，
         // CD-124b-12 紅線）；height/cup/bwh 用 truthy（逐字鏡射 _actressHoverInfo()）。
         //
         // clickable 一律 fail-closed：值解析不出來就不可點——比不了大小的值不該變成條件，
@@ -869,10 +916,11 @@ export function stateActress() {
         _actressInfoParts(actress) {
             if (!actress) return [];
             var parts = [];
-            if (this._isNarrow && actress.video_count != null) {
+            var workCount = this._isNarrow ? this.actressWorkCount(actress) : null;
+            if (workCount !== null) {
                 parts.push({
                     key: 'count',
-                    text: actress.video_count + window.t('showcase.unit.films'),
+                    text: workCount + window.t('showcase.unit.films'),
                     clickable: false,
                 });
             }
@@ -959,22 +1007,18 @@ export function stateActress() {
             return [].concat(a.tags || [], [a.hometown, a.nickname, a.agency, a.hobby, a.debut_work]).filter(Boolean);
         },
 
-        _visibleAliases() {
-            var all = this.currentLightboxActress?.aliases || [];
-            return this._actressChipsExpanded.aliases ? all : all.slice(0, this._chipsLimit());
+        // 199b-T4：女優燈箱「別名＋資訊」同一行的全部 chip（別名在前、資訊在後）；露出幾顆由 lbxApFit 分片量測
+        _actressLbChips() {
+            var aliases = (this.currentLightboxActress?.aliases || []).map(function (text) { return { kind: 'alias', text: text }; });
+            var info = this._allInfoChips().map(function (text) { return { kind: 'info', text: text }; });
+            return aliases.concat(info);
         },
 
-        _aliasesOverflow() {
-            return Math.max(0, (this.currentLightboxActress?.aliases || []).length - this._chipsLimit());
-        },
-
-        _visibleInfoChips() {
-            var all = this._allInfoChips();
-            return this._actressChipsExpanded.info ? all : all.slice(0, this._chipsLimit());
-        },
-
-        _infoChipsOverflow() {
-            return Math.max(0, this._allInfoChips().length - this._chipsLimit());
+        // 無條件讀兩個旗標再組合（短路會漏訂閱，FE-ALPINE-08）
+        _actressChipsIsExpanded() {
+            var aliases = this._actressChipsExpanded.aliases;
+            var info = this._actressChipsExpanded.info;
+            return aliases || info;
         },
 
         // --- 117-T3/T4: Actress add panel（T5 queue stubs 仍在） ---
@@ -1250,6 +1294,7 @@ export function stateActress() {
             if (_actresses.find(function (a) { return a.name === actress.name; })) return;
             _actresses.push(actress);
             this._refreshCardActorAges?.();
+            this._refreshActressDerived?.();
             this.applyActressFilterAndSort();
         },
 
@@ -1290,6 +1335,7 @@ export function stateActress() {
                 } else if (data.success) {
                     _actresses.push(data.actress);
                     this._refreshCardActorAges?.();
+                    this._refreshActressDerived?.();
                     this.applyActressFilterAndSort();
                     this.showToast(window.t('showcase.actress.addSuccess'), 'success');
                 } else {
@@ -1323,6 +1369,7 @@ export function stateActress() {
                     if (!_actresses.find(function(a) { return a.name === actress.name; })) {
                         _actresses.push(actress);
                         this._refreshCardActorAges?.();
+                        this._refreshActressDerived?.();
                         this.applyActressFilterAndSort();
                     }
                     if (resp.status === 200) {
@@ -1370,6 +1417,7 @@ export function stateActress() {
                     const idx = _actresses.findIndex(a => a.name === name);
                     if (idx >= 0) _actresses.splice(idx, 1);
                     this._refreshCardActorAges?.();
+                    this._refreshActressDerived?.();
                     this.applyActressFilterAndSort();
                     // stale guard: lightbox switched to a different actress during request
                     if (this.currentLightboxActress?.name !== name) {

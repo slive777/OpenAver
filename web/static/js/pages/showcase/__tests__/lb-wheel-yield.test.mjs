@@ -85,3 +85,14 @@ test('shouldYieldVerticalWheel：只有「可捲且真的溢出」或女優／�
         assert.equal(shouldYieldVerticalWheel(el(['lb-row'], meta)), false);
     });
 });
+
+// TASK-199b-T4: 女優資料區（.lbx-ap-meta）平常 overflow:hidden＝捲不動，滾輪必須換人；展開後可捲且真溢出才交還。
+test('test_wheel_yield_actress_data_area：女優資料區只有「展開且真溢出」才交還原生捲動', () => {
+    const cls = ['lightbox-metadata', 'actress-lightbox-meta', 'lbx-ap-meta'];
+    const collapsed = el(cls, null, { overflowY: 'hidden', scrollHeight: 400, clientHeight: 222 });
+    assert.equal(shouldYieldVerticalWheel(el(['lbx-ap-chips'], collapsed)), false);
+    const expandedOverflow = el(cls, null, { overflowY: 'auto', scrollHeight: 400, clientHeight: 222 });
+    assert.equal(shouldYieldVerticalWheel(el(['lbx-ap-chips'], expandedOverflow)), true);
+    const expandedFits = el(cls, null, { overflowY: 'auto', scrollHeight: 222, clientHeight: 222 });
+    assert.equal(shouldYieldVerticalWheel(el(['lbx-ap-chips'], expandedFits)), false);
+});

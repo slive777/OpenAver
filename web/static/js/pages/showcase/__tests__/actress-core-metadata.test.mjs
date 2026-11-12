@@ -51,6 +51,7 @@ export async function resolve(specifier, context, nextResolve) {
 register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.url);
 
 const { stateActress } = await import('../state-actress.js');
+const { _setActressWorkCounts } = await import('../state-base.js');
 
 
 /**
@@ -74,11 +75,13 @@ function makeComponent(overrides) {
 
 // ── 舊版演算法手抄對照（不 import 舊函式，它已被整段取代刪除）──────────────
 // 逐字抄自 T3 之前的 state-actress.js:499-511（TASK-116a-T3.md B 項已核對）。
+// 199b-T4b：作品數來源改為 _setActressWorkCounts 餵的 Map（與新函式取同一個數字來源）。
+const WORK_COUNTS = new Map([['滿格優', 12], ['缺身高', 5]]);
 function legacyActressCoreMetadata(a) {
     if (!a) return '';
     const parts = [];
-    if (typeof a.video_count === 'number') {
-        parts.push(a.video_count + window.t('showcase.unit.films'));
+    if (WORK_COUNTS.has(a.name)) {
+        parts.push(WORK_COUNTS.get(a.name) + window.t('showcase.unit.films'));
     }
     if (a.age) parts.push(a.age + window.t('search.unit.age'));
     if (a.birth) parts.push(a.birth);
@@ -95,7 +98,7 @@ function joinParts(parts) {
 // ── AC1：六格白名單，grid 路徑逐格驗證（不是抽樣）──────────────────────────
 
 const FULL_ACTRESS = {
-    video_count: 12,
+    name: '滿格優',
     age: 28,
     birth: '1997-01-01',
     height: '160cm',
@@ -105,7 +108,9 @@ const FULL_ACTRESS = {
 
 test('grid 路徑：六格逐一驗證 clickable 白名單（作品數/生日/三圍恆 false，年齡/身高/罩杯 true）', () => {
     const c = makeComponent({ currentLightboxActress: FULL_ACTRESS, actressLightboxSource: 'grid' });
-    const parts = c._actressCoreMetadataParts();
+    _setActressWorkCounts(WORK_COUNTS);
+    let parts;
+    try { parts = c._actressCoreMetadataParts(); } finally { _setActressWorkCounts(null); }
     const byKey = Object.fromEntries(parts.map((p) => [p.key, p]));
 
     assert.equal(parts.length, 6, `預期 6 格，實際 ${parts.length}`);
@@ -153,13 +158,15 @@ test('_onActressMetadataClick：先 closeLightbox() 再 addActressPill(dim, valu
 // ── 視覺零回歸：多組缺值組合下，join 輸出與舊版逐字相同（至少 5 組）────────
 
 const REGRESSION_FIXTURES = [
-    { name: '缺身高', actress: { video_count: 5, age: 30, birth: '1995-05-05', height: '', cup: 'D', bust: 85, waist: 60, hip: 88 } },
+    { name: '缺身高', actress: { name: '缺身高', age: 30, birth: '1995-05-05', height: '', cup: 'D', bust: 85, waist: 60, hip: 88 } },
 ];
 
 for (const { name, actress } of REGRESSION_FIXTURES) {
     test(`視覺零回歸（${name}）：_actressCoreMetadataParts() join 與舊版逐字相同`, () => {
         const c = makeComponent({ currentLightboxActress: actress, actressLightboxSource: 'grid' });
-        const parts = c._actressCoreMetadataParts();
+        _setActressWorkCounts(WORK_COUNTS);
+        let parts;
+        try { parts = c._actressCoreMetadataParts(); } finally { _setActressWorkCounts(null); }
         assert.equal(joinParts(parts), legacyActressCoreMetadata(actress));
     });
 }

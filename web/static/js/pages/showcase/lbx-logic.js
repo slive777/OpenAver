@@ -65,6 +65,7 @@ export function menuItems(video, { sampleCount, trVisible, hasPath }) {
 /** popPlacement：各 kind 的位置模式與水平對齊（199a-T4）。 */
 export function popPlacement(kind) {
     if (kind === 'title' || kind === 'otitle') return { mode: 'inplace', align: 'left' };
+    if (kind === 'actorCard') return { mode: 'below', align: 'left' };
     if (kind === 'menu') return { mode: 'below', align: 'right' };
     if (kind === 'info') return { mode: 'below', align: 'right' };
     return { mode: 'below', align: 'left' };
@@ -92,6 +93,14 @@ export function fitActresses({ chipWidths, moreChipWidth, available, gap, max = 
     return shown;
 }
 
+/**
+ * fitChipRow：女優燈箱「別名＋資訊」單行 chips 的露出數（199b-T4，CD-199b-3）。
+ * fitActresses 的 max＝全部數薄包裝；至少露 1 顆（min: 1），被收起的個數＝總數 − 露出數。
+ */
+export function fitChipRow({ chipWidths, moreChipWidth, available, gap }) {
+    return fitActresses({ chipWidths, moreChipWidth, available, gap, max: chipWidths.length, min: 1 });
+}
+
 /** workInfoFields：作品資訊欄位（199a-T5，CD-199a-10）。空欄位不列；廠牌等於片商不重複列；來源片長 >0 才列。 */
 export function workInfoFields(video, { releaseClickable = false } = {}) {
     if (!video) return [];
@@ -107,15 +116,66 @@ export function workInfoFields(video, { releaseClickable = false } = {}) {
     return fields;
 }
 
-/** fitSig：量測簽章（199a-T5，CD-199a-9）。簽章變 ⇒ 重量測；分隔字元避免欄位內容互相拼出相同字串。 */
-export function fitSig(video, adding) {
+/**
+ * fitSig：量測簽章（199a-T5，CD-199a-9）。簽章變 ⇒ 重量測；分隔字元避免欄位內容互相拼出相同字串。
+ * favKey（199b-T1）：頭像表的鍵集合（頭像會讓 chip 變寬，頭像表一變就要重量）；空字串＝與舊版逐字相同。
+ */
+export function fitSig(video, adding, favKey = '') {
     if (!video) return '';
-    return [video.path || '', video.actresses || '', video.tags || '', (video.user_tags || []).join('\u0001'), adding ? '1' : '0'].join('\u0000');
+    const parts = [video.path || '', video.actresses || '', video.tags || '', (video.user_tags || []).join('\u0001'), adding ? '1' : '0'];
+    if (favKey) parts.push(favKey);
+    return parts.join('\u0000');
 }
 
 /** parseActresses：影片的女優名單（逗號分隔、去空白、去空字串）。 */
 export function parseActresses(video) {
     return String(video?.actresses || '').split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/** orderFavoritesFirst：收藏者優先穩定分組（199b-T2，CD-199b-8）。isFav 為真的在前、其餘在後，兩群各自維持原順序；回傳新陣列。 */
+export function orderFavoritesFirst(names, isFav) {
+    const list = Array.isArray(names) ? names : [];
+    return [...list.filter((n) => isFav(n)), ...list.filter((n) => !isFav(n))];
+}
+
+/**
+ * actorFavsOf：影片女優頭像表（199b-T1，CD-199b-7）。key＝片上寫的名字（trim 過、同名只留一筆），
+ * 只收 index.lookup(片上名字) 查得到的；name＝收藏名、photo_url＝當下的 a.photo_url（無照片為 ''）、
+ * initial＝片上名字的第一個字（Array.from 處理代理對）。index 為空或沒有影片 ⇒ {}。純函式。
+ */
+export function actorFavsOf(video, index) {
+    const out = {};
+    if (!video || !index || typeof index.lookup !== 'function') return out;
+    for (const name of parseActresses(video)) {
+        if (Object.prototype.hasOwnProperty.call(out, name)) continue;
+        const a = index.lookup(name);
+        if (!a) continue;
+        out[name] = { name: a.name, photo_url: a.photo_url || '', initial: Array.from(name)[0] || '' };
+    }
+    return out;
+}
+
+/**
+ * 收藏女優小卡的內容（199b-T3，CD-199b-9）。純函式，t 由呼叫端注入（鏡射 bandParts 注入 formatSize）。
+ * rows 依序 age／body／count，缺哪項整行不放進去。age 行看現在年齡（entity.age），沒生日就整行沒有；
+ * ageAtRelease 只決定要不要附「拍這部時」。age／count 用 != null 判（count 的 0 是合法值），
+ * height／cup／bwh 用 truthy 判——兩套缺值判定刻意不統一，鏡射 state-actress.js 的 _actressHoverInfo。
+ */
+export function actorCardLines(entity, { ageAtRelease, count, t }) {
+    const rows = [];
+    if (entity.age != null) {
+        const parts = [];
+        if (ageAtRelease != null) parts.push(t('showcase.lightbox.actor_card_age_release', { n: ageAtRelease }));
+        parts.push(t('showcase.lightbox.actor_card_age_now', { n: entity.age }));
+        rows.push({ id: 'age', text: parts.join(' · ') });
+    }
+    const body = [];
+    if (entity.height) body.push(entity.height);
+    if (entity.cup) body.push(entity.cup + t('search.unit.cup'));
+    if (entity.bust && entity.waist && entity.hip) body.push(entity.bust + '-' + entity.waist + '-' + entity.hip);
+    if (body.length) rows.push({ id: 'body', text: body.join(' · ') });
+    if (count != null) rows.push({ id: 'count', text: t('showcase.lightbox.actor_card_count', { n: count }) });
+    return { name: entity.name, photo: entity.photo_url || '', rows };
 }
 
 /**
@@ -145,4 +205,32 @@ export function fitTagRow({ userWidths, workWidths, plusWidth, moreChipWidth, ro
 /** parseWorkTags：影片的作品標籤（逗號分隔、去空白、去空字串）。 */
 export function parseWorkTags(video) {
     return String(video?.tags || '').split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+// ---- 199b-T5：女優燈箱資料區最下面的縮圖排（批次標籤、下一批、發行日排序）----
+
+/** batchLabel：目前這批「第幾到第幾／共幾」。回物件不回字串（顯示文字由 i18n 組）；to 要 clamp 到 total（最後一批不湊滿）。 */
+export function batchLabel(start, size, total) {
+    return { from: start + 1, to: Math.min(start + size, total), total };
+}
+
+/** nextBatchStart：下一批的起點；超過尾端繞回 0。 */
+export function nextBatchStart(start, size, total) {
+    return start + size < total ? start + size : 0;
+}
+
+/**
+ * sortWorksByRelease：作品（預設版本物件）依發行日新→舊排，回新陣列、不改輸入。
+ * 以 release_date 字串比較（YYYY-MM-DD 字串序＝時間序），空／缺值排最後；同值維持輸入順序（穩定）。
+ */
+export function sortWorksByRelease(works) {
+    const key = (w) => (w && w.release_date) || '';
+    return (works || []).slice().sort((a, b) => {
+        const ka = key(a);
+        const kb = key(b);
+        if (ka === kb) return 0;
+        if (!ka) return 1;
+        if (!kb) return -1;
+        return ka < kb ? 1 : -1;
+    });
 }

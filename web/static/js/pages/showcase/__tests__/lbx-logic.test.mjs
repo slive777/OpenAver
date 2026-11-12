@@ -109,3 +109,99 @@ test('test_fit_tag_row_user_tags_first_then_overflow_to_more', async () => {
     // (c) 都沒有標籤 → 0／0
     assert.deepEqual(fitTagRow({ ...base, rowWidth: 1000, userWidths: [], workWidths: [] }), { userShown: 0, workShown: 0 });
 });
+
+// TASK-199b-T2：收藏者優先穩定分組（純函式）。
+test('test_orderFavoritesFirst_favs_first_stable_groups', async () => {
+    const { orderFavoritesFirst } = await import('../lbx-logic.js');
+    const names = ['丙', '丁', '壬', '戊', '癸'];
+    const isFav = (n) => n === '壬' || n === '癸';
+
+    // (a) 收藏者在前、兩群各自維持資料順序
+    assert.deepEqual(orderFavoritesFirst(names, isFav), ['壬', '癸', '丙', '丁', '戊']);
+    // (b) 全沒收藏 → 同序且回傳新陣列、輸入未被改動
+    const plain = orderFavoritesFirst(names, () => false);
+    assert.deepEqual(plain, names);
+    assert.notEqual(plain, names);
+    assert.deepEqual(names, ['丙', '丁', '壬', '戊', '癸']);
+    // (c) 全收藏 → 同序；非陣列 → []
+    assert.deepEqual(orderFavoritesFirst(names, () => true), names);
+    assert.deepEqual(orderFavoritesFirst(null, isFav), []);
+    assert.deepEqual(orderFavoritesFirst('壬', isFav), []);
+});
+
+// TASK-199b-T2：lbxActressList 接線（收藏者優先排進第 3 列與名單）。
+test('test_lbxActressList_puts_favs_first_same_order_as_data', async () => {
+    const { stateLightboxPop } = await import('../state-lightbox-pop.js');
+    const call = (currentLightboxVideo, _lbActorFavs) =>
+        stateLightboxPop().lbxActressList.call({ currentLightboxVideo, _lbActorFavs });
+
+    const video = { actresses: '丙, 丁, 壬, 戊, 癸' };
+    const favs = { 壬: { name: '壬' }, 癸: { name: '癸' } };
+    // (a) 有收藏 → 收藏者排前面、兩群各自維持資料順序
+    assert.deepEqual(call(video, favs), ['壬', '癸', '丙', '丁', '戊']);
+    // (b) 無收藏表 → 資料順序
+    assert.deepEqual(call(video, {}), ['丙', '丁', '壬', '戊', '癸']);
+    assert.deepEqual(call(video, undefined), ['丙', '丁', '壬', '戊', '癸']);
+});
+
+// TASK-199b-T3：收藏女優小卡內容規則（缺哪項整行省略，不寫 null／undefined）。
+test('test_actorCardLines_omit_missing_rows_never_print_null', async () => {
+    const { actorCardLines } = await import('../lbx-logic.js');
+    const t = (k, p) => (p ? k + '|' + p.n : k);
+    const full = { name: '夾具女優丑', photo_url: '/p/a.jpg', age: 30, height: '165cm', cup: 'E', bust: '88', waist: '58', hip: '87' };
+    const cases = [
+        { label: '①沒生日', entity: { ...full, age: null }, opts: { ageAtRelease: 28, count: 5 },
+          check: (r, l) => { assert.deepEqual(r.rows.map((x) => x.id), ['body', 'count'], l); } },
+        { label: '②沒發行日／合輯', entity: full, opts: { ageAtRelease: null, count: 5 },
+          check: (r, l) => {
+              const age = r.rows.find((x) => x.id === 'age');
+              assert.ok(age, l);
+              assert.ok(age.text.includes('actor_card_age_now|30'), l);
+              assert.ok(!age.text.includes('age_release') && !age.text.includes('null'), l);
+          } },
+        { label: '③三圍不齊且片數 0', entity: { name: '夾具女優子', age: 30, height: '159cm', bust: '80' }, opts: { ageAtRelease: 25, count: 0 },
+          check: (r, l) => {
+              const body = r.rows.find((x) => x.id === 'body');
+              assert.equal(body.text, '159cm', l);
+              assert.ok(!body.text.includes('-'), l);
+              const count = r.rows.find((x) => x.id === 'count');
+              assert.ok(count && count.text.includes('actor_card_count|0'), l);
+          } },
+        { label: '④全缺', entity: { name: '夾具女優辰' }, opts: { ageAtRelease: null, count: null },
+          check: (r, l) => {
+              assert.deepEqual(r.rows, [], l);
+              assert.equal(r.name, '夾具女優辰', l);
+              assert.equal(r.photo, '', l);
+          } },
+    ];
+    for (const c of cases) {
+        const r = actorCardLines(c.entity, { ...c.opts, t });
+        for (const row of r.rows) {
+            assert.ok(!/null|undefined|NaN/.test(row.text), `${c.label}: 不得出現 null／undefined：${row.text}`);
+        }
+        c.check(r, c.label);
+    }
+});
+
+// TASK-199b-T3：頭像 click 的鍵盤啟動走「看她的片」，觸控才開小卡（R2 接線；裸 node，不碰 window）。
+test('test_lbxActorAvatarTap_keyboard_searches_touch_toggles_card', async () => {
+    const { stateLightboxPop } = await import('../state-lightbox-pop.js');
+    const mk = () => {
+        const calls = { search: [], toggle: [] };
+        return { calls, ctx: { searchFromMetadata: (...a) => calls.search.push(a), lbxPopToggle: (...a) => calls.toggle.push(a) } };
+    };
+    const tap = stateLightboxPop().lbxActorAvatarTap;
+
+    // (a) Enter／Space 觸發的 click（detail 0）⇒ 看她的片，不開小卡
+    const a = mk();
+    tap.call(a.ctx, { detail: 0, pointerType: 'mouse', currentTarget: {} }, '夾具女優丑');
+    assert.deepEqual(a.calls.search, [['夾具女優丑', 'actress']], '鍵盤啟動應搜尋');
+    assert.equal(a.calls.toggle.length, 0, '鍵盤啟動不得開小卡');
+
+    // (b) 觸控 ⇒ click 模式 toggle 小卡，不搜尋
+    const b = mk();
+    const eb = { detail: 1, pointerType: 'touch', currentTarget: {} };
+    tap.call(b.ctx, eb, '夾具女優丑');
+    assert.deepEqual(b.calls.toggle, [['actorCard', eb.currentTarget, { mode: 'click', anchorKey: '夾具女優丑' }]], '觸控應 toggle 小卡');
+    assert.equal(b.calls.search.length, 0, '觸控不得搜尋');
+});

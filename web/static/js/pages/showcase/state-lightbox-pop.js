@@ -11,9 +11,10 @@
  */
 
 import { versionsOf } from './work-versions.js';
-import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields } from './lbx-logic.js';
+import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields, orderFavoritesFirst, actorCardLines } from './lbx-logic.js';
 
 const LBX_POP_HOVER_CLOSE_MS = 160;
+const LBX_POP_HOVER_OPEN_MS = 300;   // 滑鼠停在錨點多久才開（只用於 dwell 的錨點，199b-T3）
 const LBX_POP_ANCHOR_SEL = '[data-lbx-anchor]';
 
 // 片名／原文是塊級單行省略號元素：內容寬超過可視寬才算被截斷（FE-REVIEW-16：inline 元素量不到，恆 0）
@@ -28,6 +29,7 @@ export function stateLightboxPop() {
         _lbxPopAnchorEl: null,
         _lbxPopGen: 0,
         _lbxPopTimer: null,
+        _lbxPopOpenTimer: null,
         _lbxPopSwallowClick: false,
 
         _lbxPopClearTimer() {
@@ -37,9 +39,17 @@ export function stateLightboxPop() {
             }
         },
 
+        _lbxPopClearOpenTimer() {
+            if (this._lbxPopOpenTimer) {
+                clearTimeout(this._lbxPopOpenTimer);
+                this._lbxPopOpenTimer = null;
+            }
+        },
+
         // 取代現有浮層（單槽）。anchorEl 只存起來，量測延到 $nextTick。
         lbxPopOpen(kind, anchorEl, { mode = 'click', anchorKey = '' } = {}) {
             this._lbxPopClearTimer();
+            this._lbxPopClearOpenTimer();
             const gen = ++this._lbxPopGen;
             this._lbxPopAnchorEl = anchorEl || null;
             this.lbxPop = { kind, mode, anchorKey, placed: false, style: { left: '0px', top: '0px' } };
@@ -99,6 +109,7 @@ export function stateLightboxPop() {
         // lbxPop 已是 null 時零成本早退（@resize.window 與 closeLightbox 會在浮層沒開時也呼叫）
         lbxPopClose({ restoreFocus = false } = {}) {
             this._lbxPopClearTimer();
+            this._lbxPopClearOpenTimer();   // 關閉一律取消尚未到期的停留計時（浮層為空時也要清）
             this._lbxPopGen++;
             const cur = this.lbxPop;
             if (!cur) return;
@@ -109,7 +120,8 @@ export function stateLightboxPop() {
         },
 
         // hover／鍵盤焦點開浮層（綁 @pointerenter 與 @focus）。忽略條件全在這一處。
-        lbxPopHoverStart(e, kind, anchorKey) {
+        // opts.dwell（只對滑鼠 pointerenter 生效）：停留 LBX_POP_HOVER_OPEN_MS 才開；鍵盤 focus 不等
+        lbxPopHoverStart(e, kind, anchorKey, opts = {}) {
             const el = e?.currentTarget;
             if (!el) return;
             if (this._lightboxAnimating) return;
@@ -128,11 +140,20 @@ export function stateLightboxPop() {
             this._lbxPopClearTimer();
             const cur = this.lbxPop;
             if (cur && cur.mode === 'hover' && cur.kind === kind && cur.anchorKey === anchorKey) return;
+            if (opts.dwell && e.type === 'pointerenter') {
+                this._lbxPopClearOpenTimer();
+                this._lbxPopOpenTimer = setTimeout(() => {
+                    this._lbxPopOpenTimer = null;
+                    this.lbxPopOpen(kind, el, { mode: 'hover', anchorKey });
+                }, LBX_POP_HOVER_OPEN_MS);
+                return;
+            }
             this.lbxPopOpen(kind, el, { mode: 'hover', anchorKey });
         },
 
         // 離開錨點：只在 hover 模式、160ms 後才收；期間再進任何錨點就不收
         lbxPopHoverEnd() {
+            this._lbxPopClearOpenTimer();   // 離開錨點即取消尚未到期的停留計時（此時還沒有浮層也要清）
             if (!this.lbxPop || this.lbxPop.mode !== 'hover') return;
             this._lbxPopClearTimer();
             this._lbxPopTimer = setTimeout(() => {
@@ -161,6 +182,31 @@ export function stateLightboxPop() {
             if (e.pointerType !== 'touch' && !noHover) return;
             if ((kind === 'title' || kind === 'otitle') && !isTruncated(el)) return;
             this.lbxPopToggle(kind, el, { mode: 'click', anchorKey });
+        },
+
+        // 收藏女優頭像（199b-T3）：滑鼠點＝看她的片（hover 已開小卡）；觸控／無 hover 裝置點＝開關小卡；
+        // 鍵盤 Enter／Space 觸發的 click（detail 0）一律看她的片——小卡只經鍵盤 focus 開，不經 click。
+        lbxActorAvatarTap(e, name) {
+            if (e.detail === 0) { this.searchFromMetadata(name, 'actress'); return; }
+            const touch = e.pointerType === 'touch' || window.matchMedia?.('(any-hover: hover)')?.matches === false;
+            if (touch) {
+                this.lbxPopToggle('actorCard', e.currentTarget, { mode: 'click', anchorKey: name });
+                return;
+            }
+            this.searchFromMetadata(name, 'actress');
+        },
+
+        // 小卡內容（199b-T3）：anchorKey＝片上寫的名字；開啟當下現讀（片數會隨「隱藏未連線硬碟」變動）。
+        // 永遠回物件：x-if 拆除重繪時 lbxPop 可能已是 null
+        lbxActorCard() {
+            const name = this.lbxPop?.kind === 'actorCard' ? this.lbxPop.anchorKey : '';
+            const entity = name ? this.lbxActorEntity?.(name) : null;
+            if (!entity) return { name: '', photo: '', rows: [] };
+            return actorCardLines(entity, {
+                ageAtRelease: this._lbActorAges?.[name] ?? null,
+                count: this.actressWorkCount(entity),
+                t: (k, p) => window.t(k, p),
+            });
         },
 
         // ⋯ 選單項目（條件在 lbx-logic.menuItems；模板只讀 lbxMenuHas，不再各自寫一份 gate）
@@ -211,7 +257,12 @@ export function stateLightboxPop() {
 
         // 第 3 列（199a-T5）：女優名單／作品資訊欄位。讀 currentLightboxVideo，屬 pop 分片的外求（CD-199a-3 已接受）；不放進 fit 分片
         lbxActressList() {
-            return parseActresses(this.currentLightboxVideo);
+            return orderFavoritesFirst(parseActresses(this.currentLightboxVideo), (n) => !!this._lbActorFavs?.[n]);
+        },
+
+        // 頭像表鍵集合（199b-T1，D3）：排序後串成字串，餵給 lbxFitSig 的第三引數；放這裡不放 fit 分片（fit 外求 0）
+        lbxFavKey() {
+            return Object.keys(this._lbActorFavs || {}).sort().join('\u0000');
         },
 
         lbxInfoField(id) {

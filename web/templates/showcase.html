@@ -920,7 +920,7 @@
 
                 <!-- 44a T4: Actress Lightbox Branch -->
                 <template x-if="currentLightboxActress">
-                    <div style="display:contents">
+                    <div class="lbx-actress-branch" style="display:contents">
                         <!-- Actress Cover -->
                         <div class="lightbox-cover">
                             <!-- 100b-T2b（§B-2b lifecycle 契約的另一半，見下）：@load 是
@@ -972,11 +972,38 @@
                                      nextLightboxVideo() 三處，gotchas-frontend §8b），兩者必須同批落地
                                      才安全，故此刻才 include。 -->
                                 {% include '_macros/focal_mask.html' %}
+
+                                <!-- 199b-T6：封面疊層（在照片與遮罩之後，點縮圖才有） -->
+                                <template x-if="lbxApCover">
+                                    <div class="lbx-ap-cover" role="group" :class="{ 'is-shown': lbxApCoverShown }" :aria-label="t('showcase.actress.films_cover_aria', { number: lbxApCover.number })">
+                                        <img class="lbx-ap-cover-img" :src="lbxApCover.cover_full_url || lbxApCover.cover_url || null" :alt="lbxApCover.number"
+                                             x-show="!lbxApCoverNoImage()"
+                                             @load="lbxApCoverLoaded($el)"
+                                             x-init="$el.complete && $el.naturalWidth > 0 && lbxApCoverLoaded($el)"
+                                             @error="lbxApCoverError()">
+                                        <div class="av-card-no-cover" x-show="lbxApCoverNoImage()">
+                                            <i class="bi bi-image"></i>
+                                            <span x-text="t('common.no_image')"></span>
+                                        </div>
+                                        <div class="lbx-ap-bar">
+                                            <div class="lbx-actions">
+                                                <button type="button" class="lb-action-btn" @click="playVideo(lbxApCover.path)" :data-tooltip="t('showcase.action.play')" :aria-label="t('showcase.action.play')">
+                                                    <i class="bi bi-play-fill"></i>
+                                                </button>
+                                                <button type="button" class="lb-action-btn js-open-folder" @click="openLocal(lbxApCover.path)" :data-tooltip="t('search.action.open_folder')" :aria-label="t('search.action.open_folder')">
+                                                    <i class="bi bi-folder2-open"></i>
+                                                </button>
+                                            </div>
+                                            <span class="lbx-ap-bar-text" :title="lbxApCover.title ? lbxApCover.number + ' · ' + lbxApCover.title : lbxApCover.number" x-text="lbxApCover.title ? lbxApCover.number + ' · ' + lbxApCover.title : lbxApCover.number"></span>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
 
                             <div class="cover-actions"
                                  :data-picker-open="_pickerOpen"
-                                 :class="{'cover-actions--focal-edit': _maskVisible}">
+                                 :class="{'cover-actions--focal-edit': _maskVisible}"
+                                 x-show="!lbxApCover">
                                 <button class="lb-action-btn"
                                         x-show="actressLightboxSource === 'grid' && !_maskVisible"
                                         @click.stop="searchActressFilms(currentLightboxActress?.name, $el)"
@@ -1014,7 +1041,10 @@
                         </div>
 
                         <!-- Actress Metadata Panel -->
-                        <div class="lightbox-metadata actress-lightbox-meta">
+                        <!-- 199b-T4：資料區 = 名字列（右端：部落格／官網小圖示）／數值列／別名＋資訊同一行（放不下收成 +N）。
+                             :data-expanded 讀 _actressChipsIsExpanded()（點 +N 展開後才可捲、滾輪才交還），其餘重置沿用既有三處。 -->
+                        <div class="lightbox-metadata actress-lightbox-meta lbx-ap-meta"
+                             :data-expanded="_actressChipsIsExpanded()">
                             <!-- Row 1: Header — name + name_en + heart icon -->
                             <div class="actress-lb-header">
                                 <div class="actress-lb-title">
@@ -1058,6 +1088,18 @@
                                         :aria-label="t('showcase.actress.remove')">
                                     <i class="bi bi-trash"></i>
                                 </button>
+                                <template x-if="currentLightboxActress?.blog_url">
+                                    <a class="lbx-ap-link" target="_blank" rel="noopener"
+                                       :href="currentLightboxActress.blog_url?.startsWith('http') ? currentLightboxActress.blog_url : ''"
+                                       :title="t('showcase.actress.link_blog')"
+                                       :aria-label="t('showcase.actress.link_blog')"><i class="bi bi-journal-text" aria-hidden="true"></i></a>
+                                </template>
+                                <template x-if="currentLightboxActress?.official_url">
+                                    <a class="lbx-ap-link" target="_blank" rel="noopener"
+                                       :href="currentLightboxActress.official_url?.startsWith('http') ? currentLightboxActress.official_url : ''"
+                                       :title="t('showcase.actress.link_official')"
+                                       :aria-label="t('showcase.actress.link_official')"><i class="bi bi-globe" aria-hidden="true"></i></a>
+                                </template>
                             </div>
                             <!-- Row 2: Core metadata (age · birth · height · cup · BWH) -->
                             <div class="lb-actress-core" x-show="_actressCoreMetadataParts().length">
@@ -1071,46 +1113,76 @@
                                     </span>
                                 </template>
                             </div>
-                            <!-- Row 3: Aliases chips +N -->
-                            <div class="lb-chips-row"
-                                 x-show="(currentLightboxActress?.aliases || []).length > 0">
-                                <!-- T3: alias label + tooltip -->
-                                <span class="lb-chips-label"
-                                      :title="t('showcase.lightbox.alias_source_hint')"
-                                      x-text="t('showcase.lightbox.alias_label')"></span>
-                                <template x-for="alias in _visibleAliases()" :key="alias">
-                                    <span class="lb-tag" x-text="alias"></span>
-                                </template>
-                                <span class="lb-tag lb-chips-more"
-                                      x-show="_aliasesOverflow() > 0 && !_actressChipsExpanded.aliases"
-                                      x-text="'+' + _aliasesOverflow()"
-                                      @click="_actressChipsExpanded.aliases = true"></span>
-                            </div>
-                            <!-- Row 4: Info chips +N (tags + hometown + nickname + agency + hobby + debut_work) -->
-                            <div class="lb-chips-row"
-                                 x-show="_allInfoChips().length > 0">
-                                <template x-for="chip in _visibleInfoChips()" :key="chip">
-                                    <span class="lb-tag" x-text="chip"></span>
-                                </template>
-                                <span class="lb-tag lb-chips-more"
-                                      x-show="_infoChipsOverflow() > 0 && !_actressChipsExpanded.info"
-                                      x-text="'+' + _infoChipsOverflow()"
-                                      @click="_actressChipsExpanded.info = true"></span>
-                            </div>
-                            <!-- Row 5: URLs -->
-                            <div class="lb-actress-urls"
-                                 x-show="currentLightboxActress?.blog_url || currentLightboxActress?.official_url">
-                                <a x-show="currentLightboxActress?.blog_url"
-                                   :href="currentLightboxActress?.blog_url?.startsWith('http') ? currentLightboxActress.blog_url : ''"
-                                   target="_blank"
-                                   rel="noopener"
-                                   x-text="currentLightboxActress?.blog_url"></a>
-                                <a x-show="currentLightboxActress?.official_url"
-                                   :href="currentLightboxActress?.official_url?.startsWith('http') ? currentLightboxActress.official_url : ''"
-                                   target="_blank"
-                                   rel="noopener"
-                                   x-text="currentLightboxActress?.official_url"></a>
-                            </div>
+                            <!-- Row 3（199b-T4）：別名＋資訊同一行，放不下收成 +N（點了展開全部）。沒有別名也沒有資訊 chip 就整行不畫。
+                                 露出數由 lbxApFit 分片量 .lbx-ap-measure（可見層的隱形複本，共用同一組 class 寬度才一致）；
+                                 量完前列帶 is-measuring（visibility:hidden，版面保留）。x-effect 與 :class 只傳引數給 lbxApFit*，分片不讀別片的狀態。
+                                 量測層與可見層的 chip 各自一整行寫完（不夾空白），+N 的 N 只准用 lbxApFitHidden。 -->
+                            <template x-if="_actressLbChips().length > 0">
+                                <div class="lbx-ap-chips"
+                                     :class="{'is-measuring': lbxApFitMeasuring(lbxApFitSig(currentLightboxActress?.name, _actressLbChips(), _actressChipsIsExpanded()))}"
+                                     x-effect="lbxApFitSchedule($el, lbxApFitSig(currentLightboxActress?.name, _actressLbChips(), _actressChipsIsExpanded()))">
+                                    <template x-if="(currentLightboxActress?.aliases || []).length > 0">
+                                        <span class="lbx-ap-label"
+                                              :title="t('showcase.lightbox.alias_source_hint')"
+                                              x-text="t('showcase.lightbox.alias_label')"></span>
+                                    </template>
+                                    <div class="lbx-ap-list">
+                                        <template x-for="chip in (_actressChipsIsExpanded() ? _actressLbChips() : _actressLbChips().slice(0, lbxApFitShown(_actressLbChips().length)))" :key="chip.kind + ':' + chip.text"><span class="lb-tag lbx-ap-chip" :title="chip.text" x-text="chip.text"></span></template>
+                                        <template x-if="!_actressChipsIsExpanded() && lbxApFitHidden(_actressLbChips().length) > 0">
+                                            <button type="button" class="lb-tag lbx-ap-more"
+                                                    :aria-label="t('showcase.actress.chips_more_aria', { n: lbxApFitHidden(_actressLbChips().length) })"
+                                                    @click="_actressChipsExpanded = { aliases: true, info: true }"
+                                                    x-text="'+' + lbxApFitHidden(_actressLbChips().length)"></button>
+                                        </template>
+                                    </div>
+                                    <!-- 量測層：不可見、不可聚焦、不念給螢幕閱讀器；沒有 @click／<a>／<button>（可見層才是互動站點）。
+                                         「+N」只在多於 1 顆時畫，N＝最壞情況（只露 1 顆）。 -->
+                                    <div class="lbx-ap-measure" aria-hidden="true" inert>
+                                        <template x-for="chip in _actressLbChips()" :key="chip.kind + ':' + chip.text"><span class="lb-tag lbx-ap-chip" x-text="chip.text"></span></template>
+                                        <template x-if="_actressLbChips().length > 1"><span class="lb-tag lbx-ap-more" x-text="'+' + (_actressLbChips().length - 1)"></span></template>
+                                    </div>
+                                </div>
+                            </template>
+                            <!-- 199b-T5：第 4 行縮圖排 = 照片格 + 最多 6 張她的片（新→舊）+「下一批」格，固定 8 欄。
+                                 出現與消失只靠 x-if（DOM 裡不存在即不出現）；來源（只有女優牆開的才有）在 lbxApStripVisible 顯示時判。
+                                 鎖死（拖曳對焦／換照片流程中）= :inert + :aria-disabled，CSS 另有 pointer-events:none。
+                                 照片格／片格是按鈕：點片格＝大圖換成那部片的封面（199b-T6），點最左的照片格＝回照片。封面缺或載入失敗 → 格內寫番號（失敗旗標只放格內 x-data，不寫到 video 物件）。 -->
+                            <template x-if="lbxApStripVisible()">
+                                <div class="lbx-ap-strip" :inert="lbxApStripLocked()" :aria-disabled="lbxApStripLocked()">
+                                    <button type="button" class="lbx-ap-cell lbx-ap-photo" @click="lbxApBackToPhoto()" :aria-pressed="!lbxApCover" :aria-label="t('showcase.actress.films_photo_cell_aria')">
+                                        <template x-if="currentLightboxActress?.photo_url">
+                                            <img :src="currentLightboxActress.photo_url" alt=""
+                                                 @load="applyCellFocal($el, currentLightboxActress, '--actress-crop-ratio')"
+                                                 x-init="$watch('currentLightboxActress?.auto_focal', () => applyCellFocal($el, currentLightboxActress, '--actress-crop-ratio'));
+                                                         $watch('currentLightboxActress?.crop_mode', () => applyCellFocal($el, currentLightboxActress, '--actress-crop-ratio'))">
+                                        </template>
+                                        <template x-if="!currentLightboxActress?.photo_url">
+                                            <i class="bi bi-person-circle" aria-hidden="true"></i>
+                                        </template>
+                                    </button>
+                                    <template x-for="video in lbxApBatch" :key="video.path">
+                                        <button type="button" class="lbx-ap-cell lbx-ap-film" x-data="{ failed: false }"
+                                             @click="lbxApOpenCover(video)"
+                                             :class="{ 'is-selected': lbxApCover?.path === video.path }"
+                                             :aria-pressed="lbxApCover?.path === video.path"
+                                             :title="video.number + ' ' + (video.title || '')"
+                                             :aria-label="t('showcase.actress.films_cell_aria', { number: video.number, title: video.title || '' })">
+                                            <img :src="video.cover_url || null" :alt="video.number"
+                                                 x-show="video.cover_url && !failed"
+                                                 @load="applyCellFocal($el, video)"
+                                                 @error="failed = true">
+                                            <span class="lbx-ap-film-number" x-show="!video.cover_url || failed" x-text="video.number"></span>
+                                        </button>
+                                    </template>
+                                    <template x-if="lbxApHasNext()">
+                                        <button type="button" class="lbx-ap-cell lbx-ap-next" @click="lbxApNext()"
+                                                :aria-label="t('showcase.actress.films_next_aria', { label: lbxApLabel().from === lbxApLabel().to ? t('showcase.actress.films_next_one', lbxApLabel()) : t('showcase.actress.films_next', lbxApLabel()) })">
+                                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                            <span class="lbx-ap-next-text" x-text="lbxApLabel().from === lbxApLabel().to ? t('showcase.actress.films_next_one', lbxApLabel()) : t('showcase.actress.films_next', lbxApLabel())"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </template>
                         </div>
 
                     </div>
@@ -1298,11 +1370,11 @@
                                  這一列永遠渲染（沒有女優就左側空）。露出數由 lbxFit 分片量 .lbx-measure（可見層的隱形複本，共用同一組 class 寬度才一致）；
                                  量完前列帶 is-measuring（visibility:hidden，版面保留）。x-effect 與 :class 只傳引數給 lbxFit*，分片不讀別片的狀態。 -->
                             <div class="lbx-people-row"
-                                 :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag))}"
-                                 x-effect="lbxFitSchedule($el, lbxFitSig(currentLightboxVideo, addingLbTag))">
+                                 :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag, lbxFavKey()))}"
+                                 x-effect="lbxFitSchedule($el, lbxFitSig(currentLightboxVideo, addingLbTag, lbxFavKey()))">
                                 <div class="lbx-actors">
                                     <template x-for="name in lbxActressList().slice(0, lbxFit.actressShown)" :key="name">
-                                        <span class="lbx-actor-chip"><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
+                                        <span class="lbx-actor-chip"><template x-if="_lbActorFavs[name]"><button type="button" class="lbx-avatar" data-lbx-anchor="actorCard" :aria-label="t('showcase.lightbox.actor_avatar_aria', { name })" @pointerenter="lbxPopHoverStart($event, 'actorCard', name, { dwell: true })" @focus="lbxPopHoverStart($event, 'actorCard', name)" @pointerleave="lbxPopHoverEnd()" @blur="lbxPopHoverEnd()" @click.prevent="lbxActorAvatarTap($event, name)"><span class="lbx-avatar-initial" x-text="_lbActorFavs[name].initial"></span><template x-if="_lbActorFavs[name].photo_url"><img alt="" loading="lazy" decoding="async" :src="_lbActorFavs[name].photo_url" @error="$el.hidden = true" @load="$el.hidden = false"></template></button></template><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
                                     </template>
                                     <template x-if="lbxActressList().length > lbxFit.actressShown">
                                         <button type="button" class="lb-tag lbx-more-actors" data-lbx-anchor="actresses" aria-haspopup="true"
@@ -1342,7 +1414,7 @@
                                      「另有 N 位」只在多於 1 位時畫，N＝最壞情況（只露 1 位）。 -->
                                 <div class="lbx-measure" aria-hidden="true" inert>
                                     <template x-for="name in lbxActressList()" :key="name">
-                                        <span class="lbx-actor-chip"><span class="lbx-link" x-text="name"></span><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
+                                        <span class="lbx-actor-chip"><template x-if="_lbActorFavs[name]"><span class="lbx-avatar" aria-hidden="true"></span></template><span class="lbx-link" x-text="name"></span><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span>
                                     </template>
                                     <template x-if="lbxActressList().length > 1">
                                         <span class="lb-tag lbx-more-actors" x-text="t('showcase.lightbox.actresses_more', { n: lbxActressList().length - 1 })"></span>
@@ -1368,7 +1440,7 @@
                                  露出數由 lbxFit 量 .lbx-measure（可見層的隱形複本，共用同一組 class 寬度才一致；複本沒有 <a>／<button>／<input>）；
                                  量完前兩個內容區 visibility:hidden（控制區不藏：按「＋」讓簽章變、列進入量測，輸入框要能立刻 focus）。
                                  「＋」⇄展開區用 .is-adding class＋CSS 切換、不用 x-show（FE-ALPINE-17）；展開區一直在 DOM。 -->
-                            <div class="lbx-tag-row" :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag))}">
+                            <div class="lbx-tag-row" :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(currentLightboxVideo, addingLbTag, lbxFavKey()))}">
                                 <div class="lbx-tags-work">
                                     <template x-for="tag in lbxWorkTags().slice(0, lbxTagShown('work'))" :key="tag">
                                         <a href="#" class="lb-tag lbx-tag" @click.prevent="searchFromMetadata(tag, 'tag')" x-text="tag"></a>
@@ -1507,7 +1579,7 @@
                             <div class="lbx-pop-list">
                                 <div class="lbx-pop-title" x-text="t('showcase.lightbox.actresses_all_title', { n: lbxActressList().length })"></div>
                                 <template x-for="name in lbxActressList()" :key="name">
-                                    <div class="lbx-pop-row"><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></div>
+                                    <div class="lbx-pop-row"><template x-if="_lbActorFavs[name]"><span class="lbx-avatar lbx-avatar--sm" aria-hidden="true"><span class="lbx-avatar-initial" x-text="_lbActorFavs[name].initial"></span><template x-if="_lbActorFavs[name].photo_url"><img alt="" loading="lazy" decoding="async" :src="_lbActorFavs[name].photo_url" @error="$el.hidden = true" @load="$el.hidden = false"></template></span></template><a href="#" class="lbx-link" @click.prevent="searchFromMetadata(name, 'actress')" x-text="name"></a><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></div>
                                 </template>
                             </div>
                         </template>
@@ -1605,6 +1677,20 @@
                                         </div>
                                     </div>
                                 </template>
+                            </div>
+                        </template>
+                        <!-- 199b-T3：收藏女優小卡（純顯示；hover 模式 pointer-events:none，內部不放任何可點／可聚焦的東西） -->
+                        <template x-if="lbxPop.kind === 'actorCard'">
+                            <div class="lbx-actor-card">
+                                <template x-if="lbxActorCard().photo">
+                                    <img class="lbx-actor-card__photo" alt="" decoding="async" :src="lbxActorCard().photo" @error="$el.hidden = true">
+                                </template>
+                                <div class="lbx-actor-card__body">
+                                    <div class="lbx-actor-card__name" x-text="lbxActorCard().name"></div>
+                                    <template x-for="row in lbxActorCard().rows" :key="row.id">
+                                        <div class="lbx-actor-card__row" x-text="row.text"></div>
+                                    </template>
+                                </div>
                             </div>
                         </template>
                     </div>

@@ -86,6 +86,8 @@ const LIGHTBOX_SLICE_FILES = [
   'web/static/js/pages/showcase/state-lightbox-plot.js',
   'web/static/js/pages/showcase/state-lightbox-pop.js',
   'web/static/js/pages/showcase/state-lightbox-fit.js',
+  'web/static/js/pages/showcase/state-lightbox-apfit.js',
+  'web/static/js/pages/showcase/state-lightbox-ap.js',
   'web/static/js/pages/showcase/state-lightbox-ai-tags.js',
 ];
 
@@ -434,12 +436,85 @@ const RULES = [
   },
   {
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'structure-count',
-    pattern: 'this._refreshLbActorAges?.();', count: 1,
-    note: '[LbActorAgeRefresh] 149b-CD-3 刷新契約第 6 點：生日資料是非同步到位的，'
-        + '這一行是「燈箱已經開著時，資料到了要重算一次」的唯一觸發點。刪掉它 → 使用者在資料還沒回來時開燈箱，'
+    pattern: 'this._refreshLbActorAges?.();', count: 2,
+    note: '[LbActorAgeRefresh] 149b-CD-3 刷新契約第 6 點（199b-T4b 起兩處）：生日資料是非同步到位的，'
+        + '「燈箱已經開著時，資料到了要重算一次」的觸發點有兩處——loadActresses 成功路徑（原第 6 點）與 _refreshActressDerived 本體④'
+        + '（片庫／別名表／收藏增減後的重算）。刪掉任一處 → 使用者在資料還沒回來時開燈箱，'
         + '年齡永遠不出現，除非他關掉燈箱再開一次。exact count 而非 required-string：後者 count 是下限，'
-        + '第二個誤增的呼叫點會被放行。⚠ 這一行的字面帶 ?.，與另外五處不同，所以不會被 state-lightbox.js／'
+        + '第三個誤增的呼叫點會被放行。⚠ 這一行的字面帶 ?.，與另外五處不同，所以不會被 state-lightbox.js／'
         + 'state-similar.js 那四條的計數涵蓋——必須獨立一條。',
+  },
+
+  // ---- 199b-T4b：女優片數統一（索引＋計數 ＋ 十二個刷新出口）----
+  // 第 3 列：十個出口函式各自必須至少有一處 _refreshActressDerived?.( 呼叫（pattern 不含接收者：this.／self. 都算）。
+  // 收斂宣稱：整個出口函式完全失去呼叫時該函式的規則紅；不宣稱「刪掉函式內某一個分支的呼叫會紅」
+  // （fetchVideos 三個失敗分支共用同一字面，互相餵飽——分支逐一補齊靠 card DoD 的 rg 數 12 處）。
+  ...[
+    ['state-hidden-sources.js', '_recomputeVisible', /_recomputeVisible\(\) \{/, '使用者切換「隱藏未連線硬碟」或片庫晚到 → 牆上的片少了，女優卡片的片數與排序卻停在舊值，要重新整理才對得上'],
+    ['state-videos.js', 'fetchVideos', /async fetchVideos\(\) \{/, '使用者重新整理遇到片庫載入失敗 → 女優卡片殘留上一次的片數，與牆對不上'],
+    ['state-delete.js', 'confirmDeleteVideo', /async confirmDeleteVideo\(\) \{/, '使用者刪掉一部片（或多版本片的其中一版）→ 影片牆少了一部，女優卡片的片數與排序卻沒跟著少'],
+    ['state-lightbox.js', 'refreshVideoData', /async refreshVideoData\(video\) \{/, '使用者在燈箱補完／重刮、女優欄位改了 → 牆上篩選結果變了，女優卡片的片數與排序仍是舊的'],
+    ['state-actress.js', '_fetchActressesAndApply', /async function _fetchActressesAndApply\(\) \{/, '使用者重新整理停在女優牆 → 每張卡片先出現舊檔數或空白、之後才跳成新數字，順序也會重排'],
+    ['state-actress.js', '_clearActressesOnLoadFailure', /function _clearActressesOnLoadFailure\(self\) \{/, '使用者遇到女優載入失敗後重試 → 索引與片數殘留上一次的內容，重試成功前畫面與資料對不上'],
+    ['state-actress.js', '_libAddToWall', /_libAddToWall\(actress\) \{/, '使用者從片庫把一位女優加進女優牆 → 新卡片沒有片數、排序位置不對'],
+    ['state-actress.js', 'addFavoriteActress', /async addFavoriteActress\(\) \{/, '使用者新增收藏女優 → 新卡片沒有片數、排序位置不對'],
+    ['state-actress.js', 'addFavoriteFromSearch', /async addFavoriteFromSearch\(\) \{/, '使用者從搜尋結果收藏女優 → 新卡片沒有片數、排序位置不對'],
+    ['state-actress.js', 'confirmRemoveActress', /async confirmRemoveActress\(\) \{/, '使用者移除收藏女優 → 索引仍含已移除的人，其餘女優的片數與排序基準不一致'],
+  ].map(([file, fn, anchor, consequence]) => ({
+    file: 'web/static/js/pages/showcase/' + file, kind: 'required-string',
+    pattern: /_refreshActressDerived\?\.\(/,
+    scope: { anchor, braceBalanced: true },
+    stripLineComments: true,
+    note: `[lint-guard:199b-T4b-refresh-${fn}] ${fn} 完全沒有 _refreshActressDerived?.( 呼叫 → ${consequence}`,
+  })),
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
+    pattern: '_setActressIndex(',
+    scope: { anchor: /_refreshActressDerived\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T4b-derived-body-index] _refreshActressDerived 沒有重建收藏女優索引 → 使用者新增／移除收藏女優後，片數仍用舊名單算，新收藏的人永遠是 0 部作品或消失',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
+    pattern: 'actressWorkRev',
+    scope: { anchor: /_refreshActressDerived\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T4b-derived-body-rev] _refreshActressDerived 沒有遞增版本號 → 數字重算了但卡片文字不重繪（keyed x-for 沿用 DOM，FE-ALPINE-20），使用者看到的片數停在舊值',
+  },
+  // 第 2 列：actress-lookup.js 與牆共用唯一一份切欄／別名展開（tokenizer 只有一份）。
+  {
+    file: 'web/static/js/shared/actress-lookup.js', kind: 'forbidden-string',
+    pattern: '.split(',
+    stripLineComments: true,
+    note: '[lint-guard:199b-T4b-lookup-no-split] actress-lookup.js 自己切欄 → 全形逗號／大小寫／全形英數的口徑和牆分叉，使用者看到女優卡片寫 30 部、點進去牆上只有 28 部',
+  },
+  {
+    file: 'web/static/js/shared/actress-lookup.js', kind: 'required-string',
+    pattern: /import\s*\{[^}]*\b_splitField\b[^}]*\}\s*from\s*'\.\/pill-filter\.js'/,
+    note: '[lint-guard:199b-T4b-lookup-import-split] actress-lookup.js 沒有從 pill-filter.js 匯入 _splitField → 切欄另有一份實作，女優卡片的片數與牆上的「共 N 部」對不上',
+  },
+  {
+    file: 'web/static/js/shared/actress-lookup.js', kind: 'required-string',
+    pattern: /import\s*\{[^}]*\b_buildAliasSet\b[^}]*\}\s*from\s*'\.\/pill-filter\.js'/,
+    note: '[lint-guard:199b-T4b-lookup-import-alias] actress-lookup.js 沒有從 pill-filter.js 匯入 _buildAliasSet → 別名組的展開另有一份實作，有別名的女優片數與牆上對不上',
+  },
+  // 第 4 列：女優牆不得再讀伺服器的 video_count（片數唯一來源是 actressWorkCount）。
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string',
+    pattern: /\.video_count\b/,
+    stripLineComments: true,
+    note: '[lint-guard:199b-T4b-no-video-count] state-actress.js 又讀了女優物件上的 .video_count（伺服器算的檔數）→ 使用者看到的片數是「檔案數」不是「作品數」，多版本片被算兩次，與牆上「共 N 部」對不上，且隱藏未連線硬碟時不會跟著少',
+  },
+  // 第 4a 列：F5 停在女優牆時，片庫（fetchVideos）必須先於女優載入（loadActresses），片數第一次出現就是最終值。
+  {
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'order',
+    scope: { anchor: /async init\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: 'await this.fetchVideos();' },
+      { pattern: 'if (!_actressesLoaded) this.loadActresses();' },
+    ],
+    note: '[lint-guard:199b-T4b-init-order] init() 把 loadActresses 排到 fetchVideos 之前 → 使用者重新整理停在女優牆，卡片先以空白／舊值出現、片庫到了才跳成新數字，卡片順序也會重排',
   },
 
   // ---- [TestMaskToggleGuard] 99a-T5：detect-first 重新設計（Bug 1 修法）+ 星空等待動畫 lifecycle ----
@@ -461,10 +536,12 @@ const RULES = [
   // 拆成兩條 scope-anchored 規則，各自錨到專屬 <template x-if> 分支（全檔僅出現一次，
   // 唯一性已用 grep 確認），window 只需蓋過該分支內的 ✓/✗ 兩處、且在下一分支的同 pattern
   // 之前收尾，兩個分支才能被「各自」的 count:2 下限獨立守住。
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 8800 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解，與下一條影片 scope 的 anchor 相距 15069 字元，仍安全不重疊）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 11300 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解與 199b-T6 封面疊層；199b-T6 後 anchor 到第二個 ✗ 結尾實測 8959 字元〔owner 修正後；超過原 8800〕，window 8800→11300＝實測＋約 26%；與下一條影片 scope 的 anchor 相距 22373 字元，仍安全不重疊）' },
   // 199a-T2：影片分支的 ✓/✗ 隨封面對焦入口一起移除，上面只剩女優那條（影片那條 count:2 規則已刪）。
   { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'lb-video-branch', count: 1, note: '[lint-guard:199a-T1-video-branch-count] 影片燈箱外框隔離標記 lb-video-branch 全檔恰 1 處——多了＝女優／其他燈箱也被套上影片版外框（封面忽然變大、版面跑掉），少了＝影片燈箱外框整組失效；模板內任何註解都不得寫到這個字樣' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'class="lb-video-branch"', scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 200 }, note: '[lint-guard:199a-T1-video-branch-scope] lb-video-branch 必須掛在影片分支 <template x-if> 緊接的包裝 div 上——class 被搬到女優分支時計數仍是 1，但影片燈箱外框失效、女優燈箱被改版' },
+  { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'lbx-actress-branch', count: 1, note: '[lint-guard:199b-T4-branch-count] 女優燈箱外框隔離標記 lbx-actress-branch 全檔恰 1 處——多了＝影片／搜尋頁燈箱也被套上女優版外框（照片忽然變大、版面跑掉），少了＝女優燈箱外框整組失效；模板內任何註解都不得寫到這個字樣' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'class="lbx-actress-branch"', scope: { anchor: /<template x-if="currentLightboxActress">/, window: 200 }, note: '[lint-guard:199b-T4-branch-scope] lbx-actress-branch 必須掛在女優分支 <template x-if> 緊接的包裝 div 上——class 被搬到影片分支時計數仍是 1，但女優燈箱外框失效、影片燈箱被改版' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ['lbVersionCapsules()', 'switchLightboxVersion('], scope: { anchor: /<div class="lbx-band"/, window: 1500 }, note: '[lint-guard:199a-T2-band-capsules] 封面規格帶的版本膠囊必須吃 lbVersionCapsules()（與刪除確認視窗同源）並用 switchLightboxVersion( 切版本——文字另起算法時，使用者看著 A 膠囊按刪除，確認視窗寫的卻是另一版，以為刪錯檔' },
 
   // ---- 199a-T3：浮層底座 lbxPop（單槽浮層＋第一個消費者 verTip）----
@@ -547,8 +624,76 @@ const RULES = [
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: [/x-effect="lbxFitSchedule\(\$el,\s*lbxFitSig\(/, /lbxFitMeasuring\(lbxFitSig\(/],
-    scope: { anchor: /<div class="lbx-people-row"/, window: 340 }, // 實測 anchor 到 x-effect 結尾 259 字元，加約 31% 餘裕
+    scope: { anchor: /<div class="lbx-people-row"/, window: 370 }, // 實測 anchor 到 x-effect 結尾 286 字元（199b-T1 兩處各多 `, lbxFavKey()`，原 259），加約 29% 餘裕
     note: '[lint-guard:199a-T5-fit-wired] 第 3 列少了 x-effect 排程量測或 is-measuring 隱藏 → 使用者換片後女優列不重算，露出數停在上一片（「另有 N 位」數字對不上），或整列永遠 visibility:hidden 看不到女優',
+  },
+  // ---- 199b-T1：影片燈箱女優頭像（頭像表 _lbActorFavs 的賦值／失敗清空／三個簽章呼叫點／量測層同寬空圓）----
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: /this\._lbActorFavs\s*=\s*actorFavsOf\(/,
+    scope: { anchor: /_refreshLbActorAges\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T1-favs-assign] _refreshLbActorAges 沒有重新賦值頭像表 → 使用者開一部寫了收藏女優的片，名字前沒有頭像（或換片後留著上一部片的人），畫面看起來正常只是少了該有的東西',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
+    pattern: /self\._lbActorFavs\s*=\s*\{\};/,
+    scope: { anchor: /function _clearActressesOnLoadFailure\(self\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T1-favs-clear] 女優載入失敗時沒有清空頭像表 → 使用者在女優資料載入失敗後開影片燈箱，名字前還掛著失敗前的頭像',
+  },
+  {
+    // 舊兩引數形式不得出現在模板任何地方（人物列 :class／x-effect、標籤列 :class 三處都要帶 lbxFavKey()）
+    file: 'web/templates/showcase.html', kind: 'forbidden-string',
+    pattern: /lbxFitSig\(currentLightboxVideo,\s*addingLbTag\)/,
+    note: '[lint-guard:199b-T1-favkey-all-sites] 有一個 lbxFitSig( 呼叫沒帶 lbxFavKey() → 使用者開任何一部有收藏女優的片，那一列（人物列或標籤列）的「量完了」簽章永遠對不上而整列看不見',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: '<span class="lbx-avatar"',
+    scope: { anchor: /<div class="lbx-measure" aria-hidden="true" inert>/, window: 360 }, // 實測 anchor 到 <span class="lbx-avatar" 結尾 272 字元（人物列那一個量測層，先出現；標籤列的量測層不放頭像），加約 32% 餘裕
+    note: '[lint-guard:199b-T1-measure-avatar] 量測層 chip 少了與頭像同尺寸的空圓 → 使用者開三位都收藏的片，量測層算出的 chip 比實際窄，名字被擠斷或「另有 N 位」的數字不對',
+  },
+
+  // ---- 199b-T3：收藏女優小卡（滑過／聚焦／觸控頭像 → 往下浮出，純顯示）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: "lbxPop.kind === 'actorCard'",
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 19500 }, // 實測 anchor 到 actorCard template 的 kind 判斷結尾 14990 字元（隔著 verTip／title／otitle／menu／actresses／info／plot／moreTags），加約 30% 餘裕
+    note: '[lint-guard:199b-T3-card-in-host] 收藏女優小卡必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者把滑鼠停在頭像上什麼都看不到',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [
+      'data-lbx-anchor="actorCard"',
+      "lbxPopHoverStart($event, 'actorCard', name, { dwell: true })",
+      "@focus=\"lbxPopHoverStart($event, 'actorCard', name)\"",
+      '@pointerleave="lbxPopHoverEnd()"',
+      '@blur="lbxPopHoverEnd()"',
+      'lbxActorAvatarTap($event, name)',
+    ],
+    scope: { anchor: /<button\b[^>]*\bclass="lbx-avatar"[^>]*>/, window: 480 }, // 實測 anchor（可見層頭像開標籤，量測層是 <span>）到最遠的 lbxActorAvatarTap($event, name) 結尾 369 字元，加約 30% 餘裕
+    note: '[lint-guard:199b-T3-avatar-wired] 可見層頭像少了錨點或 hover／focus／tap 接線 → 缺錨點：使用者點頭像想收起小卡，被判成「點外面」先收掉又重開；缺 lbxActorAvatarTap：鍵盤 Enter 變成開小卡，進不了她的片牆',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'order',
+    scope: { anchor: /lbxPopClose\(\{ restoreFocus = false \} = \{\}\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: /this\._lbxPopClearOpenTimer\(\);/ },
+      { pattern: 'if (!cur) return;' },
+    ],
+    note: '[lint-guard:199b-T3-close-clears-open-timer] lbxPopClose 沒清停留計時器或排到「浮層為空就早退」之後 → 使用者滑鼠剛掃到頭像就按 Esc 關燈箱，0.3 秒後小卡在已經關掉的燈箱位置自己冒出來',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'order',
+    scope: { anchor: /lbxPopHoverEnd\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: /this\._lbxPopClearOpenTimer\(\);/ },
+      { pattern: "if (!this.lbxPop || this.lbxPop.mode !== 'hover') return;" },
+    ],
+    note: '[lint-guard:199b-T3-hoverend-clears-open-timer] lbxPopHoverEnd 沒清停留計時器或排到早退之後 → 使用者只是把滑鼠橫越頭像、沒打算停，0.3 秒後小卡也彈出來蓋住下面的內容',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
@@ -565,6 +710,33 @@ const RULES = [
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: /<div class="lbx-measure"(?=[^>]*\baria-hidden="true")(?=[^>]*\binert\b)/,
     note: '[lint-guard:199a-T5-measure-inert] 量測層少了 aria-hidden 或 inert → 螢幕閱讀器把女優名念兩遍，鍵盤 Tab 還會停在看不見的東西上',
+  },
+
+  // ---- 199b-T4：女優燈箱資料區（名字列右端兩顆連結圖示、別名＋資訊同一行＋「+N」；露出數由 lbxApFit 量測）----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /class="lightbox-metadata actress-lightbox-meta lbx-ap-meta"[^>]*:data-expanded="_actressChipsIsExpanded\(\)"/,
+    note: '[lint-guard:199b-T4-ap-meta-wired] 女優資料區少了 lbx-ap-meta 標記或展開旗標 data-expanded → 滾輪在資料區變成死區（平常捲不動卻不換人），或點「+N」展開後資料區不能捲、後面的別名看不到',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['x-effect="lbxApFitSchedule(', 'lbxApFitMeasuring('],
+    scope: { anchor: /<div class="lbx-ap-chips"/, window: 340 }, // 實測 anchor 到 x-effect="lbxApFitSchedule( 結尾 261 字元（lbxApFitMeasuring( 在 88），加約 30% 餘裕
+    note: '[lint-guard:199b-T4-chips-fit-wired] 別名＋資訊那一行少了 x-effect 排程量測或 is-measuring 隱藏 → 使用者換人後那一行不重算，「+N」數字對不上，或整行永遠 visibility:hidden 看不到別名',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /<div class="lbx-ap-measure"(?=[^>]*\baria-hidden="true")(?=[^>]*\binert\b)/,
+    note: '[lint-guard:199b-T4-measure-inert] 別名＋資訊的量測層少了 aria-hidden 或 inert → 螢幕閱讀器把別名念兩遍，鍵盤 Tab 還會停在看不見的東西上',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'order',
+    scope: { anchor: /class="actress-lb-header"/, window: 4300 }, // 實測 anchor 到 openRemoveActressModal() 2874、到第一顆 class="lbx-ap-link" 結尾 3309 字元，加約 30% 餘裕（不沿用 3200 窗）
+    items: [
+      { pattern: 'openRemoveActressModal()' },
+      { pattern: 'class="lbx-ap-link"' },
+    ],
+    note: '[lint-guard:199b-T4-link-after-delete] 部落格／官網圖示排到垃圾桶之前 → 名字列最右端的垃圾桶位置被擠動，使用者習慣的「最右邊是移除」變了，容易誤點移除收藏',
   },
 
   // ---- 199a-T6：文字區第 4 列（簡介常駐列＋點了往下浮出全文）----
@@ -1189,9 +1361,9 @@ const RULES = [
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox-picker.js', kind: 'required-string',
-    pattern: 'return notEditing && hasPhoto && loaded && wideEnough && pickerClosed;',
+    pattern: 'return notEditing && hasPhoto && loaded && wideEnough && pickerClosed && coverClosed;',
     scope: { anchor: /_focalIconVisible\s*\(\s*\)\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] 100c-T2（CD-1）：_focalIconVisible 完整五條件組合（錨完整 return 字面，防片段假綠）',
+    note: '[TestMaskToggleGuard] 100c-T2（CD-1）：_focalIconVisible 完整五條件組合（錨完整 return 字面，防片段假綠；199b-T6 加第六個 coverClosed：舊 `…&& pickerClosed;` → 新 `…&& pickerClosed && coverClosed;`）',
   },
   // DOM 位置：icon 必須在 .actress-lb-header 內（搬遷目的地），不得殘留在 .cover-actions。
   // scope-anchor 到 .actress-lb-header 的 brace-balanced 視窗內斷言 class/click/title 三個
@@ -1667,11 +1839,13 @@ const RULES = [
 
   // ---- [TestActressCoreMetadataVideoCount]（order + required，brace-balanced scope，handoff 已解除留置 AD-96b-2） ----
   // 116a-T3：anchor 由 _actressCoreMetadata 改為 _actressCoreMetadataParts（函式被結構化陣列版原地取代）。
-  // 等價遷移：4 條規則、scope 語意、鎖的內容全部不變，只換錨定的函式名。
+  // 199b-T4b：作品數來源由伺服器的 video_count 改為 actressWorkCount()（null ＝ 未就緒、整格不推）。
+  // 舊 4 條／新 4 條；scope 不變，只換 pattern：① video_count → actressWorkCount(；② 不變；
+  // ③ video_count 的 push → key: 'count' 且含 workCount 的 push（仍須在 .age push 之前）；④ typeof number 守門 → null 守門。
   {
-    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string', pattern: 'video_count',
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string', pattern: /\bworkCount\s*=\s*this\.actressWorkCount\(/,
     scope: { anchor: /(?:^|\n)\s*_actressCoreMetadataParts\s*\([^)]*\)\s*\{/, braceBalanced: true },
-    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 方法體含 video_count',
+    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 方法體把 workCount 綁到 this.actressWorkCount(…)（綁來源，讓 ③④ 綁 workCount 等同舊規則綁 .video_count；199b-T4b 遷移 + review F2 sibling：作品數改讀 actressWorkCount，不再讀伺服器 video_count；使用者後果：燈箱數值列的作品數與牆上「共 N 部」不一致）',
   },
   {
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string', pattern: 'showcase.unit.films',
@@ -1682,16 +1856,16 @@ const RULES = [
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order',
     scope: { anchor: /(?:^|\n)\s*_actressCoreMetadataParts\s*\([^)]*\)\s*\{/, braceBalanced: true },
     items: [
-      { pattern: /parts\.push\([^)]*video_count[^)]*\)/ },
+      { pattern: /parts\.push\((?=[^)]*key:\s*'count')[^)]*\bworkCount\b[^)]*\)/ },
       { pattern: /parts\.push\([^)]*\.age[^)]*\)/ },
     ],
-    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — video_count push 必須在 age push 之前（前置，brace-balanced scope）',
+    note: '[TestActressCoreMetadataVideoCount] test_video_count_pushed_first — 作品數（key: \'count\' 且顯示值含 workCount）的 push 必須在 age push 之前（review F2 sibling：顯示值綁 workCount，等同舊規則綁 video_count；把顯示值改成常數 0 → 燈箱寫 0部作品、與卡片不一致）（前置，brace-balanced scope；199b-T4b 遷移：舊 pattern 鎖 video_count 的 push）',
   },
   {
     file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
-    pattern: /typeof\s+\w+\.video_count\s*===\s*['"]number['"]/,
+    pattern: /if\s*\(\s*workCount\s*!==?\s*null\s*\)/,
     scope: { anchor: /(?:^|\n)\s*_actressCoreMetadataParts\s*\([^)]*\)\s*\{/, braceBalanced: true },
-    note: '[TestActressCoreMetadataVideoCount] test_video_count_typeof_number_guard — typeof a.video_count === \'number\' guard',
+    note: '[TestActressCoreMetadataVideoCount] test_video_count_typeof_number_guard — workCount 的 null 守門（綁變數名 workCount，不接受別的變數的 null 判斷；199b-T4b 遷移 + Codex review F2：舊 typeof video_count === \'number\' 守門改鎖 actressWorkCount 的 null；拿掉它 → 片庫還沒到時燈箱數值列會出現「null部作品」而不是不顯示）',
   },
 
   // ---- [TestNoHardcodedColors] HTML inline hex（非遞迴頂層 + exclude 2 個 demo 頁，discrepancy：CSS 半邊已由 stylelint 接管） ----
@@ -1949,6 +2123,8 @@ const RULES = [
     ['state-lightbox-plot.js', 'stateLightboxPlot'],
     ['state-lightbox-pop.js', 'stateLightboxPop'],
     ['state-lightbox-fit.js', 'stateLightboxFit'],
+    ['state-lightbox-apfit.js', 'stateLightboxApFit'],
+    ['state-lightbox-ap.js', 'stateLightboxAp'],
     ['state-lightbox-ai-tags.js', 'stateLightboxAiTags'],
   ].map(([file, fn]) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'required-string',
@@ -1985,18 +2161,18 @@ const RULES = [
     pattern: /^[ \t]*return[ \t]*mergeState\(/m,
     note: '[TestShowcaseESMGuard] test_main_js_calls_merge_state — 實際呼叫 mergeState(...)，非 Object.assign 等替代品（防 descriptor 丟失假綠，Codex P2）',
   },
-  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()', 'stateLightboxPlot()', 'stateLightboxPop()', 'stateLightboxFit()', 'stateLightboxAiTags()'].map((fn) => ({
+  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()', 'stateLightboxMask()', 'stateLightboxPicker()', 'stateLightboxTags()', 'stateLightboxSamples()', 'stateLightboxTranslate()', 'stateLightboxPlot()', 'stateLightboxPop()', 'stateLightboxFit()', 'stateLightboxApFit()', 'stateLightboxAp()', 'stateLightboxAiTags()'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'forbidden-string', pattern: `...${fn}`,
     note: '[TestShowcaseESMGuard] test_main_js_no_plain_spread_merge — 8 factory 全禁',
   })),
-  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate', 'stateLightboxPlot', 'stateLightboxPop', 'stateLightboxFit', 'stateLightboxAiTags'].map((fn) => ({
+  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox', 'stateLightboxMask', 'stateLightboxPicker', 'stateLightboxSamples', 'stateLightboxTags', 'stateLightboxTranslate', 'stateLightboxPlot', 'stateLightboxPop', 'stateLightboxFit', 'stateLightboxApFit', 'stateLightboxAp', 'stateLightboxAiTags'].map((fn) => ({
     file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: `${fn}.call(this)`,
     note: '[TestShowcaseESMGuard] test_main_js_factory_calls_use_call_this — 唯一有此斷言的頁（settings/scanner/search 皆未檢查）',
   })),
   { file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: 'window.showcaseState', note: '[TestShowcaseESMGuard] test_main_js_has_window_showcase_state_bridge — 唯一有 window bridge 斷言的頁' },
-  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-ai-tags.js'].map((file) => ({
+  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ap.js', 'state-lightbox-ai-tags.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
-    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate|stateLightboxPlot|stateLightboxPop|stateLightboxFit|stateLightboxAiTags)\b/m,
+    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox|stateLightboxMask|stateLightboxPicker|stateLightboxSamples|stateLightboxTags|stateLightboxTranslate|stateLightboxPlot|stateLightboxPop|stateLightboxFit|stateLightboxApFit|stateLightboxAp|stateLightboxAiTags)\b/m,
     note: `[TestShowcaseESMGuard] test_no_circular_state_factory_imports — ${file} 頂層 import 不可含 6 個 factory 函式名（判斷單位是 factory 名非檔名；state-base.js 本身不驗）`,
   })),
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
@@ -2006,17 +2182,17 @@ const RULES = [
   { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'forbidden-string', pattern: 'addFavoriteActress', note: '[TestShowcaseESMGuard] test_state_videos_no_actress_functions' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+openLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions — 方法定義 regex（行首縮排+openLightbox(，防誤殺 this.openLightbox(...) 呼叫）' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+closeLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions' },
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ap.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^(?!\s)(?!\/\/)(?!\*)[^\n]*window\.gsap/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層非註解行不可含 window.gsap`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ap.js', 'state-lightbox-ai-tags.js', 'main.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
     pattern: /^gsap\b/m,
     note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層行不可以 gsap 識別字開頭`,
   })),
-  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-ai-tags.js'].map((file) => ({
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'state-lightbox-mask.js', 'state-lightbox-picker.js', 'state-lightbox-samples.js', 'state-lightbox-tags.js', 'state-lightbox-translate.js', 'state-lightbox-plot.js', 'state-lightbox-pop.js', 'state-lightbox-fit.js', 'state-lightbox-apfit.js', 'state-lightbox-ap.js', 'state-lightbox-ai-tags.js'].map((file) => ({
     file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string', pattern: 'this._PICKER_PARAMS',
     note: `[TestShowcaseESMGuard] test_no_this_picker_params_in_state_modules — ${file} 不可 this._PICKER_PARAMS（main.js 不在此列）`,
   })),
@@ -4270,14 +4446,14 @@ const RULES = [
   // 108-T3 把「隱藏 folder 按鈕」的判斷全部收斂到 CSS 的 .js-open-folder marker（G3，
   // css-guard.mjs CG-TOUCH-03）；若這個 class 被誤搬到 play/enrich 鈕、或多加了第三個，
   // CSS gate 會安靜地隱藏/漏藏錯的按鈕（跑起來看不出來，要點兩下才發現）。三條互補：
-  //  G4a：全檔恰好 2 個 .js-open-folder（防「多加了一個」）。
+  //  G4a：全檔恰好 3 個 .js-open-folder（防「多加了一個」；199b-T6 由 2 改 3：多了女優大圖封面底條那顆）。
   //  G4b/G4c：卡片格 / 燈箱 各自的 folder 按鈕，逐 element scope 綁 openLocal(＋bi-folder2-open
   //           圖示（防「搬到別的按鈕」——被搬走那顆的 scope 內容不再含這兩者）。
   {
     file: 'web/templates/showcase.html', kind: 'structure-count',
     pattern: /\bjs-open-folder\b/,
-    count: 2,
-    note: '[lint-guard:108-T4] G4a：js-open-folder marker 須恰好出現在 2 顆按鈕（卡片格 + 燈箱），不多不少',
+    count: 3,
+    note: '[lint-guard:108-T4] G4a：js-open-folder marker 須恰好出現在 3 顆按鈕（牆卡片 + 影片燈箱 + 女優大圖封面底條〔199b-T6〕），不多不少',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
@@ -9376,8 +9552,8 @@ const RULES = [
     pattern: /(?<![\w.])prevActressLightbox\(\)/,
     note: '[lint-guard 162c-test_showcase_html_contains] 使用者在女優燈箱按「上一位」→ 按鈕須呼叫 prevActressLightbox()，否則按了沒反應、只能關掉重開 — 遷自 tests/unit/test_frontend_lint.py（TestShowcaseActressLightbox；本地實剪驗證補回）' },
   { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'required-string',
-    pattern: /^[ \t]*_visibleAliases\s*\([^)]*\)\s*\{/m, stripLineComments: true,
-    note: '[lint-guard 162c-test_actress_js_contains] 使用者開女優燈箱 → 別名區 x-for 讀 _visibleAliases()，缺定義則別名 chips 空白／Alpine 報錯 — 遷自 tests/unit/test_frontend_lint.py（TestShowcaseActressLightbox；本地實剪驗證補回）' },
+    pattern: /^[ \t]*_actressLbChips\s*\([^)]*\)\s*\{/m, stripLineComments: true,
+    note: '[lint-guard 162c-test_actress_js_contains] 使用者開女優燈箱 → 別名＋資訊那一行 x-for 讀 _actressLbChips()，缺定義則那一行空白／Alpine 報錯 — 遷自 tests/unit/test_frontend_lint.py（TestShowcaseActressLightbox；本地實剪驗證補回；199b-T4 由舊別名定義守衛搬來，同檔同 stripLineComments、同定義形 pattern）' },
   { file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: /(?<![\w.])_actressHoverInfo\s*\(/,
     note: '[lint-guard 162c-test_actress_html_contains] 使用者把滑鼠移到女優卡 → 卡片須綁 _actressHoverInfo() 才顯示 hover 資訊 — 遷自 tests/unit/test_frontend_lint.py（TestShowcaseActressCardFooter；本地實剪驗證補回）' },
@@ -9680,6 +9856,171 @@ const RULES = [
     file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
     pattern: /^import\s*\{[^}]*\bstateLightboxFit\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-fit\.js'/m,
     note: '[lint-guard:199a-T5-main-import] main.js 漏掉第 3 列量測分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
+  },
+  {
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
+    pattern: /^import\s*\{[^}]*\bstateLightboxApFit\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-apfit\.js'/m,
+    note: '[lint-guard:199b-T4-apfit-main-import] main.js 漏掉女優資料區量測分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
+  },
+
+  // ---- 199b-T5：女優燈箱資料區最下面的縮圖排（照片格＋最多 6 張她的片＋下一批；分片 state-lightbox-ap.js）----
+  {
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string',
+    pattern: /^import\s*\{[^}]*\bstateLightboxAp\b[^}]*\}\s*from\s*'@\/showcase\/state-lightbox-ap\.js'/m,
+    note: '[lint-guard:199b-T5-ap-main-import] main.js 漏掉女優縮圖排分片 import → eslint 的 no-undef 全域關閉不會報錯，頁面載入時才丟 ReferenceError，瀏覽頁整頁狀態壞掉',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order',
+    scope: { anchor: /_setActressLightboxIndex\(idx\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: 'this.lbxApReset?.(' },
+      { pattern: 'this.currentLightboxActress =' },
+    ],
+    note: '[lint-guard:199b-T5-reset-before-assign] 換人時清縮圖排排在賦值 currentLightboxActress 之後 → 使用者按下一位，新那位的資料區第一幀先閃出上一位的縮圖（x-if 重新掛載那一幀看到舊批）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order',
+    scope: { anchor: /_setActressLightboxIndex\(idx\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: 'this.currentLightboxActress =' },
+      { pattern: 'this.lbxApRebuild?.(' },
+    ],
+    note: '[lint-guard:199b-T5-rebuild-in-setindex] 開啟／換人時沒有重建縮圖排，或重建排在賦值之前 → 使用者開一位有片的女優，資料區最下面沒有縮圖排（或是上一位的）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'this.lbxApReset?.(',
+    scope: { anchor: /closeLightbox\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T5-close-resets] closeLightbox 沒清縮圖排 → 使用者看了她的第三批片、關掉燈箱再開，縮圖排停在上次的第三批而不是回到第一批',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order',
+    scope: { anchor: /_refreshActressDerived\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [
+      { pattern: 'this.lbxApRebuild?.(' },
+      { pattern: 'this.applyActressFilterAndSort(' },
+    ],
+    note: '[lint-guard:199b-T5-derived-rebuild] _refreshActressDerived 沒重建縮圖排或排在重排女優牆之後 → 使用者開著燈箱時片庫／別名表才到齊（或切換隱藏未連線硬碟），縮圖排停在舊內容，總數和數值列的「N部作品」對不上',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string',
+    pattern: "actressLightboxSource === 'grid'",
+    scope: { anchor: /lbxApStripVisible\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T5-strip-visible-source] 縮圖排的顯示條件少了「從女優牆開的」 → 使用者從女優大卡或影片橋接進女優燈箱，也冒出縮圖排（那兩個入口的資料區不該有）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'forbidden-string',
+    pattern: 'actressLightboxSource',
+    scope: { anchor: /lbxApRebuild\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T5-rebuild-no-source] 重建縮圖排的當下去判斷開燈箱的來源 → 使用者關掉女優燈箱再開同一位，第一次開啟（來源此刻還是 null）沒有縮圖排，得換人再換回來才出現',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string',
+    pattern: [
+      /const\s+\w+\s*=\s*this\._maskVisible\s*;/,
+      /const\s+\w+\s*=\s*this\._pickerOpen\s*;/,
+      /const\s+\w+\s*=\s*this\._pickerLoading\s*;/,
+      /const\s+\w+\s*=\s*this\._pickerSelected\s*;/,
+    ],
+    scope: { anchor: /lbxApStripLocked\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T5-strip-locked-reads] 縮圖排鎖死判斷漏讀其中一個旗標（短路求值漏訂閱）→ 使用者在拖曳對焦或挑換照片時，縮圖排仍可點，點到會中斷正在進行的編輯',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [':inert="lbxApStripLocked()"', ':aria-disabled="lbxApStripLocked()"'],
+    scope: { anchor: /<template x-if="lbxApStripVisible\(\)">/, window: 210 }, // 實測 anchor 到 :aria-disabled="lbxApStripLocked()" 結尾 159 字元（:inert 在 96），加約 30% 餘裕
+    note: '[lint-guard:199b-T5-strip-wired] 縮圖排少了 :inert 或 :aria-disabled 綁定 → 使用者拖曳對焦或挑換照片時，鍵盤 Tab 仍進得了縮圖排、輔助科技不知道它鎖住了',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'order',
+    scope: { anchor: /lightbox-metadata actress-lightbox-meta lbx-ap-meta/, window: 12000 }, // 實測 anchor 到 class="lbx-ap-chips" 6076、到 class="lbx-ap-strip" 9190 字元，加約 30% 餘裕
+    items: [
+      { pattern: 'class="lbx-ap-chips"' },
+      { pattern: 'class="lbx-ap-strip"' },
+    ],
+    note: '[lint-guard:199b-T5-strip-after-chips] 縮圖排排到別名＋資訊那一行之前，或跑出資料區外 → 使用者看到縮圖排夾在名字與別名之間，或固定高度的資料區把它裁掉',
+  },
+
+  // ---- 199b-T6：點縮圖 → 大圖換成那部片的封面（疊層在照片外框內；互斥、換人重置、底條 ▶📁）----
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string',
+    pattern: 'this.lbxApCover = null;',
+    scope: { anchor: /lbxApReset\(\) \{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T6-cover-reset] lbxApReset 沒清封面 → 使用者看著某部片的封面按「下一位」，新那位女優的大圖還是上一位點的那部片封面，得再點最左格才回到她的照片',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: 'x-show="!lbxApCover"',
+    scope: /<div class="cover-actions"\s*\n\s*:data-picker-open[^>]*>/,
+    note: '[lint-guard:199b-T6-cover-actions-gated] 女優大圖的 .cover-actions 少了「封面開著就收起」 → 使用者點縮圖看封面，「看她的片」「換照片」鈕還浮在封面上，點下去在封面上開出換照片候選列',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-picker.js', kind: 'required-string',
+    pattern: 'const coverClosed = !this.lbxApCover;',
+    scope: { anchor: /_focalIconVisible\s*\(\s*\)\s*\{/, braceBalanced: true },
+    stripLineComments: true,
+    note: '[lint-guard:199b-T6-focal-cover-closed] _focalIconVisible 沒有無條件讀封面旗標（或把它寫進 && 鏈、短路漏訂閱）→ 使用者點縮圖把大圖換成封面，名字旁的對焦鈕還在，按下去對焦遮罩蓋在封面上，存下去改的是照片的對焦而畫面上看的是封面',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'order',
+    scope: { anchor: /<div class="actress-lb-photo-frame">/, window: 5000 }, // 實測 anchor 到 x-ref="pickerCoverImg" 74、到 class="lbx-ap-cover" 1465、到 <div class="cover-actions" 3817（結尾 3843）字元，加約 30% 餘裕（T6 owner 修正：底條包進 .lbx-actions 後 3672→3817，窗 4700→5000）
+    items: [
+      { pattern: 'x-ref="pickerCoverImg"' },
+      { pattern: 'class="lbx-ap-cover"' },
+      { pattern: '<div class="cover-actions"' },
+    ],
+    note: '[lint-guard:199b-T6-cover-in-frame] 封面疊層排到照片 <img> 之前，或跑出照片外框 → 使用者點縮圖，疊層蓋不齊照片（或 document.querySelector(".lightbox-cover img") 取到封面，關燈箱飛回牆上的動畫抓錯圖）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['playVideo(lbxApCover.path)', 'openLocal(lbxApCover.path)'],
+    scope: { anchor: /class="lbx-ap-bar"/, window: 760 }, // 實測 anchor 到 playVideo(lbxApCover.path) 結尾 216、到 openLocal(lbxApCover.path) 結尾 584 字元，加約 30% 餘裕（T6 owner 修正：鈕列移到文字之前，766→584，窗 1000→760）
+    note: '[lint-guard:199b-T6-bar-wired] 封面底條的 ▶ 或 📁 沒接到那部片的路徑 → 使用者看著封面按 ▶ 沒反應、或播到別部片、或 📁 開錯資料夾',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: '<button class="lb-action-btn js-open-folder"', count: 1,
+    note: '[lint-guard:199b-T6-g4c-first-hit] 影片燈箱 📁 的開標籤（class 在前）全檔須恰 1 個 → 否則 G4c 的 scope 正則（只取第一個命中）會換去守大圖那顆，影片燈箱的「開資料夾」鈕失去逐元素守衛，之後被誤綁成播放也不會被擋',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: '<button type="button" class="lb-action-btn js-open-folder"', count: 1,
+    note: '[lint-guard:199b-T6-g4d-count] 女優大圖底條的 📁（type 在前）全檔須恰 1 個 → 使用者看封面按 📁 開資料夾；多一顆或少一顆，純觸控隱藏與 G4d 的逐元素守衛就對不上',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['openLocal(', 'bi-folder2-open'],
+    scope: /<button type="button" class="lb-action-btn js-open-folder"[\s\S]*?<\/button>/,
+    note: '[lint-guard:199b-T6-g4d] 女優大圖底條的 📁 沒綁 openLocal( 或圖示不是 bi-folder2-open → 使用者看封面按 📁 沒有開資料夾',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'forbidden-string',
+    pattern: ['playVideo(', 'enrichVideo(', 'bi-play-fill', 'enrich-btn'],
+    scope: /<button type="button" class="lb-action-btn js-open-folder"[\s\S]*?<\/button>/,
+    note: '[lint-guard:199b-T6-g4d-neg] 女優大圖底條的 📁 混進播放／補完的 handler 或圖示 → 使用者按 📁 卻開始播放影片',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: '@click="lbxApOpenCover(video)"', count: 1,
+    note: '[lint-guard:199b-T6-strip-cells-wired-open] 縮圖排的片格沒接點擊 → 使用者點縮圖大圖沒有換成那部片的封面',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: '@click="lbxApBackToPhoto()"', count: 1,
+    note: '[lint-guard:199b-T6-strip-cells-wired-back] 縮圖排最左的照片格沒接點擊 → 使用者看著封面，沒有任何入口能回到女優照片',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'structure-count',
+    pattern: 'lbxApCover?.path === video.path', count: 2,
+    note: '[lint-guard:199b-T6-strip-cells-wired-selected] 片格的選中比對（:class 與 :aria-pressed 各一處）不是用 path → 使用者點縮圖後，選中框不見或選到別格（Alpine Proxy 之下比物件身分永遠不等）',
   },
   {
     file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',

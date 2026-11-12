@@ -124,6 +124,7 @@ export function stateDelete() {
                     }
                     // 刪除請求在飛時該片可能已被藏：被藏數只能由全庫與可見數相減得出（賦值，不重篩、不動頁碼）
                     this.hiddenCount = _allVideos.length - _videos.length;
+                    this._refreshActressDerived?.();   // 199b-T4b：兩條分支共同尾段——移除任一版本後女優片數與排序都要重算
                     this.applyFilterAndSort();
                     this.closeLightbox();
                     this.showToast(window.t('showcase.video.delete_success'), 'success');

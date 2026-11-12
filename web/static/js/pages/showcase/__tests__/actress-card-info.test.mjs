@@ -55,7 +55,7 @@ export async function resolve(specifier, context, nextResolve) {
 register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.url);
 
 const { stateActress } = await import('../state-actress.js');
-const { stateBase } = await import('../state-base.js');
+const { stateBase, _setActressWorkCounts } = await import('../state-base.js');
 const { stateLightbox } = await import('../state-lightbox.js');
 
 // =====================================================================
@@ -63,7 +63,7 @@ const { stateLightbox } = await import('../state-lightbox.js');
 // =====================================================================
 
 const FULL_ACTRESS = {
-    video_count: 12,
+    name: '滿格優',   // 199b-T4b：作品數改由 _setActressWorkCounts 以名字餵
     age: 25,
     height: '160cm',
     cup: 'C',
@@ -97,8 +97,13 @@ test('缺 height（null）→ 該 part 不出現，其餘不受影響', () => {
         [{ height: '' }, ['count', 'age', 'cup', 'bwh']],
         [{ bust: null }, ['count', 'age', 'height', 'cup']],
     ];
-    for (const [override, expected] of cases) {
-        assert.deepEqual(keysOf(Object.assign({}, FULL_ACTRESS, override), true), expected);
+    _setActressWorkCounts(new Map([[FULL_ACTRESS.name, 12]]));
+    try {
+        for (const [override, expected] of cases) {
+            assert.deepEqual(keysOf(Object.assign({}, FULL_ACTRESS, override), true), expected);
+        }
+    } finally {
+        _setActressWorkCounts(null);
     }
 });
 
