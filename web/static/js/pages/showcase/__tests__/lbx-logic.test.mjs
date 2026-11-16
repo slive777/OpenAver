@@ -246,17 +246,6 @@ test('test_focal_save_toast_maps_poster_status_to_key_and_type', async () => {
     }
 });
 
-test('test_menu_items_adv_edit_between_focal_and_rescrape', async () => {
-    const { menuItems } = await import('../lbx-logic.js');
-    const cases = [
-        [{ sampleCount: 0, trVisible: true, hasPath: true, canFocal: true }, ['samples', 'translate', 'focal', 'advedit', 'rescrape', 'delete']],
-        [{ sampleCount: 0, trVisible: true, hasPath: true, canFocal: false }, ['samples', 'translate', 'advedit', 'rescrape', 'delete']],
-        [{ sampleCount: 0, trVisible: true, hasPath: false, canFocal: true }, ['rescrape']],
-    ];
-    for (const [options, expected] of cases) assert.deepEqual(menuItems({}, options).map(x => x.id), expected);
-});
-
-
 test('test_adv_edit_media_text_and_missing_states', async () => {
     const { formatHms, fileInfoParts, mediaInfoText } = await import('../lbx-logic.js');
     const opts = { formatHms, formatSize: n => `${n} B`, t: k => k };

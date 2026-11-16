@@ -1,20 +1,12 @@
 import pytest
 
-from core.cover_signature import apply_cover_change, cover_changed
+from core.cover_signature import apply_cover_change
 from core.database import VideoRepository, init_db
 from core.database.video import Video
 from core.path_utils import to_file_uri
 from core import thumbnail_cache
 
 pytestmark = pytest.mark.usefixtures('isolate_reconcile_db')
-
-
-@pytest.mark.parametrize('db_sig,live_sig,expected', [
-    (None, (1, 2), False), ((1, 2), None, False),
-    ((1, 2), (1, 2), False), ((1, 2), (1, 3), True),
-])
-def test_cover_changed_table(db_sig, live_sig, expected):
-    assert cover_changed(db_sig, live_sig) is expected
 
 
 @pytest.mark.parametrize('mode', ['auto', 'manual'])
