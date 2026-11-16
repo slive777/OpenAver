@@ -18,7 +18,7 @@ from core.cover_signature import (
 )
 from core.logger import get_logger
 from core.media_probe import resolution_tier, video_codec_label
-from core.path_utils import is_path_under_dir, normalize_path, to_file_uri, uri_to_local_fs_path
+from core.path_utils import is_path_under_dir, to_file_uri, uri_to_local_fs_path
 from core.readonly_paths import resolve_owning_output_root
 from core.source_reachability import (
     _scandir_probe, is_path_on_unreachable_source, owning_source_index,
@@ -74,8 +74,8 @@ def poster_regen_verdict(*, external_mode_on, has_cover_file, cover_fs, video_fs
         return True, None
     cover_stem = os.path.basename(cover_base_stem(cover_fs))
     video_stem = os.path.basename(os.path.splitext(video_fs)[0])
-    cover_dir = to_file_uri(normalize_path(os.path.normpath(os.path.dirname(cover_fs))))
-    video_dir = to_file_uri(normalize_path(os.path.normpath(os.path.dirname(video_fs))))
+    cover_dir = to_file_uri(os.path.normpath(os.path.dirname(cover_fs)))
+    video_dir = to_file_uri(os.path.normpath(os.path.dirname(video_fs)))
     same_dir = is_path_under_dir(cover_dir, video_dir) and is_path_under_dir(video_dir, cover_dir)
     if cover_stem != video_stem or not same_dir:
         return False, "generic_cover_name"
