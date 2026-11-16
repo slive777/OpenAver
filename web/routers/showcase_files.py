@@ -217,3 +217,18 @@ def repath_endpoint(request: RepathRequest):
         return err
     return repath_video(ctx.repo, ctx.row, request.new_path, request.confirm_name_change,
                         ctx.config, ctx.path_mappings)
+
+
+@router.post("/video/refresh")
+def refresh_video(req: VideoPathRequest):
+    """重讀單一影片的檔案。"""
+    from core.video_refresh import refresh_one
+
+    try:
+        ctx, err = _resolve_scope(req.path)
+        if err is not None:
+            return err
+        return JSONResponse(refresh_one(ctx.repo, ctx.row, ctx.config, ctx.path_mappings))
+    except Exception:
+        logger.exception("[refresh] 未預期錯誤")
+        return JSONResponse({"success": False, "error": "更新失敗"}, status_code=500)
