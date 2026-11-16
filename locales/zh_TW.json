@@ -1597,7 +1597,10 @@
       "mask_cancel": "取消裁切調整",
       "mask_focal_endpoint_down": "人臉端點沒有回應，這次用內建方式找臉",
       "menu_focal": "調整海報裁切",
-      "focal_hint": "左右拖曳調整海報範圍"
+      "focal_hint": "左右拖曳調整海報範圍",
+      "focal_saved": "已儲存裁切位置",
+      "focal_saved_poster_updated": "已儲存裁切位置，海報檔已更新",
+      "focal_saved_poster_failed": "已儲存裁切位置；海報檔更新失敗"
     },
     "pick": {
       "add_aria": "加入精選",

@@ -10,6 +10,7 @@
 import { computeMaskWinGeometry, computeMaskSettleGeometry } from '@/shared/mask-geometry.js';
 import { parseFocal, clampMaskWinLeft } from '@/shared/focal.js';
 import { versionsOf } from './work-versions.js';
+import { focalSaveToast } from './lbx-logic.js';
 
 export function stateLightboxMask() {
     return {
@@ -485,6 +486,10 @@ export function stateLightboxMask() {
                 if (kind === 'actress' && this._matchedActress && this._matchedActress.name === targetObj.name) {
                     this._matchedActress.auto_focal = data.auto_focal;
                     this._matchedActress.crop_mode = 'manual';
+                }
+                if (kind === 'video') {
+                    const toast = focalSaveToast(data.poster);
+                    this.showToast(window.t(toast.key), toast.type);
                 }
                 if (kind === 'video' && versionsOf(targetObj).length > 1) this.refreshVideoData(targetObj);
             } catch (e) {

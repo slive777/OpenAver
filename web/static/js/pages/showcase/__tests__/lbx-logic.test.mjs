@@ -219,3 +219,29 @@ test('test_lbxActorAvatarTap_keyboard_searches_touch_toggles_card', async () => 
     assert.deepEqual(b.calls.toggle, [['actorCard', eb.currentTarget, { mode: 'click', anchorKey: '夾具女優丑' }]], '觸控應 toggle 小卡');
     assert.equal(b.calls.search.length, 0, '觸控不得搜尋');
 });
+
+test('test_focal_save_toast_maps_poster_status_to_key_and_type', async () => {
+    const { focalSaveToast } = await import('../lbx-logic.js');
+    const cases = [
+        [{ status: 'updated' }, 'showcase.lightbox.focal_saved_poster_updated', 'success'],
+        [{ status: 'failed' }, 'showcase.lightbox.focal_saved_poster_failed', 'error'],
+        [{ status: 'none' }, 'showcase.lightbox.focal_saved', 'success'],
+        [{ status: 'skipped' }, 'showcase.lightbox.focal_saved', 'success'],
+        [undefined, 'showcase.lightbox.focal_saved', 'success'], [null, 'showcase.lightbox.focal_saved', 'success'],
+        [{}, 'showcase.lightbox.focal_saved', 'success'], [{ status: 'bogus' }, 'showcase.lightbox.focal_saved', 'success'],
+    ];
+    const seen = new Set();
+    for (const [poster, key, type] of cases) {
+        assert.deepEqual(focalSaveToast(poster), { key, type });
+        seen.add(key);
+    }
+    const { readFileSync } = await import('node:fs');
+    const { default: path } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../..');
+    const strings = JSON.parse(readFileSync(path.join(root, 'locales/zh_TW.json'), 'utf8'));
+    for (const key of seen) {
+        const value = key.split('.').reduce((o, part) => (o == null ? o : o[part]), strings);
+        assert.ok(typeof value === 'string' && value.length > 0, key);
+    }
+});

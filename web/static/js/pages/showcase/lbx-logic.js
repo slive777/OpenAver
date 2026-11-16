@@ -237,3 +237,11 @@ export function sortWorksByRelease(works) {
         return ka < kb ? 1 : -1;
     });
 }
+
+// 200a-T5：影片燈箱 ✓ 存檔提示。poster 缺欄位／null／非物件／未知 status 一律當 none。
+export function focalSaveToast(poster) {
+    const status = poster && poster.status;
+    if (status === 'updated') return { key: 'showcase.lightbox.focal_saved_poster_updated', type: 'success' };
+    if (status === 'failed') return { key: 'showcase.lightbox.focal_saved_poster_failed', type: 'error' };
+    return { key: 'showcase.lightbox.focal_saved', type: 'success' };
+}

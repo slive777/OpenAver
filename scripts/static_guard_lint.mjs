@@ -562,6 +562,14 @@ const RULES = [
     ['state-actress.js', /if \(this\.lightboxOpen && this\.actressLightboxIndex !== index\) \{/],
   ].map(([file, anchor]) => ({ file: `web/static/js/pages/showcase/${file}`, kind: 'required-string', pattern: /(?<![\w:-])this\._navBlockedByFocalEdit\?\.\(\)/, scope: { anchor, braceBalanced: true }, stripLineComments: true, note: '[lint-guard:200a-T4-nav-guard]' })),
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: /&& !showFavoriteActresses && !_maskVisible"/, scope: { anchor: /<button class="lightbox-similar-btn"/, window: 200 }, stripLineComments: true, note: '[lint-guard:200a-T4-wand-hidden]' },
+  { file: 'web/static/js/pages/showcase/state-lightbox-mask.js', kind: 'required-string',
+    pattern: ['focalSaveToast(data.poster)', 'this.showToast(window.t(toast.key), toast.type)'],
+    scope: { anchor: /async\s+confirmMask\s*\(\s*\)\s*\{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:200a-T5-confirm-toast] 接線被拿掉＝影片燈箱按 ✓ 存好裁切後永遠沒有提示，使用者不知道海報檔有沒有更新、要不要手動處理' },
+  { file: 'web/static/js/pages/showcase/state-lightbox-mask.js', kind: 'required-string',
+    pattern: /^import\s*\{[^}]*\bfocalSaveToast\b[^}]*\}\s*from\s*'\.\/lbx-logic\.js'/m,
+    note: '[lint-guard:200a-T5-import] state-lightbox-mask.js 必須 import focalSaveToast——'
+        + 'no-undef 全域關閉，漏 import 只在執行期 ReferenceError，被 catch 吞成「儲存失敗」，位置其實已存、使用者卻以為沒存' },
 
   // ---- 199a-T3：浮層底座 lbxPop（單槽浮層＋第一個消費者 verTip）----
   {

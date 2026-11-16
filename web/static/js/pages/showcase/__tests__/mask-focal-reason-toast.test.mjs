@@ -186,4 +186,25 @@ test('openMask: reason=too_slow_auto_disabled shows auto-disabled toast', async 
     });
 });
 
+test('test_confirm_mask_toast_follows_poster_status_for_video_only', async () => {
+    await withGeometryStub(async () => {
+        const saveWith = async (overrides, payload) => {
+            const prev = globalThis.fetch;
+            globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ success: true, auto_focal: '0.4000,0.5000', ...payload }) });
+            try {
+                const c = makeComponent(overrides);
+                await c.confirmMask();
+                return c.toasts;
+            } finally {
+                globalThis.fetch = prev;
+            }
+        };
+        const videoBase = { _maskKind: 'video', _maskFocalX: 0.4, _maskSession: 1, _maskVisible: true, _maskExpectedCoverPath: 'file:///cover.jpg' };
+        assert.deepEqual(await saveWith(videoBase, { poster: { status: 'failed' } }), [{ msg: 'showcase.lightbox.focal_saved_poster_failed', kind: 'error' }]);
+        assert.deepEqual(await saveWith(videoBase, {}), [{ msg: 'showcase.lightbox.focal_saved', kind: 'success' }]);
+        const actressToasts = await saveWith({ _maskKind: 'actress', _maskFocalX: 0.4, _maskSession: 1, _maskVisible: true, currentLightboxVideo: null, currentLightboxActress: { name: 'ActressA' }, _syncActressesArray() {} }, { poster: { status: 'updated' } });
+        assert.deepEqual(actressToasts, []);
+    });
+});
+
 
