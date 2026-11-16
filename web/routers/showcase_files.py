@@ -200,3 +200,20 @@ def reprobe_video(req: VideoPathRequest):
         return JSONResponse(
             {"success": False, "error": "重新讀取影片資訊失敗"}, status_code=500,
         )
+
+
+class RepathRequest(BaseModel):
+    path: str
+    new_path: str
+    confirm_name_change: bool = False
+
+
+@router.post('/video/repath')
+def repath_endpoint(request: RepathRequest):
+    from core.video_repath import repath_video
+
+    ctx, err = _resolve_scope(request.path)
+    if err is not None:
+        return err
+    return repath_video(ctx.repo, ctx.row, request.new_path, request.confirm_name_change,
+                        ctx.config, ctx.path_mappings)
