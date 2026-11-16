@@ -131,9 +131,12 @@ export function stateLightbox() {
         // 不寫 inline aspect-ratio；不 removeProperty（換片 / close / similar-open enter/exit 皆不清）。
         // 破圖/空 src（naturalWidth === 0）→ skip，保留前值撐盒（禁止任何清除路徑）。
         // 目標掛點：.lightbox-content（縮圖載入即定，原圖未到也不塌、不閃）。
+        // 遮罩／亮窗用的封面比例以原圖為準：縮圖尺寸常取整，且外部換封面後快取縮圖可能仍是舊的。
+        // 原圖已載入後，遲到的縮圖 @load 不得把 --lb-cover-ar 改回去。
         _setCoverAspect(e) {
             var img = e && e.target;
             if (!img) return;
+            if (!img.classList.contains('lb-full') && this._lbFullLoaded) return;
             var nw = img.naturalWidth;
             var nh = img.naturalHeight;
             if (!nw || !nh) return;  // 破圖/空 src → skip，保留前值
@@ -148,7 +151,7 @@ export function stateLightbox() {
         // slip-through 路徑（state-similar.js closeSimilarMode）共用，避免兩處邏輯漂移）。
         // 呼叫時機：currentLightboxVideo 已更新、Alpine reactive patch 尚未跑完（$nextTick 前）。
         // $nextTick 後 lightboxCoverFull img.complete && naturalWidth > 0 → 瀏覽器已快取 → 直接翻 true，
-        // 跳過 @load 等待；否則等 @load 觸發翻 true。
+        // 跳過 @load 等待；否則等 @load 觸發翻 true。快取命中時 @load 不會再 fire，所以這裡同步用原圖重設比例。
         _refreshLbFullBlurUp() {
             this._lbFullLoaded = false;
             this._lbFullErrorPill = false;
@@ -157,6 +160,7 @@ export function stateLightbox() {
                 var fullImg = self.$refs && self.$refs.lightboxCoverFull;
                 if (fullImg && fullImg.complete && fullImg.naturalWidth > 0) {
                     self._lbFullLoaded = true;
+                    self._setCoverAspect({ target: fullImg });
                 }
             });
         },

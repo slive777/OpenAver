@@ -658,6 +658,12 @@ const RULES = [
     note: '[lint-guard:200a-T3-edit-bar] 影片燈箱編輯條接線被刪（focal-edit class／✓／✗／規格帶編輯中收起）→ 編輯中滑鼠移開封面後 ✓／✗ 消失、或 ▶📁🔍／版本膠囊還擋著拖曳；女優分支同字面餵不飽本規則',
   },
   {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])@load="_lbFullLoaded=true; _setCoverAspect\(\$event\)"/,
+    scope: /<img\b[^>]*\bx-ref="lightboxCoverFull"[^>]*>/,
+    note: '[lint-guard:200a-T3-full-ar] 影片燈箱原圖 .lb-full @load 少了 _setCoverAspect → 外部換封面後盒子仍被舊縮圖比例撐住，亮窗與看得到的圖對不上，存下的裁切位置偏離使用者拖的位置',
+  },
+  {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: '<div class="lbx-menu">',
     scope: { anchor: /<div class="lbx-pop-host"/, window: 2300 }, // 實測 anchor 到 <div class="lbx-menu"> 1713 字元（隔著 verTip／title／otitle 三個 template），加約 34% 餘裕
     note: '[lint-guard:199a-T4-menu-in-host] ⋯ 選單必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點 ⋯ 看不到選單',
@@ -6996,7 +7002,7 @@ const RULES = [
   {
     file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
     tagName: 'img', className: 'lb-full',
-    required: [/(?<![\w:-])@load="_lbFullLoaded\s*=\s*true"/],
+    required: [/(?<![\w:-])@load="_lbFullLoaded\s*=\s*true(?:;[^"]*)?"/],
     note: '[lint-guard 162c-test_lb_overlay_img_load_sets_flag] overlay img.lb-full 須 @load 翻 _lbFullLoaded — 遷自 test_frontend_lint.py',
   },
   {

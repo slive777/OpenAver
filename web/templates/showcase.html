@@ -1210,7 +1210,7 @@
                             <img class="lb-full"
                                  x-ref="lightboxCoverFull"
                                  :src="currentLightboxVideo?.cover_full_url"
-                                 @load="_lbFullLoaded=true"
+                                 @load="_lbFullLoaded=true; _setCoverAspect($event)"
                                  :class="{'lb-full-shown':_lbFullLoaded}"
                                  @error="_handleLbFullError($event)"
                                  alt=""
