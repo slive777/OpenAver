@@ -84,7 +84,7 @@ def test_cover_change_same_rule_both_exits(tmp_path, monkeypatch, mocker, case):
     assert outcomes[0] == outcomes[1]
 
 
-@pytest.mark.parametrize('case', ['not_found', 'unreachable'])
+@pytest.mark.parametrize('case', ['not_found', 'unreachable', 'nfo_unreadable'])
 def test_refresh_not_found_or_unreachable_changes_nothing(tmp_path, monkeypatch, mocker, case):
     from core.video_refresh import refresh_one
 
@@ -96,8 +96,10 @@ def test_refresh_not_found_or_unreachable_changes_nothing(tmp_path, monkeypatch,
     row, before = repo.get_by_path(uri), _rows(repo)
     if case == 'not_found':
         mp4.unlink()
-    else:
+    elif case == 'unreachable':
         monkeypatch.setattr('core.source_reachability._snapshot', {str(mp4.parent): 'unreachable'})
+    else:
+        mp4.with_suffix('.nfo').write_text('<movie><title>broken')
     original = os.stat
     calls = []
     def counted(path, *args, **kwargs):

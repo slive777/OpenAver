@@ -1356,7 +1356,7 @@
         "err_not_found": "找不到影片檔，沒有更新",
         "err_no_nfo": "輸出資料夾裡找不到這部片的 NFO，沒有更新",
         "err_nfo_ambiguous": "輸出資料夾裡有不只一個 NFO，沒辦法判斷用哪個，沒有更新",
-        "err_nfo_unreadable": "讀不到輸出資料夾裡的 NFO，沒有更新",
+        "err_nfo_unreadable": "讀不到這部片的 NFO（檔案壞了或沒有權限），沒有更新",
         "err_generic": "更新失敗，請再試一次"
       },
       "files": {

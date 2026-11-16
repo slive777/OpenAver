@@ -24,6 +24,8 @@ def _refresh_readonly(repo, row, config, path_mappings):
         return {"success": False, "error": err}
     virtual_fs = str(Path(nfo_fs).with_suffix(".mp4"))
     scanner = VideoScanner(path_mappings=path_mappings, nfo_title_format=config.get('scraper', {}).get('nfo_title_format', '[{num}]{title}'))
+    if scanner.parse_nfo(nfo_fs) is None:
+        return {"success": False, "error": "nfo_unreadable"}
     video = Video.from_video_info(scanner.scan_file(virtual_fs))
     video.path = row.path  # readonly: restore source row path
     video.size_bytes = row.size_bytes
@@ -68,6 +70,10 @@ def refresh_one(repo, video, config, path_mappings):
     if kind != 'ok':
         return {"success": False, "error": "not_found" if kind == 'absent' else "unreachable"}
     scanner = VideoScanner(path_mappings=path_mappings, nfo_title_format=config.get('scraper', {}).get('nfo_title_format', '[{num}]{title}'))
+    nfo_path = Path(fs_path).with_suffix('.nfo')
+    nfo_kind, _ = stat_kind(nfo_path)
+    if nfo_kind == 'unreadable' or (nfo_kind == 'ok' and scanner.parse_nfo(str(nfo_path)) is None):
+        return {"success": False, "error": "nfo_unreadable"}
     refreshed = Video.from_video_info(scanner.scan_file(fs_path))
     refreshed.path = video.path
     refreshed.mtime = st.st_mtime

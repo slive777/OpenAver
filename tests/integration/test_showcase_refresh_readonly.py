@@ -134,15 +134,17 @@ def test_readonly_refresh_follows_output_edits_and_writes_nothing(tmp_path, monk
     submit.assert_not_called()
 
 
-@pytest.mark.parametrize('case', ['no_nfo', 'outside', 'nfo_ambiguous'])
+@pytest.mark.parametrize('case', ['no_nfo', 'outside', 'nfo_ambiguous', 'nfo_unreadable'])
 def test_readonly_refresh_without_usable_nfo_changes_nothing(tmp_path, monkeypatch, mocker, case):
     client, repo, uri, source, output, nfo, config, _ = _env(tmp_path, monkeypatch, mocker)
     if case == 'no_nfo':
         nfo.unlink()
     elif case == 'outside':
         config['gallery']['directories'][0]['output_path'] = str(tmp_path / 'other')
-    else:
+    elif case == 'nfo_ambiguous':
         (nfo.parent / 'alias.nfo').write_bytes(nfo.read_bytes())
+    else:
+        nfo.write_text('<movie><title>broken')
     before = repo.get_all()
     snapshots = _snapshot(source), _snapshot(output)
     result = _post(client, uri)
