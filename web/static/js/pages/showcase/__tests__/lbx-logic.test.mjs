@@ -52,6 +52,20 @@ test('test_menu_items_follow_path_samples_and_translate_gate', async () => {
     assert.deepEqual(ids({ sampleCount: 0, trVisible: false, hasPath: true }), ['samples', 'rescrape', 'delete']);
 });
 
+// TASK-200a-T3：⋯ 選單「調整海報裁切」項（canFocal 閘 + 排在 rescrape 前）。
+test('test_menu_items_focal_item_follows_can_focal_and_sits_before_rescrape', async () => {
+    const { menuItems } = await import('../lbx-logic.js');
+    const ids = (o) => menuItems({}, o).map((i) => i.id);
+    const allOn = { sampleCount: 0, trVisible: true, hasPath: true };
+
+    // (a) canFocal true → focal 出現且在 translate 與 rescrape 之間
+    assert.deepEqual(ids({ ...allOn, canFocal: true }), ['samples', 'translate', 'focal', 'rescrape', 'delete']);
+    // (b) canFocal false → 不含 focal
+    assert.deepEqual(ids({ ...allOn, canFocal: false }), ['samples', 'translate', 'rescrape', 'delete']);
+    // (c) 缺省 canFocal → 不含 focal（既有呼叫端不傳時行為不變）
+    assert.deepEqual(ids(allOn), ['samples', 'translate', 'rescrape', 'delete']);
+});
+
 // TASK-199a-T5：第 3 列女優露出數與作品資訊欄位。
 test('test_fit_actresses_caps_at_three_and_keeps_at_least_one', async () => {
     const { fitActresses } = await import('../lbx-logic.js');

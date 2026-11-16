@@ -215,6 +215,7 @@ export function stateLightboxPop() {
                 sampleCount: (this.currentLightboxVideo?.sample_images || []).length,
                 trVisible: this.lbTrShowOnTitle() || this.lbTrShowOnOtitle(),
                 hasPath: !!this.currentLightboxVideo?.path,
+                canFocal: !!this.currentLightboxVideo?.path && !this.lbIsBorrowed?.() && !!this.currentLightboxVideo?.has_cover,
             });
         },
 

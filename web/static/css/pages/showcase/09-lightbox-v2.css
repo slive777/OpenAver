@@ -53,6 +53,18 @@
     gap: .75rem;
 }
 
+/* 200a-T3：編輯條提示（✓／✗ 下方）。淡度走 color alpha，不用元素 opacity（FE-CSS-18）；
+   pointer-events:none 讓 hit-test 穿透到亮窗拖曳。 */
+.lbx-focal-hint {
+    margin: 0;
+    text-align: center;
+    font-size: .75rem;
+    line-height: 1.3;
+    color: color-mix(in oklch, white 78%, transparent);
+    text-shadow: 0 1px 3px color-mix(in oklch, black 55%, transparent);
+    pointer-events: none;
+}
+
 .lbx-band {
     display: flex;
     flex-wrap: wrap;

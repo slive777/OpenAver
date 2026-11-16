@@ -537,7 +537,12 @@ const RULES = [
   // 唯一性已用 grep 確認），window 只需蓋過該分支內的 ✓/✗ 兩處、且在下一分支的同 pattern
   // 之前收尾，兩個分支才能被「各自」的 count:2 下限獨立守住。
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 11300 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解與 199b-T6 封面疊層；199b-T6 後 anchor 到第二個 ✗ 結尾實測 8959 字元〔owner 修正後；超過原 8800〕，window 8800→11300＝實測＋約 26%；與下一條影片 scope 的 anchor 相距 22373 字元，仍安全不重疊）' },
-  // 199a-T2：影片分支的 ✓/✗ 隨封面對焦入口一起移除，上面只剩女優那條（影片那條 count:2 規則已刪）。
+  // 200a-T3：影片分支 ✓/✗ 搬回 .lbx-cover-layer；錨 cover-actions.lbx-cover-layer（女優那份無 lbx-cover-layer，互不重疊）。
+  // window：anchor 到第二個 ✗ </button> 結尾實測 2800，取 3640＝＋約 30%。
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<div class="cover-actions lbx-cover-layer"/, window: 3640 }, note: '[lint-guard:200a-T3-confirm-cancel] 影片燈箱 ✓／✗ 少了 detect 完成才可提交的收窄 gating → 偵測中就出現可按的 ✓／✗，使用者按下去存／取消的是還沒算完的位置' },
+  // window：anchor 到 include 實測 3028，取 3936＝＋約 30%。
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: "{% include '_macros/focal_mask.html' %}", scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 3936 }, note: '[lint-guard:200a-T3-include] 影片分支少了 focal_mask include → 使用者在影片燈箱選「調整海報裁切」後選單收起了但封面上沒有任何亮窗或 ✓／✗，功能整個不可用而其他檢查全綠' },
+  { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'class="lb-mask-btn"', count: 1, note: '[lint-guard:200a-T3-no-video-focal-btn] 片名列或封面又多了一顆 .lb-mask-btn（應只有女優名字列那一顆）→ 影片燈箱多出對焦入口、與「⋯ → 調整海報裁切」雙入口並存，使用者搞不清從哪進' },
   { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'lb-video-branch', count: 1, note: '[lint-guard:199a-T1-video-branch-count] 影片燈箱外框隔離標記 lb-video-branch 全檔恰 1 處——多了＝女優／其他燈箱也被套上影片版外框（封面忽然變大、版面跑掉），少了＝影片燈箱外框整組失效；模板內任何註解都不得寫到這個字樣' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'class="lb-video-branch"', scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 200 }, note: '[lint-guard:199a-T1-video-branch-scope] lb-video-branch 必須掛在影片分支 <template x-if> 緊接的包裝 div 上——class 被搬到女優分支時計數仍是 1，但影片燈箱外框失效、女優燈箱被改版' },
   { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'lbx-actress-branch', count: 1, note: '[lint-guard:199b-T4-branch-count] 女優燈箱外框隔離標記 lbx-actress-branch 全檔恰 1 處——多了＝影片／搜尋頁燈箱也被套上女優版外框（照片忽然變大、版面跑掉），少了＝女優燈箱外框整組失效；模板內任何註解都不得寫到這個字樣' },
@@ -609,15 +614,37 @@ const RULES = [
     note: '[lint-guard:199a-T4-menu-wired] ⋯ 選單「從收藏移除」項目元素本身少了 x-show 顯示條件 → 沒有對應檔的片還能按「從收藏移除」，按下去後端找不到那筆而失敗',
   },
   {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [
+      /(?<![\w:-])x-show="lbxMenuHas\('focal'\)"/,
+      ':disabled="!_lbFullLoaded"',
+      'openMask()',
+    ],
+    scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--focal"[^>]*>/,
+    note: '[lint-guard:200a-T3-menu-wired] ⋯ 選單「調整海報裁切」項目少了 x-show／disabled／openMask 接線 → 沿用版本或沒封面圖的片也看到此項（調別人的封面／按了只看到錯誤），或原圖未載完仍可按、或繞過 openMask 少打 detect-focal',
+  },
+  {
+    // window：anchor 到 band x-show 前綴實測 3480，取 4524＝＋約 30%。
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [
+      ":class=\"{'cover-actions--focal-edit': _maskVisible}\"",
+      '@click.stop="confirmMask()"',
+      '@click.stop="cancelMask()"',
+      'x-show="!_maskVisible && (lbVersions().length',
+    ],
+    scope: { anchor: /<div class="cover-actions lbx-cover-layer"/, window: 4524 },
+    note: '[lint-guard:200a-T3-edit-bar] 影片燈箱編輯條接線被刪（focal-edit class／✓／✗／規格帶編輯中收起）→ 編輯中滑鼠移開封面後 ✓／✗ 消失、或 ▶📁🔍／版本膠囊還擋著拖曳；女優分支同字面餵不飽本規則',
+  },
+  {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: '<div class="lbx-menu">',
     scope: { anchor: /<div class="lbx-pop-host"/, window: 2300 }, // 實測 anchor 到 <div class="lbx-menu"> 1713 字元（隔著 verTip／title／otitle 三個 template），加約 34% 餘裕
     note: '[lint-guard:199a-T4-menu-in-host] ⋯ 選單必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點 ⋯ 看不到選單',
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'required-string',
-    pattern: ['lbTrShowOnTitle()', 'lbTrShowOnOtitle()', 'sample_images', '?.path'],
+    pattern: ['lbTrShowOnTitle()', 'lbTrShowOnOtitle()', 'sample_images', '?.path', 'canFocal', 'has_cover', 'lbIsBorrowed'],
     scope: { anchor: /lbxMenuItems\(\) \{/, braceBalanced: true },
-    note: '[lint-guard:199a-T4-menu-gates] lbxMenuItems 少了翻譯／劇照／對應檔條件 → 沒翻譯條件的片也看到「翻譯片名」、有劇照的片還出現「補劇照」（按下去重複向外站抓取）、沒有對應檔的片還能按「從收藏移除」',
+    note: '[lint-guard:199a-T4-menu-gates] lbxMenuItems 少了翻譯／劇照／對應檔／canFocal（has_cover＋lbIsBorrowed）條件 → 沒翻譯條件的片也看到「翻譯片名」、有劇照的片還出現「補劇照」（按下去重複向外站抓取）、沒有對應檔的片還能按「從收藏移除」、沿用版本或沒封面圖的片也看到「調整海報裁切」',
   },
 
   // ---- 199a-T5：文字區第 3 列（女優最多 3 位＋「另有 N 位」、作品資訊小膠囊＋ⓘ；露出數由 lbxFit 量測）----
