@@ -540,3 +540,88 @@ class TestSimilarCoverUrlPathMappingsReverse:
 # Codex P1 — legacy DB startup path regression test
 # ---------------------------------------------------------------------------
 
+
+
+# ---------------------------------------------------------------------------
+# TASK-200b-T2 ③b：相似片封面網址版本記號（檔尾新 class，既有不動，自建夾具）
+# ---------------------------------------------------------------------------
+
+class TestSimilarCoverSignature:
+    """有簽章列 cover_full_url 帶 &v=<mtime_ns>-<size>；關閉時 cover_url 同值；query_video 也帶。"""
+
+    MTIME_NS = 1_700_000_000_123_456_789
+    SIZE = 123456
+
+    @pytest.fixture
+    def client_with_sig(self, tmp_path, monkeypatch):
+        db_path = tmp_path / "sig.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+
+        def _cover(idx):
+            return to_file_uri(f"/fake/sig_cover_{idx:03d}.jpg")
+
+        target = _make_video(
+            idx=1, number="SIG-001", tags=["高畫質", "單體作品", "美乳", "巨乳"],
+            maker="MakerA", cover_path=_cover(1),
+        )
+        target_id = repo.upsert(target)
+        candidates = [
+            _make_video(
+                idx=i, number=f"SIG-{i:03d}", tags=["高畫質", "單體作品", "美乳"],
+                maker="MakerA", cover_path=_cover(i),
+            )
+            for i in range(2, 14)
+        ]
+        repo.upsert_batch(candidates)
+        assert repo.set_cover_signature(
+            to_file_uri("/fake/video_001.mp4"), self.MTIME_NS, self.SIZE) is True
+        assert repo.set_cover_signature(
+            to_file_uri("/fake/video_002.mp4"), self.MTIME_NS, self.SIZE) is True
+
+        real_repo_cls = VideoRepository
+
+        class _PatchedRepo(real_repo_cls):
+            def __init__(self, db_path_arg=None):
+                super().__init__(db_path)
+
+        monkeypatch.setattr("web.routers.similar.VideoRepository", _PatchedRepo)
+
+        corpus = VideoRepository(db_path).get_all()
+        ranker = SimilarRanker(corpus)
+        monkeypatch.setattr(SimilarRankerCache, "_instance", ranker)
+
+        def _set_flag(enabled):
+            monkeypatch.setattr(
+                "web.routers.similar.load_config",
+                lambda: {"thumbnail_cache_enabled": enabled},
+            )
+
+        yield TestClient(_make_test_app()), target_id, _set_flag, VideoRepository(db_path)
+        SimilarRankerCache._instance = None
+
+    def test_similar_cover_urls_carry_signature(self, client_with_sig):
+        client, target_id, set_flag, repo = client_with_sig
+        suffix = f"&v={self.MTIME_NS}-{self.SIZE}"
+
+        set_flag(False)
+        resp = client.get(f"/api/similar-covers/{target_id}")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        assert data["query_video"]["cover_url"].endswith(suffix)
+        results = {r["video_id"]: r for r in data["results"]}
+        signed = repo.get_by_path(to_file_uri("/fake/video_002.mp4"))
+        assert results[signed.id]["cover_full_url"].endswith(suffix)
+        assert results[signed.id]["cover_url"].endswith(suffix)
+        unsigned = repo.get_by_path(to_file_uri("/fake/video_003.mp4"))
+        assert results[unsigned.id]["cover_full_url"].startswith("/api/gallery/image?path=")
+        assert "&v=" not in results[unsigned.id]["cover_full_url"]
+
+        set_flag(True)
+        resp = client.get(f"/api/similar-covers/{target_id}")
+        data = resp.json()
+        results = {r["video_id"]: r for r in data["results"]}
+        assert results[signed.id]["cover_full_url"].endswith(suffix)
+        assert "/api/gallery/thumb?" in results[signed.id]["cover_url"]
+        assert "&v=" not in results[signed.id]["cover_url"]

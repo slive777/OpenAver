@@ -827,3 +827,198 @@ def test_videos_src_points_to_owning_source(client, tmp_path, mocker, case) -> N
         assert len(data["videos"]) == 1
         assert data["videos"][0]["src"] == 1
 
+
+
+# ---------------------------------------------------------------------------
+# TASK-200b-T2 ③a＋④：封面網址版本記號、列表／單筆零 stat（檔尾新 class，既有不動）
+# ---------------------------------------------------------------------------
+
+class TestShowcaseCoverVersionMarker:
+    """有簽章列 cover_full_url 帶 &v=<mtime_ns>-<size>；無簽章位元相同；寫入後舊 ETag 得 200。"""
+
+    MTIME_NS = 1_700_000_000_123_456_789
+    SIZE = 123456
+
+    @pytest.fixture
+    def sig_setup(self, tmp_path):
+        video_dir = tmp_path / "videos"
+        video_dir.mkdir()
+        cover_sig = tmp_path / "cover_sig.jpg"
+        cover_sig.write_bytes(b"sig-cover")
+        cover_plain = tmp_path / "cover_plain.jpg"
+        cover_plain.write_bytes(b"plain-cover")
+        cover_late = tmp_path / "cover_late.jpg"
+        cover_late.write_bytes(b"late-cover")
+
+        sig_uri = to_file_uri(str(video_dir / "sig.mp4"), {})
+        plain_uri = to_file_uri(str(video_dir / "plain.mp4"), {})
+        late_uri = to_file_uri(str(video_dir / "late.mp4"), {})
+
+        db_path = tmp_path / "sig_test.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        repo.upsert_batch([
+            Video(path=sig_uri, number="SIG-001", title="Signed",
+                  cover_path=to_file_uri(str(cover_sig), {})),
+            Video(path=plain_uri, number="SIG-002", title="Plain",
+                  cover_path=to_file_uri(str(cover_plain), {})),
+            Video(path=late_uri, number="SIG-003", title="Late",
+                  cover_path=to_file_uri(str(cover_late), {})),
+        ])
+        assert repo.set_cover_signature(sig_uri, self.MTIME_NS, self.SIZE) is True
+
+        base_config = {
+            "gallery": {
+                "directories": [str(video_dir)],
+                "path_mappings": {},
+                "min_size_mb": 0,
+                "thumbnail_width": 400,
+            },
+            "scraper": {"video_extensions": [".mp4"], "image_extensions": [".jpg"]},
+            "database": {"path": ":memory:"},
+            "translate": {"provider": "ollama", "ollama_model": "llama3"},
+        }
+        return {
+            "db_path": db_path,
+            "sig_uri": sig_uri,
+            "plain_uri": plain_uri,
+            "late_uri": late_uri,
+            "cover_sig": str(cover_sig),
+            "cover_plain": str(cover_plain),
+            "config": base_config,
+        }
+
+    def _get_videos(self, client, mocker, setup, enabled):
+        config = dict(setup["config"])
+        config["thumbnail_cache_enabled"] = enabled
+        mocker.patch("web.routers.showcase.get_db_path", return_value=setup["db_path"])
+        mocker.patch("web.routers.showcase.load_config", return_value=config)
+        resp = client.get("/api/showcase/videos")
+        assert resp.status_code == 200
+        return resp, {v["path"]: v for v in resp.json()["videos"]}
+
+    def test_cover_url_version_marker(self, client, sig_setup, mocker):
+        suffix = f"&v={self.MTIME_NS}-{self.SIZE}"
+        sig_img = f"/api/gallery/image?path={quote(sig_setup['cover_sig'], safe='')}"
+        plain_img = f"/api/gallery/image?path={quote(sig_setup['cover_plain'], safe='')}"
+        sig_thumb = f"/api/gallery/thumb?path={quote(sig_setup['sig_uri'], safe='')}"
+
+        _, on_videos = self._get_videos(client, mocker, sig_setup, enabled=True)
+        assert on_videos[sig_setup["sig_uri"]]["cover_full_url"] == sig_img + suffix
+        assert on_videos[sig_setup["sig_uri"]]["cover_url"] == sig_thumb
+        assert "&v=" not in on_videos[sig_setup["sig_uri"]]["cover_url"]
+        assert on_videos[sig_setup["plain_uri"]]["cover_full_url"] == plain_img
+
+        _, off_videos = self._get_videos(client, mocker, sig_setup, enabled=False)
+        assert off_videos[sig_setup["sig_uri"]]["cover_full_url"] == sig_img + suffix
+        assert off_videos[sig_setup["sig_uri"]]["cover_url"] == sig_img + suffix
+        assert off_videos[sig_setup["plain_uri"]]["cover_url"] == plain_img
+
+        mocker.patch("web.routers.showcase.get_db_path", return_value=sig_setup["db_path"])
+        mocker.patch("web.routers.showcase.load_config", return_value=sig_setup["config"])
+        single = client.get(f"/api/showcase/video?path={sig_setup['sig_uri']}")
+        assert single.status_code == 200
+        assert single.json()["video"]["cover_full_url"] == sig_img + suffix
+
+        first = client.get("/api/showcase/videos")
+        etag = first.headers["etag"]
+        repo = VideoRepository(sig_setup["db_path"])
+        assert repo.set_cover_signature(sig_setup["late_uri"], self.MTIME_NS, self.SIZE) is True
+        second = client.get("/api/showcase/videos", headers={"If-None-Match": etag})
+        assert second.status_code == 200
+        late_img = (
+            "/api/gallery/image?path="
+            + quote(uri_to_fs_path(to_file_uri(str(
+                sig_setup["db_path"].parent / "cover_late.jpg"), {})), safe="")
+        )
+        by_path = {v["path"]: v for v in second.json()["videos"]}
+        assert by_path[sig_setup["late_uri"]]["cover_full_url"] == late_img + suffix
+
+
+class TestShowcaseListAndSingleDoNotStatCoverFiles:
+    """I-N：列表／單筆不對任何封面檔做 stat／exists，簽章只來自 DB。"""
+
+    @pytest.fixture
+    def stat_setup(self, tmp_path):
+        video_dir = tmp_path / "videos"
+        video_dir.mkdir()
+        cover = tmp_path / "cover_stat.jpg"
+        cover.write_bytes(b"stat-cover")
+        vid_uri = to_file_uri(str(video_dir / "stat.mp4"), {})
+        db_path = tmp_path / "stat_test.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        repo.upsert(Video(path=vid_uri, number="STAT-001", title="Stat",
+                          cover_path=to_file_uri(str(cover), {})))
+        config = {
+            "gallery": {
+                "directories": [str(video_dir)],
+                "path_mappings": {},
+                "min_size_mb": 0,
+                "thumbnail_width": 400,
+            },
+            "scraper": {"video_extensions": [".mp4"], "image_extensions": [".jpg"]},
+            "database": {"path": ":memory:"},
+            "translate": {"provider": "ollama", "ollama_model": "llama3"},
+        }
+        return {"db_path": db_path, "vid_uri": vid_uri,
+                "cover_fs": str(cover), "config": config}
+
+    def test_list_and_single_do_not_stat_cover_files(
+        self, client, stat_setup, monkeypatch, mocker
+    ):
+        import os as _os
+        import pathlib as _pathlib
+
+        cover_fs = stat_setup["cover_fs"]
+        calls = []
+        real_stat = _os.stat
+        real_exists = _os.path.exists
+        real_getmtime = _os.path.getmtime
+        real_path_stat = _pathlib.Path.stat
+        real_path_exists = _pathlib.Path.exists
+
+        def _is_cover(arg):
+            try:
+                return _os.path.abspath(str(arg)) == _os.path.abspath(cover_fs)
+            except Exception:
+                return False
+
+        def _stat(path, *args, **kwargs):
+            if _is_cover(path):
+                calls.append(("stat", str(path)))
+            return real_stat(path, *args, **kwargs)
+
+        def _exists(path):
+            if _is_cover(path):
+                calls.append(("exists", str(path)))
+            return real_exists(path)
+
+        def _getmtime(path):
+            if _is_cover(path):
+                calls.append(("getmtime", str(path)))
+            return real_getmtime(path)
+
+        def _pstat(self, *args, **kwargs):
+            if _is_cover(self):
+                calls.append(("Path.stat", str(self)))
+            return real_path_stat(self, *args, **kwargs)
+
+        def _pexists(self, *args, **kwargs):
+            if _is_cover(self):
+                calls.append(("Path.exists", str(self)))
+            return real_path_exists(self, *args, **kwargs)
+
+        monkeypatch.setattr("web.routers.showcase.os.stat", _stat)
+        monkeypatch.setattr("web.routers.showcase.os.path.exists", _exists)
+        monkeypatch.setattr("web.routers.showcase.os.path.getmtime", _getmtime)
+        monkeypatch.setattr(_pathlib.Path, "stat", _pstat, raising=False)
+        monkeypatch.setattr(_pathlib.Path, "exists", _pexists, raising=False)
+
+        mocker.patch("web.routers.showcase.get_db_path", return_value=stat_setup["db_path"])
+        mocker.patch("web.routers.showcase.load_config", return_value=stat_setup["config"])
+        resp = client.get("/api/showcase/videos")
+        assert resp.status_code == 200
+        single = client.get(f"/api/showcase/video?path={stat_setup['vid_uri']}")
+        assert single.status_code == 200
+        assert calls == []

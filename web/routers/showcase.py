@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from core.cover_attributes import effective_tags, is_source_4k_tag, is_version_kind_tag, version_kinds
+from core.cover_signature import cover_version_suffix
 from core.database import VideoRepository, get_db_path, init_db
 from core.database.version_tracker import (
     compute_db_fingerprint,
@@ -73,7 +74,7 @@ class TitleWritebackRequest(BaseModel):
     original_title: Optional[str] = None
 
 
-def _serialize_video(v, path_mappings: dict, enabled: bool = False, probe=None) -> dict:
+def _serialize_video(v, path_mappings: dict, enabled: bool = False, probe=None, cover_sig=None) -> dict:
     """將 Video ORM 物件序列化為前端 JSON dict（列表端點與單筆端點共用）。
 
     feature/71 T4：thumbnail_cache_enabled 開關決定 cover_url 走 thumb / image 分支。
@@ -87,11 +88,11 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False, probe=None) 
     cover_full_url = ""
     if v.cover_path:
         original_url = f"/api/gallery/image?path={quote(uri_to_local_fs_path(v.cover_path, path_mappings), safe='')}"
-        cover_full_url = original_url
+        cover_full_url = original_url + cover_version_suffix(cover_sig)
         if enabled:
             cover_url = f"/api/gallery/thumb?path={quote(v.path, safe='')}"
         else:
-            cover_url = original_url
+            cover_url = cover_full_url
 
     sample_urls = []
     for img_uri in (v.sample_images or []):
@@ -150,7 +151,7 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False, probe=None) 
     }
 
 
-def _serialize_group(group, path_mappings: dict, enabled: bool = False, probe=None) -> dict:
+def _serialize_group(group, path_mappings: dict, enabled: bool = False, probe=None, cover_sig=None) -> dict:
     """將 VideoGroup 序列化為前端 JSON dict（feature/122，CD-122-4）。
 
     以 `group.members[0]`（part-1，group_rows 已依 part_number 升冪排序）的
@@ -162,7 +163,7 @@ def _serialize_group(group, path_mappings: dict, enabled: bool = False, probe=No
     逐鍵逐值相同，只多 `part_tokens: []` 一個新鍵（AC-4）。
     probe 對應 members[0].path（與序列化基底同一段）。
     """
-    base = _serialize_video(group.members[0], path_mappings, enabled, probe=probe)
+    base = _serialize_video(group.members[0], path_mappings, enabled, probe=probe, cover_sig=cover_sig)
     # 單檔片不碰 size：`_serialize_video()` 原樣傳 `v.size_bytes`（DB NULL → None），
     # 套 `or 0` 會把 None 變 0，違反 AC-4「單檔片逐位元組不變」的字面契約。
     # 只有真的多段時才加總，`or 0` 的 NULL 防禦留在那條路上（T2 review P3）。
@@ -180,7 +181,7 @@ _BORROWED_FIELDS = (
 )
 
 
-def _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=None):
+def _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=None, sig_of=None):
     """各版本 dict（CD-198b-6／7）：以 `_serialize_group()` 為底，不含 `versions` 鍵。
 
     自己沒 NFO 且別版有資料（`work.data_source is not None`）→ 沿用來源版本的
@@ -195,10 +196,11 @@ def _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=No
     work_rating = 1 if any((m.user_rating or 0) > 0 for m in firsts) else 0
     work_tags = work_user_tags(work)
     if len(work.versions) == 1:
-        item = _serialize_group(work.versions[0], path_mappings, enabled, probe=probe_of(work.versions[0].members[0].path))
+        first_path = work.versions[0].members[0].path
+        item = _serialize_group(work.versions[0], path_mappings, enabled, probe=probe_of(first_path), cover_sig=sig_of(first_path) if sig_of else None)
         item["borrowed_from"] = ""
         return [item]
-    bases = [_serialize_group(g, path_mappings, enabled, probe=probe_of(g.members[0].path)) for g in work.versions]
+    bases = [_serialize_group(g, path_mappings, enabled, probe=probe_of(g.members[0].path), cover_sig=sig_of(g.members[0].path) if sig_of else None) for g in work.versions]
     source = bases[work.data_source] if work.data_source is not None else None
     items = []
     for index, base in enumerate(bases):
@@ -224,13 +226,13 @@ def _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=No
     return items
 
 
-def _serialize_work(work, top_index, path_mappings, enabled, probe_of, prefixes=None):
+def _serialize_work(work, top_index, path_mappings, enabled, probe_of, prefixes=None, sig_of=None):
     """一部作品的頂層 dict：某版本 dict 的淺拷貝 ＋ `versions`（CD-198b-7）。
 
     多版本：`versions` 為全部版本 dict（不含 `versions` 鍵）；`size`／`mtime`／
     `part_tokens` 都是各版本自己的，不加總。單版本：`versions: []`。
     """
-    version_dicts = _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=prefixes)
+    version_dicts = _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=prefixes, sig_of=sig_of)
     top = dict(version_dicts[top_index])
     top["versions"] = version_dicts if len(work.versions) > 1 else []
     return top
@@ -300,9 +302,11 @@ def get_videos(request: Request):
         # 收成一部作品，頂層為預設版本（`top_index=0`），`total` 為作品數。
         fs_path_of = lambda v: uri_to_local_fs_path(v.path, path_mappings)
         probe_of = probe_map.get
+        sig_map = repo.get_cover_sig_map()
+        sig_of = sig_map.get
         videos_json = []
         for work in group_works(all_videos, fs_path_of, tier_of):
-            item = _serialize_work(work, 0, path_mappings, thumb_enabled, probe_of, prefixes=prefixes)
+            item = _serialize_work(work, 0, path_mappings, thumb_enabled, probe_of, prefixes=prefixes, sig_of=sig_of)
             if len(work.versions) == 1:
                 idx = owning_source_index(item["path"], prefixes)
                 if idx is not None:
@@ -356,17 +360,23 @@ def get_video(path: str = Query(..., description="file:/// URI")):
         # v.path 反解同資料夾候選列、resolve_work 找整部作品；找不到（極端狀況）
         # → fail-safe 退回單檔序列化，不 500（CD-122-6）。
         probe_cache = {}
+        sig_cache = {}
 
         def probe_of(p):
             if p not in probe_cache:
                 probe_cache[p] = repo.get_media_probe_view(p)
             return probe_cache[p]
 
+        def sig_of(p):
+            if p not in sig_cache:
+                sig_cache[p] = repo.get_cover_sig(p)
+            return sig_cache[p]
+
         from core.source_reachability import source_keys_and_prefixes
         work = resolve_work(repo, path, path_mappings, folder_source_uri=v.path, tier_of=tier_of_from_probe(probe_of))
         if work is None:
             probe = probe_of(v.path)
-            item = _serialize_video(v, path_mappings, thumb_enabled, probe=probe)
+            item = _serialize_video(v, path_mappings, thumb_enabled, probe=probe, cover_sig=sig_of(v.path))
             item["versions"] = []
             item["borrowed_from"] = ""
             return JSONResponse({"success": True, "video": item})
@@ -376,7 +386,7 @@ def get_video(path: str = Query(..., description="file:/// URI")):
         if top_index is None:
             top_index = 0
         return JSONResponse({"success": True,
-                             "video": _serialize_work(work, top_index, path_mappings, thumb_enabled, probe_of, prefixes=prefixes)})
+                             "video": _serialize_work(work, top_index, path_mappings, thumb_enabled, probe_of, prefixes=prefixes, sig_of=sig_of)})
 
     except Exception as e:
         logger.error("取得單筆影片失敗: %s", e)

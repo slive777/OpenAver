@@ -755,6 +755,8 @@ class TestFocalModelColumn:
             "media_audio_langs",
             "media_subtitle_langs",
             "media_truncated",
+            "cover_mtime_ns",
+            "cover_size",
         }
         assert db_cols <= allowed, f"未登記欄位：{sorted(db_cols - allowed)}"
 
@@ -853,3 +855,100 @@ def test_old_db_migration_adds_has_plot(tmp_path):
     assert got.title == "舊片"
     assert got.has_plot is None
     assert _serialize_video(got, {})["has_plot"] is False
+
+
+# ---------------------------------------------------------------------------
+# TASK-200b-T2：封面簽章欄位、讀寫（DB-only）
+# ---------------------------------------------------------------------------
+
+def test_old_db_gets_cover_sig_columns(tmp_path):
+    """舊 DB（無兩欄）init_db 後欄位出現、重複 init_db 不炸、既有列兩欄 NULL。"""
+    db_path = tmp_path / "old_no_cover_sig.db"
+    path = to_file_uri("/old_cover_sig.mp4")
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        """
+        CREATE TABLE videos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT UNIQUE NOT NULL,
+            number TEXT,
+            title TEXT,
+            original_title TEXT,
+            actresses TEXT,
+            maker TEXT,
+            director TEXT DEFAULT '',
+            series TEXT,
+            label TEXT DEFAULT '',
+            tags TEXT,
+            sample_images TEXT DEFAULT '',
+            user_tags TEXT DEFAULT '[]',
+            output_dir TEXT DEFAULT '',
+            duration INTEGER,
+            size_bytes INTEGER,
+            cover_path TEXT,
+            release_date TEXT,
+            mtime REAL,
+            nfo_mtime REAL,
+            scrape_attempted_at REAL DEFAULT 0,
+            auto_focal TEXT DEFAULT '',
+            crop_mode TEXT NOT NULL DEFAULT 'auto',
+            focal_attempted_at TIMESTAMP DEFAULT NULL,
+            focal_model TEXT NOT NULL DEFAULT 'local-pigo',
+            ai_tagged_at TIMESTAMP DEFAULT NULL,
+            has_plot INTEGER DEFAULT NULL,
+            user_rating INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.execute("INSERT INTO videos (path, title) VALUES (?, ?)", (path, "舊片"))
+    conn.commit()
+    conn.close()
+
+    init_db(db_path)
+    init_db(db_path)
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(videos)").fetchall()}
+        assert "cover_mtime_ns" in cols
+        assert "cover_size" in cols
+        assert conn.execute(
+            "SELECT cover_mtime_ns, cover_size FROM videos WHERE path = ?", (path,)
+        ).fetchone() == (None, None)
+    finally:
+        conn.close()
+
+    repo = VideoRepository(db_path)
+    assert repo.get_by_path(path) is not None
+    assert repo.get_cover_sig(path) is None
+    assert repo.get_cover_sig_map() == {}
+
+
+class TestCoverSignatureWriters:
+    """200b-T2 ②：四個寫入路徑不碰簽章。"""
+
+    @pytest.mark.parametrize("writer", ["upsert", "upsert_batch", "repath", "insert_if_ignore"])
+    def test_writers_keep_cover_signature(self, temp_db, writer):
+        """任一寫入後簽章位元相同。"""
+        repo = VideoRepository(temp_db)
+        mtime_ns, size = 1_700_000_000_123_456_789, 123456
+        target = to_file_uri("/sig_writer.mp4")
+        other = to_file_uri("/sig_writer_other.mp4")
+        repo.upsert(Video(path=target, title="片"))
+        assert repo.set_cover_signature(target, mtime_ns, size) is True
+        before = (mtime_ns, size)
+        assert repo.get_cover_sig(target) == before
+
+        if writer == "upsert":
+            repo.upsert(Video(path=target, title="重掃"))
+        elif writer == "upsert_batch":
+            repo.upsert_batch([Video(path=target, title="重掃")])
+        elif writer == "repath":
+            repo.repath(target, other, Video(path=other, title="搬家"))
+        elif writer == "insert_if_ignore":
+            repo.insert_if_ignore(Video(path=target, title="重掃"))
+
+        check_path = other if writer == "repath" else target
+        assert repo.get_cover_sig(check_path) == before
