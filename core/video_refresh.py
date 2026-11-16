@@ -11,10 +11,27 @@ from core.path_utils import uri_to_local_fs_path
 from core.readonly_paths import resolve_owning_output_root
 from core.source_reachability import is_path_on_unreachable_source
 from core.video_files_info import stat_kind, summarize_media
+from core.video_nfo_locate import locate_readonly_nfo
 
 
-def _refresh_readonly(repo, video, config, path_mappings):
-    return {"success": False, "error": "readonly_not_supported"}
+def _refresh_readonly(repo, row, config, path_mappings):
+    owning = resolve_owning_output_root(row.path, config)
+    try:
+        nfo_fs, err = locate_readonly_nfo(row, path_mappings, owning[2])
+    except ValueError:
+        return {"success": False, "error": "nfo_unreadable"}
+    if err:
+        return {"success": False, "error": err}
+    virtual_fs = str(Path(nfo_fs).with_suffix(".mp4"))
+    scanner = VideoScanner(path_mappings=path_mappings, nfo_title_format=config.get('scraper', {}).get('nfo_title_format', '[{num}]{title}'))
+    video = Video.from_video_info(scanner.scan_file(virtual_fs))
+    video.path = row.path  # readonly: restore source row path
+    video.size_bytes = row.size_bytes
+    video.mtime = row.mtime
+    video.nfo_mtime = nfo_mtime_or_none(Path(nfo_fs)) or 0.0
+    changed = _commit_refreshed_video(repo, video, config, path_mappings)
+    return {"success": True, "status": "ok", "cover_changed": changed,
+            "media_status": "skipped", "media": summarize_media(repo.get_media_probe_view(video.path))}
 
 
 def _commit_refreshed_video(repo, video, config, path_mappings):
