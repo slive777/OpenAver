@@ -420,3 +420,316 @@ class TestManualFocalEndpoint:
         result = repo.get_by_path(focal_endpoint_setup["video_uri"])
         assert result.auto_focal == "0.3000,0.6000"
         assert result.crop_mode == "manual"
+
+
+# ============ 200a-T2：save-focal 接線 poster refresh（只加不改）============
+# 自建夾具＋小圖 helper（真 JPEG，不 import tests/unit/test_poster_refresh.py）。
+
+import errno
+import hashlib
+import random
+import threading
+import time
+from pathlib import Path
+
+from PIL import Image, ImageChops, ImageStat
+
+
+def _t2_stripes(path, seed):
+    rng = random.Random(seed)
+    image = Image.new("RGB", (300, 200))
+    for x in range(300):
+        color = tuple(rng.randrange(256) for _ in range(3))
+        for y in range(200):
+            image.putpixel((x, y), color)
+    image.save(path, quality=100, subsampling=0)
+
+
+def _t2_solid(path, color, size=(142, 200)):
+    Image.new("RGB", size, color).save(path, quality=95, subsampling=0)
+
+
+def _t2_digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _t2_snapshot(directory):
+    directory = Path(directory)
+    return {p.name: _t2_digest(p) for p in directory.iterdir() if p.is_file()}
+
+
+def _t2_snapshot_tree(root):
+    root = Path(root)
+    out = {}
+    for p in sorted(root.rglob("*")):
+        if p.is_file():
+            out[str(p.relative_to(root))] = (_t2_digest(p), p.stat().st_mtime_ns)
+    return out
+
+
+def _t2_expected_x0(focal_x, width=300, height=200):
+    win_w = round(0.71 * height)
+    return max(0, min(round(focal_x * width - win_w / 2), width - win_w))
+
+
+def _t2_actual_x0(poster_fs, cover_fs):
+    with Image.open(cover_fs) as src, Image.open(poster_fs) as out:
+        win_w = round(0.71 * src.height)
+        assert out.size == (win_w, src.height)
+        scores = {}
+        for x in range(0, src.width - win_w + 1):
+            diff = ImageChops.difference(out, src.crop((x, 0, x + win_w, src.height)))
+            scores[x] = sum(ImageStat.Stat(diff).mean)
+        return min(scores, key=scores.get)
+
+
+@pytest.fixture
+def t2_poster_setup(tmp_path):
+    """T2 自建夾具：真 JPEG 封面（逐欄紋理）＋純色海報＋tmp DB＋模式開／關兩套 config。"""
+    video_dir = tmp_path / "t2videos"
+    video_dir.mkdir()
+    items = {}
+    for stem, seed, color in (("T2A-001", 200, (200, 30, 30)),
+                              ("T2B-001", 400, (30, 30, 200))):
+        mp4 = video_dir / f"{stem}.mp4"
+        mp4.write_bytes(b"")
+        cover = video_dir / f"{stem}.jpg"
+        poster = video_dir / f"{stem}-poster.jpg"
+        _t2_stripes(cover, seed)
+        _t2_solid(poster, color)
+        items[stem] = {
+            "video_uri": to_file_uri(str(mp4), {}),
+            "cover_uri": to_file_uri(str(cover), {}),
+            "cover_fs": str(cover),
+            "poster_fs": str(poster),
+        }
+    db_path = tmp_path / "t2_poster.db"
+    init_db(db_path)
+    repo = VideoRepository(db_path)
+    repo.upsert_batch([
+        Video(path=items[s]["video_uri"], number=s, title=s,
+              cover_path=items[s]["cover_uri"], crop_mode="default", auto_focal="")
+        for s in items
+    ])
+    base_gallery = {"directories": [{"path": str(video_dir), "readonly": False,
+                                     "output_path": ""}],
+                    "path_mappings": {}}
+    config_on = {"gallery": base_gallery, "scraper": {"external_manager": "jellyfin"}}
+    config_off = {"gallery": base_gallery}
+    return {"db_path": db_path, "video_dir": video_dir, "items": items,
+            "config_on": config_on, "config_off": config_off}
+
+
+class TestSaveFocalPosterRefresh:
+    @pytest.mark.parametrize("case", ["none", "updated", "skipped"])
+    def test_poster_status_matches_situation(self, client, t2_poster_setup, mocker, case):
+        """沒開外部媒體庫模式的使用者按 ✓，資料夾裡既有的海報被改寫、原本那張回不來；
+        前端依 poster.status 選提示。"""
+        setup = t2_poster_setup
+        item = setup["items"]["T2A-001"]
+        poster_name = Path(item["poster_fs"]).name
+        if case == "none":
+            Path(item["poster_fs"]).unlink()
+            config = setup["config_on"]
+        elif case == "updated":
+            config = setup["config_on"]
+        else:
+            config = setup["config_off"]
+        _patch_db_and_config(mocker, setup, config=config)
+        before = _t2_snapshot(setup["video_dir"])
+        poster_before = before.get(poster_name)
+        cover_before = _t2_digest(item["cover_fs"])
+        resp = client.post("/api/showcase/video/save-focal",
+                           json={"path": item["video_uri"], "focal": "0.3,0.5",
+                                 "expected_cover_path": item["cover_uri"]})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert body["auto_focal"] == "0.3000,0.5000"
+        assert (body.get("poster") or {}).get("status") == case, body
+        after = _t2_snapshot(setup["video_dir"])
+        if case == "updated":
+            assert after[poster_name] != poster_before
+            assert _t2_digest(item["cover_fs"]) == cover_before
+        elif case == "skipped":
+            assert after[poster_name] == poster_before
+        else:
+            assert after == before
+
+    def test_save_succeeds_when_poster_replace_fails(
+        self, client, t2_poster_setup, mocker, monkeypatch,
+    ):
+        """磁碟滿時按 ✓：位置照樣存下、舊海報不被破壞（失敗不擋存檔）。"""
+        import core.atomic_write as atomic_write_mod
+
+        setup = t2_poster_setup
+        item = setup["items"]["T2A-001"]
+        _patch_db_and_config(mocker, setup, config=setup["config_on"])
+        poster_before = _t2_digest(item["poster_fs"])
+
+        def _full(*args, **kwargs):
+            raise OSError(errno.ENOSPC, "disk full")
+
+        monkeypatch.setattr(atomic_write_mod.os, "replace", _full)
+        resp = client.post("/api/showcase/video/save-focal",
+                           json={"path": item["video_uri"], "focal": "0.3,0.5",
+                                 "expected_cover_path": item["cover_uri"]})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert body["poster"]["status"] == "failed"
+        row = VideoRepository(setup["db_path"]).get_by_path(item["video_uri"])
+        assert row.auto_focal == "0.3000,0.5000"
+        assert row.crop_mode == "manual"
+        assert _t2_digest(item["poster_fs"]) == poster_before
+        assert list(Path(setup["video_dir"]).glob("tmp*")) == []
+
+    def test_conflict_409_leaves_poster_untouched(self, client, t2_poster_setup, mocker):
+        """開遮罩期間封面被換掉、使用者按 ✓：存檔被擋下，舊封面旁的海報不被改寫。"""
+        setup = t2_poster_setup
+        video_dir = Path(setup["video_dir"])
+        old_cover = video_dir / "OLD-001.jpg"
+        old_poster = video_dir / "OLD-001-poster.jpg"
+        _t2_stripes(old_cover, 300)
+        _t2_solid(old_poster, (30, 200, 30))
+        old_poster_before = _t2_digest(old_poster)
+        item = setup["items"]["T2A-001"]
+        _patch_db_and_config(mocker, setup, config=setup["config_on"])
+        db_before = VideoRepository(setup["db_path"]).get_by_path(item["video_uri"])
+        resp = client.post("/api/showcase/video/save-focal",
+                           json={"path": item["video_uri"], "focal": "0.3,0.5",
+                                 "expected_cover_path": to_file_uri(str(old_cover), {})})
+        assert resp.status_code == 409
+        body = resp.json()
+        assert body["success"] is False
+        assert "poster" not in body
+        row = VideoRepository(setup["db_path"]).get_by_path(item["video_uri"])
+        assert row.auto_focal == db_before.auto_focal
+        assert row.crop_mode == db_before.crop_mode
+        assert _t2_digest(old_poster) == old_poster_before
+
+    @pytest.mark.parametrize("mode_on", [True, False])
+    def test_readonly_source_writes_nothing(self, client, tmp_path, mocker, mode_on):
+        """唯讀來源的使用者按 ✓：來源資料夾零寫入（模式開只動輸出夾海報）。"""
+        src_dir = tmp_path / "rosrc"
+        src_dir.mkdir()
+        out_dir = tmp_path / "roout"
+        out_dir.mkdir()
+        src_mp4 = src_dir / "SRC-001.mp4"
+        src_mp4.write_bytes(b"")
+        src_poster = src_dir / "SRC-001-poster.jpg"
+        _t2_solid(src_poster, (30, 200, 30))
+        out_cover = out_dir / "SRC-001.jpg"
+        _t2_stripes(out_cover, 500)
+        out_poster = out_dir / "SRC-001-poster.jpg"
+        _t2_solid(out_poster, (200, 200, 30))
+        db_path = tmp_path / "t2_ro.db"
+        init_db(db_path)
+        VideoRepository(db_path).upsert_batch([Video(
+            path=to_file_uri(str(src_mp4), {}), number="SRC-001", title="SRC-001",
+            cover_path=to_file_uri(str(out_cover), {}), crop_mode="default",
+            auto_focal="")])
+        config = {"gallery": {"directories": [{"path": str(src_dir), "readonly": True,
+                                               "output_path": str(out_dir)}],
+                              "path_mappings": {}}}
+        if mode_on:
+            config["scraper"] = {"external_manager": "jellyfin"}
+        mocker.patch("web.routers.showcase.get_db_path", return_value=db_path)
+        mocker.patch("web.routers.showcase.load_config", return_value=config)
+        src_before = _t2_snapshot_tree(src_dir)
+        out_poster_before = _t2_digest(out_poster)
+        out_cover_before = _t2_digest(out_cover)
+        resp = client.post("/api/showcase/video/save-focal",
+                           json={"path": to_file_uri(str(src_mp4), {}), "focal": "0.3,0.5",
+                                 "expected_cover_path": to_file_uri(str(out_cover), {})})
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        assert (resp.json().get("poster") or {}).get("status") == (
+            "updated" if mode_on else "skipped"), resp.json()
+        assert _t2_snapshot_tree(src_dir) == src_before
+        if mode_on:
+            assert _t2_digest(out_poster) != out_poster_before
+        else:
+            assert _t2_digest(out_poster) == out_poster_before
+        assert _t2_digest(out_cover) == out_cover_before
+
+    def test_concurrent_saves_end_consistent(self, client, t2_poster_setup, mocker):
+        """連按兩次 ✓：資料庫記的位置與海報裁出的位置來自同一個請求。"""
+        from web.routers import showcase as showcase_mod
+
+        setup = t2_poster_setup
+        item = setup["items"]["T2A-001"]
+        _patch_db_and_config(mocker, setup, config=setup["config_on"])
+        real_refresh = showcase_mod.refresh_poster
+        entered = threading.Event()
+        release = threading.Event()
+        seen = []
+
+        def _pausing(cover_fs, focal_str, *, external_mode_on):
+            if not seen:
+                seen.append(1)
+                entered.set()
+                release.wait(timeout=5)
+            return real_refresh(cover_fs, focal_str, external_mode_on=external_mode_on)
+
+        mocker.patch("web.routers.showcase.refresh_poster", side_effect=_pausing,
+                     create=True)
+        results = {}
+
+        def _post(key, focal):
+            try:
+                results[key] = client.post(
+                    "/api/showcase/video/save-focal",
+                    json={"path": item["video_uri"], "focal": focal,
+                          "expected_cover_path": item["cover_uri"]})
+            except Exception as exc:
+                results[key] = exc
+
+        thread_a = threading.Thread(target=_post, args=("A", "0.3,0.5"), daemon=True)
+        thread_a.start()
+        try:
+            assert entered.wait(timeout=10)
+            thread_b = threading.Thread(target=_post, args=("B", "0.7,0.5"),
+                                        daemon=True)
+            thread_b.start()
+            time.sleep(1.0)
+        finally:
+            release.set()
+        thread_a.join(timeout=15)
+        thread_b.join(timeout=15)
+        release.set()
+        assert not thread_a.is_alive()
+        assert not thread_b.is_alive()
+        for key in ("A", "B"):
+            assert not isinstance(results[key], Exception)
+            assert results[key].status_code == 200
+            assert results[key].json()["success"] is True
+        db_focal = VideoRepository(setup["db_path"]).get_by_path(
+            item["video_uri"]).auto_focal
+        focal_x = float(db_focal.split(",")[0])
+        actual_x0 = _t2_actual_x0(item["poster_fs"], item["cover_fs"])
+        assert abs(actual_x0 - _t2_expected_x0(focal_x)) <= 3
+
+    def test_second_version_leaves_first_untouched(
+        self, client, t2_poster_setup, mocker,
+    ):
+        """調 B 版按 ✓：A 版的資料庫欄位與海報位元都不動。"""
+        setup = t2_poster_setup
+        item_a = setup["items"]["T2A-001"]
+        item_b = setup["items"]["T2B-001"]
+        _patch_db_and_config(mocker, setup, config=setup["config_on"])
+        poster_a_before = _t2_digest(item_a["poster_fs"])
+        poster_b_before = _t2_digest(item_b["poster_fs"])
+        resp = client.post("/api/showcase/video/save-focal",
+                           json={"path": item_b["video_uri"], "focal": "0.6,0.5",
+                                 "expected_cover_path": item_b["cover_uri"]})
+        assert resp.status_code == 200
+        assert (resp.json().get("poster") or {}).get("status") == "updated", resp.json()
+        repo = VideoRepository(setup["db_path"])
+        row_a = repo.get_by_path(item_a["video_uri"])
+        assert row_a.auto_focal == ""
+        assert row_a.crop_mode == "default"
+        assert _t2_digest(item_a["poster_fs"]) == poster_a_before
+        row_b = repo.get_by_path(item_b["video_uri"])
+        assert row_b.auto_focal == "0.6000,0.5000"
+        assert _t2_digest(item_b["poster_fs"]) != poster_b_before
