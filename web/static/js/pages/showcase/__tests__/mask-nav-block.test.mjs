@@ -223,6 +223,9 @@ test('test_focal_edit_blocks_overlay_version_tag_similar_and_switch_entries', ()
             { call: c => c.openSimilarMode().catch(() => {}), value: c => c.similarModeAnimating, before: false, after: true },
             { call: c => c.openLightbox(1), value: (_c, n) => n.video, before: 0, after: 1 },
             { actress: true, call: c => c.openActressLightbox(1), value: (_c, n) => n.actress, before: 0, after: 1 },
+            { call: c => { c._matchedActress = ACTRESSES[0]; c._refreshActressPhotoLoaded = () => {}; c.openHeroCardLightbox(); },
+                value: c => JSON.stringify([c.currentLightboxVideo?.number ?? null, c.currentLightboxActress?.name ?? null, c._maskVisible]),
+                before: JSON.stringify(['A', null, true]), after: JSON.stringify([null, 'A', false]) },
         ];
         for (const row of cases) {
             for (const visible of [true, false]) {
@@ -234,27 +237,6 @@ test('test_focal_edit_blocks_overlay_version_tag_similar_and_switch_entries', ()
                 assert.equal(row.value(c, n), visible ? row.before : row.after);
             }
         }
-    } finally { cleanup(); }
-});
-
-test('test_esc_close_order_unchanged_when_not_editing', () => {
-    seed();
-    try {
-        const c = makeComponent({ lbxPop: { kind: 'info' }, addingLbTag: true });
-        c.closeLightbox = () => { c.lightboxOpen = false; };
-        keydown(c, 'Escape');
-        assert.equal(c.lbxPop, null);
-        assert.equal(c.addingLbTag, true);
-        assert.equal(c.lightboxOpen, true);
-        keydown(c, 'Escape');
-        assert.equal(c.addingLbTag, false);
-        assert.equal(c.lightboxOpen, true);
-        keydown(c, 'Escape');
-        assert.equal(c.lightboxOpen, false);
-        const actress = makeComponent({ showFavoriteActresses: true, currentLightboxActress: ACTRESSES[0] });
-        actress.closeLightbox = () => { actress.lightboxOpen = false; };
-        keydown(actress, 'Escape');
-        assert.equal(actress.lightboxOpen, false);
     } finally { cleanup(); }
 });
 

@@ -337,6 +337,7 @@ export function stateLightbox() {
         },
 
         openHeroCardLightbox() {
+            if (this.lightboxOpen && this._navBlockedByFocalEdit?.()) return;
             if (this._lightboxAnimating) return;
             if (!this._matchedActress) return;
             this._actressChipsExpanded = { aliases: false, info: false };

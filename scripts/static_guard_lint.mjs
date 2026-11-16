@@ -560,6 +560,7 @@ const RULES = [
     ['state-similar.js', /async\s+openSimilarMode\s*\(\s*\)\s*\{/],
     ['state-lightbox.js', /if \(this\.lightboxOpen && this\.lightboxIndex !== index\) \{/],
     ['state-actress.js', /if \(this\.lightboxOpen && this\.actressLightboxIndex !== index\) \{/],
+    ['state-lightbox.js', /openHeroCardLightbox\(\)\s*\{/],
   ].map(([file, anchor]) => ({ file: `web/static/js/pages/showcase/${file}`, kind: 'required-string', pattern: /(?<![\w:-])this\._navBlockedByFocalEdit\?\.\(\)/, scope: { anchor, braceBalanced: true }, stripLineComments: true, note: '[lint-guard:200a-T4-nav-guard]' })),
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: /&& !showFavoriteActresses && !_maskVisible"/, scope: { anchor: /<button class="lightbox-similar-btn"/, window: 200 }, stripLineComments: true, note: '[lint-guard:200a-T4-wand-hidden]' },
   { file: 'web/static/js/pages/showcase/state-lightbox-mask.js', kind: 'required-string',
