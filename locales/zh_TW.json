@@ -1326,6 +1326,39 @@
   },
   "showcase": {
     "adv_edit": {
+      "path": {
+        "label": "影片",
+        "edit": "修改影片路徑",
+        "input_label": "影片路徑",
+        "save": "儲存",
+        "cancel": "取消",
+        "missing_tag": "找不到",
+        "confirm_text": "這個檔名旁邊找不到 NFO 與封面，改過去後這部片會沒有資料",
+        "confirm_yes": "確定改過去",
+        "done": "已改指到這個檔，精選星、你的標籤、裁切位置都留著",
+        "done_renamed": "已改指到這個檔",
+        "err_unchanged": "新舊路徑一樣",
+        "err_not_video": "這不是影片檔",
+        "err_not_found": "找不到這個檔，請確認路徑",
+        "err_out_of_library": "新路徑不在片庫資料夾底下",
+        "err_already_in_library": "這個檔已經在片庫裡",
+        "err_readonly": "這部片來自唯讀來源，不能改路徑",
+        "err_not_scannable": "更新片庫不會收這個檔（檔案太小、是捷徑，或放在系統資料夾裡），所以沒有改",
+        "err_generic": "改路徑失敗，請再試一次"
+      },
+      "update": {
+        "btn": "更新",
+        "running": "更新中…",
+        "tip": "照資料夾裡現在的檔案重新讀一遍（NFO、封面、影片資訊、劇照），不會改動任何檔案",
+        "done": "已更新",
+        "done_media_pending": "已更新，但影片資訊這次沒讀到，可以按「重新讀取」再試",
+        "err_unreachable": "來源目前連不上",
+        "err_not_found": "找不到影片檔，沒有更新",
+        "err_no_nfo": "輸出資料夾裡找不到這部片的 NFO，沒有更新",
+        "err_nfo_ambiguous": "輸出資料夾裡有不只一個 NFO，沒辦法判斷用哪個，沒有更新",
+        "err_nfo_unreadable": "讀不到輸出資料夾裡的 NFO，沒有更新",
+        "err_generic": "更新失敗，請再試一次"
+      },
       "files": {
         "title": "檔案",
         "folder_open": "📁 開資料夾",

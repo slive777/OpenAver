@@ -319,3 +319,39 @@ export function advEditActionNotice(kind, data, t) {
     if (data?.success === false && data.error === 'unreachable') return { text: t('showcase.adv_edit.files.unreachable'), type: 'warning', reload: false };
     return { text: t('showcase.adv_edit.files.reread_error'), type: 'error', reload: false };
 }
+
+export function advEditPathStem(p) {
+    if (typeof p !== 'string' || !p) return '';
+    const name = p.slice(Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')) + 1);
+    const dot = name.lastIndexOf('.');
+    return dot > 0 ? name.slice(0, dot) : name;
+}
+export function advEditRepathError(code, t) {
+    if (code === 'confirm_required') return { text: '', confirm: true };
+    const messages = {
+        readonly: () => t('showcase.adv_edit.path.err_readonly'),
+        unchanged: () => t('showcase.adv_edit.path.err_unchanged'),
+        not_video: () => t('showcase.adv_edit.path.err_not_video'),
+        not_found: () => t('showcase.adv_edit.path.err_not_found'),
+        out_of_library: () => t('showcase.adv_edit.path.err_out_of_library'),
+        already_in_library: () => t('showcase.adv_edit.path.err_already_in_library'),
+        not_scannable: () => t('showcase.adv_edit.path.err_not_scannable'),
+    };
+    return { text: Object.hasOwn(messages, code) ? messages[code]() : t('showcase.adv_edit.path.err_generic'), confirm: false };
+}
+export function advEditUpdateNotice(data, t) {
+    if (data?.success === true) {
+        const pending = ['unreadable', 'stale', 'timeout'].includes(data.media_status);
+        return { text: pending ? t('showcase.adv_edit.update.done_media_pending') : t('showcase.adv_edit.update.done'), type: pending ? 'warning' : 'success', reload: true, sync: false };
+    }
+    const messages = {
+        unreachable: () => t('showcase.adv_edit.update.err_unreachable'),
+        not_found: () => t('showcase.adv_edit.update.err_not_found'),
+        no_nfo: () => t('showcase.adv_edit.update.err_no_nfo'),
+        nfo_ambiguous: () => t('showcase.adv_edit.update.err_nfo_ambiguous'),
+        nfo_unreadable: () => t('showcase.adv_edit.update.err_nfo_unreadable'),
+    };
+    const code = data?.success === false ? data.error : null;
+    const known = Object.hasOwn(messages, code);
+    return { text: known ? messages[code]() : t('showcase.adv_edit.update.err_generic'), type: known ? 'warning' : 'error', reload: false, sync: code === 'unreachable' || code === 'not_found' };
+}

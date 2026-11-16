@@ -172,3 +172,105 @@ test('test_adv_edit_late_responses_do_not_write', async () => {
         }
     } finally { cleanup(); }
 });
+
+const { stateVideos } = await import('../state-videos.js');
+const { _setAllVideos, _setVideos, _filteredVideos } = await import('../state-base.js');
+
+function wallFixture(rows) {
+    return {
+        page: 1, similarExitVideo: null,
+        fetchVideos: async () => { _setAllVideos(rows); _setVideos(rows); _setFilteredVideos(rows); },
+        applyFilterAndSort() {}, updatePagination() {},
+        _refreshLbFullBlurUp() {}, _refreshLbActorAges() {},
+        closeLightbox() { this.lightboxOpen = false; this.closed++; },
+        closed: 0,
+    };
+}
+function clearWall() { _setAllVideos([]); _setVideos([]); _setFilteredVideos([]); }
+function response(data) { return { ok: true, json: async () => data }; }
+
+test('test_adv_edit_error_hints_and_name_change_gate', async () => {
+    seed(); const previous = globalThis.fetch;
+    try {
+        const c = makeComponent({ currentLightboxVideo: VIDEOS[0], advEditOpen: true, advEditInfo: { readonly: false } });
+        const calls = []; let result;
+        globalThis.fetch = async (url, opts) => { calls.push(JSON.parse(opts.body)); return result === null ? { json: async () => { throw Error('bad json'); } } : response(result); };
+        for (const code of ['readonly', 'unchanged', 'not_video', 'not_found', 'out_of_library', 'already_in_library', 'not_scannable', 'confirm_required', 'unknown', null]) {
+            c._advEditCell = 'path'; c.advEditPathDraft = 'file:///C:/a.mkv'; c.advEditPathConfirm = false; result = code === null ? null : { success: false, error: code };
+            await c.submitAdvEditPath();
+            assert.equal(c.advEditPathConfirm, code === 'confirm_required', String(code));
+            if (code !== 'confirm_required') assert.equal(c.advEditPathError, 'showcase.adv_edit.path.err_' + (['unknown', null].includes(code) ? 'generic' : code), String(code));
+            assert.equal(c._advEditCell, 'path');
+        }
+        calls.length = 0; result = { success: false, error: 'unchanged' };
+        c.advEditPathDraft = 'file:///C:/a.mkv'; await c.submitAdvEditPath();
+        assert.equal(calls.length, 1); assert.equal(calls[0].confirm_name_change, false);
+        c.advEditPathDraft = '"file:///C:/a.mkv"'; await c.submitAdvEditPath();
+        assert.equal(calls.length, 2); assert.equal(calls[1].new_path, 'file:///C:/a.mkv');
+        c.advEditPathDraft = 'file:///C:/other.mkv'; await c.submitAdvEditPath();
+        assert.equal(calls.length, 2); assert.equal(c.advEditPathConfirm, true);
+        c.cancelAdvEditCell(); assert.equal(c._advEditCell, '');
+        c._advEditCell = 'path'; c.advEditPathDraft = 'file:///C:/other.mkv'; await c.submitAdvEditPath(true);
+        assert.equal(calls.length, 3); assert.equal(calls[2].confirm_name_change, true);
+        const toasts = []; c.showToast = (text, type) => toasts.push({ text, type }); c.loadAdvEditInfo = async () => {}; c.refreshVideoData = async () => {};
+        for (const code of ['unreachable', 'not_found', 'no_nfo', 'nfo_ambiguous', 'nfo_unreadable', 'unknown', null]) {
+            result = code === null ? null : { success: false, error: code }; await c.runAdvEditUpdate();
+            assert.equal(toasts.at(-1).text, 'showcase.adv_edit.update.err_' + (['unknown', null].includes(code) ? 'generic' : code));
+        }
+        result = { success: true, media_status: 'unreadable' }; await c.runAdvEditUpdate();
+        assert.equal(toasts.at(-1).text, 'showcase.adv_edit.update.done_media_pending');
+    } finally { globalThis.fetch = previous; clearWall(); cleanup(); }
+});
+
+test('test_adv_edit_repath_success_reanchors_lightbox_and_keeps_wall', async () => {
+    seed(); const previous = globalThis.fetch;
+    try {
+        for (const renamed of [false, true]) {
+            const old = { path: 'file:///C:/a.mp4', number: 'AAA-001' }, next = { path: renamed ? 'file:///C:/b.mkv' : 'file:///C:/a.mkv', number: 'AAA-001' };
+            const toasts = []; let loads = 0;
+            const c = makeComponent({ ...wallFixture([next]), currentLightboxVideo: old, advEditOpen: true, advEditInfo: { readonly: false }, showToast: text => toasts.push(text), loadAdvEditInfo: async () => { loads++; } }, [stateVideos()]);
+            globalThis.fetch = async () => response({ success: true, path: next.path, name_changed: renamed });
+            c._advEditCell = 'path'; c.advEditPathDraft = next.path; await c.submitAdvEditPath(renamed);
+            assert.equal(c.lightboxOpen, true); assert.equal(c.closed, 0); assert.equal(c.currentLightboxVideo.path, next.path);
+            assert.equal(_filteredVideos.length, 1); assert.equal(loads, 1); assert.equal(c._advEditCell, '');
+            assert.equal(toasts[0], renamed ? 'showcase.adv_edit.path.done_renamed' : 'showcase.adv_edit.path.done');
+            c.currentLightboxVideo = old; c.lightboxOpen = true; c.fetchVideos = wallFixture([]).fetchVideos;
+            await c._reloadWallKeepLightbox(old.path, { reanchorTo: next.path }); assert.equal(c.lightboxOpen, false);
+        }
+    } finally { globalThis.fetch = previous; clearWall(); cleanup(); }
+});
+
+test('test_reload_wall_without_reanchor_keeps_old_semantics', async () => {
+    seed();
+    try {
+        for (const opts of [undefined, { bustPaths: [], t: 1 }]) for (const present of [true, false]) {
+            const old = { path: 'file:///C:/a.mp4', number: 'AAA-001' };
+            const c = makeComponent({ ...wallFixture(present ? [old] : []), currentLightboxVideo: old }, [stateVideos()]);
+            await c._reloadWallKeepLightbox(old.path, opts);
+            assert.equal(c.lightboxOpen, present); assert.equal(c.closed, present ? 0 : 1);
+            if (present) assert.equal(c.currentLightboxVideo.path, old.path);
+        }
+        // The same entry point also has to support a new path after a move.
+        const old = { path: 'old' }, next = { path: 'new' };
+        const c = makeComponent({ ...wallFixture([next]), currentLightboxVideo: old }, [stateVideos()]);
+        await c._reloadWallKeepLightbox('old', { reanchorTo: 'new' }); assert.equal(c.currentLightboxVideo.path, 'new');
+    } finally { clearWall(); cleanup(); }
+});
+
+test('test_adv_edit_busy_lock_and_late_responses_dropped', async () => {
+    seed(); const previous = globalThis.fetch; const pendingResolves = [];
+    try {
+        for (const kind of ['update', 'failure', 'success']) {
+            let resolve; let calls = 0, loads = 0, refreshes = 0, reloads = 0; const toasts = [];
+            globalThis.fetch = () => { calls++; return new Promise(r => { resolve = r; pendingResolves.push(r); }); };
+            const c = makeComponent({ currentLightboxVideo: VIDEOS[0], advEditOpen: true, advEditInfo: { readonly: false }, showToast: (...x) => toasts.push(x), loadAdvEditInfo: async () => { loads++; }, refreshVideoData: async () => { refreshes++; }, _reloadWallKeepLightbox: async () => { reloads++; } });
+            c._advEditCell = 'path'; c.advEditPathDraft = 'file:///C:/a.mkv';
+            const p = kind === 'update' ? c.runAdvEditUpdate() : c.submitAdvEditPath();
+            assert.equal(calls, 1); c.startAdvEditPath(); await c.submitAdvEditPath(); await c.runAdvEditUpdate(); assert.equal(calls, 1);
+            c.closeAdvEdit(); c.advEditOpen = true; c._advEditBusy = 'update'; c.advEditPathError = '';
+            resolve(response(kind === 'success' ? { success: true, path: 'new' } : kind === 'failure' ? { success: false, error: 'not_found' } : { success: true }));
+            await p; assert.equal(toasts.length, 0); assert.equal(loads, 0); assert.equal(refreshes, 0); assert.equal(c.advEditPathError, ''); assert.equal(c._advEditBusy, 'update');
+            assert.equal(reloads, kind === 'success' ? 1 : 0);
+        }
+    } finally { for (const resolve of pendingResolves) resolve(response({ success: false })); globalThis.fetch = previous; clearWall(); cleanup(); }
+});

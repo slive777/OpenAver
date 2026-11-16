@@ -2203,8 +2203,8 @@
                 <button type="button" class="adv-edit-x" @click="closeAdvEdit()" :aria-label="t('showcase.adv_edit.close')"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
             </header>
             <div class="adv-edit-notices">
-                <div class="adv-edit-notice" data-notice="missing" x-show="advEditFiles().banner === 'missing'" x-text="t('showcase.adv_edit.files.banner_missing')"></div>
-                <div class="adv-edit-notice" data-notice="missing_readonly" x-show="advEditFiles().banner === 'missing_readonly'" x-text="t('showcase.adv_edit.files.banner_missing_readonly')"></div>
+                <div class="adv-edit-notice adv-edit-notice--bad" data-notice="missing" x-show="advEditFiles().banner === 'missing'" x-text="t('showcase.adv_edit.files.banner_missing')"></div>
+                <div class="adv-edit-notice adv-edit-notice--bad" data-notice="missing_readonly" x-show="advEditFiles().banner === 'missing_readonly'" x-text="t('showcase.adv_edit.files.banner_missing_readonly')"></div>
                 <div class="adv-edit-notice" data-notice="unreachable" x-show="advEditFiles().banner === 'unreachable'" x-text="t('showcase.adv_edit.files.unreachable')"></div>
                 <div class="adv-edit-notice" data-notice="load_failed" x-show="advEditLoadError" x-text="t('showcase.adv_edit.files.load_failed')"></div>
             </div>
@@ -2249,6 +2249,27 @@
                                     <figcaption><span x-text="t('showcase.adv_edit.files.thumb')"></span> <span class="adv-edit-chip adv-edit-chip--warn" x-show="advEditFiles().thumbChip === 'stale'" x-text="t('showcase.adv_edit.files.thumb_stale')"></span><span class="adv-edit-chip" x-show="advEditFiles().thumbChip === 'direct'" x-text="t('showcase.adv_edit.files.thumb_direct')"></span></figcaption>
                                 </figure>
                             </div>
+                            <div class="adv-edit-row" data-row="path">
+                                <span x-text="t('showcase.adv_edit.path.label')"></span>
+                                <div class="adv-edit-row-value">
+                                    <span class="adv-edit-path-text" x-show="_advEditCell !== 'path'" x-text="advEditPathDisplay()"></span>
+                                    <span class="adv-edit-chip adv-edit-chip--warn" x-show="advEditInfo && advEditInfo.state === 'missing'" x-text="t('showcase.adv_edit.path.missing_tag')"></span>
+                                    <input type="text" class="adv-edit-path-input" x-show="_advEditCell === 'path'" x-ref="advEditPathInput" x-model="advEditPathDraft" :readonly="advEditPathConfirm" @input="advEditPathError = ''" :aria-label="t('showcase.adv_edit.path.input_label')" @keydown.enter.prevent.stop="!$event.isComposing && submitAdvEditPath()" @keydown.escape.stop="!$event.isComposing && cancelAdvEditCell()">
+                                    <p class="adv-edit-path-error" role="alert" x-show="advEditPathError" x-text="advEditPathError"></p>
+                                    <div class="adv-edit-path-confirm" role="alert" x-show="advEditPathConfirm" @keydown.escape.stop="!$event.isComposing && cancelAdvEditCell()">
+                                        <span x-text="t('showcase.adv_edit.path.confirm_text')"></span>
+                                        <div class="adv-edit-path-confirm-actions">
+                                            <button type="button" class="btn btn-sm adv-edit-path-confirm-yes" x-ref="advEditPathConfirmYes" @click="submitAdvEditPath(true)" :disabled="!!_advEditBusy" x-text="t('showcase.adv_edit.path.confirm_yes')"></button>
+                                            <button type="button" class="btn btn-sm adv-edit-path-confirm-no" @click="cancelAdvEditCell()" x-text="t('showcase.adv_edit.path.cancel')"></button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="adv-edit-path-actions">
+                                    <button type="button" class="adv-edit-icon-btn adv-edit-path-edit" x-show="advEditCanEditPath() && _advEditCell !== 'path'" :disabled="!!_advEditCell || !!_advEditBusy" @click="startAdvEditPath()" :aria-label="t('showcase.adv_edit.path.edit')" :title="t('showcase.adv_edit.path.edit')"><i class="bi bi-pencil" aria-hidden="true"></i></button>
+                                    <button type="button" class="adv-edit-icon-btn adv-edit-path-save" x-show="_advEditCell === 'path'" :disabled="!!_advEditBusy || advEditPathConfirm" @click="submitAdvEditPath()" :aria-label="t('showcase.adv_edit.path.save')" :title="t('showcase.adv_edit.path.save')"><i class="bi bi-check-lg" aria-hidden="true"></i></button>
+                                    <button type="button" class="adv-edit-icon-btn adv-edit-path-cancel" x-show="_advEditCell === 'path'" :disabled="!!_advEditBusy" @click="cancelAdvEditCell()" :aria-label="t('showcase.adv_edit.path.cancel')" :title="t('showcase.adv_edit.path.cancel')"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                </div>
+                            </div>
                             <div class="adv-edit-row" data-row="media"><span x-text="t('showcase.adv_edit.files.media_label')"></span><span class="adv-edit-row-value" x-text="advEditMediaText()"></span><button type="button" class="btn btn-xs adv-edit-reread" :disabled="!!_advEditBusy || !advEditFiles().canReread" @click="rereadAdvEditMedia()" x-text="t('showcase.adv_edit.files.reread')"></button></div>
                             <div class="adv-edit-row" data-row="nfo"><span x-text="t('showcase.adv_edit.files.nfo_label')"></span><span class="adv-edit-row-value" x-text="advEditInfo.nfo.name || t('showcase.adv_edit.files.nfo_none')"></span></div>
                         </div>
@@ -2257,6 +2278,7 @@
             </div>
             <div class="modal-action fluent-modal-actions adv-edit-foot">
                 <button type="button" class="btn btn-ghost" @click="closeAdvEdit()">{{ t('showcase.adv_edit.close') }}</button>
+                <button type="button" class="btn btn-primary adv-edit-update" :disabled="!!_advEditBusy" @click="runAdvEditUpdate()" :title="t('showcase.adv_edit.update.tip')" x-text="_advEditBusy === 'update' ? t('showcase.adv_edit.update.running') : t('showcase.adv_edit.update.btn')"></button>
             </div>
         </div>
     </dialog>
