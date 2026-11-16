@@ -29,6 +29,7 @@ export function stateLightboxTags() {
 
         // 展開 inline 輸入框並 focus
         showAddLbTagInput() {
+            if (this._navBlockedByFocalEdit?.()) return;
             this.addingLbTag = true;
             this.newLbTagValue = '';
             this.$nextTick(() => this.$refs.lbTagInput?.focus());

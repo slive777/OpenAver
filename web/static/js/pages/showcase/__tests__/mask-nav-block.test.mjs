@@ -34,6 +34,10 @@ const { stateLightbox } = await import('../state-lightbox.js');
 const { stateLightboxPicker } = await import('../state-lightbox-picker.js');
 const { stateLightboxMask } = await import('../state-lightbox-mask.js');
 const { stateActress } = await import('../state-actress.js');
+const { stateLightboxVersions } = await import('../state-lightbox-versions.js');
+const { stateLightboxPop } = await import('../state-lightbox-pop.js');
+const { stateLightboxTags } = await import('../state-lightbox-tags.js');
+const { stateSimilar } = await import('../state-similar.js');
 const { _setFilteredVideos, _setFilteredActresses } = await import('../state-base.js');
 
 const VIDEOS = [
@@ -43,7 +47,7 @@ const VIDEOS = [
 const ACTRESSES = [{ name: 'A' }, { name: 'B' }];
 
 function makeComponent(overrides) {
-    return Object.assign({}, stateLightbox(), stateLightboxPicker(), stateLightboxMask(), stateActress(), {
+    return Object.assign({}, stateLightbox(), stateLightboxPicker(), stateLightboxMask(), stateActress(), stateLightboxVersions(), stateLightboxPop(), stateLightboxTags(), stateSimilar(), {
         lightboxOpen: true,
         showFavoriteActresses: false,
         currentLightboxActress: null,
@@ -184,6 +188,73 @@ test('女優模式：對焦編輯開著時 ← / → 不換人', () => {
         keydown(cPrev, 'ArrowLeft');
         assert.equal(nPrev.actress, 0);
         assert.equal(cPrev.actressLightboxIndex, 1);
+    } finally { cleanup(); }
+});
+
+test('test_esc_cancels_focal_edit_before_closing_lightbox', () => {
+    seed();
+    try {
+        for (const actress of [false, true]) {
+            const c = makeComponent({ _maskVisible: true, showFavoriteActresses: actress, currentLightboxActress: actress ? ACTRESSES[0] : null });
+            let closes = 0;
+            // 真正的關閉流程需要 GSAP 與 DOM；此處只觀察是否關燈箱。
+            c.closeLightbox = () => { closes++; c.lightboxOpen = false; };
+            keydown(c, 'Escape');
+            assert.equal(c.lightboxOpen, true);
+            assert.equal(c._maskVisible, false);
+            assert.equal(closes, 0);
+            keydown(c, 'Escape');
+            assert.equal(c.lightboxOpen, false);
+            assert.equal(closes, 1);
+        }
+    } finally { cleanup(); }
+});
+
+test('test_focal_edit_blocks_overlay_version_tag_similar_and_switch_entries', () => {
+    seed();
+    try {
+        const a = { path: 'a', number: 'A' };
+        const b = { path: 'b', number: 'B' };
+        a._versions = [a, b];
+        const cases = [
+            { call: c => c.switchLightboxVersion('b'), value: c => c.currentLightboxVideo, before: a, after: b },
+            { call: c => c.lbxPopOpen('info'), value: c => !!c.lbxPop, before: false, after: true },
+            { call: c => c.showAddLbTagInput(), value: c => c.addingLbTag, before: false, after: true },
+            { call: c => c.openSimilarMode().catch(() => {}), value: c => c.similarModeAnimating, before: false, after: true },
+            { call: c => c.openLightbox(1), value: (_c, n) => n.video, before: 0, after: 1 },
+            { actress: true, call: c => c.openActressLightbox(1), value: (_c, n) => n.actress, before: 0, after: 1 },
+        ];
+        for (const row of cases) {
+            for (const visible of [true, false]) {
+                const c = makeComponent({ _maskVisible: visible, currentLightboxVideo: a, addingLbTag: false,
+                    showFavoriteActresses: !!row.actress, currentLightboxActress: row.actress ? ACTRESSES[0] : null,
+                    _fetchSimilarResults: () => new Promise(() => {}) });
+                const n = withIndexSpy(c);
+                row.call(c);
+                assert.equal(row.value(c, n), visible ? row.before : row.after);
+            }
+        }
+    } finally { cleanup(); }
+});
+
+test('test_esc_close_order_unchanged_when_not_editing', () => {
+    seed();
+    try {
+        const c = makeComponent({ lbxPop: { kind: 'info' }, addingLbTag: true });
+        c.closeLightbox = () => { c.lightboxOpen = false; };
+        keydown(c, 'Escape');
+        assert.equal(c.lbxPop, null);
+        assert.equal(c.addingLbTag, true);
+        assert.equal(c.lightboxOpen, true);
+        keydown(c, 'Escape');
+        assert.equal(c.addingLbTag, false);
+        assert.equal(c.lightboxOpen, true);
+        keydown(c, 'Escape');
+        assert.equal(c.lightboxOpen, false);
+        const actress = makeComponent({ showFavoriteActresses: true, currentLightboxActress: ACTRESSES[0] });
+        actress.closeLightbox = () => { actress.lightboxOpen = false; };
+        keydown(actress, 'Escape');
+        assert.equal(actress.lightboxOpen, false);
     } finally { cleanup(); }
 });
 

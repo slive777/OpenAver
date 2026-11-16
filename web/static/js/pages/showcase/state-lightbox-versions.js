@@ -37,6 +37,7 @@ export function stateLightboxVersions() {
 
         // 以 path 找目標版本（FE-ALPINE-14）；找不到或就是目前這個 → 不動
         switchLightboxVersion(path) {
+            if (this._navBlockedByFocalEdit?.()) return;
             const target = versionsOf(this.currentLightboxVideo).find((x) => x.path === path);
             if (!target || target.path === this.currentLightboxVideo?.path) return;
             this.currentLightboxVideo = target;

@@ -115,7 +115,6 @@ const RULES = [
 
   // ---- [lint-guard 101d-T2] 焦點適用邊界就地註解不得被順手刪（spec-101 §7.3-2 要求就地註解；plan-101d §5.2/§5.3）----
   // 錨四處「刻意不同/刻意不接」設計意圖註解的唯一關鍵句。刪任一句即紅（mutation 自驗）。
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: '與影片 _posterModeActive() 刻意不同', note: '[lint-guard 101d-T2] 女優側反向指引註解（plan-101d §2.2）' },
   { file: 'web/static/css/pages/showcase/08-remainder.css', kind: 'required-string', pattern: '相似卡刻意固定右裁（桌面', note: '[lint-guard 101d-T2] 桌面 similar 卡固定右裁註解（plan-101d §5.3）' },
   { file: 'web/static/css/pages/showcase/06-responsive-and-lists.css', kind: 'required-string', pattern: '相似卡刻意固定右裁（手機 burst', note: '[lint-guard 101d-T2] 手機 burst similar 卡固定右裁註解（plan-101d §5.3）' },
 
@@ -548,6 +547,21 @@ const RULES = [
   { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'lbx-actress-branch', count: 1, note: '[lint-guard:199b-T4-branch-count] 女優燈箱外框隔離標記 lbx-actress-branch 全檔恰 1 處——多了＝影片／搜尋頁燈箱也被套上女優版外框（照片忽然變大、版面跑掉），少了＝女優燈箱外框整組失效；模板內任何註解都不得寫到這個字樣' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'class="lbx-actress-branch"', scope: { anchor: /<template x-if="currentLightboxActress">/, window: 200 }, note: '[lint-guard:199b-T4-branch-scope] lbx-actress-branch 必須掛在女優分支 <template x-if> 緊接的包裝 div 上——class 被搬到影片分支時計數仍是 1，但女優燈箱外框失效、影片燈箱被改版' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ['lbVersionCapsules()', 'switchLightboxVersion('], scope: { anchor: /<div class="lbx-band"/, window: 1500 }, note: '[lint-guard:199a-T2-band-capsules] 封面規格帶的版本膠囊必須吃 lbVersionCapsules()（與刪除確認視窗同源）並用 switchLightboxVersion( 切版本——文字另起算法時，使用者看著 A 膠囊按刪除，確認視窗寫的卻是另一版，以為刪錯檔' },
+
+  // 200a-T4：編輯遮罩優先於關閉及切換入口。
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'order', scope: { anchor: /handleKeydown\(e\) \{/, braceBalanced: true }, stripLineComments: true,
+    items: [{ pattern: 'if (this._maskVisible) { e.preventDefault(); this.cancelMask(); return; }' }, { pattern: /(?<![\w:-])if \(this\.lbxPop\) \{ e\.preventDefault\(\); this\.lbxPopClose\(\{ restoreFocus: true \}\); return; \}/ }], note: '[lint-guard:200a-T4-esc-order-video]' },
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'order', scope: { anchor: /handleKeydown\(e\) \{/, braceBalanced: true }, stripLineComments: true,
+    items: [{ pattern: 'if (this._maskVisible) { this.cancelMask(); return; }' }, { pattern: 'this.closeLightbox();', occurrence: 'first' }], note: '[lint-guard:200a-T4-esc-order-actress]' },
+  ...[
+    ['state-lightbox-versions.js', /switchLightboxVersion\(path\)\s*\{/],
+    ['state-lightbox-pop.js', /lbxPopOpen\(kind[^)]*\)\s*\{/],
+    ['state-lightbox-tags.js', /showAddLbTagInput\(\)\s*\{/],
+    ['state-similar.js', /async\s+openSimilarMode\s*\(\s*\)\s*\{/],
+    ['state-lightbox.js', /if \(this\.lightboxOpen && this\.lightboxIndex !== index\) \{/],
+    ['state-actress.js', /if \(this\.lightboxOpen && this\.actressLightboxIndex !== index\) \{/],
+  ].map(([file, anchor]) => ({ file: `web/static/js/pages/showcase/${file}`, kind: 'required-string', pattern: /(?<![\w:-])this\._navBlockedByFocalEdit\?\.\(\)/, scope: { anchor, braceBalanced: true }, stripLineComments: true, note: '[lint-guard:200a-T4-nav-guard]' })),
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: /&& !showFavoriteActresses && !_maskVisible"/, scope: { anchor: /<button class="lightbox-similar-btn"/, window: 200 }, stripLineComments: true, note: '[lint-guard:200a-T4-wand-hidden]' },
 
   // ---- 199a-T3：浮層底座 lbxPop（單槽浮層＋第一個消費者 verTip）----
   {

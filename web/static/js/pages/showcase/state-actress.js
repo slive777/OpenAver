@@ -663,6 +663,7 @@ export function stateActress() {
 
             // 若已開啟（切換女優）
             if (this.lightboxOpen && this.actressLightboxIndex !== index) {
+                if (this._navBlockedByFocalEdit?.()) return;
                 _killLightboxTimelines({ killOpen: false, killSwitch: true });
                 var direction = index > this.actressLightboxIndex ? 'next' : 'prev';
                 this._setActressLightboxIndex(index);

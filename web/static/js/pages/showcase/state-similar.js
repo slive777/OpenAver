@@ -265,6 +265,7 @@ export function stateSimilar() {
      * spec §1 CD-56C-13：actress mode fail-safe（理論上 magic 按鈕在 actress mode 不顯，仍守一道）
      */
     async openSimilarMode() {
+      if (this._navBlockedByFocalEdit?.()) return;
       if (this.similarModeAnimating) return;
       if (this.showFavoriteActresses) return;     // CD-56C-13 fail-safe
       if (!this.currentLightboxVideo) return;     // 無 lightbox video metadata 時 no-op
