@@ -39,6 +39,7 @@ from core.video_nfo_locate import locate_readonly_nfo
 from core.focal import device_state, format_focal, parse_focal
 from core.focal.subprocess_runner import run_detection
 from core.poster_refresh import refresh_poster
+from core.readonly_paths import resolve_owning_output_root
 from core import thumbnail_cache
 from core.library_titles import tier_of_from_probe
 from core.multipart_group import resolve_group
@@ -573,6 +574,7 @@ def set_manual_focal(req: ManualFocalRequest):
     400／403／404／409 的錯誤回應不帶 `poster` 欄。
     `update_manual_focal`＋海報重裁整段在 module-level `_focal_save_lock` 內
     （單一臨界區：連存兩次結束後 DB `auto_focal` 與海報裁出位置來自同一個請求）。
+    唯讀來源的封面若不在輸出根（例如剛改為唯讀尚未重掃），不重裁並回傳 skipped。
     """
     parsed = parse_focal(req.focal)
     if parsed is None:
@@ -607,8 +609,12 @@ def set_manual_focal(req: ManualFocalRequest):
                     status_code=409,
                 )
             try:
-                cover_fs = uri_to_local_fs_path(req.expected_cover_path, path_mappings) if req.expected_cover_path else ''
-                poster_status = refresh_poster(cover_fs, normalized, external_mode_on=external_mode_on).status
+                ro_owner = resolve_owning_output_root(row.path, config)
+                if ro_owner is not None and req.expected_cover_path and not is_path_under_dir(req.expected_cover_path, ro_owner[2]):
+                    poster_status = "skipped"
+                else:
+                    cover_fs = uri_to_local_fs_path(req.expected_cover_path, path_mappings) if req.expected_cover_path else ''
+                    poster_status = refresh_poster(cover_fs, normalized, external_mode_on=external_mode_on).status
             except Exception:
                 logger.warning("海報重裁失敗（存檔已寫入）", exc_info=True)
                 poster_status = "failed"

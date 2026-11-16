@@ -733,3 +733,42 @@ class TestSaveFocalPosterRefresh:
         row_b = repo.get_by_path(item_b["video_uri"])
         assert row_b.auto_focal == "0.6000,0.5000"
         assert _t2_digest(item_b["poster_fs"]) != poster_b_before
+
+    def test_source_flipped_readonly_unrescanned_writes_nothing(self, client, tmp_path, mocker):
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        video = src_dir / "X-001.mp4"
+        video.write_bytes(b"")
+        cover = src_dir / "X-001.jpg"
+        _t2_stripes(cover, 501)
+        poster = src_dir / "X-001-poster.jpg"
+        _t2_solid(poster, (30, 200, 30))
+        video_uri = to_file_uri(str(video), {})
+        cover_uri = to_file_uri(str(cover), {})
+        db_path = tmp_path / "flipped.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        repo.upsert_batch([Video(path=video_uri, number="X-001", title="X-001",
+                                 cover_path=cover_uri, crop_mode="default", auto_focal="")])
+        config = {"gallery": {"directories": [{"path": str(src_dir), "readonly": True,
+                                               "output_path": str(out_dir)}],
+                              "path_mappings": {}},
+                  "scraper": {"external_manager": "jellyfin"}}
+        _patch_db_and_config(mocker, {"db_path": db_path, "config": config})
+        before = _t2_snapshot_tree(src_dir)
+        db_before = repo.get_by_path(video_uri)
+        resp = client.post("/api/showcase/video/save-focal",
+                           json={"path": video_uri, "focal": "0.3,0.5",
+                                 "expected_cover_path": cover_uri})
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        assert (resp.json()["poster"]["status"], _t2_digest(poster)) == (
+            "skipped", before[poster.name][0])
+        row = repo.get_by_path(video_uri)
+        assert db_before.auto_focal != "0.3000,0.5000"
+        assert db_before.crop_mode == "default"
+        assert row.auto_focal == "0.3000,0.5000"
+        assert row.crop_mode == "manual"
+        assert _t2_snapshot_tree(src_dir) == before
