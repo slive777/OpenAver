@@ -83,6 +83,7 @@ stub 恆回同名 `.jpg`，逐字等價）；`scanner.py` 的 `_cover_base_stem`
 | ⑨ `core/readonly_assets.py::_copy_curator_sidecar` | `copy2` curator **sidecar** → fanart | ✅ round-2 P1 已保護（preflight ＋ `SameFileError` backstop；兩個 slot 共用同一個 choke point）|
 | ⑩ 同上 | `copy2` curator **sidecar** → poster | ✅ 同 ⑨（不再各自 `copy2`）|
 | ⑫ `core/organizer.py::_acquire_cover` | `copyfile` 上傳暫存封面 → 正典封面位置 | ✅ 豁免（183-T5a）：來源恆為資料根 `tmp/cover-upload/<token>.jpg`（伺服器 resolve 出的路徑），目標在媒體庫，結構上不可能同檔，不加 preflight |
+| ⑬ `core/poster_refresh.py::refresh_poster` | `atomic_write` 覆寫既有 `<stem>-poster.jpg` | ✅ 有自己的 preflight（`same_target_verdict` 一次） |
 
 （`core/organizer.py:506` 的 `copy2` 在 `crop_to_poster` **內部**——「已是直向、無需
 裁切」的葉節點分支，它的保護 100% 繼承自呼叫端 ②④⑥ 的 preflight，不是獨立寫入點。）
