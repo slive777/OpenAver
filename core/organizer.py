@@ -499,6 +499,9 @@ def format_string(template: str, data: Dict[str, Any], use_fallback: bool = Fals
     return sanitize_filename(result.strip())
 
 
+POSTER_ALREADY_PORTRAIT_RATIO = 1.4
+
+
 def _poster_window_ratio(w: int, h: int) -> Optional[float]:
     """算出 crop_to_poster 分支2/3 的裁切窗比例（餵給 detect_focal / crop_image_position 用）。
 
@@ -510,7 +513,7 @@ def _poster_window_ratio(w: int, h: int) -> Optional[float]:
     ——那條路徑維持既有原碼一字不動，避免 float round-trip 造成 byte-for-byte 位移。
     """
     ratio = h / w
-    if ratio >= 1.4:
+    if ratio >= POSTER_ALREADY_PORTRAIT_RATIO:
         return None
     elif ratio >= 1.0:
         return int(h / 1.5) / h
@@ -539,7 +542,7 @@ def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = 
             w, h = img.size
             ratio = h / w
 
-            if ratio >= 1.4:
+            if ratio >= POSTER_ALREADY_PORTRAIT_RATIO:
                 shutil.copy2(src_path, dst_path)
                 return True
 

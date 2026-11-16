@@ -3,7 +3,7 @@ E2E 測試：焦點手動編輯（99a-T6）— 4 條精簡回歸網
 需要：真實瀏覽器（Chromium）+ 真實 e2e server（tests/e2e/conftest.py::ensure_e2e_server）
       + 真實 owner library（至少一支有封面的影片）
 
-存在理由（見 TASK-99a-T6.md）：99a-T4 落地時 948 條 static_guard + 5209 條 pytest 全綠，
+存在理由（見 TASK-99a-T6.md）：焦點編輯功能落地時 948 條 static_guard + 5209 條 pytest 全綠，
 但功能整組不可用 —— 「hit-test 結果」「渲染是否到達目標」兩件事，字串/AST 守衛結構上
 量不到，只有真瀏覽器 e2e 量得到。本檔案只鎖 4 條斷言（owner 拍板精簡版），對應
 TASK-99a-T5.md 修的兩個 P1 bug：
@@ -15,7 +15,7 @@ TASK-99a-T5.md 修的兩個 P1 bug：
      且前端把回應正確套用到 client state（crop_mode 變 manual）。
   4. ✗ 什麼都不存（無 /video/save-focal request，crop_mode 不變）。
 
-無封面影片 / app 不可達 / 找不到合適候選 → pytest.skip()（不 FAIL，e2e 對缺環境用戶不可假紅）。
+無封面影片 / 找不到合適素材 → pytest.skip()；入口或燈箱全部開不起來則失敗。
 
 **斷言 3 設計（Codex 第二輪 review P1 修復）**：`tests/e2e/conftest.py::ensure_e2e_server`
 可能重用 port 8001 上一個既有 server——那個 server 的 `get_db_path()` 不保證與本測試
@@ -46,6 +46,7 @@ server-side 行為）。e2e 這層獨一無二、integration 測試無法涵蓋�
 """
 import json
 import re
+import statistics
 
 import pytest
 from playwright.sync_api import Page, Route, Request, TimeoutError as PlaywrightTimeoutError
@@ -57,14 +58,13 @@ pytestmark = pytest.mark.e2e
 
 DETECT_TIMEOUT_MS = 8_000     # 實測 force-detect ~3.0-3.3s，抓生成 buffer（非固定 sleep）
 LB_FULL_TIMEOUT_MS = 15_000
+E2E_VIEWPORT = {"width": 1280, "height": 720}
 MASK_BTN_TIMEOUT_MS = 5_000
 MAX_CANDIDATES = 8            # 候選影片探索迴圈上限，避免無上限拖垮執行時間
 MIN_FOCAL_DIFF = 0.05         # 判定「偵測值與右裁基準有材料差異」的門檻（focalX 為 0..1 比例）
 PROBE_MAX_MS = 6_500          # 單次 rAF 取樣迴圈總時長上限（生成 buffer vs 3.0-3.3s + 0.5s 收斂實測）
-# 101b-T3：停止條件從「!detecting 後留 8 幀」改為「!detecting && !settling 後留 2-3 幀」
-# （idle 判定本身已涵蓋整段 0.5s 收斂動畫，不再需要 8 幀=133ms 去「趕上」還在跑的動畫），
-# 3 為 plan 給定範圍「2-3 幀」的上限，留一點餘裕。
-PROBE_TAIL_FRAMES = 3         # idle（!detecting && !settling）後再多取幾幀，驗證落點穩定
+PROBE_TAIL_MS = 1500          # idle（!detecting && !settling）後持續取樣的時間
+FINAL_STABLE_MS = 200         # 終值比對前，尾端 translateX 須維持穩定的時間
 # 101b-T3（§C-2 iii）：候選篩選裁切餘裕門檻——重用 mask-geometry.js:44 的
 # MASK_MIN_DRAG_ROOM 語意（非發明新門檻），排除 a<=r 的退化圖（全幅與終值每個維度都
 # 同值，只因 baseline_focal != final_focal 就會通過舊的單一篩選條件，證不出任何事）。
@@ -103,6 +103,8 @@ NO_FACE_DRAG_TOLERANCE_PX = 6.0
 #     對正確實作有 2.5x 餘裕（不 flaky）、對 mutation 有 2.8x 餘裕（仍必紅）。
 #     **5.9% 與 42% 之間不存在任何真實值**，故放寬只吃掉 jitter、不吃掉任何一種它要抓的缺陷。
 #     （曾定 5% → 對 START-525 實測 ~40-50% flaky；flaky 守衛比沒有守衛更糟。）
+# 慢幀環境（實測約 60ms/幀）依 frame_dt 等比放大允許值、上限 90%；
+# 仍擋得住終值 flash（首幀＝100%）。
 MAX_FIRST_FRAME_SETTLE = 0.15
 
 # 前端 confirmMask() 送出的 canonical focal 格式契約（state-lightbox.js:935）：
@@ -154,7 +156,8 @@ def _fetch_cover_videos(page: Page, base_url: str) -> list:
 
 
 def _open_lightbox_for(page: Page, base_url: str, video_path: str) -> bool:
-    """導到 showcase、點對應卡片、等 _lbFullLoaded===true + .lb-mask-btn 可見。"""
+    """導到 showcase、點對應卡片、等原圖載入與「⋯」可見。"""
+    page.set_viewport_size(E2E_VIEWPORT)
     page.goto(f"{base_url}/showcase")
     try:
         page.wait_for_selector(VIDEO_CARD_SELECTOR, state="visible", timeout=LB_FULL_TIMEOUT_MS)
@@ -179,10 +182,56 @@ def _open_lightbox_for(page: Page, base_url: str, video_path: str) -> bool:
         return False
 
     try:
-        page.wait_for_selector(".lb-mask-btn", state="visible", timeout=MASK_BTN_TIMEOUT_MS)
+        page.wait_for_selector(".lbx-more-btn", state="visible", timeout=MASK_BTN_TIMEOUT_MS)
     except PlaywrightTimeoutError:
         return False
     return True
+
+
+def _click_focal_entry(page: Page) -> bool:
+    """從「⋯」開啟可用的海報裁切入口。"""
+    item = page.locator(".lbx-menu-item--focal")
+    try:
+        page.locator(".lbx-more-btn").click(timeout=MASK_BTN_TIMEOUT_MS)
+        item.wait_for(state="visible", timeout=MASK_BTN_TIMEOUT_MS)
+        page.wait_for_function(
+            """() => {
+                const item = document.querySelector('.lbx-menu-item--focal');
+                return !!(item && !item.disabled);
+            }""", timeout=MASK_BTN_TIMEOUT_MS,
+        )
+    except PlaywrightTimeoutError:
+        page.keyboard.press("Escape")
+        return False
+    item.click()
+    return True
+
+
+def _open_focal_mask(page: Page) -> bool:
+    if not _click_focal_entry(page):
+        return False
+    try:
+        page.wait_for_function(
+            """() => {
+                const root = document.querySelector('%s');
+                const data = window.Alpine && Alpine.$data(root);
+                return !!(data && data._maskVisible === true);
+            }""" % ALPINE_ROOT_SELECTOR, timeout=MASK_BTN_TIMEOUT_MS,
+        )
+    except PlaywrightTimeoutError:
+        return False
+    return True
+
+
+
+def _mask_visible(page: Page) -> bool:
+    return page.evaluate(
+        """() => {
+            const root = document.querySelector('%s');
+            const data = window.Alpine && Alpine.$data(root);
+            return !!(data && data._maskVisible === true);
+        }""" % ALPINE_ROOT_SELECTOR
+    )
 
 
 def _wait_detect_resolved(page: Page, timeout: int = DETECT_TIMEOUT_MS) -> None:
@@ -336,7 +385,7 @@ _RENDER_PROBE_JS = """
     const samples = [];
     let seenDetecting = false;
     let seenIdle = false;
-    let tailCount = 0;
+    let idleStart = null;
     let baselineStyle = null;
     const t0 = performance.now();
     function tick() {
@@ -369,9 +418,8 @@ _RENDER_PROBE_JS = """
             focalX: data._maskFocalX,
         });
         const idle = seenDetecting && !detecting && !settling;
-        if (idle) { seenIdle = true; }
-        if (seenIdle) { tailCount += 1; }
-        if ((seenIdle && tailCount >= %d) || (performance.now() - t0) > %d) {
+        if (idle && !seenIdle) { seenIdle = true; idleStart = performance.now(); }
+        if ((seenIdle && performance.now() - idleStart >= %d) || (performance.now() - t0) > %d) {
             const groundTruthFinal = (typeof data._computeMaskWinStyle === 'function')
                 ? data._computeMaskWinStyle() : null;
             resolve({
@@ -386,11 +434,11 @@ _RENDER_PROBE_JS = """
     }
     requestAnimationFrame(tick);
 })
-""" % (ALPINE_ROOT_SELECTOR, PROBE_TAIL_FRAMES, PROBE_MAX_MS)
+""" % (ALPINE_ROOT_SELECTOR, PROBE_TAIL_MS, PROBE_MAX_MS)
 
 
 def _run_render_probe(page: Page) -> dict:
-    """假設 .lb-mask-btn 剛被真實點擊、force-detect 剛啟動——在瀏覽器內以
+    """假設「⋯」→「調整海報裁切」剛被真實點擊、force-detect 剛啟動——在瀏覽器內以
     requestAnimationFrame 連續取樣直到 detect resolve 後再多取幾幀，整段留在瀏覽器內
     執行（避免 Python↔瀏覽器 IPC 往返污染逐幀時序精度）。
     """
@@ -399,7 +447,6 @@ def _run_render_probe(page: Page) -> dict:
 
 # ── 斷言 1 + 2：hit-test + detect-first 無二次跳動 ────────────────────────────
 
-@pytest.mark.skip(reason="199a 拿掉影片燈箱對焦入口；200a 新入口落地時改接並移除此 skip")
 def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
     """
     斷言 1（hit-test）：✓/✗ 按鈕中心座標的 elementFromPoint 命中按鈕本身；
@@ -416,7 +463,7 @@ def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
     if not videos:
         pytest.skip("找不到任何有封面的影片，跳過焦點編輯 e2e")
 
-    counters = {"scanned": 0, "open_failed": 0, "probe_error": 0, "no_focal_diff": 0, "degenerate": 0}
+    counters = {"scanned": 0, "open_failed": 0, "no_entry": 0, "probe_error": 0, "no_focal_diff": 0, "degenerate": 0}
     found = None
     for v in videos[:MAX_CANDIDATES]:
         path = v["path"]
@@ -425,8 +472,13 @@ def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
             counters["open_failed"] += 1
             continue
 
-        page.locator(".lb-mask-btn").click()
+        if not _click_focal_entry(page):
+            counters["no_entry"] += 1
+            continue
         result = _run_render_probe(page)
+        if not _mask_visible(page):
+            counters["no_entry"] += 1
+            continue
         samples = result.get("samples") or []
         if result.get("error") or not samples:
             counters["probe_error"] += 1
@@ -473,6 +525,8 @@ def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
         break
 
     if found is None:
+        if counters["scanned"] > 0 and counters["open_failed"] + counters["no_entry"] == counters["scanned"]:
+            pytest.fail("入口／燈箱全數開不起來＝回歸，不是環境缺料")
         pytest.skip(
             f"窮舉 {counters['scanned']} 部候選影片找不到合格樣本："
             f"open_failed={counters['open_failed']}, probe_error={counters['probe_error']}, "
@@ -511,10 +565,33 @@ def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
         assert first["winWidth"] is not None and cover_w, (
             f"首幀 winWidth/coverWidth 缺失：{first}"
         )
-        threshold = cover_w - MAX_FIRST_FRAME_SETTLE * (cover_w - final_win_w)
+        pairs = list(zip(samples, samples[1:], strict=False))
+        intervals = [b["t"] - a["t"] for a, b in pairs if a["settling"] and b["settling"]]
+        if len(intervals) < 2:
+            intervals = [
+                b["t"] - a["t"] for a, b in pairs
+                if (a["detecting"] or a["settling"]) and (b["detecting"] or b["settling"])
+            ]
+        frame_dt = statistics.median(intervals) if len(intervals) >= 2 else 16.7
+        ratio = min(0.9, MAX_FIRST_FRAME_SETTLE * max(1.0, frame_dt / 16.7))
+        threshold = cover_w - ratio * (cover_w - final_win_w)
         assert first["winWidth"] >= threshold - 0.5, (
-            f"首次可見幀應為全幅（收斂進度 <={MAX_FIRST_FRAME_SETTLE:.0%}），實際 winWidth={first['winWidth']:.2f}px，"
+            f"首次可見幀應為全幅（收斂進度 <={ratio:.1%}，frame_dt={frame_dt:.2f}ms），實際 winWidth={first['winWidth']:.2f}px，"
             f"coverWidth={cover_w:.2f}px, finalWinW={final_win_w:.2f}px, threshold={threshold:.2f}px"
+        )
+
+        # 先確認最後一段 translateX 已穩定，再與地面真相比對。
+        stable_last_tx = _parse_translate_x(post[-1].get("transform"))
+        stable_tail = []
+        for sample in reversed(post):
+            tx = _parse_translate_x(sample.get("transform"))
+            if stable_last_tx is None or tx is None or abs(tx - stable_last_tx) >= 0.5:
+                break
+            stable_tail.append(sample)
+        stable_ms = post[-1]["t"] - stable_tail[-1]["t"] if stable_tail else 0
+        assert stable_ms >= FINAL_STABLE_MS, (
+            f"末端 translateX 穩定時間不足：{stable_ms:.1f}ms，尾巴長度={len(stable_tail)}，"
+            f"最後幾個 translateX={[_parse_translate_x(s.get('transform')) for s in post[-5:]]}"
         )
 
         # --- 斷言 2c：收斂終值 == 偵測終值（地面真相）——width 與 transform 都要比 ---
@@ -618,7 +695,6 @@ def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
 
 # ── 斷言 3 + 4：✓ 確實存 / ✗ 什麼都不存 ────────────────────────────────────────
 
-@pytest.mark.skip(reason="199a 拿掉影片燈箱對焦入口；200a 新入口落地時改接並移除此 skip")
 def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> None:
     """
     斷言 4（✗ 不存）：真實 click ✗ → 無 /video/save-focal request，crop_mode 不變。
@@ -643,16 +719,15 @@ def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> No
 
     target = None
     for v in candidates[:MAX_CANDIDATES]:
-        if _open_lightbox_for(page, base_url, v["path"]):
+        if _open_lightbox_for(page, base_url, v["path"]) and _open_focal_mask(page):
             target = v
             break
     if target is None:
-        pytest.skip("候選影片皆無法開啟 lightbox，跳過")
+        pytest.fail("入口／燈箱全數開不起來＝回歸，不是環境缺料")
 
     video_path = target["path"]
 
     # ── 斷言 4：✗ 應該什麼都不存（無 DB 寫入，讀真實 server 狀態是安全的，不需 mock） ──
-    page.locator(".lb-mask-btn").click()
     _wait_detect_resolved(page)
     page.wait_for_selector(".lb-action-btn--danger", state="visible", timeout=3_000)
 
@@ -708,7 +783,7 @@ def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> No
 
     page.route("**/api/showcase/video/save-focal", _handle_focal_route)
     try:
-        page.locator(".lb-mask-btn").click()
+        assert _open_focal_mask(page), "再次開啟海報裁切失敗"
         _wait_detect_resolved(page)
         page.wait_for_selector(".lb-action-btn--success", state="visible", timeout=3_000)
 
@@ -854,7 +929,6 @@ def _read_mask_window_measurements(page: Page) -> dict:
     )
 
 
-@pytest.mark.skip(reason="199a 拿掉影片燈箱對焦入口；200a 新入口落地時改接並移除此 skip")
 def test_no_face_settles_to_baseline_geometry(page: Page, base_url: str) -> None:
     """
     TASK-101b-T5：`_maskStartSettle` 步驟③ no-face（沒找到臉／偵測失敗）分支落點修復驗證。
@@ -906,7 +980,7 @@ def test_no_face_settles_to_baseline_geometry(page: Page, base_url: str) -> None
             body=json.dumps({"success": True, "cover_path": path, "auto_focal": ""}),
         )
 
-    counters = {"scanned": 0, "open_failed": 0, "route_error": 0, "no_room": 0, "settle_timeout": 0}
+    counters = {"scanned": 0, "open_failed": 0, "no_entry": 0, "route_error": 0, "no_room": 0, "settle_timeout": 0}
     found = None
     page.route("**/api/showcase/video/detect-focal", _handle_no_face_route)
     try:
@@ -917,14 +991,15 @@ def test_no_face_settles_to_baseline_geometry(page: Page, base_url: str) -> None
                 counters["open_failed"] += 1
                 continue
 
+            entry_opened = False
             try:
                 with page.expect_response(
                     lambda r: r.request.method == "POST" and "/api/showcase/video/detect-focal" in r.url,
                     timeout=DETECT_TIMEOUT_MS,
                 ):
-                    page.locator(".lb-mask-btn").click()
+                    entry_opened = _click_focal_entry(page)
             except PlaywrightTimeoutError:
-                counters["route_error"] += 1
+                counters["route_error" if entry_opened else "no_entry"] += 1
                 _cancel_mask_if_open(page)
                 continue
 
@@ -986,6 +1061,8 @@ def test_no_face_settles_to_baseline_geometry(page: Page, base_url: str) -> None
             break
 
         if found is None:
+            if counters["scanned"] > 0 and counters["open_failed"] + counters["no_entry"] == counters["scanned"]:
+                pytest.fail("入口／燈箱全數開不起來＝回歸，不是環境缺料")
             pytest.skip(
                 f"窮舉 {counters['scanned']} 部候選影片找不到合格樣本（no-face 落點 e2e）："
                 f"open_failed={counters['open_failed']}, route_error={counters['route_error']}, "

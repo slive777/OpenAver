@@ -7,6 +7,7 @@ Showcase API 路由 - 影片展示資料端點
 """
 
 import os
+import threading
 import uuid
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -30,13 +31,15 @@ from core.path_utils import (
 )
 from core.logger import get_logger
 from core.platform_info import DSM_PERMISSION_HINT, LINUX_PERMISSION_HINT, is_headless_server, is_synology
-from core.config import load_config, get_gallery_source_paths, get_configured_gallery_dirs
+from core.config import load_config, get_gallery_source_paths, get_configured_gallery_dirs, normalize_external_manager, STEM_IMAGE_MODES
 from core.title_writeback import apply_title_writeback
 from core.user_tags_write import hold_nfo_write
 from core.title_writeback import needs_translate as _needs_translate
 from core.video_nfo_locate import locate_readonly_nfo
 from core.focal import device_state, format_focal, parse_focal
 from core.focal.subprocess_runner import run_detection
+from core.poster_refresh import refresh_poster
+from core.readonly_paths import resolve_owning_output_root
 from core import thumbnail_cache
 from core.library_titles import tier_of_from_probe
 from core.multipart_group import resolve_group
@@ -432,6 +435,7 @@ def delete_video(path: str = Query(..., description="file:/// URI")):
 _MANUAL_DETECT_TIMEOUT_S = 5.0  # D2/D9: 前景與背景共用同一個 5 秒定義（CD-152d-1），不是批次上限外的安全網
 _MANUAL_DETECT_WALL_BUDGET_S = 5.0
 _manual_detect_executor = ThreadPoolExecutor(max_workers=1)
+_focal_save_lock = threading.Lock()
 
 
 @router.post("/video/detect-focal")
@@ -564,6 +568,13 @@ def set_manual_focal(req: ManualFocalRequest):
     觀察到的 `cover_path`，原樣帶回與存檔當下的 `row.cover_path` 比對——不符（rescan/
     rescrape 期間換了封面）→ 409，DB 不變，前端應提示使用者重新開啟裁切工具。
     `def`（非 async）→ Starlette threadpool。**不進 capabilities（不揭露）。**
+
+    回應形狀：成功 → `{"success": True, "auto_focal": normalized,
+    "poster": {"status": <none|updated|skipped|failed>}}`（200a-T2 接 `refresh_poster`）；
+    400／403／404／409 的錯誤回應不帶 `poster` 欄。
+    `update_manual_focal`＋海報重裁整段在 module-level `_focal_save_lock` 內
+    （單一臨界區：連存兩次結束後 DB `auto_focal` 與海報裁出位置來自同一個請求）。
+    唯讀來源的封面若不在輸出根（例如剛改為唯讀尚未重掃），不重裁並回傳 skipped。
     """
     parsed = parse_focal(req.focal)
     if parsed is None:
@@ -582,20 +593,32 @@ def set_manual_focal(req: ManualFocalRequest):
             return JSONResponse({"success": False, "error": "找不到影片"}, status_code=404)
 
         config = load_config()
-        configured_dir_uris, _path_mappings = get_configured_gallery_dirs(config)
+        configured_dir_uris, path_mappings = get_configured_gallery_dirs(config)
 
         in_scope = any(is_path_under_dir(row.path, uri) for uri in configured_dir_uris)
         if not in_scope:
             return JSONResponse({"success": False, "error": "此影片不在收藏範圍，無法存入焦點"}, status_code=403)
 
         normalized = format_focal(parsed)
-        written = repo.update_manual_focal(req.path, normalized, req.expected_cover_path)
-        if not written:
-            return JSONResponse(
-                {"success": False, "error": "封面已變更，請重新開啟裁切工具再試一次"},
-                status_code=409,
-            )
-        return JSONResponse({"success": True, "auto_focal": normalized})
+        external_mode_on = normalize_external_manager((config.get("scraper") or {}).get("external_manager", "off")) in STEM_IMAGE_MODES
+        with _focal_save_lock:
+            written = repo.update_manual_focal(req.path, normalized, req.expected_cover_path)
+            if not written:
+                return JSONResponse(
+                    {"success": False, "error": "封面已變更，請重新開啟裁切工具再試一次"},
+                    status_code=409,
+                )
+            try:
+                ro_owner = resolve_owning_output_root(row.path, config)
+                if ro_owner is not None and req.expected_cover_path and not is_path_under_dir(req.expected_cover_path, ro_owner[2]):
+                    poster_status = "skipped"
+                else:
+                    cover_fs = uri_to_local_fs_path(req.expected_cover_path, path_mappings) if req.expected_cover_path else ''
+                    poster_status = refresh_poster(cover_fs, normalized, external_mode_on=external_mode_on).status
+            except Exception:
+                logger.warning("海報重裁失敗（存檔已寫入）", exc_info=True)
+                poster_status = "failed"
+            return JSONResponse({"success": True, "auto_focal": normalized, "poster": {"status": poster_status}})
 
     except Exception as e:
         logger.error("存入手動焦點失敗: %s", e)

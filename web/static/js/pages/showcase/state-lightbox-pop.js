@@ -48,6 +48,7 @@ export function stateLightboxPop() {
 
         // 取代現有浮層（單槽）。anchorEl 只存起來，量測延到 $nextTick。
         lbxPopOpen(kind, anchorEl, { mode = 'click', anchorKey = '' } = {}) {
+            if (this._navBlockedByFocalEdit?.()) return;
             this._lbxPopClearTimer();
             this._lbxPopClearOpenTimer();
             const gen = ++this._lbxPopGen;
@@ -215,6 +216,7 @@ export function stateLightboxPop() {
                 sampleCount: (this.currentLightboxVideo?.sample_images || []).length,
                 trVisible: this.lbTrShowOnTitle() || this.lbTrShowOnOtitle(),
                 hasPath: !!this.currentLightboxVideo?.path,
+                canFocal: !!this.currentLightboxVideo?.path && !this.lbIsBorrowed?.() && !!this.currentLightboxVideo?.has_cover,
             });
         },
 

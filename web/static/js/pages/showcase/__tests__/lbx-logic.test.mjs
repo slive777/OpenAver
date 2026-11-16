@@ -52,6 +52,20 @@ test('test_menu_items_follow_path_samples_and_translate_gate', async () => {
     assert.deepEqual(ids({ sampleCount: 0, trVisible: false, hasPath: true }), ['samples', 'rescrape', 'delete']);
 });
 
+// TASK-200a-T3：⋯ 選單「調整海報裁切」項（canFocal 閘 + 排在 rescrape 前）。
+test('test_menu_items_focal_item_follows_can_focal_and_sits_before_rescrape', async () => {
+    const { menuItems } = await import('../lbx-logic.js');
+    const ids = (o) => menuItems({}, o).map((i) => i.id);
+    const allOn = { sampleCount: 0, trVisible: true, hasPath: true };
+
+    // (a) canFocal true → focal 出現且在 translate 與 rescrape 之間
+    assert.deepEqual(ids({ ...allOn, canFocal: true }), ['samples', 'translate', 'focal', 'rescrape', 'delete']);
+    // (b) canFocal false → 不含 focal
+    assert.deepEqual(ids({ ...allOn, canFocal: false }), ['samples', 'translate', 'rescrape', 'delete']);
+    // (c) 缺省 canFocal → 不含 focal（既有呼叫端不傳時行為不變）
+    assert.deepEqual(ids(allOn), ['samples', 'translate', 'rescrape', 'delete']);
+});
+
 // TASK-199a-T5：第 3 列女優露出數與作品資訊欄位。
 test('test_fit_actresses_caps_at_three_and_keeps_at_least_one', async () => {
     const { fitActresses } = await import('../lbx-logic.js');
@@ -204,4 +218,30 @@ test('test_lbxActorAvatarTap_keyboard_searches_touch_toggles_card', async () => 
     tap.call(b.ctx, eb, '夾具女優丑');
     assert.deepEqual(b.calls.toggle, [['actorCard', eb.currentTarget, { mode: 'click', anchorKey: '夾具女優丑' }]], '觸控應 toggle 小卡');
     assert.equal(b.calls.search.length, 0, '觸控不得搜尋');
+});
+
+test('test_focal_save_toast_maps_poster_status_to_key_and_type', async () => {
+    const { focalSaveToast } = await import('../lbx-logic.js');
+    const cases = [
+        [{ status: 'updated' }, 'showcase.lightbox.focal_saved_poster_updated', 'success'],
+        [{ status: 'failed' }, 'showcase.lightbox.focal_saved_poster_failed', 'error'],
+        [{ status: 'none' }, 'showcase.lightbox.focal_saved', 'success'],
+        [{ status: 'skipped' }, 'showcase.lightbox.focal_saved', 'success'],
+        [undefined, 'showcase.lightbox.focal_saved', 'success'], [null, 'showcase.lightbox.focal_saved', 'success'],
+        [{}, 'showcase.lightbox.focal_saved', 'success'], [{ status: 'bogus' }, 'showcase.lightbox.focal_saved', 'success'],
+    ];
+    const seen = new Set();
+    for (const [poster, key, type] of cases) {
+        assert.deepEqual(focalSaveToast(poster), { key, type });
+        seen.add(key);
+    }
+    const { readFileSync } = await import('node:fs');
+    const { default: path } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../..');
+    const strings = JSON.parse(readFileSync(path.join(root, 'locales/zh_TW.json'), 'utf8'));
+    for (const key of seen) {
+        const value = key.split('.').reduce((o, part) => (o == null ? o : o[part]), strings);
+        assert.ok(typeof value === 'string' && value.length > 0, key);
+    }
 });

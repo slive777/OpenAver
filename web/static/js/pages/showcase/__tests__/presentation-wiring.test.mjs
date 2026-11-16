@@ -1,4 +1,4 @@
-// TASK-119-T5: UI 接線（選單四條、tooltip、A 鍵、_posterModeActive()）。
+// TASK-119-T5: UI 接線（選單四條、tooltip、A 鍵）。
 // 覆蓋反向鎖（桌面 + poster 仍四條／四段）、A 鍵三／四段循環、窄螢幕不得洗掉
 // cardShape（技術要點 ①）、女優牆早退、選單源碼契約。
 //
@@ -112,7 +112,6 @@ function extractModeMenu(html) {
 function evalMenuXShow(expr, c) {
     const fn = new Function(
         '_isNarrow',
-        '_posterModeActive',
         'cardShape',
         'mode',
         'showTableList',
@@ -120,7 +119,6 @@ function evalMenuXShow(expr, c) {
     );
     return Boolean(fn(
         c._isNarrow,
-        () => c._posterModeActive(),
         c.cardShape,
         c.mode,
         c.showTableList,
@@ -151,7 +149,7 @@ test('反向鎖（旗標開）：桌面 + cardShape=poster → 選單條數判�
         mode: 'grid',
         showTableList: true,
     });
-    assert.equal(visibleMenuCount(c), 4, 'x-show 必須讀 _isNarrow，不得讀 _posterModeActive()');
+    assert.equal(visibleMenuCount(c), 4, 'x-show 必須讀 _isNarrow');
 });
 
 // =====================================================================
@@ -218,7 +216,6 @@ test('A 鍵（旗標關）：窄螢幕按 A → mode 與 cardShape 都不變（�
 // 源碼斷言（showcase.html 模式選單）
 // =====================================================================
 
-// [lint-guard: node-justified] 162e 暫留：缺「到結尾錨點」的 scope 欄位（只有 {anchor,window:N}），且 _posterModeActive 全檔有合法使用不能全檔 forbidden
 
 // [lint-guard: node-justified] 162e 暫留：求值型行為測試（lint 無 JS 求值能力）；R1：旗標關桌面要看得到卡型切換鈕，窄螢幕／旗標開不得多一顆重複鈕
 

@@ -50,13 +50,16 @@ export function isOutsidePop(target, panelEl, anchorSel) {
 }
 
 /**
- * menuItems：⋯ 選單項目（199a-T4，CD-199a-11）。順序固定 samples → translate → rescrape → delete。
- * 沒有對應檔（hasPath 假）只剩 rescrape；有劇照不出 samples；翻譯條件不成立不出 translate。
+ * menuItems：⋯ 選單項目（199a-T4，CD-199a-11；200a-T3 加 focal）。
+ * 順序固定 samples → translate → focal → rescrape → delete。
+ * 沒有對應檔（hasPath 假）只剩 rescrape；有劇照不出 samples；翻譯條件不成立不出 translate；
+ * canFocal 假（沿用版本／沒封面）不出 focal。
  */
-export function menuItems(video, { sampleCount, trVisible, hasPath }) {
+export function menuItems(video, { sampleCount, trVisible, hasPath, canFocal }) {
     const items = [];
     if (hasPath && sampleCount === 0) items.push({ id: 'samples' });
     if (hasPath && trVisible) items.push({ id: 'translate' });
+    if (hasPath && canFocal) items.push({ id: 'focal' });
     items.push({ id: 'rescrape' });
     if (hasPath) items.push({ id: 'delete' });
     return items;
@@ -233,4 +236,12 @@ export function sortWorksByRelease(works) {
         if (!kb) return -1;
         return ka < kb ? 1 : -1;
     });
+}
+
+// 200a-T5：影片燈箱 ✓ 存檔提示。poster 缺欄位／null／非物件／未知 status 一律當 none。
+export function focalSaveToast(poster) {
+    const status = poster && poster.status;
+    if (status === 'updated') return { key: 'showcase.lightbox.focal_saved_poster_updated', type: 'success' };
+    if (status === 'failed') return { key: 'showcase.lightbox.focal_saved_poster_failed', type: 'error' };
+    return { key: 'showcase.lightbox.focal_saved', type: 'success' };
 }

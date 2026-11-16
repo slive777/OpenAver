@@ -10,6 +10,7 @@
 import { computeMaskWinGeometry, computeMaskSettleGeometry } from '@/shared/mask-geometry.js';
 import { parseFocal, clampMaskWinLeft } from '@/shared/focal.js';
 import { versionsOf } from './work-versions.js';
+import { focalSaveToast } from './lbx-logic.js';
 
 export function stateLightboxMask() {
     return {
@@ -486,6 +487,10 @@ export function stateLightboxMask() {
                     this._matchedActress.auto_focal = data.auto_focal;
                     this._matchedActress.crop_mode = 'manual';
                 }
+                if (kind === 'video') {
+                    const toast = focalSaveToast(data.poster);
+                    this.showToast(window.t(toast.key), toast.type);
+                }
                 if (kind === 'video' && versionsOf(targetObj).length > 1) this.refreshVideoData(targetObj);
             } catch (e) {
                 if (session === this._maskSession) {
@@ -536,7 +541,9 @@ export function stateLightboxMask() {
         // 124c-T3（spec-124c §3.4）：對焦編輯進行中，換片的每一個入口都不作用。
         // 定義在這裡（_mask* 狀態的擁有者）而不是各檔各讀一次 this._maskVisible——
         // state-actress.js 依 100b-T5 CD-1 不得直接碰 _mask* 識別字，一律走本檔的共用方法
-        // （同 this._resetMask() 的既有慣例）。四個 chokepoint 因此用同一個判斷式。
+        // （同 this._resetMask() 的既有慣例）。十一個入口共用：影片與女優各自的 prev/next、
+        // switchLightboxVersion、lbxPopOpen、showAddLbTagInput、openSimilarMode，
+        // openHeroCardLightbox，以及 openLightbox / openActressLightbox 的切換分支。
         _navBlockedByFocalEdit() {
             return this._maskVisible === true;
         },

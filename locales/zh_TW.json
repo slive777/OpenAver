@@ -1595,7 +1595,12 @@
       "cover_escape_hint": "找不到封面。可以把圖片用影片檔名命名放在影片旁邊（例：`ABC-123.mp4` → `ABC-123.jpg`），回片庫管理頁按一次「更新片庫」就會收進來；或按 ⚙ 手動指定番號重新刮。",
       "mask_confirm": "確認裁切位置",
       "mask_cancel": "取消裁切調整",
-      "mask_focal_endpoint_down": "人臉端點沒有回應，這次用內建方式找臉"
+      "mask_focal_endpoint_down": "人臉端點沒有回應，這次用內建方式找臉",
+      "menu_focal": "調整海報裁切",
+      "focal_hint": "左右拖曳調整海報範圍",
+      "focal_saved": "已儲存裁切位置",
+      "focal_saved_poster_updated": "已儲存裁切位置，海報檔已更新",
+      "focal_saved_poster_failed": "已儲存裁切位置；海報檔更新失敗"
     },
     "pick": {
       "add_aria": "加入精選",

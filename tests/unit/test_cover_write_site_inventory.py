@@ -54,13 +54,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # readonly_producer.py，導致 readonly_producer.py 整個掉出掃描集合），本次修正。
 _MODULES = (
     'core/enricher.py',
+    'core/poster_refresh.py',
     'core/organizer.py',
     'core/readonly_producer.py',
     'core/readonly_paths.py',
     'core/readonly_assets.py',
 )
 
-_WRITE_CALLS = ('copy2', 'copyfile', 'crop_to_poster', 'atomic_move')
+_WRITE_CALLS = ('copy2', 'copyfile', 'crop_to_poster', 'atomic_move', 'atomic_write')
 # `atomic_move`（144-T0 新增，`core/atomic_write.py`）為什麼也要進這張清單：
 # 它內部的 `shutil.copy2`（EXDEV fallback）住在**本守衛掃不到的檔案**裡，所以
 # 若不在這裡收，任何人只要在這三支模組寫 `atomic_move(cover, poster_dest)`，
@@ -75,6 +76,7 @@ _PREFLIGHT = 'same_target_verdict'
 # 集合、結構上不可能轉紅）。key = (檔案, 所屬函式, 被呼叫名稱)，value = 次數。
 # 每一格的理由見 core/cover_layout.py 的「交棒清單」表。
 _EXPECTED_WRITE_SITES = {
+    ('core/poster_refresh.py', 'refresh_poster', 'atomic_write'): 1,
     ('core/enricher.py', '_write_external_images', 'copy2'): 1,              # ③ cover → fanart
     ('core/enricher.py', '_write_external_images', 'crop_to_poster'): 1,     # ④ cover → poster
     ('core/organizer.py', 'crop_to_poster', 'copy2'): 1,                     # 葉節點：已是直向、直接複製
@@ -105,6 +107,7 @@ _EXPECTED_WRITE_SITES = {
 # `test_readonly_producer.py` / `test_enricher.py` / `test_organizer.py` 的真檔案
 # 行為守衛負責——兩層各司其職，這是本檔「誠實邊界」那段的延伸。
 _EXPECTED_PREFLIGHTS = {
+    ('core/poster_refresh.py', 'refresh_poster'): 1,
     ('core/enricher.py', '_write_external_images'): 2,          # ③④ 各一
     ('core/organizer.py', 'generate_jellyfin_images'): 2,       # ①② 各一
     ('core/readonly_assets.py', '_copy_curator_sidecar'): 1,  # ⑨⑩ 共用同一個 choke point

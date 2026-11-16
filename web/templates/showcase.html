@@ -910,7 +910,7 @@
                 <!-- 56c-T3fix: Magic 按鈕（與 .lightbox-close 鏡射對稱，video mode only）
                      56c-T4: 直接呼叫 openSimilarMode()——sparkle burst 已搬至 state-similar openSimilarMode 流程內部統一管理 -->
                 <button class="lightbox-similar-btn"
-                        x-show="currentLightboxVideo && !currentLightboxActress && !showFavoriteActresses"
+                        x-show="currentLightboxVideo && !currentLightboxActress && !showFavoriteActresses && !_maskVisible"
                         @click="openSimilarMode()"
                         :aria-label="t('similar_mode.button_aria_label')">
                     <i class="bi bi-magic" aria-hidden="true"></i>
@@ -1071,8 +1071,8 @@
                                      全部 5 個旗標再組合，保證每次求值都完整訂閱依賴——與影片版
                                      一樣用 x-show，只是把「讀取」與「短路組合」拆開兩步。 -->
                                 <!-- 101d-T2（反向指引）：女優焦點 gate 用 per-image 門檻（_focalIconVisible() 五條件），
-                                     與影片 _posterModeActive() 刻意不同——女優牆全寬度都裁、影片只 ≤899px 裁
-                                     （見 plan-101d §2.2）。別把兩條 gate「統一」成同一套，那會讓其中一條 icon 出現時機錯掉。 -->
+                                     女優牆全寬度都裁（見 plan-101d §2.2）。別把不同 gate 統一成同一套，
+                                     那會讓 icon 出現時機錯掉。 -->
                                 <button class="lb-mask-btn"
                                         x-show="_focalIconVisible()"
                                         @click="openMask()"
@@ -1210,7 +1210,7 @@
                             <img class="lb-full"
                                  x-ref="lightboxCoverFull"
                                  :src="currentLightboxVideo?.cover_full_url"
-                                 @load="_lbFullLoaded=true"
+                                 @load="_lbFullLoaded=true; _setCoverAspect($event)"
                                  :class="{'lb-full-shown':_lbFullLoaded}"
                                  @error="_handleLbFullError($event)"
                                  alt=""
@@ -1224,6 +1224,7 @@
                                     </template>
                                 </div>
                             </template>
+                            {% include '_macros/focal_mask.html' %}
 
                             <!-- 56c-T3fix: Sparkle burst overlay（10 顆四角星，ring 分佈在封面區） -->
                             <div class="sparkle-burst"
@@ -1244,7 +1245,7 @@
                             <!-- 56c-fix-v2: x-show="!!currentLightboxVideo?.path" guards standalone
                                  similar-exit mode (path undefined) — regular lightbox items always have
                                  path so existing behavior is unaffected. -->
-                            <div class="cover-actions lbx-cover-layer" x-show="!!currentLightboxVideo?.path">
+                            <div class="cover-actions lbx-cover-layer" x-show="!!currentLightboxVideo?.path" :class="{'cover-actions--focal-edit': _maskVisible}">
                                 <div class="lbx-actions">
                                     <button class="lb-action-btn" x-show="!_maskVisible" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">
                                         <i class="bi bi-play-fill"></i>
@@ -1261,13 +1262,30 @@
                                             aria-label="{{ t('showcase.action.enrich') }}">
                                         <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
                                     </button>
+                                    <button class="lb-action-btn lb-action-btn--success"
+                                            x-show="_maskVisible && !_maskDetecting"
+                                            @click.stop="confirmMask()"
+                                            :data-tooltip="t('showcase.lightbox.mask_confirm')"
+                                            :aria-label="t('showcase.lightbox.mask_confirm')">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    <button class="lb-action-btn lb-action-btn--danger"
+                                            x-show="_maskVisible && !_maskDetecting"
+                                            @click.stop="cancelMask()"
+                                            :data-tooltip="t('showcase.lightbox.mask_cancel')"
+                                            :aria-label="t('showcase.lightbox.mask_cancel')">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
                                 </div>
+                                <p class="lbx-focal-hint"
+                                   x-show="_maskVisible && !_maskDetecting && !_maskSettling"
+                                   x-text="t('showcase.lightbox.focal_hint')"></p>
                                 <!-- 規格帶：左＝版本膠囊（多版本才有）、中＝分集標記、右＝單一規格小膠囊（等級 · 編碼 · 實際片長 · 大小）。
                                      分集標記是版本膠囊的兄弟，不放進受 x-show 管的版本群組（單版本分集也要看得到）。 -->
                                 <div class="lbx-band"
                                      role="group"
                                      :aria-label="t('showcase.lightbox.band_aria')"
-                                     x-show="lbVersions().length || formatPartLabel(currentLightboxVideo.part_tokens) || lbBandParts().length">
+                                     x-show="!_maskVisible && (lbVersions().length || formatPartLabel(currentLightboxVideo.part_tokens) || lbBandParts().length)">
                                     <div class="lbx-versions" role="group"
                                          x-show="lbVersions().length"
                                          :aria-label="t('showcase.lightbox.versions_aria')">
@@ -1557,6 +1575,12 @@
                                         :aria-busy="lbTrIsBusy()">
                                     <i class="bi bi-translate" x-show="!lbTrIsBusy()" aria-hidden="true"></i><i class="bi bi-arrow-repeat spin" x-show="lbTrIsBusy()" aria-hidden="true"></i>
                                     <span>{{ t('showcase.lightbox.translate_tooltip') }}</span>
+                                </button>
+                                <button type="button" class="lbx-menu-item lbx-menu-item--focal"
+                                        x-show="lbxMenuHas('focal')"
+                                        :disabled="!_lbFullLoaded"
+                                        @click.stop="lbxPopClose({ restoreFocus: false }); openMask()">
+                                    <i class="bi bi-person-bounding-box" aria-hidden="true"></i><span x-text="t('showcase.lightbox.menu_focal')"></span>
                                 </button>
                                 <button type="button" class="lbx-menu-item lbx-menu-item--rescrape"
                                         @click.stop="lbxPopClose({ restoreFocus: true }); openRescrape(currentLightboxVideo, 'lightbox')"

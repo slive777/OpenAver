@@ -109,7 +109,7 @@ export function stateLightbox() {
         // （innerWidth 在有捲軸時差一個捲軸寬）。門檻 reuse 既有 POSTER_CROP_MAX_W 常數（已被
         // TestPosterCropThresholdAlignment 鎖常數↔CSS），不裸寫 899、不新建常數（CD-1/§6 Non-Goal #13）。
         // reactive：state-base.init() 掛 page-level matchMedia change listener 改此值（同一 Alpine
-        // component，mergeState 合併 → 同一屬性）；x-show 讀 _posterModeActive() → 訂閱本 data → 即時翻。
+        // component，mergeState 合併 → 同一屬性）；模式選單 x-show 讀 _isNarrow，變更時即時更新。
         _isNarrow: (typeof window.matchMedia === 'function')
             ? window.matchMedia('(max-width: ' + POSTER_CROP_MAX_W + 'px)').matches
             : (window.innerWidth <= POSTER_CROP_MAX_W),   // 無 matchMedia 的嵌入環境 → 一次性 fallback
@@ -131,9 +131,12 @@ export function stateLightbox() {
         // 不寫 inline aspect-ratio；不 removeProperty（換片 / close / similar-open enter/exit 皆不清）。
         // 破圖/空 src（naturalWidth === 0）→ skip，保留前值撐盒（禁止任何清除路徑）。
         // 目標掛點：.lightbox-content（縮圖載入即定，原圖未到也不塌、不閃）。
+        // 遮罩／亮窗用的封面比例以原圖為準：縮圖尺寸常取整，且外部換封面後快取縮圖可能仍是舊的。
+        // 原圖已載入後，遲到的縮圖 @load 不得把 --lb-cover-ar 改回去。
         _setCoverAspect(e) {
             var img = e && e.target;
             if (!img) return;
+            if (!img.classList.contains('lb-full') && this._lbFullLoaded) return;
             var nw = img.naturalWidth;
             var nh = img.naturalHeight;
             if (!nw || !nh) return;  // 破圖/空 src → skip，保留前值
@@ -148,7 +151,7 @@ export function stateLightbox() {
         // slip-through 路徑（state-similar.js closeSimilarMode）共用，避免兩處邏輯漂移）。
         // 呼叫時機：currentLightboxVideo 已更新、Alpine reactive patch 尚未跑完（$nextTick 前）。
         // $nextTick 後 lightboxCoverFull img.complete && naturalWidth > 0 → 瀏覽器已快取 → 直接翻 true，
-        // 跳過 @load 等待；否則等 @load 觸發翻 true。
+        // 跳過 @load 等待；否則等 @load 觸發翻 true。快取命中時 @load 不會再 fire，所以這裡同步用原圖重設比例。
         _refreshLbFullBlurUp() {
             this._lbFullLoaded = false;
             this._lbFullErrorPill = false;
@@ -157,6 +160,7 @@ export function stateLightbox() {
                 var fullImg = self.$refs && self.$refs.lightboxCoverFull;
                 if (fullImg && fullImg.complete && fullImg.naturalWidth > 0) {
                     self._lbFullLoaded = true;
+                    self._setCoverAspect({ target: fullImg });
                 }
             });
         },
@@ -199,21 +203,6 @@ export function stateLightbox() {
         },
 
 
-        // 101d-T1：影片焦點 icon 顯示 gate（CD-4）。語意旗標 method——只在畫面真的以 poster 裁切
-        // 呈現時才顯示 icon。x-show 以 () 呼叫，理由是比照 _focalIconVisible() 慣例／可讀性／
-        // 未來相容性——**保留括號**。⚠️ 但別把「漏括號」當 runtime bug：Alpine 3 對 x-show
-        // **尾端**求值為 function 者會 auto-invoke（101d-T1 CDP 實測），故
-        // `A && B && _posterModeActive` 在當前版本其實等效帶括號、非 gate 失效（見 gotchas-frontend
-        // 「Alpine methods 必須加 ()」節精確化）。119-T5 已 landed：body 為
-        // `return this._isNarrow || this.cardShape === 'poster'`，不動 icon x-show、不動任何呼叫端
-        // （plan-101d CD-4，spec §7.2 Non-Goal #14）。
-        // 本 method **只服務燈箱焦點鈕**。選單條數與 A 鍵段數絕不可讀它（CD-119-4／§0.1）。
-        // 影片 gate 與女優 _focalIconVisible() 的 per-image 門檻刻意不同（影片只 ≤899px 裁、女優牆
-        // 全寬度都裁，plan-101d §2.2）——此不對稱是有原則的，勿「對齊」成同一套。
-        _posterModeActive() {
-            return this._isNarrow || this.cardShape === 'poster';
-        },
-
         // F1: helper — 更新 lightboxIndex + currentLightboxVideo 一致性
         _setLightboxIndex(idx) {
             // 123-T4 / C27：燈箱星是常駐節點，切換影片必須先殺掉進行中的 --pick-fill
@@ -248,6 +237,7 @@ export function stateLightbox() {
 
             // Fix: lightbox 已開啟時走 switch 路徑
             if (this.lightboxOpen && this.lightboxIndex !== index) {
+                if (this._navBlockedByFocalEdit?.()) return;
                 var self = this;
                 // C18: interrupt — kill 舊 switch timeline（含 onComplete callback）
                 _killLightboxTimelines({ killOpen: false, killSwitch: true });
@@ -347,6 +337,7 @@ export function stateLightbox() {
         },
 
         openHeroCardLightbox() {
+            if (this.lightboxOpen && this._navBlockedByFocalEdit?.()) return;
             if (this._lightboxAnimating) return;
             if (!this._matchedActress) return;
             this._actressChipsExpanded = { aliases: false, info: false };
@@ -1174,6 +1165,7 @@ export function stateLightbox() {
                     // 女優 lightbox（優先級高）
                     if (key === 'ESCAPE') {
                         e.preventDefault();
+                        if (this._maskVisible) { this.cancelMask(); return; }
                         this.closeLightbox();
                     } else if (key === 'ARROWLEFT') {
                         e.preventDefault();
@@ -1185,6 +1177,7 @@ export function stateLightbox() {
                 } else {
                     // 影片 lightbox
                     if (key === 'ESCAPE') {
+                        if (this._maskVisible) { e.preventDefault(); this.cancelMask(); return; }
                         if (this.lbxPop) { e.preventDefault(); this.lbxPopClose({ restoreFocus: true }); return; }
                         if (this.addingLbTag) { e.preventDefault(); this.cancelAddLbTag(); return; }
                         e.preventDefault();
