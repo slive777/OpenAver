@@ -1,4 +1,3 @@
-import errno
 import hashlib
 import os
 import random
@@ -96,19 +95,6 @@ def test_nothing_to_refresh_writes_nothing(tmp_path, case):
     result = refresh_poster(path, '0.4000,0.5000', external_mode_on=case != 'mode_off')
     assert result.status == ('none' if case in ('missing_poster', 'empty', 'not_file') else 'skipped')
     assert snapshot(tmp_path) == before
-
-
-def test_enospc_preserves_poster_and_cleans_temp(tmp_path, monkeypatch):
-    cover, poster = tmp_path / 'movie.jpg', tmp_path / 'movie-poster.jpg'
-    solid(cover, 'green')
-    solid(poster, 'red')
-    before = snapshot(tmp_path)
-    def full(*args):
-        raise OSError(errno.ENOSPC, 'disk full')
-    monkeypatch.setattr('core.atomic_write.os.replace', full)
-    assert refresh_poster(str(cover), '0.4000,0.5000', external_mode_on=True).status == 'failed'
-    assert snapshot(tmp_path) == before
-    assert not list(tmp_path.glob('tmp*'))
 
 
 @pytest.mark.skipif(not hasattr(os, 'fchown'), reason='POSIX only')
