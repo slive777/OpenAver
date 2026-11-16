@@ -1325,6 +1325,10 @@
     "fetch_failed": "載入失敗"
   },
   "showcase": {
+    "adv_edit": {
+      "title": "進階編輯",
+      "close": "關閉"
+    },
     "page_title": "影片瀏覽",
     "state": {
       "loading": "載入影片列表中...",
@@ -1597,6 +1601,7 @@
       "mask_cancel": "取消裁切調整",
       "mask_focal_endpoint_down": "人臉端點沒有回應，這次用內建方式找臉",
       "menu_focal": "調整海報裁切",
+      "menu_adv_edit": "進階編輯",
       "focal_hint": "左右拖曳調整海報範圍",
       "focal_saved": "已儲存裁切位置",
       "focal_saved_poster_updated": "已儲存裁切位置，海報檔已更新",

@@ -1,0 +1,35 @@
+.adv-edit-box {
+    display: flex;
+    flex-direction: column;
+    width: min(760px, calc(100vw - 2rem));
+    max-height: calc(100dvh - 3rem);
+    overflow: hidden;
+}
+
+.adv-edit-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--fluent-radius-md);
+}
+
+.adv-edit-title {
+    min-width: 0;
+}
+
+.adv-edit-x {
+    color: var(--text-secondary);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+.adv-edit-sections {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.adv-edit-foot {
+    flex: 0 0 auto;
+}

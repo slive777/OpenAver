@@ -51,7 +51,7 @@ export function isOutsidePop(target, panelEl, anchorSel) {
 
 /**
  * menuItems：⋯ 選單項目（199a-T4，CD-199a-11；200a-T3 加 focal）。
- * 順序固定 samples → translate → focal → rescrape → delete。
+ * 順序固定 samples → translate → focal → advedit → rescrape → delete。
  * 沒有對應檔（hasPath 假）只剩 rescrape；有劇照不出 samples；翻譯條件不成立不出 translate；
  * canFocal 假（沿用版本／沒封面）不出 focal。
  */
@@ -60,6 +60,7 @@ export function menuItems(video, { sampleCount, trVisible, hasPath, canFocal }) 
     if (hasPath && sampleCount === 0) items.push({ id: 'samples' });
     if (hasPath && trVisible) items.push({ id: 'translate' });
     if (hasPath && canFocal) items.push({ id: 'focal' });
+    if (hasPath) items.push({ id: 'advedit' });
     items.push({ id: 'rescrape' });
     if (hasPath) items.push({ id: 'delete' });
     return items;

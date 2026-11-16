@@ -892,7 +892,7 @@
         <!-- Lightbox (M3a) -->
         <div class="showcase-lightbox"
              :class="{ 'show': lightboxOpen }"
-             x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen && !rescrapeOpen && !deleteVideoModalOpen && !similarModeMobileOpen"
+             x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen && !rescrapeOpen && !deleteVideoModalOpen && !similarModeMobileOpen && !advEditOpen"
              @touchstart.passive="_lbTouchStart($event)"
              @touchend.passive="_lbTouchEnd($event)"
              @pointerdown.window="lbxPopOnPointerDown($event)"
@@ -1582,6 +1582,9 @@
                                         @click.stop="lbxPopClose({ restoreFocus: false }); openMask()">
                                     <i class="bi bi-person-bounding-box" aria-hidden="true"></i><span x-text="t('showcase.lightbox.menu_focal')"></span>
                                 </button>
+                                <button type="button" class="lbx-menu-item lbx-menu-item--advedit" x-show="lbxMenuHas('advedit')" @click.stop="lbxPopClose({ restoreFocus: false }); openAdvEdit()">
+                                    <i class="bi bi-sliders" aria-hidden="true"></i><span x-text="t('showcase.lightbox.menu_adv_edit')"></span>
+                                </button>
                                 <button type="button" class="lbx-menu-item lbx-menu-item--rescrape"
                                         @click.stop="lbxPopClose({ restoreFocus: true }); openRescrape(currentLightboxVideo, 'lightbox')"
                                         data-tooltip="{{ t('showcase.rescrape.entry_tooltip') }}"
@@ -2186,6 +2189,24 @@
                     <span x-show="!_deleteLoading"><i class="bi bi-trash3"></i></span>
                     {{ t('showcase.video.delete_modal.confirm') }}
                 </button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog class="modal fluent-modal adv-edit-dialog" x-cloak
+            :class="{ 'modal-open': advEditOpen }"
+            @click.self="closeAdvEdit()"
+            x-trap.inert.noscroll="advEditOpen">
+        <div class="modal-box fluent-modal-box adv-edit-box">
+            <header class="adv-edit-head">
+                <h3 class="fluent-modal-title adv-edit-title" x-text="advEditTitle()"></h3>
+                <button type="button" class="adv-edit-x" @click="closeAdvEdit()" :aria-label="t('showcase.adv_edit.close')"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+            </header>
+            <div class="adv-edit-sections">
+                <section class="adv-edit-sec adv-edit-sec--files"></section>
+            </div>
+            <div class="modal-action fluent-modal-actions adv-edit-foot">
+                <button type="button" class="btn btn-ghost" @click="closeAdvEdit()">{{ t('showcase.adv_edit.close') }}</button>
             </div>
         </div>
     </dialog>

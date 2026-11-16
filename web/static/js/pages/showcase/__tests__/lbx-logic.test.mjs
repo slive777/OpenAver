@@ -43,13 +43,13 @@ test('test_menu_items_follow_path_samples_and_translate_gate', async () => {
     const ids = (o) => menuItems({}, o).map((i) => i.id);
 
     // (a) 全條件成立 → 依序 samples、translate、rescrape、delete
-    assert.deepEqual(ids({ sampleCount: 0, trVisible: true, hasPath: true }), ['samples', 'translate', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ sampleCount: 0, trVisible: true, hasPath: true }), ['samples', 'translate', 'advedit', 'rescrape', 'delete']);
     // (b) 沒有對應檔 → 只剩 rescrape（即使翻譯條件成立、沒劇照）
     assert.deepEqual(ids({ sampleCount: 0, trVisible: true, hasPath: false }), ['rescrape']);
     // (c) 已有劇照 → 不出 samples
-    assert.deepEqual(ids({ sampleCount: 3, trVisible: true, hasPath: true }), ['translate', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ sampleCount: 3, trVisible: true, hasPath: true }), ['translate', 'advedit', 'rescrape', 'delete']);
     // (d) 翻譯條件不成立 → 不出 translate
-    assert.deepEqual(ids({ sampleCount: 0, trVisible: false, hasPath: true }), ['samples', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ sampleCount: 0, trVisible: false, hasPath: true }), ['samples', 'advedit', 'rescrape', 'delete']);
 });
 
 // TASK-200a-T3：⋯ 選單「調整海報裁切」項（canFocal 閘 + 排在 rescrape 前）。
@@ -59,11 +59,11 @@ test('test_menu_items_focal_item_follows_can_focal_and_sits_before_rescrape', as
     const allOn = { sampleCount: 0, trVisible: true, hasPath: true };
 
     // (a) canFocal true → focal 出現且在 translate 與 rescrape 之間
-    assert.deepEqual(ids({ ...allOn, canFocal: true }), ['samples', 'translate', 'focal', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ ...allOn, canFocal: true }), ['samples', 'translate', 'focal', 'advedit', 'rescrape', 'delete']);
     // (b) canFocal false → 不含 focal
-    assert.deepEqual(ids({ ...allOn, canFocal: false }), ['samples', 'translate', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ ...allOn, canFocal: false }), ['samples', 'translate', 'advedit', 'rescrape', 'delete']);
     // (c) 缺省 canFocal → 不含 focal（既有呼叫端不傳時行為不變）
-    assert.deepEqual(ids(allOn), ['samples', 'translate', 'rescrape', 'delete']);
+    assert.deepEqual(ids(allOn), ['samples', 'translate', 'advedit', 'rescrape', 'delete']);
 });
 
 // TASK-199a-T5：第 3 列女優露出數與作品資訊欄位。
@@ -244,4 +244,14 @@ test('test_focal_save_toast_maps_poster_status_to_key_and_type', async () => {
         const value = key.split('.').reduce((o, part) => (o == null ? o : o[part]), strings);
         assert.ok(typeof value === 'string' && value.length > 0, key);
     }
+});
+
+test('test_menu_items_adv_edit_between_focal_and_rescrape', async () => {
+    const { menuItems } = await import('../lbx-logic.js');
+    const cases = [
+        [{ sampleCount: 0, trVisible: true, hasPath: true, canFocal: true }, ['samples', 'translate', 'focal', 'advedit', 'rescrape', 'delete']],
+        [{ sampleCount: 0, trVisible: true, hasPath: true, canFocal: false }, ['samples', 'translate', 'advedit', 'rescrape', 'delete']],
+        [{ sampleCount: 0, trVisible: true, hasPath: false, canFocal: true }, ['rescrape']],
+    ];
+    for (const [options, expected] of cases) assert.deepEqual(menuItems({}, options).map(x => x.id), expected);
 });
