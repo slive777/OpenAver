@@ -84,7 +84,7 @@ def test_cover_change_same_rule_both_exits(tmp_path, monkeypatch, mocker, case):
     assert outcomes[0] == outcomes[1]
 
 
-@pytest.mark.parametrize('case', ['not_found', 'unreachable', 'nfo_unreadable'])
+@pytest.mark.parametrize('case', ['not_found', 'unreachable', 'nfo_unreadable', 'root_gone'])
 def test_refresh_not_found_or_unreachable_changes_nothing(tmp_path, monkeypatch, mocker, case):
     from core.video_refresh import refresh_one
 
@@ -96,6 +96,9 @@ def test_refresh_not_found_or_unreachable_changes_nothing(tmp_path, monkeypatch,
     row, before = repo.get_by_path(uri), _rows(repo)
     if case == 'not_found':
         mp4.unlink()
+    elif case == 'root_gone':
+        mp4.parent.rename(mp4.parent.with_name('disconnected'))
+        monkeypatch.setattr('core.source_reachability._snapshot', {str(mp4.parent): 'ok'})
     elif case == 'unreachable':
         monkeypatch.setattr('core.source_reachability._snapshot', {str(mp4.parent): 'unreachable'})
     else:
@@ -107,7 +110,7 @@ def test_refresh_not_found_or_unreachable_changes_nothing(tmp_path, monkeypatch,
             calls.append(path)
         return original(path, *args, **kwargs)
     monkeypatch.setattr(os, 'stat', counted)
-    assert refresh_one(repo, row, config, {}) == {'success': False, 'error': case}
+    assert refresh_one(repo, row, config, {}) == {'success': False, 'error': 'unreachable' if case == 'root_gone' else case}
     if case == 'unreachable':
         assert calls == []
     assert _rows(repo) == before

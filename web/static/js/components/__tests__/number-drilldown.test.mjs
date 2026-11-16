@@ -21,6 +21,7 @@ doc.createElement = () => {
         selectionStart: 0,
         selectionEnd: 0,
         parentElement: null,
+        focus: () => {},
         select: () => {
             doc.activeElement = ta;
             ta.selectionStart = 0;

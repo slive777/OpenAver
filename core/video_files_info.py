@@ -18,9 +18,12 @@ from core.cover_signature import (
 )
 from core.logger import get_logger
 from core.media_probe import resolution_tier, video_codec_label
-from core.path_utils import uri_to_local_fs_path
+from core.path_utils import is_path_under_dir, normalize_path, to_file_uri, uri_to_local_fs_path
 from core.readonly_paths import resolve_owning_output_root
-from core.source_reachability import is_path_on_unreachable_source
+from core.source_reachability import (
+    _scandir_probe, is_path_on_unreachable_source, owning_source_index,
+    source_keys_and_prefixes,
+)
 from core.video_nfo_locate import locate_video_nfo
 
 logger = get_logger(__name__)
@@ -42,6 +45,12 @@ def stat_kind(path: str):
     return "ok", st
 
 
+def source_root_unreachable(video_path, gallery_config):
+    keys, prefixes = source_keys_and_prefixes(gallery_config)
+    index = owning_source_index(video_path, prefixes)
+    return index is not None and _scandir_probe(keys[index]) is not False
+
+
 def thumb_is_stale(*, mode, db_sig, live_sig, thumb_mtime_ns) -> bool:
     """牆上縮圖是否比封面舊（純函式，CD-200b-5）。"""
     if mode != "cache":
@@ -61,9 +70,14 @@ def poster_regen_verdict(*, external_mode_on, has_cover_file, cover_fs, video_fs
         return False, None
     if not has_cover_file:
         return False, "no_cover"
+    if readonly:
+        return True, None
     cover_stem = os.path.basename(cover_base_stem(cover_fs))
     video_stem = os.path.basename(os.path.splitext(video_fs)[0])
-    if not readonly and cover_stem != video_stem:
+    cover_dir = to_file_uri(normalize_path(os.path.normpath(os.path.dirname(cover_fs))))
+    video_dir = to_file_uri(normalize_path(os.path.normpath(os.path.dirname(video_fs))))
+    same_dir = is_path_under_dir(cover_dir, video_dir) and is_path_under_dir(video_dir, cover_dir)
+    if cover_stem != video_stem or not same_dir:
         return False, "generic_cover_name"
     return True, None
 
@@ -248,7 +262,7 @@ def build_files_info(video, *, repo, config, path_mappings) -> dict:
     if kind == "ok":
         state = "ok"
     elif kind == "absent":
-        state = "missing"
+        state = "unreachable" if source_root_unreachable(video.path, config.get("gallery", {})) else "missing"
     else:
         state = "unreachable"
     if state == "unreachable":

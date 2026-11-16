@@ -9,11 +9,13 @@ let execCalls;
 let taValues;
 let execSeen;
 let createdTas;
+let focusSelectOrder;
 function stubDocument(execResult, opts = {}) {
     execCalls = 0;
     taValues = [];
     execSeen = null;
     createdTas = [];
+    focusSelectOrder = [];
     const body = {
         _children: [],
         appendChild: (ta) => {
@@ -51,7 +53,9 @@ function stubDocument(execResult, opts = {}) {
             selectionStart: 0,
             selectionEnd: 0,
             parentElement: null,
+            focus: (options) => { focusSelectOrder.push(['focus', options]); doc.activeElement = ta; },
             select: () => {
+                focusSelectOrder.push(['select']);
                 if (opts.trap === 'always') {
                     doc.activeElement = button;
                     ta.selectionStart = 0;
@@ -145,6 +149,7 @@ test('navigator 為 {} 時降到 execCommand', async () => {
     assert.equal(await copyText('中文 🎬 x'), true);
     assert.equal(execCalls, 1);
     assert.deepEqual(taValues, ['中文 🎬 x']);
+    assert.deepEqual(focusSelectOrder, [['focus', { preventScroll: true }], ['select']]);
 });
 
 test('三層全失敗回 false 且不丟例外', async () => {

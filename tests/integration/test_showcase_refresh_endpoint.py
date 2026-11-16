@@ -52,14 +52,24 @@ def _snapshot(folder):
             for p in folder.rglob('*') if p.is_file()}
 
 
-@pytest.mark.parametrize('layout', ['cover', 'both', 'poster'])
+@pytest.mark.parametrize('layout', ['cover', 'both', 'poster', 'root_gone', 'missing'])
 def test_refresh_writes_nothing_to_disk(tmp_path, monkeypatch, mocker, layout):
-    client, _, uri, video, _, _ = _env(tmp_path, monkeypatch, mocker, layout)
-    before = _snapshot(video.parent)
+    client, _, uri, video, _, _ = _env(tmp_path, monkeypatch, mocker, 'cover' if layout in ('root_gone', 'missing') else layout)
+    snapshot_root = video.parent
+    if layout == 'root_gone':
+        video.parent.rename(tmp_path / 'disconnected')
+        monkeypatch.setattr('core.source_reachability._snapshot', {str(video.parent): 'ok'})
+        snapshot_root = tmp_path
+    elif layout == 'missing':
+        video.unlink()
+    before = _snapshot(snapshot_root)
     response = client.post('/api/showcase/video/refresh', json={'path': uri})
     assert response.status_code == 200
-    assert response.json()['success'] is True
-    assert _snapshot(video.parent) == before
+    if layout in ('root_gone', 'missing'):
+        assert response.json() == {'success': False, 'error': 'unreachable' if layout == 'root_gone' else 'not_found'}
+    else:
+        assert response.json()['success'] is True
+    assert _snapshot(snapshot_root) == before
 
 
 def test_refresh_rereads_nfo_keeps_user_data(tmp_path, monkeypatch, mocker):

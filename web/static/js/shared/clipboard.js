@@ -40,6 +40,7 @@ export function execCommandCopy(text) {
     const prev = document.activeElement;
     const host = (prev && prev !== document.body && prev.parentElement) || document.body;
     host.appendChild(ta);
+    ta.focus({ preventScroll: true });
     ta.select();
     let ok = false;
     try {

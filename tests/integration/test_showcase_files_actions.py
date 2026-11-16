@@ -134,6 +134,7 @@ _REGEN_CASES = [
     "generic_cover_name",
     "no_cover",
     "readonly_output_not_current",
+    "other_folder",
 ]
 
 
@@ -182,6 +183,20 @@ def test_poster_regenerate_outcomes(tmp_path, monkeypatch, mocker, case):
     video_dir = env["video_dir"]
     config = env["config"]
     client = _wire(monkeypatch, db_path=env["db_path"], config=config)
+
+    if case == "other_folder":
+        other = tmp_path / "other"
+        other.mkdir()
+        cover = other / env["cover"].name
+        env["cover"].rename(cover)
+        env["repo"].upsert_batch([Video(path=env["video_uri"], number="RGN-001", title="RGN-001", cover_path=to_file_uri(str(cover), {}))])
+        before = _snapshot_tree(tmp_path)
+        spy = mocker.patch("web.routers.showcase_files.refresh_poster")
+        resp = client.post("/api/showcase/video/poster-regenerate", json={"path": env["video_uri"]})
+        assert resp.json() == {"success": False, "error": "generic_cover_name"}
+        assert _snapshot_tree(tmp_path) == before
+        spy.assert_not_called()
+        return
 
     if case == "unreachable":
         mocker.patch(

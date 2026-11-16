@@ -102,7 +102,7 @@ def _expected_cover_url(cover_fs):
     return f"/api/gallery/image?path={quote(cover_fs, safe='')}&v={st.st_mtime_ns}-{st.st_size}"
 
 
-_PARAM_CASES = ["ok", "missing", "unreachable", "not_found", "out_of_scope"]
+_PARAM_CASES = ["ok", "missing", "unreachable", "not_found", "out_of_scope", "root_gone"]
 
 
 @pytest.mark.parametrize("case", _PARAM_CASES)
@@ -141,6 +141,9 @@ def test_files_state_ok_missing_unreachable(plain_env, mocker, case, tmp_path):
         seen = None
         if case == "missing":
             plain_env["mp4"].unlink()
+        elif case == "root_gone":
+            plain_env["lib"].rename(tmp_path / "disconnected")
+            mocker.patch("core.source_reachability._snapshot", {str(plain_env["lib"]): "ok"})
 
     thumb_fs = thumbnail_cache.thumb_file_for(plain_env["video_uri"])
     thumb_fs.parent.mkdir(parents=True, exist_ok=True)
@@ -160,9 +163,10 @@ def test_files_state_ok_missing_unreachable(plain_env, mocker, case, tmp_path):
         "success", "state", "readonly", "external_mode_on", "nfo",
         "cover", "poster", "thumb", "media", "folders",
     }
-    if case == "unreachable":
+    if case in ("unreachable", "root_gone"):
         assert body["state"] == "unreachable"
-        assert seen == []
+        if case == "unreachable":
+            assert seen == []
         assert body["cover"] == {"exists": False, "url": ""}
         assert body["thumb"]["exists"] is False
         assert body["thumb"]["url"] == ""

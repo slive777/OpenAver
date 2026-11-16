@@ -212,11 +212,15 @@ class RepathRequest(BaseModel):
 def repath_endpoint(request: RepathRequest):
     from core.video_repath import repath_video
 
-    ctx, err = _resolve_scope(request.path)
-    if err is not None:
-        return err
-    return repath_video(ctx.repo, ctx.row, request.new_path, request.confirm_name_change,
-                        ctx.config, ctx.path_mappings)
+    try:
+        ctx, err = _resolve_scope(request.path)
+        if err is not None:
+            return err
+        return repath_video(ctx.repo, ctx.row, request.new_path, request.confirm_name_change,
+                            ctx.config, ctx.path_mappings)
+    except Exception:
+        logger.exception("[repath] 未預期錯誤")
+        return JSONResponse({"success": False, "error": "repath_failed"}, status_code=500)
 
 
 @router.post("/video/refresh")

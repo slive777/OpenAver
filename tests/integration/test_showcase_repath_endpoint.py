@@ -97,6 +97,7 @@ def _post(env, new, old=None, confirm=False):
     ('collision', 'already_in_library'), ('name', 'confirm_required'),
     ('small', 'not_scannable'), ('system', 'not_scannable'), ('symlink', 'not_scannable'),
     ('nfo', 'not_scannable'), ('symlink_dir', 'not_scannable'),
+    ('exception', 'repath_failed'),
 ])
 def test_repath_error_codes(env, tmp_path, case, code):
     lib, ro, repo = env['lib'], env['ro'], env['repo']
@@ -117,6 +118,8 @@ def test_repath_error_codes(env, tmp_path, case, code):
     elif case == 'symlink': target = lib / 'link.mkv'; target.symlink_to(env['new'])
     elif case == 'symlink_dir':
         folder = lib / 'linked'; folder.symlink_to(lib, target_is_directory=True); target = folder / env['new'].name
+    elif case == 'exception':
+        env['monkeypatch'].setattr('core.video_repath.repath_video', Mock(side_effect=RuntimeError('test')))
     elif case == 'nfo':
         env['config']['scraper'] = {'video_extensions': ['.nfo']}; target = lib / 'ABF-348.nfo'
     thumb = thumbnail_cache.thumb_file_for(old)
@@ -124,7 +127,7 @@ def test_repath_error_codes(env, tmp_path, case, code):
     thumb.write_bytes(b'cached thumbnail')
     before = (_rows(env['db']), _snapshot(lib), _snapshot(ro), _snapshot(thumb.parent))
     response = _post(env, target, old)
-    assert response.status_code == 200
+    assert response.status_code == (500 if case == 'exception' else 200)
     assert response.json() == {'success': False, 'error': code}
     assert (_rows(env['db']), _snapshot(lib), _snapshot(ro), _snapshot(thumb.parent)) == before
     from core import video_repath

@@ -10,7 +10,7 @@ from core.nfo_stat import nfo_mtime_or_none
 from core.path_utils import uri_to_local_fs_path
 from core.readonly_paths import resolve_owning_output_root
 from core.source_reachability import is_path_on_unreachable_source
-from core.video_files_info import stat_kind, summarize_media
+from core.video_files_info import source_root_unreachable, stat_kind, summarize_media
 from core.video_nfo_locate import locate_readonly_nfo
 
 
@@ -67,6 +67,8 @@ def refresh_one(repo, video, config, path_mappings):
     except ValueError:
         return {"success": False, "error": "unreachable"}
     kind, st = stat_kind(fs_path)
+    if kind == 'absent' and source_root_unreachable(video.path, config.get('gallery', {})):
+        return {"success": False, "error": "unreachable"}
     if kind != 'ok':
         return {"success": False, "error": "not_found" if kind == 'absent' else "unreachable"}
     scanner = VideoScanner(path_mappings=path_mappings, nfo_title_format=config.get('scraper', {}).get('nfo_title_format', '[{num}]{title}'))
