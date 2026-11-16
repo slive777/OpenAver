@@ -5,17 +5,35 @@ import assert from 'node:assert/strict';
 
 let alpineInitCb;
 globalThis.window = globalThis;
-globalThis.document = {
+const doc = {
     addEventListener: (_name, fn) => { alpineInitCb = fn; },
-    createElement: () => ({
-        value: '',
-        style: {},
-        select: () => {},
-        remove: () => {},
-    }),
-    body: { appendChild: () => {} },
     execCommand: () => { throw new Error('execCommand not stubbed for this test'); },
 };
+const body = {
+    appendChild: (ta) => { ta.parentElement = body; },
+};
+doc.body = body;
+doc.activeElement = body;
+doc.createElement = () => {
+    const ta = {
+        value: '',
+        style: {},
+        selectionStart: 0,
+        selectionEnd: 0,
+        parentElement: null,
+        select: () => {
+            doc.activeElement = ta;
+            ta.selectionStart = 0;
+            ta.selectionEnd = ta.value.length;
+        },
+        remove: () => {
+            ta.parentElement = null;
+            if (doc.activeElement === ta) doc.activeElement = body;
+        },
+    };
+    return ta;
+};
+globalThis.document = doc;
 
 const registered = [];
 const toastCalls = [];

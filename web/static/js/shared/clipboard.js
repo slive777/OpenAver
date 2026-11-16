@@ -37,15 +37,18 @@ export function execCommandCopy(text) {
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.cssText = 'position:fixed;top:-9999px';
-    document.body.appendChild(ta);
+    const prev = document.activeElement;
+    const host = (prev && prev !== document.body && prev.parentElement) || document.body;
+    host.appendChild(ta);
     ta.select();
     let ok = false;
     try {
-        ok = document.execCommand('copy');
+        ok = document.activeElement === ta && ta.selectionEnd > ta.selectionStart && document.execCommand('copy');
     } catch (e) {
         ok = false;
     } finally {
         ta.remove();
+        try { if (prev && prev.focus) prev.focus({ preventScroll: true }); } catch (e) {}
     }
     return ok;
 }

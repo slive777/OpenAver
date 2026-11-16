@@ -3262,6 +3262,9 @@ const RULES = [
     scope: { anchor: /copyOutputPath\s*\(\s*\)\s*\{/, braceBalanced: true },
     note: '[168b-T8-clipboard-copyoutputpath-uses-shared] 使用者在區網瀏覽器（非安全環境、沒有 navigator.clipboard）的掃描頁按複製輸出路徑 → 直接失敗、不再走備援，貼上是舊內容或沒東西',
   },
+  { file: 'web/static/js/shared/clipboard.js', kind: 'required-string', pattern: 'document.activeElement',
+    scope: { anchor: /export function execCommandCopy\s*\(\s*text\s*\)\s*\{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:200b-T9-clipboard-activeelement] 有人把 execCommandCopy 改回直接掛 body、不看焦點 → 使用者在區網位址的燈箱按 📁，提示「已複製」但貼上是空的' },
 
   // ---- [175a-T7] 模糊搜尋的來源只認 search_providers 註冊表 ----
   // forbidden-string 不剝註解：core／web／tests 的 .py 註解與 docstring 也不得寫出舊白名單常數（本規則在 scripts/，不在掃描範圍）。
