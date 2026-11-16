@@ -255,3 +255,38 @@ test('test_menu_items_adv_edit_between_focal_and_rescrape', async () => {
     ];
     for (const [options, expected] of cases) assert.deepEqual(menuItems({}, options).map(x => x.id), expected);
 });
+
+
+test('test_adv_edit_media_text_and_missing_states', async () => {
+    const { formatHms, fileInfoParts, mediaInfoText } = await import('../lbx-logic.js');
+    const opts = { formatHms, formatSize: n => `${n} B`, t: k => k };
+    const full = { status: 'ok', tier: '4K', width: 3840, height: 2160, codec: 'HEVC', duration_ms: 7394000, size: 5 };
+    const cases = [[full, '4K（3840×2160） · HEVC · 2:03:14 · 5 B'], [{ ...full, codec: null }, '4K（3840×2160） · 2:03:14 · 5 B'], [{ ...full, duration_ms: 0 }, '4K（3840×2160） · HEVC · 5 B'], [{ ...full, size: 0 }, '4K（3840×2160） · HEVC · 2:03:14'], [{ status: 'ok', width: 10, height: 20 }, '10×20'], [{ status: 'ok', tier: 'HD' }, 'HD'], [{ status: 'none' }, 'showcase.adv_edit.files.media_none'], [{ status: 'failed' }, 'showcase.adv_edit.files.media_failed'], [null, 'showcase.adv_edit.files.media_none']];
+    assert.ok(fileInfoParts(full, opts).length);
+    for (const [media, expected] of cases) assert.equal(mediaInfoText(media, opts), expected);
+    assert.equal(formatHms(7394000), '2:03:14'); assert.equal(formatHms(45000), '0:00:45');
+});
+
+test('test_adv_edit_files_view_and_action_notices', async () => {
+    const { advEditFilesView, advEditActionNotice, advEditOutputTarget } = await import('../lbx-logic.js');
+    const info = { state: 'ok', readonly: false, cover: { exists: true }, poster: { visible: true, exists: true, can_regen: true }, thumb: { mode: 'cache', exists: true }, folders: { source: 'src', output: 'out' }, nfo: { name: 'a b.nfo' } };
+    const view = (patch = {}, opts = {}) => advEditFilesView({ ...info, ...patch }, { borrowed: false, imgFail: {}, ...opts });
+    assert.equal(view().poster, 'img');
+    assert.equal(view({ poster: { visible: true, exists: null } }).poster, 'generic');
+    assert.equal(view({ poster: { visible: true, exists: false, can_regen: true } }).poster, 'empty');
+    assert.equal(view({ poster: { visible: false } }).poster, 'hidden');
+    assert.equal(view({}, { borrowed: true }).canRegen, false);
+    assert.equal(view({ cover: { exists: false } }).cover, 'broken');
+    assert.equal(view({ readonly: true }).folders.output, 'out/a%20b.nfo');
+    assert.equal(advEditOutputTarget({ output: 'out/' }, ''), 'out/');
+    assert.equal(view({ state: 'missing' }).banner, 'missing');
+    assert.equal(view({ state: 'missing', readonly: true }).banner, 'missing_readonly');
+    assert.equal(view({ state: 'unreachable' }).banner, 'unreachable');
+    assert.equal(view({ thumb: { mode: 'cache', stale: true } }).thumbChip, 'stale');
+    assert.equal(view({ thumb: { mode: 'cover', exists: true } }).thumbChip, 'direct');
+    assert.equal(view({ thumb: { mode: 'cache', exists: false } }).thumb, 'pending');
+    assert.equal(advEditFilesView(null, { imgFail: {} }).canReread, false);
+    const t = k => k;
+    const cases = [['regen', { success: true, poster: { status: 'updated' } }, 'poster_updated', true], ['regen', { success: true, poster: { status: 'skipped' } }, 'poster_skipped', false], ['regen', { success: true, poster: { status: 'failed' } }, 'poster_failed', false], ...[['generic_cover_name','poster_generic_cover'],['no_cover','poster_no_cover'],['readonly_output_not_current','poster_readonly_output'],['unreachable','unreachable']].map(([error,key]) => ['regen', { success: false, error }, key, false]), ['regen', null, 'poster_failed', false], ...[['ok','reread_done',true],['failed','media_failed',true],['unreadable','reread_unreadable',false],['stale','reread_stale',false],['changed','reread_changed',false],['timeout','reread_timeout',false],['unavailable','reread_unavailable',false],['skipped','reread_skipped',false]].map(([status,key,reload]) => ['reread', { success: true, status }, key, reload]), ['reread', { success: true, status: 'changed', readonly: true }, 'reread_changed_readonly', false], ['reread', { success: false, error: 'unreachable' }, 'unreachable', false], ['reread', null, 'reread_error', false]];
+    for (const [kind, data, key, reload] of cases) { const notice = advEditActionNotice(kind, data, t); assert.equal(notice.text, `showcase.adv_edit.files.${key}`); assert.equal(notice.reload, reload); }
+});

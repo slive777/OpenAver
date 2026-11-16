@@ -67,11 +67,15 @@ function withIndexSpy(c) {
     return counts;
 }
 
+let savedFetch;
 function seed() {
+    savedFetch = globalThis.fetch;
+    globalThis.fetch = () => new Promise(() => {});
     _setFilteredVideos(VIDEOS.slice());
     _setFilteredActresses(ACTRESSES.slice());
 }
 function cleanup() {
+    globalThis.fetch = savedFetch;
     _setFilteredVideos([]);
     _setFilteredActresses([]);
 }
@@ -142,6 +146,29 @@ test('test_adv_edit_open_blocks_slide_entries', () => {
                 assert.equal(c.lightboxIndex, open ? row.index : row.after);
                 assert.equal(c.currentLightboxVideo, VIDEOS[open ? row.index : row.after]);
             }
+        }
+    } finally { cleanup(); }
+});
+
+
+test('test_adv_edit_late_responses_do_not_write', async () => {
+    seed();
+    try {
+        for (const kind of ['files', 'regen', 'reread']) {
+            let resolve;
+            globalThis.fetch = () => new Promise(r => { resolve = r; });
+            let toast = 0, refresh = 0;
+            const c = makeComponent({ currentLightboxVideo: VIDEOS[0], showToast: () => toast++, refreshVideoData: () => refresh++ });
+            c.advEditOpen = true;
+            c.advEditInfo = { state: 'ok', poster: { visible: true, can_regen: true } };
+            const pending = kind === 'files' ? c.loadAdvEditInfo() : kind === 'regen' ? c.regenAdvEditPoster() : c.rereadAdvEditMedia();
+            c.closeAdvEdit();
+            c.advEditInfo = { marker: 'new' };
+            if (resolve) resolve({ ok: true, json: async () => ({ success: true, state: 'ok', poster: { status: 'updated' }, status: 'ok' }) });
+            await pending;
+            assert.deepEqual(c.advEditInfo, { marker: 'new' });
+            assert.equal(toast, 0); assert.equal(refresh, 0);
+            assert.ok(resolve, kind + ' must start a request');
         }
     } finally { cleanup(); }
 });

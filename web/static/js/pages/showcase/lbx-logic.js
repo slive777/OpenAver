@@ -246,3 +246,76 @@ export function focalSaveToast(poster) {
     if (status === 'failed') return { key: 'showcase.lightbox.focal_saved_poster_failed', type: 'error' };
     return { key: 'showcase.lightbox.focal_saved', type: 'success' };
 }
+
+export function formatHms(ms) {
+    if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 1000) return '';
+    const seconds = Math.floor(ms / 1000);
+    return `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+}
+export function fileInfoParts(media, { formatSize, formatHms }) {
+    if (!media || media.status !== 'ok') return [];
+    const parts = [];
+    const dimensions = media.width && media.height ? `${media.width}×${media.height}` : '';
+    const tier = media.tier && dimensions ? `${media.tier}（${dimensions}）` : media.tier || dimensions;
+    if (tier) parts.push({ id: 'tier', text: tier });
+    if (media.codec) parts.push({ id: 'codec', text: media.codec });
+    const duration = formatHms(media.duration_ms);
+    if (duration) parts.push({ id: 'duration', text: duration });
+    if (media.size) parts.push({ id: 'size', text: formatSize(media.size) });
+    return parts;
+}
+export function mediaInfoText(media, opts) {
+    if (media?.status === 'failed') return opts.t('showcase.adv_edit.files.media_failed');
+    const parts = fileInfoParts(media, opts);
+    return parts.length ? parts.map(p => p.text).join(' · ') : opts.t('showcase.adv_edit.files.media_none');
+}
+export function advEditOutputTarget(folders, nfoName) {
+    if (!folders?.output) return '';
+    const base = folders.output.replace(/\/+$/, '');
+    return base + '/' + (nfoName ? encodeURIComponent(nfoName) : '');
+}
+function advEditPosterView(poster, imgFail) {
+    if (!poster.visible) return 'hidden';
+    if (poster.exists === true && !imgFail.poster) return 'img';
+    if (poster.exists === null) return 'generic';
+    if (poster.exists === false && poster.can_regen) return 'empty';
+    return 'broken';
+}
+export function advEditFilesView(info, { borrowed = false, imgFail = {} } = {}) {
+    const cover = info?.cover || {}, poster = info?.poster || {}, thumb = info?.thumb || {}, folders = info?.folders || {};
+    const banner = info?.state === 'missing' ? (info.readonly ? 'missing_readonly' : 'missing') : info?.state === 'unreachable' ? 'unreachable' : '';
+    return {
+        banner,
+        cover: cover.exists && !imgFail.cover ? 'img' : 'broken',
+        poster: advEditPosterView(poster, imgFail),
+        thumb: thumb.exists && !imgFail.thumb ? 'img' : thumb.mode === 'cache' && !thumb.exists && cover.exists ? 'pending' : 'broken',
+        thumbChip: thumb.stale ? 'stale' : thumb.mode === 'cover' ? 'direct' : '',
+        canRegen: !!poster.can_regen && !borrowed,
+        canReread: info?.state === 'ok',
+        folders: info?.readonly ? { open: '', source: folders.source || '', output: advEditOutputTarget(folders, info.nfo?.name) } : { open: folders.source || '', source: '', output: '' },
+    };
+}
+export function advEditActionNotice(kind, data, t) {
+    if (kind === 'regen') {
+        if (data?.success === true && data.poster?.status === 'updated') return { text: t('showcase.adv_edit.files.poster_updated'), type: 'success', reload: true };
+        if (data?.success === true && data.poster?.status === 'skipped') return { text: t('showcase.adv_edit.files.poster_skipped'), type: 'info', reload: false };
+        if (data?.success === false && data.error === 'generic_cover_name') return { text: t('showcase.adv_edit.files.poster_generic_cover'), type: 'warning', reload: false };
+        if (data?.success === false && data.error === 'no_cover') return { text: t('showcase.adv_edit.files.poster_no_cover'), type: 'warning', reload: false };
+        if (data?.success === false && data.error === 'readonly_output_not_current') return { text: t('showcase.adv_edit.files.poster_readonly_output'), type: 'warning', reload: false };
+        if (data?.success === false && data.error === 'unreachable') return { text: t('showcase.adv_edit.files.unreachable'), type: 'warning', reload: false };
+        return { text: t('showcase.adv_edit.files.poster_failed'), type: 'error', reload: false };
+    }
+    if (data?.success === true) {
+        const status = data.status;
+        if (status === 'ok') return { text: t('showcase.adv_edit.files.reread_done'), type: 'success', reload: true };
+        if (status === 'failed') return { text: t('showcase.adv_edit.files.media_failed'), type: 'warning', reload: true };
+        if (status === 'unreadable') return { text: t('showcase.adv_edit.files.reread_unreadable'), type: 'warning', reload: false };
+        if (status === 'stale') return { text: t('showcase.adv_edit.files.reread_stale'), type: 'warning', reload: false };
+        if (status === 'changed') return { text: data.readonly ? t('showcase.adv_edit.files.reread_changed_readonly') : t('showcase.adv_edit.files.reread_changed'), type: 'warning', reload: false };
+        if (status === 'timeout') return { text: t('showcase.adv_edit.files.reread_timeout'), type: 'info', reload: false };
+        if (status === 'unavailable') return { text: t('showcase.adv_edit.files.reread_unavailable'), type: 'warning', reload: false };
+        if (status === 'skipped') return { text: t('showcase.adv_edit.files.reread_skipped'), type: 'info', reload: false };
+    }
+    if (data?.success === false && data.error === 'unreachable') return { text: t('showcase.adv_edit.files.unreachable'), type: 'warning', reload: false };
+    return { text: t('showcase.adv_edit.files.reread_error'), type: 'error', reload: false };
+}

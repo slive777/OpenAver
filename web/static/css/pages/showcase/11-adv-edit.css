@@ -10,7 +10,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--fluent-radius-md);
+    gap: 0.5rem;
 }
 
 .adv-edit-title {
@@ -18,6 +18,13 @@
 }
 
 .adv-edit-x {
+    width: 1.9rem;
+    height: 1.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--fluent-radius-md);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), color var(--fluent-duration-fast) var(--fluent-ease-standard);
     color: var(--text-secondary);
     background: transparent;
     border: 0;
@@ -33,3 +40,22 @@
 .adv-edit-foot {
     flex: 0 0 auto;
 }
+
+.adv-edit-x:hover { background: color-mix(in oklch, var(--color-base-content) 10%, transparent); color: var(--text-primary); }
+.adv-edit-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.adv-edit-notices { flex: 0 0 auto; }
+.adv-edit-notice { margin-top: 0.5rem; padding: 0.5rem; border: 1px solid var(--stroke-subtle); border-radius: var(--fluent-radius-md); }
+.adv-edit-notice--bad { border-color: var(--color-error); }
+.adv-edit-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.adv-edit-sec-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.adv-edit-pv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.adv-edit-pv-item, .adv-edit-pv-frame { min-width: 0; }
+.adv-edit-pv-item { margin: 0; }
+.adv-edit-pv-frame { aspect-ratio: 3 / 2; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--surface-1); border: 1px solid var(--stroke-subtle); border-radius: var(--fluent-radius-md); }
+.adv-edit-pv-img { width: 100%; height: 100%; object-fit: contain; }
+.adv-edit-pv-reason, .adv-edit-row-value { overflow-wrap: anywhere; min-width: 0; }
+.adv-edit-chip { border-radius: var(--fluent-radius-sm); }
+.adv-edit-chip--warn { color: var(--color-warning); }
+.adv-edit-row { display: grid; grid-template-columns: 5rem minmax(0, 1fr) auto; gap: 0.5rem; align-items: center; margin-top: 0.75rem; }
+@media (max-width: 36rem) { .adv-edit-row { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .adv-edit-x { transition: none; } }
