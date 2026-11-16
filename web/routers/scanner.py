@@ -36,6 +36,7 @@ from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo, _
 from core.cover_layout import cover_base_stem
 from core.video_extensions import get_video_extensions
 from core.gallery_generator import HTMLGenerator
+from core.scan_continuity import continue_renamed_videos, clear_user_tags_for_continued
 from core.path_utils import to_file_uri, is_path_under_dir, uri_to_fs_path, coerce_to_file_uri, uri_to_local_fs_path
 from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
@@ -482,6 +483,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
 
                 # 取得現有 mtime 索引
                 db_index = repo.get_mtime_index()
+                continued_uris = continue_renamed_videos(repo, db_index, all_files, normalized_dir, path_mappings, skipped_paths)
 
                 # 比對決定需要處理的檔案
                 needs_scan = []
@@ -555,6 +557,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
 
                 # 批次寫入
                 if videos_to_upsert:
+                    clear_user_tags_for_continued(videos_to_upsert, continued_uris)
                     inserted, updated = repo.upsert_batch(videos_to_upsert)
                     total_inserted += inserted
                     total_updated += updated
