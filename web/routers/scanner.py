@@ -324,6 +324,16 @@ def _post_scan_cleanup_and_plot_backfill(repo, config, path_mappings, is_aborted
     except Exception as e:
         logger.warning("has_plot backfill pass failed: %s: %s", type(e).__name__, e)
 
+    try:
+        from core.cover_signature_pass import run_cover_signature_pass
+        stats = run_cover_signature_pass(
+            repo, config, path_mappings, should_abort=is_aborted,
+        )
+        if stats.checked > 0:
+            yield _sse_event({"type": "log", "level": "info", "message": f"封面檢查：{stats.checked} 部、{stats.changed} 部有變、耗時 {stats.seconds:.1f} 秒"})
+    except Exception as e:
+        logger.warning("cover signature pass failed: %s: %s", type(e).__name__, e)
+
 
 def _new_faces_round() -> None:
     """掃描收尾（非 abort）：人臉端點「連不上」側欄通知可再出一次（187a-T4b）。"""
