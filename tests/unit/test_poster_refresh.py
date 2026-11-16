@@ -97,6 +97,16 @@ def test_nothing_to_refresh_writes_nothing(tmp_path, case):
     assert snapshot(tmp_path) == before
 
 
+@pytest.mark.parametrize('external_mode_on,expected', [(True, 'failed'), (False, 'none')])
+def test_cover_dir_offline_reports_failed_only_in_external_mode(tmp_path, external_mode_on, expected):
+    cover = tmp_path / 'gone' / 'movie.jpg'
+    before = snapshot(tmp_path)
+    result = refresh_poster(str(cover), '0.4000,0.5000', external_mode_on=external_mode_on)
+    assert result.status == expected
+    assert snapshot(tmp_path) == before
+    assert not (tmp_path / 'gone').exists()
+
+
 @pytest.mark.skipif(not hasattr(os, 'fchown'), reason='POSIX only')
 def test_preserves_mode_and_attempts_group_even_if_denied(tmp_path, monkeypatch):
     cover, poster = tmp_path / 'movie.jpg', tmp_path / 'movie-poster.jpg'

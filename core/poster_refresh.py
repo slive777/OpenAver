@@ -21,7 +21,11 @@ class PosterRefreshResult(NamedTuple):
 
 def refresh_poster(cover_fs, focal_str, *, external_mode_on) -> PosterRefreshResult:
     try:
-        if not cover_fs or not os.path.isfile(cover_fs):
+        if not cover_fs:
+            return PosterRefreshResult("none")
+        if not os.path.isfile(cover_fs):
+            if external_mode_on and not os.path.isdir(os.path.dirname(cover_fs)):
+                return PosterRefreshResult("failed")
             return PosterRefreshResult("none")
         poster_fs = cover_base_stem(cover_fs) + "-poster" + COVER_EXT
         if not os.path.isfile(poster_fs):
