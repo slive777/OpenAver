@@ -448,6 +448,11 @@ _manual_detect_executor = ThreadPoolExecutor(max_workers=1)
 _focal_save_lock = threading.Lock()
 
 
+def cover_outside_readonly_output_root(ro_owner, cover_uri) -> bool:
+    """唯讀來源的封面卻不在它目前的輸出根底下（純函式，零 I/O）。"""
+    return ro_owner is not None and bool(cover_uri) and not is_path_under_dir(cover_uri, ro_owner[2])
+
+
 @router.post("/video/detect-focal")
 def detect_video_focal(req: DetectFocalRequest):
     """使用者主動 force-detect 封面焦點預覽（98b-T4 CD-98b-7 / Codex P0；99a-T1a 改純預覽-only）。
@@ -620,7 +625,7 @@ def set_manual_focal(req: ManualFocalRequest):
                 )
             try:
                 ro_owner = resolve_owning_output_root(row.path, config)
-                if ro_owner is not None and req.expected_cover_path and not is_path_under_dir(req.expected_cover_path, ro_owner[2]):
+                if cover_outside_readonly_output_root(ro_owner, req.expected_cover_path):
                     poster_status = "skipped"
                 else:
                     cover_fs = uri_to_local_fs_path(req.expected_cover_path, path_mappings) if req.expected_cover_path else ''
