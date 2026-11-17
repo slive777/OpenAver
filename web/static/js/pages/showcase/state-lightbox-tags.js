@@ -38,7 +38,6 @@ export function stateLightboxTags() {
         // 確認新增 tag — 呼叫 POST /api/user-tags
         async confirmAddLbTag() {
             const video = this.currentLightboxVideo;
-            const dicts = versionsOf(video).slice();   // 198b-T7b：標籤是作品層的帳；第一個 await 前取快照（FE-TIMING-16）
             const tag = (this.newLbTagValue || '').trim();
             if (!tag) {
                 this.addingLbTag = false;
@@ -55,35 +54,9 @@ export function stateLightboxTags() {
                 this.newLbTagValue = '';
                 return;
             }
-            try {
-                const resp = await fetch('/api/user-tags', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        file_path: video.path,
-                        add: [tag],
-                    }),
-                });
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                const data = await resp.json();
-                if (data.success) {
-                    const list = Array.isArray(data.work_user_tags) ? data.work_user_tags : data.user_tags;
-                    writeWorkFields(dicts, { user_tags: list }, this.paginatedVideos, this.currentLightboxVideo).forEach((d) => _recomputeVideoBadges(d));
-                    if (data.readonly_no_output) {
-                        this.showToast(window.t('showcase.lightbox.tag_nfo_not_written'), 'info');
-                    }
-                    if (data.nfo_write_blocked) {
-                        this.showToast(window.t('showcase.lightbox.tag_nfo_write_blocked'), 'info');
-                    }
-                } else {
-                    throw new Error(data.error || 'API failed');
-                }
-            } catch (e) {
-                this.showToast(window.t('showcase.lightbox.tag_api_failed'), 'error');
-            } finally {
-                this.addingLbTag = false;
-                this.newLbTagValue = '';
-            }
+            await this._applyUserTagsChange({ add: [tag] });
+            this.addingLbTag = false;
+            this.newLbTagValue = '';
         },
 
         // 取消輸入框
@@ -95,16 +68,21 @@ export function stateLightboxTags() {
 
         // 刪除 user tag — 呼叫 POST /api/user-tags {remove: [tag]}
         async removeLbUserTag(tag) {
+            await this._applyUserTagsChange({ remove: [tag] });
+        },
+
+        async _applyUserTagsChange({ add = [], remove = [] }) {
             const video = this.currentLightboxVideo;
             const dicts = versionsOf(video).slice();
-            if (!video?.path) return;
+            if (!video?.path) return false;
             try {
                 const resp = await fetch('/api/user-tags', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         file_path: video.path,
-                        remove: [tag],
+                        ...(add.length ? { add } : {}),
+                        ...(remove.length ? { remove } : {}),
                     }),
                 });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -118,11 +96,13 @@ export function stateLightboxTags() {
                     if (data.nfo_write_blocked) {
                         this.showToast(window.t('showcase.lightbox.tag_nfo_write_blocked'), 'info');
                     }
+                    return true;
                 } else {
                     throw new Error(data.error || 'API failed');
                 }
             } catch (e) {
                 this.showToast(window.t('showcase.lightbox.tag_api_failed'), 'error');
+                return false;
             }
         },
     };

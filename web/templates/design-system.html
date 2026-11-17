@@ -761,13 +761,15 @@
                         <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
                             <span class="lb-tag">動作</span>
                             <span class="lb-tag">喜劇</span>
+                            <span class="adv-edit-tag">標籤</span>
+                            <span class="adv-edit-tag adv-edit-tag--mine">你的標籤</span>
                             <div class="lbx-tags-pop"><div class="lbx-tags-pop-list"><span class="lb-tag lbx-utag"><span class="lbx-utag-link">自訂標籤</span><button type="button" class="lbx-utag-x" style="pointer-events: none;" tabindex="-1" aria-hidden="true">×</button></span></div></div>
                             <button type="button" class="maker-latest-chip" style="pointer-events: none;">示例片商</button>
                             <button type="button" class="lb-tag lbx-vcap is-active" style="pointer-events: none;" tabindex="-1">FHD 中字</button>
                         </div>
                         <div class="ds-pill-card-meta">
-                            <span class="ds-pill-card-class">類 3 · <code>.lb-tag</code> / <code>.lbx-utag</code> / <code>.lbx-vcap</code></span>
-                            <p class="ds-pill-card-desc">Lightbox 元資料 tag chips；搜尋頁空狀態片商膠囊（可點變體）；燈箱你的標籤（<code>.lbx-utag</code>，中性色）；燈箱版本膠囊（<code>.lbx-vcap.is-active</code> 為目前版本）</p>
+                            <span class="ds-pill-card-class">類 3 · <code>.lb-tag</code> / <code>.lbx-utag</code> / <code>.lbx-vcap</code> / <code>.adv-edit-tag</code></span>
+                            <p class="ds-pill-card-desc">Lightbox 元資料 tag chips；搜尋頁空狀態片商膠囊（可點變體）；燈箱你的標籤（<code>.lbx-utag</code>，中性色）；燈箱版本膠囊（<code>.lbx-vcap.is-active</code> 為目前版本）。進階編輯「資料」段也使用標籤膠囊。</p>
                             <code class="ds-pill-card-token">--radius-pill: 999px</code>
                         </div>
                     </div>
@@ -3614,6 +3616,14 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
                     <header class="adv-edit-head"><h3 class="fluent-modal-title adv-edit-title">進階編輯 · ABF-348</h3><button type="button" class="adv-edit-x" aria-label="關閉">✕</button></header>
                     <div class="adv-edit-notice">來源目前連不上</div>
                     <div class="adv-edit-sections">
+                        <section class="adv-edit-sec adv-edit-sec--data">
+                            <div class="adv-edit-sec-head"><h4>資料</h4></div>
+                            <div class="adv-edit-row adv-edit-row--data"><span class="adv-edit-row-label">片名</span><div class="adv-edit-row-value"><span class="adv-edit-data-text">示範片名</span></div><div class="adv-edit-row-actions"><button type="button" class="adv-edit-icon-btn" aria-label="編輯"><i class="bi bi-pencil" aria-hidden="true"></i></button></div></div>
+                            <div class="adv-edit-row adv-edit-row--data"><span class="adv-edit-row-label">系列</span><div class="adv-edit-row-value"><span class="adv-edit-data-text adv-edit-data-text--empty">—</span></div></div>
+                            <div class="adv-edit-row adv-edit-row--data"><span class="adv-edit-row-label">片商</span><div class="adv-edit-row-value"><input class="input input-bordered input-sm adv-edit-input" aria-label="片商" value="示範片商"><p class="adv-edit-data-error">請輸入有效資料</p></div><div class="adv-edit-row-actions"><button type="button" class="adv-edit-icon-btn" aria-label="儲存"><i class="bi bi-check-lg" aria-hidden="true"></i></button><button type="button" class="adv-edit-icon-btn" aria-label="取消"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div></div>
+                            <div class="adv-edit-row adv-edit-row--data"><span class="adv-edit-row-label">標籤</span><div class="adv-edit-row-value"><div class="adv-edit-tag-list"><span class="adv-edit-tag"><span class="adv-edit-tag-text">標籤</span></span><span class="adv-edit-tag adv-edit-tag--fixed"><span class="adv-edit-tag-text">檔名標籤</span></span></div></div></div>
+                            <div class="adv-edit-row adv-edit-row--data"><span class="adv-edit-row-label">你的標籤</span><div class="adv-edit-row-value"><div class="adv-edit-tag-list"><span class="adv-edit-tag adv-edit-tag--mine"><span class="adv-edit-tag-text">我的標籤</span><button type="button" class="adv-edit-tag-x" aria-label="移除"><i class="bi bi-x" aria-hidden="true"></i></button></span><button type="button" class="adv-edit-tag-add" aria-label="新增"><i class="bi bi-plus-lg" aria-hidden="true"></i></button><input class="adv-edit-tag-input" aria-label="新增標籤" placeholder="新增標籤"></div></div></div>
+                        </section>
                         <section class="adv-edit-sec adv-edit-sec--files">
                             <div class="adv-edit-sec-head"><h4 class="adv-edit-sec-title">檔案</h4><button type="button" class="btn btn-sm btn-ghost adv-edit-folder">📁 開資料夾</button></div>
                             <div class="adv-edit-pv">
@@ -3628,6 +3638,11 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
                     </div>
                     <div class="modal-action fluent-modal-actions adv-edit-foot"><button type="button" class="btn btn-ghost">關閉</button><button type="button" class="btn btn-primary adv-edit-update">更新</button></div>
                 </div>
+            </div>
+
+            <div class="ds-subsection">
+                <h3>資料段不能改時</h3>
+                <div class="adv-edit-notice">請切換到有資料的版本，或先補完資料。</div>
             </div>
 
         </section>

@@ -5,12 +5,7 @@
 import { openLocal } from '@/shared/open-local.js';
 import { playVideo } from '@/shared/play-video.js';
 import { isCloudTranslateProvider, translateFailureToastKey } from '@/shared/translate-provider.js';
-
-// TASK-106-T3 CD-106-8: 純函式，module-level named export（非 this.-bound method）
-// 三分隔符 `、`/`，`（U+FF0C 全形逗號）/`,`，對齊 core/scrapers/actress/wiki_ja.py:108 先例。
-export function parseActorsInput(str) {
-    return str.split(/[、，,]/).map(s => s.trim()).filter(Boolean);
-}
+import { parseActorsInput } from '@/shared/parse-actors-input.js';
 
 // TASK-113c-T8：三顆純函式已搬至 shared/cover-fallback.js（單一所有者）。
 // 刻意**不 re-export**——re-export 等於留第二條取得同一個決策的路徑，

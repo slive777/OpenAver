@@ -144,6 +144,7 @@ export function stateAdvEdit() {
                     await this._reloadWallKeepLightbox(oldPath, { reanchorTo: data.path, bustPaths: [data.path], t: Date.now() });
                     if (gen !== this._advEditGen) return;
                     this.cancelAdvEditCell();
+                    this.onAdvEditSynced?.();
                     await this.loadAdvEditInfo();
                     if (gen !== this._advEditGen) return;
                     const renamed = typeof data.name_changed === 'boolean' ? data.name_changed : nameChanged;
@@ -178,6 +179,7 @@ export function stateAdvEdit() {
                 if (notice.reload) {
                     await this.refreshVideoData(video);
                     if (gen !== this._advEditGen) return;
+                    this.onAdvEditSynced?.();
                     await this.loadAdvEditInfo();
                 } else if (notice.sync) await this.loadAdvEditInfo();
                 if (gen !== this._advEditGen) return;
@@ -224,6 +226,7 @@ export function stateAdvEdit() {
         },
 
         cancelAdvEditCell() {
+            if (this.onAdvEditCellCancel?.() === true) return;
             this._advEditCell = '';
             this.advEditPathDraft = '';
             this.advEditPathError = '';

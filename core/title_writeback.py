@@ -37,6 +37,42 @@ class NfoParseError(Exception):
     """NFO 內容無法解析成 XML（sanitize 後仍失敗）。"""
 
 
+def apply_title_elements(
+    root,
+    *,
+    number,
+    title_body,
+    original_title,
+    actors,
+    maker,
+    date,
+    nfo_title_format,
+) -> tuple:
+    """樹操作段：就地改 root 的標題元素，回 (display_title, body)。
+
+    吃已淨化的值。original_title=None＝不動 <originaltitle>。
+    """
+    display_title, body = build_display_title(
+        number, title_body, original_title or "", actors, maker, date, nfo_title_format,
+    )
+
+    if number and not nfo_first_text(root, ("num", "id")):
+        set_element_text(root, "num", number, after_tag="title")
+    set_element_text(root, "title", display_title, after_tag="num")
+    if original_title is not None:
+        set_element_text(root, "originaltitle", original_title, after_tag="title")
+    if root.find("sorttitle") is not None:
+        root.find("sorttitle").text = display_title
+
+    for old in list(root.findall("openaver_title_record")):
+        root.remove(old)
+    if nfo_title_format != _DEFAULT_FORMAT:
+        rec = ET.SubElement(root, "openaver_title_record")
+        ET.SubElement(rec, "written").text = display_title
+        ET.SubElement(rec, "body").text = body
+    return display_title, body
+
+
 def rewrite_nfo_titles(
     nfo_path,
     *,
@@ -72,23 +108,10 @@ def rewrite_nfo_titles(
     except ET.ParseError as e:
         raise NfoParseError(str(e)) from e
 
-    display_title, body = build_display_title(
-        number, title_body, original_title, actors, maker, date, nfo_title_format,
+    display_title, body = apply_title_elements(
+        root, number=number, title_body=title_body, original_title=original_title,
+        actors=actors, maker=maker, date=date, nfo_title_format=nfo_title_format,
     )
-
-    if number and not nfo_first_text(root, ("num", "id")):
-        set_element_text(root, "num", number, after_tag="title")
-    set_element_text(root, "title", display_title, after_tag="num")
-    set_element_text(root, "originaltitle", original_title, after_tag="title")
-    if root.find("sorttitle") is not None:
-        root.find("sorttitle").text = display_title
-
-    for old in list(root.findall("openaver_title_record")):
-        root.remove(old)
-    if nfo_title_format != _DEFAULT_FORMAT:
-        rec = ET.SubElement(root, "openaver_title_record")
-        ET.SubElement(rec, "written").text = display_title
-        ET.SubElement(rec, "body").text = body
 
     out = ET.tostring(root, encoding="utf-8", xml_declaration=True)
     path.write_bytes(out)

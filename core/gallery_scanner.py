@@ -21,6 +21,7 @@ from core.focal_trigger import maybe_submit_video_focal
 from core.logger import get_logger
 from core.maker_mapping import load_name_mapping, load_prefix_mapping
 from core.nfo_read import (
+    MANUAL_MAKER_TAG,
     nfo_actor_names,
     nfo_first_text,
     nfo_merged_tags,
@@ -72,6 +73,7 @@ class VideoInfo:
     user_tags: List[str] = field(default_factory=list)
     nfo_thumb: Optional[str] = None  # 暫存用途，不序列化進 DB/cache
     has_plot: Optional[bool] = None  # 暫存：掃描寫 True/False；不進 to_dict（同 nfo_thumb）
+    maker_pinned: bool = False  # 暫存：NFO 有手動片商標記；不進 to_dict（同 has_plot）
 
     def to_dict(self) -> dict:
         return {
@@ -290,12 +292,18 @@ class VideoScanner:
         # key: dir path str → (sorted videos list, sorted images list)
         self._dir_scan_cache: Dict[str, Tuple[List[str], List[str]]] = {}
 
-    def normalize_maker(self, num: str, maker: str) -> str:
+    def normalize_maker(self, num: str, maker: str, *, pinned: bool = False) -> str:
         """根據 name mapping 和番號前綴正規化片商名稱
 
         Step 1: name mapping（直接對照片商名，不依賴 num）
         Step 2: prefix mapping（從番號前綴查詢，作為 fallback）
+
+        `pinned=True` 且 `maker` 非空 → 兩步都跳過、原樣回傳（手動片商不被
+        對照表轉名）。`maker` 為空時不 pin，仍走 Step 2 補回片商。
         """
+        if pinned and maker:
+            return maker
+
         # Step 1: name mapping（不依賴 num）
         if maker and maker in self.name_mapping:
             return self.name_mapping[maker]
@@ -397,6 +405,7 @@ class VideoScanner:
             # 廠牌/標籤 (label)
             info.label = nfo_text(root, 'label')
             info.has_plot = plot_present(nfo_text(root, 'plot'))
+            info.maker_pinned = bool(nfo_text(root, MANUAL_MAKER_TAG))
 
             # <thumb> 元素（相對路徑/絕對路徑/URL，供 find_cover_image L3 使用）
             info.nfo_thumb = nfo_text(root, 'thumb') or None
@@ -609,6 +618,7 @@ class VideoScanner:
                 info.user_tags = nfo_info.user_tags or []
                 info.nfo_thumb = nfo_info.nfo_thumb
                 info.has_plot = nfo_info.has_plot
+                info.maker_pinned = nfo_info.maker_pinned
 
         # 如果 NFO 沒有資料，從檔名解析
         if not info.title or not info.num:
@@ -617,7 +627,7 @@ class VideoScanner:
             info.num = info.num or filename_info.num
 
         # 根據番號前綴正規化片商名稱
-        info.maker = self.normalize_maker(info.num, info.maker)
+        info.maker = self.normalize_maker(info.num, info.maker, pinned=info.maker_pinned)
 
         # 新增：檔名屬性後綴 → tag（CD-6 掃描列）
         _existing = [g.strip() for g in info.genre.split(',') if g.strip()] if info.genre else []

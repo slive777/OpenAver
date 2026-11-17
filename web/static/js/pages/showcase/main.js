@@ -29,6 +29,7 @@ import { stateLightboxAp } from '@/showcase/state-lightbox-ap.js';
 import { stateSimilar }  from '@/showcase/state-similar.js';
 import { stateDelete }   from '@/showcase/state-delete.js';
 import { stateAdvEdit } from '@/showcase/state-adv-edit.js';
+import { stateAdvEditData } from '@/showcase/state-adv-edit-data.js';
 import { stateHiddenSources } from '@/showcase/state-hidden-sources.js';
 import { rescrapeState } from '@/shared/state-rescrape.js';
 import { toastState } from '@/shared/state-toast.js';
@@ -55,6 +56,7 @@ window.showcaseState = function() {
         stateSimilar.call(this),
         stateDelete.call(this),
         stateAdvEdit.call(this),
+        stateAdvEditData.call(this),
         stateHiddenSources.call(this),
         rescrapeState.call(this),
         toastState.call(this),

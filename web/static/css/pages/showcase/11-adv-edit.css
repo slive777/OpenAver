@@ -73,3 +73,31 @@
 .adv-edit-icon-btn:hover { background: color-mix(in oklch, var(--color-base-content) 10%, transparent); color: var(--text-primary); }
 .adv-edit-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .adv-edit-icon-btn { transition: none; } }
+
+.adv-edit-sec--data { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--stroke-subtle); }
+.adv-edit-row--data { align-items: start; }
+.adv-edit-row--data .adv-edit-row-label { min-height: 1.9rem; display: flex; align-items: center; color: var(--text-secondary); }
+.adv-edit-row--data .adv-edit-row-actions { min-height: 1.9rem; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.25rem; }
+.adv-edit-data-text { display: block; padding: 0.25rem 0; white-space: pre-line; overflow-wrap: anywhere; }
+.adv-edit-data-text--empty { color: var(--text-muted); }
+.adv-edit-sec--data .adv-edit-input, .adv-edit-sec--data .adv-edit-textarea { width: 100%; min-width: 0; border-radius: var(--fluent-radius-md); background: var(--surface-1); border: 1px solid var(--stroke-default); }
+.adv-edit-sec--data .adv-edit-input:focus-visible, .adv-edit-sec--data .adv-edit-textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.adv-edit-sec--data .adv-edit-textarea { min-height: 6rem; resize: vertical; }
+.adv-edit-data-error { color: var(--color-error); margin: 0.25rem 0 0; }
+@media (max-width: 36rem) {
+    .adv-edit-row--data { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label actions" "value value"; }
+    .adv-edit-row--data .adv-edit-row-label { grid-area: label; }
+    .adv-edit-row--data .adv-edit-row-value { grid-area: value; }
+    .adv-edit-row--data .adv-edit-row-actions { grid-area: actions; }
+}
+
+.adv-edit-tag-list { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; min-width: 0; }
+.adv-edit-tag { display: inline-flex; align-items: center; gap: .25rem; height: 1.375rem; padding: 0 .5rem; border: 1px solid transparent; border-radius: var(--radius-pill); background: color-mix(in oklch, var(--text-primary) 8%, transparent); color: var(--text-secondary); font-size: .75rem; line-height: 1; white-space: nowrap; max-width: 100%; }
+.adv-edit-tag-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.adv-edit-tag--mine { border-color: var(--stroke-subtle); background: color-mix(in oklch, var(--text-primary) 12%, transparent); color: var(--text-primary); }
+.adv-edit-tag--fixed { cursor: help; color: var(--text-muted); }
+.adv-edit-tag-x { width: 1rem; height: 1rem; flex-shrink: 0; border: 0; border-radius: var(--radius-pill); background: transparent; color: inherit; cursor: pointer; }
+.adv-edit-tag-add { border: 1px dashed var(--stroke-default); border-radius: var(--radius-pill); height: 1.375rem; min-width: 1.375rem; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.adv-edit-tag-x:hover, .adv-edit-tag-add:hover { background: color-mix(in oklch, var(--text-primary) 10%, transparent); }
+.adv-edit-tag-x:focus-visible, .adv-edit-tag-add:focus-visible, .adv-edit-sec--data .adv-edit-tag-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.adv-edit-sec--data .adv-edit-tag-input { width: 8rem; max-width: 100%; height: 1.375rem; border: 1px solid var(--stroke-default); border-radius: var(--radius-pill); background: var(--surface-1); color: var(--text-primary); padding: 0 .5rem; font-size: .75rem; }
