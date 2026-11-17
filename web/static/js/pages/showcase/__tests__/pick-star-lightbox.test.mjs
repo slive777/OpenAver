@@ -16,11 +16,13 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 globalThis.window = globalThis;
-globalThis.window.t = (key) => key;
+globalThis.window.t = (key, p) => (p ? key + '|' + p.tier + '>' + p.next : key);
 
 // closeLightbox / searchFromMetadata 會碰 document；給最小 stub。
 globalThis.document = {
     querySelector() { return null; },
+    querySelectorAll() { return { length: 0 }; },
+    addEventListener() {},
     body: {
         classList: {
             remove() {},
@@ -68,6 +70,8 @@ const { _filteredVideos, _videos } = await import('@/showcase/state-base.js');
 // 篩選那一半）直接算真實 membership，不再猜。所以測試元件必須把**真的那支 mixin** 併進來，
 // 讓述詞走 production call path，而不是在測試裡放一個更淺的 stub 版篩選器。
 const { stateVideos } = await import('../state-videos.js');
+const { statePickTier } = await import('../state-pick-tier.js');
+await import('../animations.js');
 
 const PATH_A = 'file:///m/ABC-123.mp4';
 const PATH_B = 'file:///m/DEF-456.mp4';
@@ -119,7 +123,7 @@ function okResp(results) {
 }
 
 function makeComponent(overrides) {
-    const c = Object.assign({}, stateLightbox(), stateVideos(), {
+    const c = Object.assign({}, stateLightbox(), stateVideos(), statePickTier(), {
         pills: [],
         lightboxOpen: true,
         applyFilterAndSortCalls: 0,
@@ -145,7 +149,7 @@ test('captured ref：飛行中換片，失敗時回滾的是原本那一片，�
         const c = makeComponent({ currentLightboxVideo: videoA });
 
         const p = c.togglePickStar();
-        assert.equal(videoA.user_rating, 1, '樂觀更新寫到 A');
+        assert.equal(videoA.user_rating, 3, '樂觀更新寫到 A（0→3 金）');
 
         // 飛行中滾到下一片
         c.currentLightboxVideo = videoB;
@@ -206,7 +210,7 @@ test('scenario 2：掛 pick pill、取消某片的星 → 燈箱還開著時不�
 test('三層失敗：HTTP 200 + success:true + results[0].ok:false(not_found) 必須當失敗並回滾', async () => {
     // 162a：success:false（HTTP 仍 200）併入同一支——同一失敗原因：伺服器沒存到卻看似成功
     const cases = [
-        { before: 0, optimistic: 1, body: { success: true, results: [{ ok: false, reason: 'not_found' }] } },
+        { before: 0, optimistic: 3, body: { success: true, results: [{ ok: false, reason: 'not_found' }] } },
         { before: 1, optimistic: 0, body: { success: false } },
     ];
     for (const c of cases) {
@@ -244,7 +248,7 @@ test('成功路徑：success:true + results[0].ok:true → 不 toast、不回滾
         mock.calls[0].resolve(okResp([{ ok: true }]));
         await p;
 
-        assert.equal(video.user_rating, 1);
+        assert.equal(video.user_rating, 3);
         assert.equal(c.toasts.length, 0);
         assert.equal(c._pickInFlight[PATH_A], undefined);
     } finally {
@@ -266,7 +270,7 @@ test('成功路徑：success:true + results[0].ok:true → 不 toast、不回滾
 // （成功或已回滾）資料成定局，再篩一次。
 
 
-test('請求 body：file_path + picked 布林（冪等設值，非 toggle）', async () => {
+test('請求 body：file_path + tier（冪等設值，非 toggle）', async () => {
     const mock = mockFetchManual();
     try {
         const video = { path: PATH_A, user_rating: 0 };
@@ -274,7 +278,7 @@ test('請求 body：file_path + picked 布林（冪等設值，非 toggle）', a
         const p = c.togglePickStar();
         assert.equal(mock.calls[0].url, '/api/user-rating');
         assert.equal(mock.calls[0].method, 'POST');
-        assert.deepEqual(mock.calls[0].body, { file_path: PATH_A, picked: true });
+        assert.deepEqual(mock.calls[0].body, { file_path: PATH_A, tier: 'gold' });
         mock.calls[0].resolve(okResp());
         await p;
     } finally {
@@ -298,8 +302,8 @@ test('請求 body：file_path + picked 布林（冪等設值，非 toggle）', a
 // ── 198b-T7b：togglePickStar 作品層（三個版本一起變，燈箱停在非預設版本）──────────────────
 const { normalizeWorkItem: normalizeWork198 } = await import('../work-versions.js');
 
-function pickWork198() {
-    const mkv = (p) => ({ path: 'file:///m/ABF-348' + p, user_rating: 1, title: 'T' + p });
+function pickWork198(rating = 1) {
+    const mkv = (p) => ({ path: 'file:///m/ABF-348' + p, user_rating: rating, title: 'T' + p });
     const list = [mkv('-C.mkv'), mkv('.mp4'), mkv('-LTX.mkv')];
     normalizeWork198({ ...list[0], versions: list });
     return list; // [中字（預設）, 4K, LTX]，皆為原物件
@@ -329,12 +333,119 @@ test('togglePickStar 作品層：LTX 版取消 ★ → 三個版本一起 0、�
         // 失敗：三個版本一起回原狀
         c.currentLightboxVideo = ltx;
         const p2 = c.togglePickStar();
-        assert.deepEqual(all.map((d) => d.user_rating), [1, 1, 1]);
+        assert.deepEqual(all.map((d) => d.user_rating), [3, 3, 3]);
         mock.calls[1].resolve({ ok: true, status: 200, json: async () => ({ success: true, results: [{ ok: false }] }) });
         await p2;
         assert.deepEqual(all.map((d) => d.user_rating), [0, 0, 0], '失敗：三個版本一起回到取消前的 0');
         assert.equal(c.toasts.at(-1).msg, 'showcase.pick.save_failed');
     } finally {
+        mock.restore();
+    }
+});
+
+// ── 201-T4a：四態循環＋body tier＋在途再按＋aria ──
+
+test('togglePickStar 四態循環: 3→2→1→0→3、body 送 tier、在途再按無效、aria 隨等級', async () => {
+    const mock = mockFetchManual();
+    try {
+        const video = { path: PATH_A, user_rating: 0 };
+        const c = makeComponent({ currentLightboxVideo: video });
+
+        // 在途再按：第一個請求還沒放行時再按一次 → 不發第二個請求，等級不跳級
+        const p1 = c.togglePickStar();
+        assert.equal(video.user_rating, 3, '樂觀更新 0→3（金）');
+        c.togglePickStar();
+        assert.equal(mock.calls.length, 1, '在途再按不發第二個請求');
+        assert.equal(video.user_rating, 3, '在途再按不跳級');
+        mock.calls[0].resolve(okResp());
+        await p1;
+        assert.equal(mock.calls[0].body.tier, 'gold');
+
+        // 接著連按：3→2→1→0→3，body tier 依序對齊
+        const ratings = [2, 1, 0, 3];
+        const tiers = ['silver', 'bronze', 'none', 'gold'];
+        for (let i = 0; i < ratings.length; i++) {
+            const p = c.togglePickStar();
+            assert.equal(video.user_rating, ratings[i]);
+            const call = mock.calls[mock.calls.length - 1];
+            call.resolve(okResp());
+            await p;
+            assert.equal(call.body.tier, tiers[i]);
+        }
+
+        // 朗讀文字隨等級（window.t stub 回 key＋參數字串）
+        assert.equal(c.pickStarAria(0), 'showcase.pick.add_aria');
+        assert.equal(c.pickStarAria(3), 'showcase.pick.next_aria|showcase.pick.tier.gold>showcase.pick.tier.silver');
+        assert.equal(c.pickStarAria(2), 'showcase.pick.next_aria|showcase.pick.tier.silver>showcase.pick.tier.bronze');
+        assert.equal(c.pickStarAria(1), 'showcase.pick.remove_aria');
+    } finally {
+        mock.calls.forEach((call) => call.resolve(okResp()));
+        mock.restore();
+    }
+});
+
+test('togglePickStar 失敗回滾: 銀那次失敗整部作品回到金、不變銅也不取消', async () => {
+    const mock = mockFetchManual();
+    try {
+        const [zh, k4, ltx] = pickWork198(3);
+        const all = [zh, k4, ltx];
+        const c = makeComponent({ currentLightboxVideo: ltx, paginatedVideos: [] });
+
+        const p = c.togglePickStar();
+        assert.deepEqual(all.map((d) => d.user_rating), [2, 2, 2], '樂觀更新三個版本一起到銀');
+        assert.equal(mock.calls[0].body.tier, 'silver');
+        mock.calls[0].resolve({ ok: true, status: 200, json: async () => ({ success: false }) });
+        await p;
+
+        assert.deepEqual(all.map((d) => d.user_rating), [3, 3, 3], '失敗：三個版本一起回到金');
+        assert.equal(c.toasts.length, 1);
+        assert.equal(c.toasts[0].msg, 'showcase.pick.save_failed');
+        assert.deepEqual(all.map((d) => d.path in c._pickInFlight), [false, false, false], '落地後三把鎖都清掉');
+    } finally {
+        mock.calls.forEach((call) => call.resolve(okResp()));
+        mock.restore();
+    }
+});
+
+test('togglePickStar 減少動態: 仍換等級、不建補間、星以 gsap.set 寫終值', async () => {
+    const mock = mockFetchManual();
+    const prevQuerySelector = globalThis.document.querySelector;
+    const prevGsap = globalThis.gsap;
+    const prevOpenAver = globalThis.window.OpenAver;
+    const calls = { killTweensOf: [], set: [], fromTo: [], to: [], timeline: [] };
+    try {
+        globalThis.window.OpenAver = { prefersReducedMotion: true };
+        globalThis.gsap = {
+            killTweensOf(...args) { calls.killTweensOf.push(args); },
+            set(...args) { calls.set.push(args); },
+            fromTo(...args) { calls.fromTo.push(args); return {}; },
+            to(...args) { calls.to.push(args); return {}; },
+            timeline(...args) {
+                calls.timeline.push(args);
+                const tl = { fromTo() { return tl; }, to() { return tl; } };
+                return tl;
+            },
+        };
+        const fillEl = { closest() { return null; } };
+        globalThis.document.querySelector = (sel) => (sel === '.pick-star-fill' ? fillEl : null);
+
+        const video = { path: PATH_A, user_rating: 0 };
+        const c = makeComponent({ currentLightboxVideo: video });
+        const p = c.togglePickStar();
+        mock.calls[0].resolve(okResp());
+        await p;
+
+        assert.equal(video.user_rating, 3, '減少動態下等級照換（0→3 金）');
+        assert.equal(calls.fromTo.length, 0, '不走補間');
+        assert.equal(calls.timeline.length, 0, '不建火花 timeline');
+        const setCall = calls.set.find((args) => args[0] === fillEl);
+        assert.ok(setCall, 'gsap.set 寫到星的 fill 元素');
+        assert.deepEqual(setCall[1], { '--pick-fill': '0%' });
+    } finally {
+        globalThis.document.querySelector = prevQuerySelector;
+        globalThis.gsap = prevGsap;
+        globalThis.window.OpenAver = prevOpenAver;
+        mock.calls.forEach((call) => call.resolve(okResp()));
         mock.restore();
     }
 });

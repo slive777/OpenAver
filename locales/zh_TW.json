@@ -1723,6 +1723,12 @@
     "pick": {
       "add_aria": "加入精選",
       "remove_aria": "取消精選",
+      "tier": {
+        "gold": "金",
+        "silver": "銀",
+        "bronze": "銅"
+      },
+      "next_aria": "精選：{tier}，按一下改為{next}",
       "save_failed": "精選儲存失敗，請稍後再試",
       "chip_label": "★精選"
     },

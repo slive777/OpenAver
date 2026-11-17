@@ -17,6 +17,7 @@ import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/whe
 import { shouldShowEnrichButton } from '@/shared/enrich-gate.js';
 import { computeActorAgesMap } from '@/shared/actress-release-age.js';
 import { versionsOf, sameWork, refreshRoute, applyWorkUpdate, writeWorkFields } from './work-versions.js';
+import { nextPickValue, pickTierName } from '@/shared/pick-tier.js';
 import { actorFavsOf } from './lbx-logic.js';
 
 
@@ -852,7 +853,7 @@ export function stateLightbox() {
             if (dicts.some((d) => this._pickInFlight[d.path])) return;
 
             var oldValue = video.user_rating || 0;
-            var newValue = oldValue > 0 ? 0 : 1;
+            var newValue = nextPickValue(oldValue);
 
             dicts.forEach((d) => { this._pickInFlight[d.path] = true; });
             writeWorkFields(dicts, { user_rating: newValue }, this.paginatedVideos, this.currentLightboxVideo);
@@ -869,7 +870,7 @@ export function stateLightbox() {
                 var resp = await fetch('/api/user-rating', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ file_path: path, picked: newValue > 0 }),
+                    body: JSON.stringify({ file_path: path, tier: pickTierName(newValue) ?? 'none' }),
                 });
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 var data = await resp.json();

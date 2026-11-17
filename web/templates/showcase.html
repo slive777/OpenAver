@@ -1347,7 +1347,7 @@
                                      class="lb-title"><button type="button" class="pick-star"
                                         :class="{'is-picked': (currentLightboxVideo?.user_rating || 0) > 0}"
                                         :aria-pressed="(currentLightboxVideo?.user_rating || 0) > 0"
-                                        :aria-label="(currentLightboxVideo?.user_rating||0) > 0 ? t('showcase.pick.remove_aria') : t('showcase.pick.add_aria')"
+                                        :aria-label="pickStarAria(currentLightboxVideo?.user_rating)"
                                         :aria-busy="!!_pickInFlight[currentLightboxVideo?.path]"
                                         @click.stop="togglePickStar()"><i class="bi bi-star pick-star-outline" aria-hidden="true"></i><i class="bi bi-star-fill pick-star-fill" aria-hidden="true"
                                        :style="{ '--pick-fill': (currentLightboxVideo?.user_rating || 0) > 0 ? '0%' : '100%' }"></i></button><span x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></span></div>
