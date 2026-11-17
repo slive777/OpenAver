@@ -1392,7 +1392,7 @@
         "note_no_nfo": "這部片沒有 NFO，請先按補完或進階重新刮削",
         "note_readonly_no_nfo": "輸出資料夾裡沒有這部片可以寫的 NFO",
         "note_nfo_ambiguous": "輸出資料夾有多份 NFO，無法判斷要改哪一份",
-        "note_nfo_unreadable": "現在讀不到這份 NFO（可能硬碟離線）",
+        "note_nfo_unreadable": "讀不到或看不懂這份 NFO（可能硬碟離線，或檔案內容壞了）",
         "note_unreachable": "來源目前連不上",
         "note_nfo_link_outside": "這個 NFO 是連到別處的捷徑，不能在這裡改"
       },

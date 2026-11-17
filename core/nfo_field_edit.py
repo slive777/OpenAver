@@ -3,6 +3,7 @@
 九個進階編輯欄位（片名、原文片名、女優、片商、系列、發行日、簡介、
 簡介譯文、標籤）的寫入集合＝`core.nfo_read` 讀取鏈；只改該欄元素、
 其餘元素（含註解、處理指令、不認得的元素）一個不少。
+例外：releasedate 已存在才同步，清空日期時移除，不新增。
 
 純樹處理層與 IO 編排層。
 """
@@ -288,6 +289,9 @@ def _edit_date(root, value, ctx) -> None:
             e = root.find(t)
             if e is not None:
                 e.text = ""
+        e = root.find("releasedate")
+        if e is not None:
+            root.remove(e)
         return
     for t in ("release", "premiered"):
         e = root.find(t)
@@ -295,6 +299,9 @@ def _edit_date(root, value, ctx) -> None:
             e.text = value
     if root.find("release") is None and root.find("premiered") is None:
         set_element_text(root, "premiered", value)
+    e = root.find("releasedate")
+    if e is not None:
+        e.text = value
     e = root.find("year")
     if e is not None:
         e.text = value[:4]

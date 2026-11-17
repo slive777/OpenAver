@@ -110,6 +110,12 @@ NFO_THIRD_YEAR_ONLY = """<?xml version="1.0" encoding="utf-8"?>
 </movie>
 """
 
+NFO_THIRD_RELEASEDATE = """<movie>
+  <premiered>2023-01-02</premiered>
+  <releasedate>2023-01-02</releasedate>
+  <year>2023</year>
+</movie>"""
+
 NFO_COMMENT_AMP = """<?xml version="1.0" encoding="utf-8"?>
 <movie>
   <title>t</title>
@@ -231,6 +237,15 @@ def test_written_value_reads_back_via_nfo_read():
     back = load_tree(dump_tree(root))
     assert nfo_read.nfo_text(back, "year") == "2025"
     assert nfo_read.nfo_text(back, "premiered") == "2025-08-09"
+    assert back.find("releasedate") is None
+    root = _load(NFO_THIRD_RELEASEDATE)
+    apply_field(root, "release_date", {"value": "2025-08-09"}, EditContext(NUM))
+    back = load_tree(dump_tree(root))
+    assert back.find("premiered").text == "2025-08-09"
+    assert back.find("releasedate").text == "2025-08-09"
+    assert apply_field(root, "release_date", {"value": "2025-08-09"}, EditContext(NUM)).changed is False
+    apply_field(root, "release_date", {"value": ""}, EditContext(NUM))
+    assert load_tree(dump_tree(root)).find("releasedate") is None
     root = _load(NFO_THIRD_SET_NONAME)
     apply_field(root, "series", {"value": "SS"}, EditContext(NUM))
     assert nfo_read.nfo_series_name(load_tree(dump_tree(root))) == "SS"
