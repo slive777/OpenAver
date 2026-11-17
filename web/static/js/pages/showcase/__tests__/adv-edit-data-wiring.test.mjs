@@ -73,8 +73,12 @@ test('test_adv_edit_data_write_failure_and_plot_pair', async () => {
     try {
         c.openAdvEdit(); await flush();
         for (const [error, key] of [['nfo_write_failed', 'err_write_failed'], ['db_write_failed', 'err_db_failed'], [null, 'err_generic']]) {
+            const gets = s.calls.filter(x => x.url.includes('/edit-data')).length, refreshes = s.refreshes.length;
+            if (error === null) s.setGet(view('M2'));
             c.startAdvEditData('maker'); c.advEditDataDraft = 'X'; s.setPost(error ? { success: false, error } : new Error('offline')); await c.confirmAdvEditData();
-            assert.equal(c._advEditCell, ''); assert.equal(c.advEditData.values.maker, 'M1'); assert.deepEqual(s.toasts.at(-1), [`showcase.adv_edit.data.${key}`, 'error']);
+            assert.equal(s.calls.filter(x => x.url.includes('/edit-data')).length, gets + (error === null ? 1 : 0));
+            assert.equal(s.refreshes.length, refreshes + (error === null ? 1 : 0));
+            assert.equal(c._advEditCell, ''); assert.equal(c._advEditBusy, ''); assert.equal(c.advEditData.values.maker, error === null ? 'M2' : 'M1'); assert.deepEqual(s.toasts.at(-1), [`showcase.adv_edit.data.${key}`, 'error']);
         }
         for (const [field, draft, error] of [['release_date', '2024-02-30', 'invalid_date'], ['title', '   ', 'title_empty']]) {
             const n = s.calls.length; c.startAdvEditData(field); c.advEditDataDraft = draft; await c.confirmAdvEditData();

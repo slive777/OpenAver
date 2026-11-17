@@ -84,6 +84,7 @@ export function stateAdvEditData() {
             if (code !== null) { this.advEditDataError = code; return; }
             const video = this.currentLightboxVideo, path = video.path, cell = this._advEditCell;
             const value = field.toValue(this.advEditDataDraft), gen = this._advEditDataGen;
+            let reloadAfterFailure = false;
             this._advEditBusy = 'data';
             try {
                 let data = null;
@@ -103,9 +104,16 @@ export function stateAdvEditData() {
                 } else {
                     if (stillEditing) this.cancelAdvEditData();
                     this.showToast(window.t(errorKeyOf(data?.error)), 'error');
+                    reloadAfterFailure = data === null;
                 }
             } finally {
                 if (gen === this._advEditDataGen) this._advEditBusy = '';
+            }
+            if (reloadAfterFailure && gen === this._advEditDataGen) {
+                const loading = this.loadAdvEditData(), reloadGen = this._advEditDataGen;
+                await loading;
+                if (reloadGen !== this._advEditDataGen) return;
+                await this.refreshVideoData(video);
             }
         },
         advEditTagKinds() {
@@ -172,6 +180,7 @@ export function stateAdvEditData() {
             const payload = tagDraftPayload(this.advEditDataTagDraft);
             if (payload === null) { this.cancelAdvEditData(); return; }
             const video = this.currentLightboxVideo, path = video.path, cell = this._advEditCell, gen = this._advEditDataGen;
+            let reloadAfterFailure = false;
             this._advEditBusy = 'data';
             try {
                 if (kind === 'utags') {
@@ -197,9 +206,16 @@ export function stateAdvEditData() {
                 } else {
                     if (stillEditing) this.cancelAdvEditData();
                     this.showToast(window.t(errorKeyOf(data?.error)), 'error');
+                    reloadAfterFailure = data === null;
                 }
             } finally {
                 if (gen === this._advEditDataGen) this._advEditBusy = '';
+            }
+            if (reloadAfterFailure && gen === this._advEditDataGen) {
+                const loading = this.loadAdvEditData(), reloadGen = this._advEditDataGen;
+                await loading;
+                if (reloadGen !== this._advEditDataGen) return;
+                await this.refreshVideoData(video);
             }
         },
         advEditDataFields() {
