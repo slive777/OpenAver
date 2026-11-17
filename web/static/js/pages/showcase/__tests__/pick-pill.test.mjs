@@ -76,6 +76,44 @@ test('pick 分支：video.user_rating === 0 → 不 match', () => {
     assert.equal(predicate({ user_rating: 0 }), false);
 });
 
+const PICK_VIDEOS = [
+    { n: 'gold', user_rating: 3, actresses: 'A' },
+    { n: 'silver', user_rating: 2, actresses: 'B' },
+    { n: 'bronze', user_rating: 1, actresses: 'A' },
+    { n: 'zero', user_rating: 0, actresses: 'A' },
+    { n: 'missing', actresses: 'A' },
+    { n: 'null', user_rating: null, actresses: 'A' },
+    { n: 'nan', user_rating: NaN, actresses: 'A' },
+    { n: 'five', user_rating: 5, actresses: 'A' },
+];
+
+function pickNames(pills, nameToGroup) {
+    const pred = buildPillPredicate(pills, nameToGroup || {}, {});
+    return PICK_VIDEOS.filter(pred).map((v) => v.n);
+}
+
+test('pick pill matrix: ≥／＝／≤ 與未精選、fail-closed', () => {
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '1' }]), ['gold', 'silver', 'bronze', 'five']);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '2', op: '>=' }]), ['gold', 'silver', 'five']);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '1', op: '=' }]), ['bronze']);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '3', op: '=' }]), ['gold', 'five']);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '2', op: '<=' }]), ['silver', 'bronze']);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '3', op: '<=' }]), ['gold', 'silver', 'bronze', 'five']);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '9' }]), []);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '0' }]), []);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '2', op: '~' }]), []);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: '2', op: null }]), []);
+    assert.deepEqual(pickNames([{ dim: 'pick', value: 2, op: '>=' }]), []);
+    assert.deepEqual(
+        pickNames([{ dim: 'pick', value: '2', op: '>=' }, { dim: 'actress', value: 'A' }], { a: ['A'] }),
+        ['gold', 'five'],
+    );
+    assert.deepEqual(
+        pickNames([{ dim: 'pick', value: '1' }, { dim: 'actress', value: 'A' }], { a: ['A'] }),
+        ['gold', 'bronze', 'five'],
+    );
+});
+
 
 // =====================================================================
 // Part B — togglePickPill() / _hasPickPill() / pillLabel()
