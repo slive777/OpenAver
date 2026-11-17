@@ -1050,12 +1050,13 @@ export function stateLightbox() {
             // TASK-124a-T2：新增 _releaseEditor 分支（兩個 slot 依 §3.5 不變式恆不同時非
             // null，三元式安全）。
             // TASK-198a-T4：納入第三個 slot _resolutionEditor（三個 slot 至多一個非 null）。
-            if (this._pillEditor || this._releaseEditor || this._resolutionEditor) {
+            if (this._pillEditor || this._releaseEditor || this._resolutionEditor || this._pickEditor) {
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     if (this._pillEditor) this._cancelPillEditor();
                     else if (this._releaseEditor) this._cancelReleaseEditor();
-                    else this._cancelResolutionEditor();
+                    else if (this._resolutionEditor) this._cancelResolutionEditor();
+                    else this._cancelPickEditor();
                     return;
                 }
                 return;                       // 第二段：鎖其餘鍵。不得 preventDefault
