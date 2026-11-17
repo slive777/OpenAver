@@ -17,6 +17,9 @@ Declared coupling (§1.4, NOT part of this task's replacement scope):
 read-time extraction) but if the any-depth rule in `nfo_actor_names` ever
 changes, `add_actor` must be reviewed for drift.
 
+`core.nfo_field_edit`（T2a）寫入集合須與這三個常數與本檔讀取鏈同步（照
+`add_actor` 先例的寫法）：`MAKER_TAGS`／`DATE_TAGS`／`MANUAL_MAKER_TAG`。
+
 Companion module: `core.nfo_stat` (F-5, filesystem `.nfo` mtime) is named
 symmetrically but deliberately not merged — orthogonal failure domains
 (`ET.ParseError` here vs. `OSError` there).
@@ -25,6 +28,10 @@ symmetrically but deliberately not merged — orthogonal failure domains
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+
+MAKER_TAGS = ('maker', 'studio')
+DATE_TAGS = ('release', 'premiered', 'year')
+MANUAL_MAKER_TAG = 'openaver_manual_maker'
 
 
 def nfo_text(root: ET.Element, tag: str) -> str:
