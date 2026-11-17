@@ -108,6 +108,8 @@ EXPECTED_TOOL_NAMES = {
     "submit_actress",
     "upload_actress_photo",
     "video_title_writeback",
+    "video_edit_field",
+    "video_edit_data",
     "wishlist_add",
     "wishlist_membership",
     "image_search_number",
@@ -125,6 +127,23 @@ REQUIRED_TOOL_FIELDS = [
 
 
 class TestCapabilitiesEndpoint:
+
+    def test_video_edit_field_requires_confirmation(self, client):
+        data = client.get("/api/capabilities").json()
+        tools = {t["name"]: t for t in data["tools"]}
+        edit = tools["video_edit_field"]
+        assert edit["side_effect"] is True
+        assert edit["confirmation_required"] is True
+        assert edit["idempotent"] is False
+        assert edit["retry_safe"] is False
+        for term in ("番號", "唯讀來源", "確認", "video_edit_data", "不要直接重送"):
+            assert term in edit["description"]
+        read = tools["video_edit_data"]
+        assert read["method"] == "GET"
+        assert read["side_effect"] is False
+        assert read["retry_safe"] is True
+        assert tools["enrich_single"]["confirmation_required"] is False
+        assert "video_edit_field" in tools["enrich_single"]["description"]
 
 
     def test_top_level_fields_exist(self, client):
@@ -340,6 +359,8 @@ class TestTranslateTitleTools:
         tools = self._tools(client)
         for name in (
             "video_title_writeback",
+            "video_edit_field",
+            "video_edit_data",
             "wishlist_add",
             "wishlist_membership",
             "image_search_number",

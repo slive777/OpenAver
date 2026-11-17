@@ -184,7 +184,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "enrich_single",
-        "description": "舊片原地補完：補齊 NFO/封面/劇照，不搬移不改名。refresh_full 搭配 overwrite_existing=true 才覆蓋既有 NFO/封面；若只想更新 DB 不覆蓋檔案，用 overwrite_existing=false（預設）。overwrite_existing=true 時必須先讓用戶確認。劇照只補缺的：extrafanart 資料夾裡已經存在的圖一律不會被覆蓋，overwrite_existing 對劇照不適用。metadata 帶番號與 DB 既有值不符會被拒絕，除非帶 allow_number_change=true；分集片（-cd1/-cd2）要逐段各自呼叫本端點，一次只吃一個 file_path。重刮（refresh_full 搭配 overwrite_existing=true；唯讀來源的片則是重刮：readonly_action=rescrape，或省略 readonly_action 但帶 metadata 時的預設，都不看 mode 與 overwrite_existing）成功後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；一般來源的 fill_missing 與 overwrite_existing=false 不會。",
+        "description": "舊片原地補完：補齊 NFO/封面/劇照，不搬移不改名。refresh_full 搭配 overwrite_existing=true 才覆蓋既有 NFO/封面；若只想更新 DB 不覆蓋檔案，用 overwrite_existing=false（預設）。overwrite_existing=true 時必須先讓用戶確認。劇照只補缺的：extrafanart 資料夾裡已經存在的圖一律不會被覆蓋，overwrite_existing 對劇照不適用。metadata 帶番號與 DB 既有值不符會被拒絕，除非帶 allow_number_change=true；分集片（-cd1/-cd2）要逐段各自呼叫本端點，一次只吃一個 file_path。重刮（refresh_full 搭配 overwrite_existing=true；唯讀來源的片則是重刮：readonly_action=rescrape，或省略 readonly_action 但帶 metadata 時的預設，都不看 mode 與 overwrite_existing）成功後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；一般來源的 fill_missing 與 overwrite_existing=false 不會。要改「已有 NFO 的片」的個別欄位（片名、女優、片商、系列、發行日、簡介、標籤），請改用 video_edit_field，不要帶整份 metadata 重產 NFO；本端點仍用於沒有 NFO 的片、補封面與整片重抓。",
         "method": "POST",
         "path": "/api/enrich-single",
         "input_schema": {
@@ -955,6 +955,76 @@ _TOOLS: list[dict] = [
         "retry_safe": True,
         "also_see": "GET /api/showcase/videos — 用 needs_translate 挑出尚未翻譯的片",
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"file:///C:/AVtest/SONE-205/SONE-205.mp4\",\"title\":\"中文標題\"}}' {base}/api/showcase/video/title",
+    },
+    {
+        "name": "video_edit_field",
+        "description": (
+            "改一部影片 NFO 的「單一欄位」並同步資料庫；其餘 NFO 內容（含其他工具寫的、OpenAver 不認得的元素）原樣保留，不會重產整份 NFO。"
+            "要改已經有 NFO 的片的個別欄位，用這支，不要用 enrich_single 帶整份 metadata（沒送的欄位會被寫成空）。"
+            "field 可選：title（片名本體）、original_title（原文片名）、actresses（女優，value 傳字串陣列）、maker（片商）、series（系列）、"
+            "release_date（發行日，YYYY-MM-DD）、plot（簡介）、plot_translation（簡介譯文），以上用 value；"
+            "tags（NFO 標籤）改用 add／remove 兩個陣列，只增刪列出的標籤，沒列的（含畫面上隱藏的）不會動，同一個標籤兩邊都列時 remove 優先。"
+            "value 傳空字串＝把那一格從 NFO 清掉（title 不可清空），清空後之後的補完會把它補回來。番號不能改（field=number 一律拒絕）。"
+            "片商手動設定後，更新片庫與「更新」都不會被番號前綴對照表改回去（NFO 內會多一個 OpenAver 內部標記）；"
+            "進階重新刮削（video_rescrape_with_source）會整份換回來源資料，手動改的值與用 tags 加進 NFO 的標籤都會不見——要長期留的分類請用 user_tags。"
+            "唯讀來源的片寫的是輸出資料夾那份 NFO，來源資料夾零寫入。沒有 NFO、有兩份以上 NFO、沿用別的版本的資料、硬碟離線、NFO 是連到別處的捷徑時回 success:false、什麼都不寫（沒有 NFO 的片請先用 enrich_single 補完）。"
+            "寫入是原子的：失敗時 NFO 與資料庫都維持原樣。建議先用 video_edit_data 讀目前的值（簡介內文、哪些標籤來自檔名都只有它讀得到）再寫。"
+            "回應不明（逾時、斷線）時不要直接重送同一個請求，先用 video_edit_data 讀目前的值再決定："
+            "例如簡介與簡介譯文兩格都有、把 plot 清空時，第一次已讓譯文升為簡介，重送會把升上來的譯文也清掉。"
+            "⚠️ side effect：會改寫使用者的 NFO 檔；執行前須先向使用者說明「哪部片、哪一格、改成什麼」並取得確認；批次改（例如清掉多部片的某個標籤）要先把範圍列給使用者確認。"
+        ),
+        "method": "POST",
+        "path": "/api/showcase/video/edit-field",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "影片路徑（DB key，file:/// URI 格式；showcase_video／collection_sql 回的 path）"},
+                "field": {"type": "string", "enum": ["title", "original_title", "actresses", "maker", "series", "release_date", "plot", "plot_translation", "tags"]},
+                "value": {"description": "field 為 actresses 時是字串陣列，其餘文字欄是字串；空字串（或空陣列）＝清掉。field=tags 時不用"},
+                "add": {"type": "array", "items": {"type": "string"}, "description": "field=tags：要加進 NFO 的標籤（不可含半形逗號）"},
+                "remove": {"type": "array", "items": {"type": "string"}, "description": "field=tags：要從 NFO 拿掉的標籤"},
+            },
+            "required": ["path", "field"],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "unchanged": "boolean — 新值與現值相同，沒有寫任何東西",
+            "values": "object — 本次寫入的欄位（寫入後讀回的值）；簡介任一格成功時兩格都帶回；field=tags 時為空物件，改看 tags",
+            "tags": "[{text, from_filename}] — field=tags 時：寫入後的標籤",
+            "nfo_updated": "boolean",
+            "failure": "失敗形狀（HTTP 200）：{success:false, error:<code>}；code 為 not_found／invalid_path／invalid_field／invalid_value／invalid_date／title_empty／tag_invalid／tag_hidden／borrowed／no_nfo／readonly_no_nfo／nfo_ambiguous／nfo_unreadable／nfo_link_outside／unreachable／nfo_write_failed／db_write_failed",
+        },
+        "side_effect": True, "confirmation_required": True, "idempotent": False, "retry_safe": False,
+        "also_see": "GET /api/showcase/video/edit-data（video_edit_data）— 讀目前值；POST /api/showcase/video/title（video_title_writeback）— 翻譯／復原標題專用，行為與本端點不同",
+        "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"path\":\"file:///C:/AVtest/SONE-205/SONE-205.mp4\",\"field\":\"maker\",\"value\":\"S1\"}}' {base}/api/showcase/video/edit-field",
+    },
+    {
+        "name": "video_edit_data",
+        "description": (
+            "讀一部影片可以被 video_edit_field 改的那八格目前的值，外加 NFO 標籤；純讀，不修改任何資料。"
+            "簡介（plot）與簡介譯文（plot_translation）的內文只有這支讀得到——showcase_video／collection_sql 只看得到有沒有簡介。"
+            "tags 每一顆附 from_filename：true＝這顆標籤是從檔名判斷出來的（例如中文字幕），不在 NFO 裡，刪不掉。"
+            "state=blocked 時（reason 為 borrowed／no_nfo／readonly_no_nfo／nfo_ambiguous／nfo_unreadable／nfo_link_outside／unreachable）這部片目前不能用 video_edit_field 改，也不回簡介與標籤。"
+        ),
+        "method": "GET",
+        "path": "/api/showcase/video/edit-data",
+        "input_schema": {
+            "type": "object",
+            "properties": {"path": {"type": "string", "description": "影片路徑（DB key，file:/// URI 格式）"}},
+            "required": ["path"],
+        },
+        "output_schema": {
+            "success": "boolean（失敗：not_found／invalid_path／nfo_unreadable）",
+            "state": "ok｜blocked",
+            "reason": "string|null — blocked 的原因",
+            "readonly": "boolean — 唯讀來源（video_edit_field 改的是輸出資料夾那份 NFO）",
+            "values": "object — title／original_title／actresses[array]／maker／series／release_date／plot／plot_translation（只有 state=ok）",
+            "tags": "[{text, from_filename}]（只有 state=ok；已濾掉 OpenAver 顯示層隱藏的來源 4K 標籤）",
+        },
+        "side_effect": False,
+        "retry_safe": True,
+        "also_see": "POST /api/showcase/video/edit-field（video_edit_field）— 寫入",
+        "_example_template": "curl '{base}/api/showcase/video/edit-data?path=file:///C:/AVtest/SONE-205/SONE-205.mp4'",
     },
     {
         "name": "wishlist_add",

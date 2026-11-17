@@ -216,3 +216,47 @@ def test_endpoint_holds_lock_and_rereads_row(client, env, monkeypatch):
     assert len(results) == 1 and results[0].status_code == 200
     assert results[0].json() == {'success': False, 'error': 'not_found'}
     assert _file_state(nfo) == before
+
+
+@pytest.fixture
+def capabilities_auth_db(tmp_path, monkeypatch):
+    import core.access_auth as access_auth
+
+    db_path = tmp_path / 'access.db'
+    monkeypatch.setattr('core.access_auth.get_db_path', lambda: db_path)
+    access_auth.ensure_schema()
+    access_auth.reset_state_for_tests()
+    yield db_path
+    access_auth.reset_state_for_tests()
+
+
+def test_video_edit_field_example_drives_endpoint(client, env, capabilities_auth_db):
+    import json
+    import shlex
+    import xml.etree.ElementTree as ET
+
+    from core.gallery_scanner import MANUAL_MAKER_TAG
+
+    repo, uri, _, nfo, _ = env
+    tools = {t['name']: t for t in client.get('/api/capabilities').json()['tools']}
+    tool = tools['video_edit_field']
+    example = shlex.split(tool['example'])
+    assert tool['method'] == 'POST' and example[-1].endswith(tool['path'])
+    body = json.loads(example[example.index('-d') + 1])
+    before = repo.get_by_path(uri)
+    assert body['value'] == 'S1' and body['value'] != before.maker
+    before_xml = ET.parse(nfo).getroot()
+    body['path'] = uri
+    response = client.post(tool['path'], json=body)
+    result = response.json()
+    assert response.status_code == 200 and result['success'] is True
+    assert result['unchanged'] is False and result['values'] == {'maker': 'S1'}
+    after_xml = ET.parse(nfo).getroot()
+    ignored = {'studio', MANUAL_MAKER_TAG}
+    assert [(e.tag, e.text) for e in before_xml.iter() if e.tag not in ignored] == [
+        (e.tag, e.text) for e in after_xml.iter() if e.tag not in ignored
+    ]
+    after = repo.get_by_path(uri)
+    assert after.maker == 'S1'
+    for field in ('title', 'actresses', 'series', 'release_date', 'tags'):
+        assert getattr(after, field) == getattr(before, field)
