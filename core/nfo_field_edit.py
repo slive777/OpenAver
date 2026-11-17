@@ -4,19 +4,33 @@
 簡介譯文、標籤）的寫入集合＝`core.nfo_read` 讀取鏈；只改該欄元素、
 其餘元素（含註解、處理指令、不認得的元素）一個不少。
 
-純函式層：不做任何 IO（不碰檔案系統、不讀寫檔）。
+純樹處理層與 IO 編排層。
 """
 
 from __future__ import annotations
 
+import os
 import re
+import stat
+from pathlib import Path
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import date as _date
 
 from core import nfo_title_format as _ntf
 from core import nfo_utils as _nu
-from core.cover_attributes import is_source_4k_tag
+from core.atomic_write import atomic_write
+from core.config import get_configured_gallery_dirs
+from core.cover_attributes import effective_tags, is_source_4k_tag
+from core.gallery_scanner import VideoScanner
+from core.logger import get_logger
+from core.nfo_stat import nfo_mtime_or_none
+from core.path_utils import is_path_under_dir, uri_to_local_fs_path
+from core.readonly_paths import resolve_owning_output_root
+from core.source_reachability import is_path_on_unreachable_source
+from core.version_group import resolve_work, version_containing
+from core.video_files_info import source_root_unreachable, stat_kind
+from core.video_nfo_locate import locate_readonly_nfo, locate_video_nfo
 from core.nfo_read import (
     DATE_TAGS,
     MAKER_TAGS,
@@ -543,3 +557,188 @@ def apply_field(root: ET.Element, field: str, payload: dict, ctx: EditContext) -
     before = _snapshot(root)
     _edit_scalar(root, field, cleaned, ctx, body0, before)
     return FieldResult(_snapshot(root) != before, FIELD_DB_FIELDS[field])
+
+
+logger = get_logger(__name__)
+
+
+def _nc(p):
+    return os.path.normcase(p)
+
+
+def _within(real, root):
+    try:
+        return os.path.commonpath([_nc(real), _nc(root)]) == _nc(root)
+    except ValueError:
+        return False
+
+
+def _roots(video, config, mappings, owning):
+    if owning is not None:
+        return [os.path.realpath(uri_to_local_fs_path(owning[2], mappings))]
+    dirs, _ = get_configured_gallery_dirs(config)
+    return [os.path.realpath(uri_to_local_fs_path(uri, mappings))
+            for uri in dirs if is_path_under_dir(video.path, uri)]
+
+
+def _absent_reason(repo, video, config, mappings):
+    if source_root_unreachable(video.path, config.get('gallery', {})):
+        return 'unreachable'
+    work = resolve_work(repo, video.path, mappings)
+    if work is not None and work.data_source is not None and work.data_source != version_containing(work, video.path):
+        return 'borrowed'
+    return 'no_nfo'
+
+
+def locate_editable_nfo(repo, video, config, path_mappings):
+    if is_path_on_unreachable_source(video.path, config.get('gallery', {})):
+        return None, 'unreachable'
+    owning = resolve_owning_output_root(video.path, config)
+    if owning is not None:
+        nfo, reason = locate_readonly_nfo(video, path_mappings, owning[2])
+        if reason:
+            return None, 'readonly_no_nfo' if reason == 'no_nfo' else reason
+    else:
+        nfo, reason = locate_video_nfo(video, config, path_mappings)
+        if reason:
+            return None, reason
+        kind, _ = stat_kind(nfo)
+        if kind == 'absent':
+            return None, _absent_reason(repo, video, config, path_mappings)
+        if kind == 'unreadable':
+            return None, 'nfo_unreadable'
+    real = os.path.realpath(nfo)
+    if not any(_within(real, root) for root in _roots(video, config, path_mappings, owning)):
+        return None, 'nfo_link_outside'
+    return nfo, None
+
+
+def write_nfo_atomic(nfo_fs, data: bytes, roots):
+    real = os.path.realpath(nfo_fs)
+    if not any(_within(real, os.path.realpath(root)) for root in roots):
+        raise FieldEditError('nfo_link_outside')
+    old = os.stat(real)
+    with atomic_write(real) as f:
+        if hasattr(os, 'fchmod'):
+            try:
+                os.fchmod(f.fileno(), stat.S_IMODE(old.st_mode))
+            except OSError:
+                logger.exception('NFO mode preservation failed')
+        if hasattr(os, 'fchown'):
+            try:
+                os.fchown(f.fileno(), -1, old.st_gid)
+            except OSError:
+                logger.exception('NFO group preservation failed')
+        f.write(data)
+
+
+def _tag_view(tags, filename):
+    filename_tags = {t.strip().lower() for t in effective_tags(filename, [])}
+    return [{'text': t, 'from_filename': t.strip().lower() in filename_tags}
+            for t in tags if not is_source_4k_tag(t)]
+
+
+def _filename(video, mappings):
+    return os.path.basename(uri_to_local_fs_path(video.path, mappings))
+
+
+def read_edit_view(repo, video, config, path_mappings):
+    readonly = resolve_owning_output_root(video.path, config) is not None
+    nfo, reason = locate_editable_nfo(repo, video, config, path_mappings)
+    if not reason:
+        try:
+            plot, translation = read_plot_pair(load_tree(Path(nfo).read_bytes()))
+        except (OSError, FieldEditError):
+            reason = 'nfo_unreadable'
+    if reason:
+        return {'success': True, 'state': 'blocked', 'reason': reason, 'readonly': readonly}
+    values = {k: getattr(video, k) for k in ('title', 'original_title', 'actresses', 'maker', 'series', 'release_date')}
+    values['series'] = values['series'] or ''
+    values.update(plot=plot, plot_translation=translation)
+    return {'success': True, 'state': 'ok', 'reason': None, 'readonly': readonly,
+            'values': values, 'tags': _tag_view(video.tags, _filename(video, path_mappings))}
+
+
+def _read_back(nfo, video, filename, mappings, fmt):
+    scanner = VideoScanner(path_mappings=mappings, nfo_title_format=fmt)
+    info = scanner.parse_nfo(nfo)
+    if info is None:
+        raise ValueError('NFO read failed')
+    plots = read_plot_pair(load_tree(Path(nfo).read_bytes()))
+    return {'title': info.title, 'original_title': info.originaltitle,
+            'actresses': [a.strip() for a in info.actor.split(',') if a.strip()],
+            'maker': scanner.normalize_maker(info.num or video.number or '', info.maker, pinned=info.maker_pinned),
+            'series': info.series or '', 'release_date': info.date,
+            'tags': effective_tags(filename, [g.strip() for g in info.genre.split(',') if g.strip()]),
+            'has_plot': info.has_plot, 'plot': plots[0], 'plot_translation': plots[1]}
+
+
+def _update_readback(repo, video, result, values, nfo):
+    fields = {key: values[key] for key in result.db_fields}
+    if not result.changed:
+        fields = {k: v for k, v in fields.items()
+                  if ((getattr(video, k) or '') != (v or '') if k == 'series'
+                      else getattr(video, k) != v)}
+    mtime = (nfo_mtime_or_none(Path(nfo)) if result.changed else None)
+    if fields and not repo.update_nfo_fields(video.path, fields, mtime if mtime is not None else video.nfo_mtime):
+        raise RuntimeError('NFO database update failed')
+
+
+def _rollback_nfo(nfo_fs, raw, roots):
+    try:
+        write_nfo_atomic(nfo_fs, raw, roots)
+    except Exception:
+        logger.exception('NFO rollback failed')
+
+
+def _response(field, result, values, filename):
+    if field == 'tags':
+        return {'success': True, 'unchanged': not result.changed, 'nfo_updated': result.changed,
+                'values': {}, 'tags': _tag_view(values['tags'], filename)}
+    keys = ('plot', 'plot_translation') if field in ('plot', 'plot_translation') else (field,)
+    return {'success': True, 'unchanged': not result.changed, 'nfo_updated': result.changed,
+            'values': {key: values[key] for key in keys}}
+
+
+def _prepare_edit(nfo, field, payload, video, fmt):
+    try:
+        raw = Path(nfo).read_bytes()
+    except OSError:
+        raise FieldEditError('nfo_unreadable') from None
+    root = load_tree(raw)
+    result = apply_field(root, field, payload, EditContext(video.number or '', fmt))
+    return raw, root, result
+
+
+def apply_edit(repo, video, field, payload, config, path_mappings):
+    if field not in FIELD_DB_FIELDS:
+        return {'success': False, 'error': 'invalid_field'}
+    nfo_fs, reason = locate_editable_nfo(repo, video, config, path_mappings)
+    if reason:
+        return {'success': False, 'error': reason}
+    owning = resolve_owning_output_root(video.path, config)
+    roots = _roots(video, config, path_mappings, owning)
+    filename = _filename(video, path_mappings)
+    fmt = config.get('scraper', {}).get('nfo_title_format', _DEFAULT_FORMAT)
+    try:
+        raw, root, result = _prepare_edit(nfo_fs, field, payload, video, fmt)
+    except FieldEditError as exc:
+        return {'success': False, 'error': exc.code}
+    if result.changed:
+        try:
+            write_nfo_atomic(nfo_fs, dump_tree(root), roots)
+        except FieldEditError as exc:
+            return {'success': False, 'error': exc.code}
+        except Exception:
+            logger.exception('NFO write failed')
+            return {'success': False, 'error': 'nfo_write_failed'}
+    try:
+        values = _read_back(nfo_fs, video, filename, path_mappings, fmt)
+        _update_readback(repo, video, result, values, nfo_fs)
+    except Exception:  # BE-TEST-33
+        logger.exception('NFO readback or database update failed')
+        if not result.changed:
+            return {'success': False, 'error': 'db_write_failed'}
+        _rollback_nfo(nfo_fs, raw, roots)
+        return {'success': False, 'error': 'db_write_failed'}
+    return _response(field, result, values, filename)
