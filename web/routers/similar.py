@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Query
 from core.ai_services.embedding_cache import EmbeddingMatrixCache
 from core.ai_services.similar_state import format_similar_model_id, fusion_vectors
 from core.config import load_config
+from core.cover_signature import cover_version_suffix
 from core.database import VideoRepository
 from core.logger import get_logger
 from core.path_utils import uri_to_local_fs_path
@@ -44,7 +45,7 @@ def _dedupe_by_work(videos: list, target, path_mappings: dict, limit: int) -> li
     return kept[:limit]
 
 
-def _build_cover_url(video, enabled: bool = False, path_mappings: dict = None) -> str:
+def _build_cover_url(video, enabled: bool = False, path_mappings: dict = None, cover_sig=None) -> str:
     """組封面 url（feature/71 T4）。
 
     - enabled  → /api/gallery/thumb?path=<quote(video.path)>（thumb key = video path，非 cover）。
@@ -56,10 +57,10 @@ def _build_cover_url(video, enabled: bool = False, path_mappings: dict = None) -
     if enabled:
         return f"/api/gallery/thumb?path={quote(video.path, safe='')}"
     local_path = uri_to_local_fs_path(video.cover_path, path_mappings)
-    return f"/api/gallery/image?path={quote(local_path, safe='')}"
+    return f"/api/gallery/image?path={quote(local_path, safe='')}" + cover_version_suffix(cover_sig)
 
 
-def _build_cover_full_url(video, path_mappings: dict = None) -> str:
+def _build_cover_full_url(video, path_mappings: dict = None, cover_sig=None) -> str:
     """組封面原圖 url（71c）。
 
     恆原圖（不受 thumbnail_cache_enabled 影響），鏡像 showcase._serialize_video 中 cover_full_url 的邏輯。
@@ -68,7 +69,7 @@ def _build_cover_full_url(video, path_mappings: dict = None) -> str:
     if not video.cover_path:
         return ""
     local_path = uri_to_local_fs_path(video.cover_path, path_mappings)
-    return f"/api/gallery/image?path={quote(local_path, safe='')}"
+    return f"/api/gallery/image?path={quote(local_path, safe='')}" + cover_version_suffix(cover_sig)
 
 
 def _compute_similar_covers(video_id: int, limit: int) -> dict:
@@ -105,6 +106,8 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
 
     results_videos = _dedupe_by_work(results_videos, target, path_mappings, limit)
 
+    sig_of = repo.get_cover_sig_map().get
+
     # Codex PR#105 P2 修復：ranker.rank() 可能回 SimilarRankerCache 快取的 Video 物件（非
     # fresh DB row）。update_auto_focal()/update_manual_focal() 刻意不 invalidate 整個 ranker
     # cache（焦點/裁切模式是純顯示欄位、不影響排序特徵，比照 upsert/delete invalidate 代價
@@ -124,8 +127,8 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
             "number": v.number,
             "title": v.title,
             "cover_path": v.cover_path,
-            "cover_url": _build_cover_url(v, enabled, path_mappings),
-            "cover_full_url": _build_cover_full_url(v, path_mappings),  # 71c：恆原圖，供燈箱 blur-up .lb-full overlay
+            "cover_url": _build_cover_url(v, enabled, path_mappings, sig_of(v.path)),
+            "cover_full_url": _build_cover_full_url(v, path_mappings, sig_of(v.path)),  # 71c：恆原圖，供燈箱 blur-up .lb-full overlay
             "cosine_score": ranker._score(target, v),
             "penalty_applied": False,  # rule-based 無 penalty 概念，保留 key 為 fixture 相容
             "actresses": v.actresses if isinstance(v.actresses, list) else [],
@@ -140,7 +143,7 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
             "video_id": target.id,
             "number": target.number,
             "title": target.title,
-            "cover_url": _build_cover_url(target, enabled, path_mappings),
+            "cover_url": _build_cover_url(target, enabled, path_mappings, sig_of(target.path)),
         },
         "results": results,
     }

@@ -3185,6 +3185,34 @@ const RULES = [
       }
     },
   },
+  {
+    id: 'CG-200B-01',
+    file: 'pages/showcase/11-adv-edit.css',
+    kind: 'fn',
+    check(ctx) {
+      const blocks = flattenRuleBlocks(ctx.blocks).filter(({ selector }) => !!selector);
+      if (!blocks.length) { ctx.fail('CG-200B-01: 進階編輯樣式沒有可解析的規則'); return; }
+      const splitSelectors = (selector) => {
+        const parts = [];
+        let depth = 0;
+        let current = '';
+        for (const ch of selector) {
+          if (ch === '(' || ch === '[') depth += 1;
+          else if (ch === ')' || ch === ']') depth -= 1;
+          if (ch === ',' && depth === 0) { parts.push(current.trim()); current = ''; }
+          else current += ch;
+        }
+        if (current.trim()) parts.push(current.trim());
+        return parts;
+      };
+      for (const { selector, declarations } of blocks) {
+        for (const one of splitSelectors(selector)) {
+          if (!/\.adv-edit-/.test(one)) ctx.fail(`CG-200B-01: 選擇器缺隔離標記 — ${one}`);
+        }
+        if (/96dvh|17rem|13\.875rem/.test(declarations)) ctx.fail('CG-200B-01: 禁止沿用燈箱外框尺寸');
+      }
+    },
+  },
 ];
 
 // 解析 _showcase_css.html 的 <link href> 出現順序——單一來源＝ CD-148a-3 的 template，

@@ -3607,6 +3607,29 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
                 </div>
             </div>
 
+            <div class="ds-subsection">
+                <h3>Advanced Edit Dialog</h3>
+                <p class="ds-desc">影片燈箱「⋯」→「進階編輯」的彈窗；類別以 <code>.adv-edit-</code> 開頭，樣式在 <code>11-adv-edit.css</code>。</p>
+                <div class="modal-box fluent-modal-box adv-edit-box" style="max-height: none; overflow: visible; opacity: 1; scale: 1;">
+                    <header class="adv-edit-head"><h3 class="fluent-modal-title adv-edit-title">進階編輯 · ABF-348</h3><button type="button" class="adv-edit-x" aria-label="關閉">✕</button></header>
+                    <div class="adv-edit-notice">來源目前連不上</div>
+                    <div class="adv-edit-sections">
+                        <section class="adv-edit-sec adv-edit-sec--files">
+                            <div class="adv-edit-sec-head"><h4 class="adv-edit-sec-title">檔案</h4><button type="button" class="btn btn-sm btn-ghost adv-edit-folder">📁 開資料夾</button></div>
+                            <div class="adv-edit-pv">
+                                <figure class="adv-edit-pv-item"><div class="adv-edit-pv-frame"><img class="adv-edit-pv-img" src="/static/img/demo/mide-974.jpg" alt="封面"></div><figcaption>封面</figcaption></figure>
+                                <figure class="adv-edit-pv-item"><div class="adv-edit-pv-frame"><div class="adv-edit-pv-empty">還沒有海報</div></div><figcaption>海報 <button type="button" class="btn btn-xs adv-edit-regen">重新產生</button></figcaption></figure>
+                                <figure class="adv-edit-pv-item"><div class="adv-edit-pv-frame"><img class="adv-edit-pv-img" src="/static/img/demo/mide-974.jpg" alt="牆上縮圖"></div><figcaption>牆上縮圖 <span class="adv-edit-chip adv-edit-chip--warn">比封面舊</span></figcaption></figure>
+                            </div>
+                            <div class="adv-edit-row"><span>影片</span><span class="adv-edit-row-value"><span class="adv-edit-path-text">ABF-348.mp4</span> <span class="adv-edit-chip adv-edit-chip--warn">找不到</span></span><button type="button" class="adv-edit-icon-btn adv-edit-path-edit" aria-label="修改影片路徑">✎</button></div>
+                            <div class="adv-edit-row"><span>影片資訊</span><span class="adv-edit-row-value">4K · HEVC</span><button type="button" class="btn btn-xs adv-edit-reread">重新讀取</button></div>
+                            <div class="adv-edit-row"><span>NFO</span><span class="adv-edit-row-value">ABF-348.nfo</span></div>
+                        </section>
+                    </div>
+                    <div class="modal-action fluent-modal-actions adv-edit-foot"><button type="button" class="btn btn-ghost">關閉</button><button type="button" class="btn btn-primary adv-edit-update">更新</button></div>
+                </div>
+            </div>
+
         </section>
 
         <!-- Search Elements -->

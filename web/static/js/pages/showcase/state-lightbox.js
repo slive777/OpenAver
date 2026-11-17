@@ -391,6 +391,7 @@ export function stateLightbox() {
             this._resetMask();           // 98b-T4：關燈箱丟棄未提交遮罩態（不 commit）
             this._lbPlotReset?.();       // 187b-T5a：關燈箱清簡介面（defense-in-depth）
             this.lbxPopClose?.();        // 199a-T3：關燈箱收浮層（可選呼叫：只合併部分分片的 harness 沒有它）
+            this.closeAdvEdit?.();       // 200b-T10：關燈箱，彈窗跟著關（可選呼叫：只合併部分分片的 harness 沒有它）
             this.lbxApReset?.();         // 199b-T5：關燈箱清女優縮圖排（回第一批；可選呼叫）
             this._fetchSamplesFailed = {};
 
@@ -738,6 +739,9 @@ export function stateLightbox() {
                 this._lbTouchStartX = null; this._lbTouchStartY = null; return;
             }
             if (this.deleteVideoModalOpen) {
+                this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+            }
+            if (this.advEditOpen) {          // 200b-T10：彈窗開著，滑動不換片
                 this._lbTouchStartX = null; this._lbTouchStartY = null; return;
             }
             if (this.sampleGalleryOpen) {   // 劇照由 _sgTouchEnd 處理
@@ -1138,6 +1142,15 @@ export function stateLightbox() {
             }
             if (this.deleteVideoModalOpen) return;
 
+            if (e.key === 'Escape' && this.advEditOpen) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this._advEditCell) this.cancelAdvEditCell();
+                else this.closeAdvEdit();
+                return;
+            }
+            if (this.advEditOpen) return;   // 200b-T10：彈窗開著，其餘按鍵一律吞掉
+
             // 2. modifier keys 停用
             if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
 
@@ -1257,6 +1270,7 @@ export function stateLightbox() {
 
             // 5. 刪除確認框開啟時鎖
             if (this.deleteVideoModalOpen) return;
+            if (this.advEditOpen) return;   // 200b-T10：彈窗開著，滾輪不換片
 
             // 水平方向映射（owner 拍板，Opus 審核修正）：滾輪是「方向指令」隱喻（同
             // ArrowLeft/ArrowRight/scrollbar），不是觸控 detectSwipe 的「拖內容」隱喻——

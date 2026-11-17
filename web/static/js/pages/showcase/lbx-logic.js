@@ -51,7 +51,7 @@ export function isOutsidePop(target, panelEl, anchorSel) {
 
 /**
  * menuItems：⋯ 選單項目（199a-T4，CD-199a-11；200a-T3 加 focal）。
- * 順序固定 samples → translate → focal → rescrape → delete。
+ * 順序固定 samples → translate → focal → advedit → rescrape → delete。
  * 沒有對應檔（hasPath 假）只剩 rescrape；有劇照不出 samples；翻譯條件不成立不出 translate；
  * canFocal 假（沿用版本／沒封面）不出 focal。
  */
@@ -60,6 +60,7 @@ export function menuItems(video, { sampleCount, trVisible, hasPath, canFocal }) 
     if (hasPath && sampleCount === 0) items.push({ id: 'samples' });
     if (hasPath && trVisible) items.push({ id: 'translate' });
     if (hasPath && canFocal) items.push({ id: 'focal' });
+    if (hasPath) items.push({ id: 'advedit' });
     items.push({ id: 'rescrape' });
     if (hasPath) items.push({ id: 'delete' });
     return items;
@@ -244,4 +245,121 @@ export function focalSaveToast(poster) {
     if (status === 'updated') return { key: 'showcase.lightbox.focal_saved_poster_updated', type: 'success' };
     if (status === 'failed') return { key: 'showcase.lightbox.focal_saved_poster_failed', type: 'error' };
     return { key: 'showcase.lightbox.focal_saved', type: 'success' };
+}
+
+export function formatHms(ms) {
+    if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 1000) return '';
+    const seconds = Math.floor(ms / 1000);
+    return `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+}
+export function fileInfoParts(media, { formatSize, formatHms }) {
+    if (!media || media.status !== 'ok') return [];
+    const parts = [];
+    const dimensions = media.width && media.height ? `${media.width}×${media.height}` : '';
+    const tier = media.tier && dimensions ? `${media.tier}（${dimensions}）` : media.tier || dimensions;
+    if (tier) parts.push({ id: 'tier', text: tier });
+    if (media.codec) parts.push({ id: 'codec', text: media.codec });
+    const duration = formatHms(media.duration_ms);
+    if (duration) parts.push({ id: 'duration', text: duration });
+    if (media.size) parts.push({ id: 'size', text: formatSize(media.size) });
+    return parts;
+}
+export function mediaInfoText(media, opts) {
+    if (media?.status === 'failed') return opts.t('showcase.adv_edit.files.media_failed');
+    const parts = fileInfoParts(media, opts);
+    return parts.length ? parts.map(p => p.text).join(' · ') : opts.t('showcase.adv_edit.files.media_none');
+}
+export function advEditOutputTarget(folders, nfoName) {
+    if (!folders?.output) return '';
+    const base = folders.output.replace(/\/+$/, '');
+    return base + '/' + (nfoName ? encodeURIComponent(nfoName) : '');
+}
+function advEditPosterView(poster, imgFail) {
+    if (!poster.visible) return 'hidden';
+    if (poster.exists === true && !imgFail.poster) return 'img';
+    if (poster.exists === null) return 'generic';
+    if (poster.exists === false && poster.can_regen) return 'empty';
+    return 'broken';
+}
+export function advEditFilesView(info, { borrowed = false, imgFail = {} } = {}) {
+    const cover = info?.cover || {}, poster = info?.poster || {}, thumb = info?.thumb || {}, folders = info?.folders || {};
+    const banner = info?.state === 'missing' ? (info.readonly ? 'missing_readonly' : 'missing') : info?.state === 'unreachable' ? 'unreachable' : '';
+    return {
+        banner,
+        cover: cover.exists && !imgFail.cover ? 'img' : 'broken',
+        poster: advEditPosterView(poster, imgFail),
+        thumb: thumb.exists && !imgFail.thumb ? 'img' : thumb.mode === 'cache' && !thumb.exists && cover.exists ? 'pending' : 'broken',
+        thumbChip: thumb.stale ? 'stale' : thumb.mode === 'cover' ? 'direct' : '',
+        canRegenThumb: thumb.mode === 'cache' && !!cover.exists,
+        canRegen: !!poster.can_regen && !borrowed,
+        canReread: info?.state === 'ok',
+        folders: info?.readonly ? { open: '', source: folders.source || '', output: advEditOutputTarget(folders, info.nfo?.name) } : { open: folders.source || '', source: '', output: '' },
+    };
+}
+export function advEditActionNotice(kind, data, t) {
+    if (kind === 'regen') {
+        if (data?.success === true && data.poster?.status === 'updated') return { text: t('showcase.adv_edit.files.poster_updated'), type: 'success', reload: true };
+        if (data?.success === true && data.poster?.status === 'skipped') return { text: t('showcase.adv_edit.files.poster_skipped'), type: 'info', reload: false };
+        if (data?.success === false && data.error === 'generic_cover_name') return { text: t('showcase.adv_edit.files.poster_generic_cover'), type: 'warning', reload: false };
+        if (data?.success === false && data.error === 'no_cover') return { text: t('showcase.adv_edit.files.poster_no_cover'), type: 'warning', reload: false };
+        if (data?.success === false && data.error === 'readonly_output_not_current') return { text: t('showcase.adv_edit.files.poster_readonly_output'), type: 'warning', reload: false };
+        if (data?.success === false && data.error === 'unreachable') return { text: t('showcase.adv_edit.files.unreachable'), type: 'warning', reload: false };
+        return { text: t('showcase.adv_edit.files.poster_failed'), type: 'error', reload: false };
+    }
+    if (data?.success === true) {
+        const status = data.status;
+        if (status === 'ok') return { text: t('showcase.adv_edit.files.reread_done'), type: 'success', reload: true };
+        if (status === 'failed') return { text: t('showcase.adv_edit.files.media_failed'), type: 'warning', reload: true };
+        if (status === 'unreadable') return { text: t('showcase.adv_edit.files.reread_unreadable'), type: 'warning', reload: false };
+        if (status === 'stale') return { text: t('showcase.adv_edit.files.reread_stale'), type: 'warning', reload: false };
+        if (status === 'changed') return { text: data.readonly ? t('showcase.adv_edit.files.reread_changed_readonly') : t('showcase.adv_edit.files.reread_changed'), type: 'warning', reload: false };
+        if (status === 'timeout') return { text: t('showcase.adv_edit.files.reread_timeout'), type: 'info', reload: false };
+        if (status === 'unavailable') return { text: t('showcase.adv_edit.files.reread_unavailable'), type: 'warning', reload: false };
+        if (status === 'skipped') return { text: t('showcase.adv_edit.files.reread_skipped'), type: 'info', reload: false };
+    }
+    if (data?.success === false && data.error === 'unreachable') return { text: t('showcase.adv_edit.files.unreachable'), type: 'warning', reload: false };
+    return { text: t('showcase.adv_edit.files.reread_error'), type: 'error', reload: false };
+}
+
+export function advEditPathStem(p) {
+    if (typeof p !== 'string' || !p) return '';
+    const name = p.slice(Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')) + 1);
+    const dot = name.lastIndexOf('.');
+    return dot > 0 ? name.slice(0, dot) : name;
+}
+export function advEditRepathError(code, t) {
+    if (code === 'confirm_required') return { text: '', confirm: true };
+    const messages = {
+        readonly: () => t('showcase.adv_edit.path.err_readonly'),
+        unchanged: () => t('showcase.adv_edit.path.err_unchanged'),
+        not_video: () => t('showcase.adv_edit.path.err_not_video'),
+        not_found: () => t('showcase.adv_edit.path.err_not_found'),
+        out_of_library: () => t('showcase.adv_edit.path.err_out_of_library'),
+        already_in_library: () => t('showcase.adv_edit.path.err_already_in_library'),
+        not_scannable: () => t('showcase.adv_edit.path.err_not_scannable'),
+    };
+    return { text: Object.hasOwn(messages, code) ? messages[code]() : t('showcase.adv_edit.path.err_generic'), confirm: false };
+}
+export function advEditUpdateNotice(data, t) {
+    if (data?.success === true) {
+        const pending = ['unreadable', 'stale', 'timeout'].includes(data.media_status);
+        return { text: pending ? t('showcase.adv_edit.update.done_media_pending') : t('showcase.adv_edit.update.done'), type: pending ? 'warning' : 'success', reload: true, sync: false };
+    }
+    const messages = {
+        unreachable: () => t('showcase.adv_edit.update.err_unreachable'),
+        not_found: () => t('showcase.adv_edit.update.err_not_found'),
+        no_nfo: () => t('showcase.adv_edit.update.err_no_nfo'),
+        nfo_ambiguous: () => t('showcase.adv_edit.update.err_nfo_ambiguous'),
+        nfo_unreadable: () => t('showcase.adv_edit.update.err_nfo_unreadable'),
+    };
+    const code = data?.success === false ? data.error : null;
+    const known = Object.hasOwn(messages, code);
+    return { text: known ? messages[code]() : t('showcase.adv_edit.update.err_generic'), type: known ? 'warning' : 'error', reload: false, sync: code === 'unreachable' || code === 'not_found' };
+}
+
+export function advEditThumbNotice(data, t) {
+    if (data?.success === true) return { text: data.cover_changed ? t('showcase.adv_edit.files.thumb_regen_done_cover') : t('showcase.adv_edit.files.thumb_regen_done'), type: 'success', reload: true };
+    if (data?.success === false && data.error === 'no_cover') return { text: t('showcase.adv_edit.files.thumb_no_cover'), type: 'warning', reload: false };
+    if (data?.success === false && data.error === 'unreachable') return { text: t('showcase.adv_edit.files.unreachable'), type: 'warning', reload: false };
+    return { text: t('showcase.adv_edit.files.thumb_failed'), type: 'error', reload: false };
 }

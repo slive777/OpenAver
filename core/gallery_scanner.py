@@ -119,6 +119,12 @@ def is_nas_system_dir_name(name: str) -> bool:
     return name.lower() in _NAS_SYSTEM_DIR_NAMES or name.startswith('@')
 
 
+def is_scannable_video(ext: str, size: int, extensions, min_size_bytes: int) -> bool:
+    """Apply the same extension and size rules used by the directory scanner."""
+    return (ext != '.nfo' and ext in extensions and
+            (min_size_bytes <= 0 or ext in ZERO_SIZE_EXTENSIONS or size >= min_size_bytes))
+
+
 def fast_scan_directory(
     directory: str,
     extensions: set,
@@ -207,7 +213,7 @@ def fast_scan_directory(
                                     dir_nfos[stem] = mt
                             elif ext in extensions:
                                 stat = entry.stat()
-                                if min_size_bytes <= 0 or ext in ZERO_SIZE_EXTENSIONS or stat.st_size >= min_size_bytes:
+                                if is_scannable_video(ext, stat.st_size, extensions, min_size_bytes):
                                     dir_files.append({
                                         'path': entry.path,
                                         'mtime': stat.st_mtime,

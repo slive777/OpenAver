@@ -161,6 +161,26 @@ def _migrate_media_probe_columns(cursor, existing_cols: set) -> None:
             cursor.execute(f"ALTER TABLE videos ADD COLUMN {col} {decl}")
 
 
+# 200b-T2 CD-200b-4：videos 封面簽章兩欄（DB-only）；idempotent ADD，形狀同上。
+_COVER_SIG_COLUMNS = (
+    ('cover_mtime_ns', 'INTEGER DEFAULT NULL'),
+    ('cover_size', 'INTEGER DEFAULT NULL'),
+)
+
+
+def _migrate_cover_sig_columns(cursor, existing_cols: set) -> None:
+    """ALTER TABLE 加 2 個 cover_* 欄；已存在則跳過。"""
+    for col, decl in _COVER_SIG_COLUMNS:
+        if col not in existing_cols:
+            cursor.execute(f"ALTER TABLE videos ADD COLUMN {col} {decl}")
+
+
+def _migrate_videos_db_only_columns(cursor, existing_cols: set) -> None:
+    """videos DB-only 欄遷移總入口：依序跑 media 探針欄與封面簽章欄。"""
+    _migrate_media_probe_columns(cursor, existing_cols)
+    _migrate_cover_sig_columns(cursor, existing_cols)
+
+
 def init_db(db_path: Path = None) -> None:
     """初始化資料庫 Schema"""
     conn = get_connection(db_path)
@@ -408,7 +428,7 @@ def init_db(db_path: Path = None) -> None:
     # Migration: has_plot（187b-T2a；三態 NULL/0/1；掃描寫 True/False，舊列留 NULL 由回填 pass 補）
     if 'has_plot' not in existing_cols:
         cursor.execute("ALTER TABLE videos ADD COLUMN has_plot INTEGER DEFAULT NULL")
-    _migrate_media_probe_columns(cursor, existing_cols)  # 198a-T2a CD-198a-3
+    _migrate_videos_db_only_columns(cursor, existing_cols)  # 198a-T2a CD-198a-3；200b-T2 封面簽章兩欄
     # Migration: 加入 user_rating 欄位（videos，spec-123 精選標記；0=未精選，>0=已精選。
     # 只由 set_user_rating()/set_user_rating_bulk() 與 repath() 分支 3 的 max() 合併寫入，
     # 其餘動態 UPDATE builder 一律 pop 排除，見 video.py CD-123-3/-4）

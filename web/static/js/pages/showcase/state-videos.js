@@ -135,6 +135,7 @@ export function stateVideos() {
         // 資料流同 retry()（fetchVideos → 重算標章 → 重篩 → 還原頁碼 → 分頁），但不播 settle、不動 error。
         // anchorPath：重載前燈箱開著 → 燈箱當下那個版本的 path，否則被刷新的 path；opts.bustPaths／opts.t：
         // 重載後這些 path 的封面網址追加 &t=（同 refreshVideoData 的 cache-bust 理由）。
+        // opts.reanchorTo：改影片路徑後燈箱對位的新 path；不傳則停在 anchorPath。
         // fetchVideos 失敗時整牆被清空並設 error（既有語意，不另做保護）；此時 anchor 找不到 → 關燈箱。
         async _reloadWallKeepLightbox(anchorPath, opts) {
             const savedPage = this.page;
@@ -182,7 +183,7 @@ export function stateVideos() {
             }
 
             // 燈箱對位：停在 anchor 那個版本（不是顯示版本）。找不到該 path → 作品已不在庫（或被藏）→ 關燈箱。
-            const target = findVersion(anchorPath);
+            const target = findVersion((opts && opts.reanchorTo) || anchorPath);
             if (!target) { this.closeLightbox(); return; }
             const idx = standalone ? -1 : _filteredVideos.findIndex((v) => sameWork(v, target));
             if (idx >= 0) {

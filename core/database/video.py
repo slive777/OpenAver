@@ -1503,6 +1503,71 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def set_cover_signature(self, path: str, mtime_ns: int, size: int) -> bool:
+        """記一列封面簽章（只 SET 兩欄，不碰 updated_at／其他欄；CD-200b-4）。
+
+        # ranker-invalidate-ok: cover_* 非相似排序語料欄位
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE videos SET cover_mtime_ns = ?, cover_size = ? WHERE path = ?",
+                (mtime_ns, size, path),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def set_cover_signatures(self, rows) -> int:
+        """批次記封面簽章（只 SET 兩欄；空序列回 0 不開連線；單一交易）。
+
+        # ranker-invalidate-ok: cover_* 非相似排序語料欄位
+        """
+        rows = list(rows)
+        if not rows:
+            return 0
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.executemany(
+                "UPDATE videos SET cover_mtime_ns = ?, cover_size = ? WHERE path = ?",
+                [(mtime_ns, size, path) for path, mtime_ns, size in rows],
+            )
+            conn.commit()
+            return cursor.rowcount if cursor.rowcount is not None and cursor.rowcount >= 0 else len(rows)
+        finally:
+            conn.close()
+
+    def get_cover_sig(self, path: str):
+        """讀一列封面簽章；任一欄 NULL／無列 → None。"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT cover_mtime_ns, cover_size FROM videos WHERE path = ?", (path,)
+            )
+            row = cursor.fetchone()
+            if row is None or row[0] is None or row[1] is None:
+                return None
+            return (row[0], row[1])
+        finally:
+            conn.close()
+
+    def get_cover_sig_map(self) -> dict:
+        """已記過的列 → {path: (mtime_ns, size)}；任一欄 NULL 不收。"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "SELECT path, cover_mtime_ns, cover_size FROM videos "
+                "WHERE cover_mtime_ns IS NOT NULL AND cover_size IS NOT NULL"
+            )
+            return {row[0]: (row[1], row[2]) for row in cursor.fetchall()}
+        finally:
+            conn.close()
+
     def update_plot_flag(self, path: str, has_plot: bool, nfo_mtime: float) -> bool:
         """同一條 UPDATE 寫 has_plot 與 nfo_mtime（不碰 updated_at；CD-187b-6.5）。
 

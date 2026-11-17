@@ -43,13 +43,13 @@ test('test_menu_items_follow_path_samples_and_translate_gate', async () => {
     const ids = (o) => menuItems({}, o).map((i) => i.id);
 
     // (a) 全條件成立 → 依序 samples、translate、rescrape、delete
-    assert.deepEqual(ids({ sampleCount: 0, trVisible: true, hasPath: true }), ['samples', 'translate', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ sampleCount: 0, trVisible: true, hasPath: true }), ['samples', 'translate', 'advedit', 'rescrape', 'delete']);
     // (b) 沒有對應檔 → 只剩 rescrape（即使翻譯條件成立、沒劇照）
     assert.deepEqual(ids({ sampleCount: 0, trVisible: true, hasPath: false }), ['rescrape']);
     // (c) 已有劇照 → 不出 samples
-    assert.deepEqual(ids({ sampleCount: 3, trVisible: true, hasPath: true }), ['translate', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ sampleCount: 3, trVisible: true, hasPath: true }), ['translate', 'advedit', 'rescrape', 'delete']);
     // (d) 翻譯條件不成立 → 不出 translate
-    assert.deepEqual(ids({ sampleCount: 0, trVisible: false, hasPath: true }), ['samples', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ sampleCount: 0, trVisible: false, hasPath: true }), ['samples', 'advedit', 'rescrape', 'delete']);
 });
 
 // TASK-200a-T3：⋯ 選單「調整海報裁切」項（canFocal 閘 + 排在 rescrape 前）。
@@ -59,11 +59,11 @@ test('test_menu_items_focal_item_follows_can_focal_and_sits_before_rescrape', as
     const allOn = { sampleCount: 0, trVisible: true, hasPath: true };
 
     // (a) canFocal true → focal 出現且在 translate 與 rescrape 之間
-    assert.deepEqual(ids({ ...allOn, canFocal: true }), ['samples', 'translate', 'focal', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ ...allOn, canFocal: true }), ['samples', 'translate', 'focal', 'advedit', 'rescrape', 'delete']);
     // (b) canFocal false → 不含 focal
-    assert.deepEqual(ids({ ...allOn, canFocal: false }), ['samples', 'translate', 'rescrape', 'delete']);
+    assert.deepEqual(ids({ ...allOn, canFocal: false }), ['samples', 'translate', 'advedit', 'rescrape', 'delete']);
     // (c) 缺省 canFocal → 不含 focal（既有呼叫端不傳時行為不變）
-    assert.deepEqual(ids(allOn), ['samples', 'translate', 'rescrape', 'delete']);
+    assert.deepEqual(ids(allOn), ['samples', 'translate', 'advedit', 'rescrape', 'delete']);
 });
 
 // TASK-199a-T5：第 3 列女優露出數與作品資訊欄位。
@@ -244,4 +244,38 @@ test('test_focal_save_toast_maps_poster_status_to_key_and_type', async () => {
         const value = key.split('.').reduce((o, part) => (o == null ? o : o[part]), strings);
         assert.ok(typeof value === 'string' && value.length > 0, key);
     }
+});
+
+test('test_adv_edit_media_text_and_missing_states', async () => {
+    const { formatHms, fileInfoParts, mediaInfoText } = await import('../lbx-logic.js');
+    const opts = { formatHms, formatSize: n => `${n} B`, t: k => k };
+    const full = { status: 'ok', tier: '4K', width: 3840, height: 2160, codec: 'HEVC', duration_ms: 7394000, size: 5 };
+    const cases = [[full, '4K（3840×2160） · HEVC · 2:03:14 · 5 B'], [{ ...full, codec: null }, '4K（3840×2160） · 2:03:14 · 5 B'], [{ ...full, duration_ms: 0 }, '4K（3840×2160） · HEVC · 5 B'], [{ ...full, size: 0 }, '4K（3840×2160） · HEVC · 2:03:14'], [{ status: 'ok', width: 10, height: 20 }, '10×20'], [{ status: 'ok', tier: 'HD' }, 'HD'], [{ status: 'none' }, 'showcase.adv_edit.files.media_none'], [{ status: 'failed' }, 'showcase.adv_edit.files.media_failed'], [null, 'showcase.adv_edit.files.media_none']];
+    assert.ok(fileInfoParts(full, opts).length);
+    for (const [media, expected] of cases) assert.equal(mediaInfoText(media, opts), expected);
+    assert.equal(formatHms(7394000), '2:03:14'); assert.equal(formatHms(45000), '0:00:45');
+});
+
+test('test_adv_edit_files_view_and_action_notices', async () => {
+    const { advEditFilesView, advEditActionNotice, advEditOutputTarget } = await import('../lbx-logic.js');
+    const info = { state: 'ok', readonly: false, cover: { exists: true }, poster: { visible: true, exists: true, can_regen: true }, thumb: { mode: 'cache', exists: true }, folders: { source: 'src', output: 'out' }, nfo: { name: 'a b.nfo' } };
+    const view = (patch = {}, opts = {}) => advEditFilesView({ ...info, ...patch }, { borrowed: false, imgFail: {}, ...opts });
+    assert.equal(view().poster, 'img');
+    assert.equal(view({ poster: { visible: true, exists: null } }).poster, 'generic');
+    assert.equal(view({ poster: { visible: true, exists: false, can_regen: true } }).poster, 'empty');
+    assert.equal(view({ poster: { visible: false } }).poster, 'hidden');
+    assert.equal(view({}, { borrowed: true }).canRegen, false);
+    assert.equal(view({ cover: { exists: false } }).cover, 'broken');
+    assert.equal(view({ readonly: true }).folders.output, 'out/a%20b.nfo');
+    assert.equal(advEditOutputTarget({ output: 'out/' }, ''), 'out/');
+    assert.equal(view({ state: 'missing' }).banner, 'missing');
+    assert.equal(view({ state: 'missing', readonly: true }).banner, 'missing_readonly');
+    assert.equal(view({ state: 'unreachable' }).banner, 'unreachable');
+    assert.equal(view({ thumb: { mode: 'cache', stale: true } }).thumbChip, 'stale');
+    assert.equal(view({ thumb: { mode: 'cover', exists: true } }).thumbChip, 'direct');
+    assert.equal(view({ thumb: { mode: 'cache', exists: false } }).thumb, 'pending');
+    assert.equal(advEditFilesView(null, { imgFail: {} }).canReread, false);
+    const t = k => k;
+    const cases = [['regen', { success: true, poster: { status: 'updated' } }, 'poster_updated', true], ['regen', { success: true, poster: { status: 'skipped' } }, 'poster_skipped', false], ['regen', { success: true, poster: { status: 'failed' } }, 'poster_failed', false], ...[['generic_cover_name','poster_generic_cover'],['no_cover','poster_no_cover'],['readonly_output_not_current','poster_readonly_output'],['unreachable','unreachable']].map(([error,key]) => ['regen', { success: false, error }, key, false]), ['regen', null, 'poster_failed', false], ...[['ok','reread_done',true],['failed','media_failed',true],['unreadable','reread_unreadable',false],['stale','reread_stale',false],['changed','reread_changed',false],['timeout','reread_timeout',false],['unavailable','reread_unavailable',false],['skipped','reread_skipped',false]].map(([status,key,reload]) => ['reread', { success: true, status }, key, reload]), ['reread', { success: true, status: 'changed', readonly: true }, 'reread_changed_readonly', false], ['reread', { success: false, error: 'unreachable' }, 'unreachable', false], ['reread', null, 'reread_error', false]];
+    for (const [kind, data, key, reload] of cases) { const notice = advEditActionNotice(kind, data, t); assert.equal(notice.text, `showcase.adv_edit.files.${key}`); assert.equal(notice.reload, reload); }
 });
