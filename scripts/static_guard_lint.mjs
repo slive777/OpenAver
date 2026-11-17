@@ -5206,6 +5206,13 @@ const RULES = [
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'structure-count', stripLineComments: true,
     scope: { anchor: /async togglePickStar\(\) \{/, braceBalanced: true }, pattern: /playPickRing/, count: 1,
     note: '[lint-guard:201-T7-ring-once] 繞線只能呼叫一次，否則失敗回滾時外框會閃第二圈。' },
+  { file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
+    tagPattern: /<div\b(?=[^>]*(?<![\w:-])aria-labelledby="pick-editor-title")[^>]*>/,
+    required: [/(?<![\w:-])x-show="_pickEditor && !showFavoriteActresses && _pillPopoverEnabled"/, /(?<![\w:-])x-trap="!!_pickEditor"/, /(?<![\w:-])@click\.outside="_pickEditor && _cancelPickEditor\(\)"/],
+    note: '[lint-guard:201-T6b-popover] 精選浮層缺少顯示條件、焦點限制或點外面取消時，使用者會看到浮層殘留、焦點跑出或無法關閉。' },
+  { file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [/<template x-if="pill\.dim === 'pick' && _pillPopoverEnabled">\s*<button type="button" class="filter-pill-value"\s*@click\.stop="_togglePickEditor\(pill\)"/, /<template x-if="!\(\(pill\.dim === 'release' \|\| pill\.dim === 'resolution' \|\| pill\.dim === 'pick'\) && _pillPopoverEnabled\)">/],
+    note: '[lint-guard:201-T6b-chip] 精選 chip 分流缺失時，使用者在桌機點擊無反應或看到重複 chip。' },
   // ==== [123-T5] CD-123-13：三個唯讀表面 + 燈箱既有插入點的粗顆粒守衛（AC-4/5/6） ====
   // [Codex review BLOCKER 修正] 前一版把 anchor 錨在「自己要驗的那段字面」上
   // （/<span class="pick-star-mark...[\s\S]{0,300}class="av-num"/ 這類）。anchor.exec()

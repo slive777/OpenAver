@@ -84,7 +84,7 @@
                         <span class="filter-pill-list" role="list" x-show="pills.length">
                             <template x-for="pill in pills" :key="pill.dim + '::' + normalizePillValue(pill.value)">
                                 <span class="filter-pill" role="listitem"
-                                      :class="{ 'is-editing': (!!_releaseEditor && pill.dim === 'release') || (!!_resolutionEditor && pill.dim === 'resolution') }"
+                                      :class="{ 'is-editing': (!!_releaseEditor && pill.dim === 'release') || (!!_resolutionEditor && pill.dim === 'resolution') || (!!_pickEditor && pill.dim === 'pick') }"
                                       :title="pill.dim === 'pick' ? t('showcase.pick.chip_label') : t('showcase.pill.title', { dim: t('showcase.pill.dim_label.' + pill.dim), value: pillLabel(pill) })">
                                     <!-- 124a-T3: release pill 依 _pillPopoverEnabled（≤480px 為 false）
                                          分流成可點／不可點，鏡射女優版 button/span 換型別的既有手法
@@ -101,7 +101,12 @@
                                                 @click.stop="_toggleResolutionEditor(pill)"
                                                 x-text="pillLabel(pill)"></button>
                                     </template>
-                                    <template x-if="!((pill.dim === 'release' || pill.dim === 'resolution') && _pillPopoverEnabled)">
+                                    <template x-if="pill.dim === 'pick' && _pillPopoverEnabled">
+                                        <button type="button" class="filter-pill-value"
+                                                @click.stop="_togglePickEditor(pill)"
+                                                x-text="pillLabel(pill)"></button>
+                                    </template>
+                                    <template x-if="!((pill.dim === 'release' || pill.dim === 'resolution' || pill.dim === 'pick') && _pillPopoverEnabled)">
                                         <span class="filter-pill-value" x-text="pillLabel(pill)"></span>
                                     </template>
                                     <button type="button" class="filter-pill-remove"
@@ -308,6 +313,36 @@
                             <template x-for="tier in resolutionTierList()" :key="tier">
                                 <button type="button" class="pill-editor-mode" :class="{ 'is-active': _resolutionEditor?.value === tier }"
                                         @click="_applyResolutionTier(tier)" x-text="tier"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 201-T6b: 點一顆即套用並關閉；浮層關閉時仍求值，對 _pickEditor 使用 ?.；
+                         位置須在解析度浮層之後。 -->
+                    <div class="pill-editor-popover"
+                         x-show="_pickEditor && !showFavoriteActresses && _pillPopoverEnabled"
+                         x-cloak
+                         x-transition.opacity.duration.150ms
+                         x-trap="!!_pickEditor"
+                         @click.outside="_pickEditor && _cancelPickEditor()"
+                         @click.stop
+                         role="dialog"
+                         aria-modal="false"
+                         aria-labelledby="pick-editor-title">
+                        <div class="pill-editor-title" id="pick-editor-title" x-text="t('showcase.pill.dim_label.pick')"></div>
+
+                        <div class="pill-editor-modes">
+                            <button type="button" class="pill-editor-mode" :class="{ 'is-active': _pickEditor?.op === '=' }"
+                                    @click="_applyPickOp('=')" :aria-label="t('showcase.pill.op.eq')">=</button>
+                            <button type="button" class="pill-editor-mode" :class="{ 'is-active': _pickEditor?.op === '<=' }"
+                                    @click="_applyPickOp('<=')" :aria-label="t('showcase.pill.op.lte')">≤</button>
+                            <button type="button" class="pill-editor-mode" :class="{ 'is-active': _pickEditor?.op === '>=' }"
+                                    @click="_applyPickOp('>=')" :aria-label="t('showcase.pill.op.gte')">≥</button>
+                        </div>
+                        <div class="pill-editor-modes pill-editor-modes--tiers">
+                            <template x-for="tier in pickTierList()" :key="tier.value">
+                                <button type="button" class="pill-editor-mode" :class="{ 'is-active': _pickEditor?.value === tier.value }"
+                                        @click="_applyPickTier(tier.value)" x-text="tier.label"></button>
                             </template>
                         </div>
                     </div>

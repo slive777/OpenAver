@@ -1507,7 +1507,8 @@
         "height": "身高",
         "cup": "罩杯",
         "release": "發售日",
-        "resolution": "解析度"
+        "resolution": "解析度",
+        "pick": "精選"
       },
       "title": "{dim}：{value}",
       "remove_aria": "移除篩選：{value}",
