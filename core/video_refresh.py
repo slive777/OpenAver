@@ -1,5 +1,6 @@
 """重新讀取單一影片的現有檔案。"""
 from pathlib import Path
+from typing import NamedTuple
 
 from core import media_probe, thumbnail_cache
 from core.cover_signature import apply_cover_change, cover_changed, read_cover_signature
@@ -40,20 +41,30 @@ def _commit_refreshed_video(repo, video, config, path_mappings):
     old_sig = repo.get_cover_sig(video.path)
     video.user_tags = []
     repo.upsert(video)
+    return sync_cover_and_thumbnail(repo, video.path, video.cover_path, old_sig, config, path_mappings).changed
+
+
+class CoverThumbResult(NamedTuple):
+    changed: bool
+    thumb_ok: bool
+
+
+def sync_cover_and_thumbnail(repo, video_path, cover_uri, old_sig, config, path_mappings) -> CoverThumbResult:
     try:
-        cover_fs = uri_to_local_fs_path(video.cover_path, path_mappings) if video.cover_path else None
+        cover_fs = uri_to_local_fs_path(cover_uri, path_mappings) if cover_uri else None
     except ValueError:
         cover_fs = None
     new_sig = read_cover_signature(cover_fs) if cover_fs else None
     changed = cover_changed(old_sig, new_sig)
     if changed:
-        apply_cover_change(repo, video.path, cover_fs, path_mappings)
+        apply_cover_change(repo, video_path, cover_fs, path_mappings)
     if new_sig is not None:
-        repo.set_cover_signature(video.path, *new_sig)
-    thumbnail_cache.invalidate(video.path)
+        repo.set_cover_signature(video_path, *new_sig)
+    thumbnail_cache.invalidate(video_path)
+    thumb_ok = True
     if config.get('thumbnail_cache_enabled', False) and cover_fs and new_sig is not None:
-        thumbnail_cache.get_or_create(video.path, cover_fs)
-    return changed
+        thumb_ok = thumbnail_cache.get_or_create(video_path, cover_fs) is not None
+    return CoverThumbResult(changed, thumb_ok)
 
 
 def refresh_one(repo, video, config, path_mappings):

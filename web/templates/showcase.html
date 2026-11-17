@@ -2246,7 +2246,7 @@
                                         <template x-if="advEditFiles().thumb === 'broken'"><i class="bi bi-image adv-edit-pv-broken" aria-hidden="true"></i></template>
                                         <template x-if="advEditFiles().thumb === 'pending'"><div class="adv-edit-pv-empty" x-text="t('showcase.adv_edit.files.thumb_pending')"></div></template>
                                     </div>
-                                    <figcaption><span x-text="t('showcase.adv_edit.files.thumb')"></span> <span class="adv-edit-chip adv-edit-chip--warn" x-show="advEditFiles().thumbChip === 'stale'" x-text="t('showcase.adv_edit.files.thumb_stale')"></span><span class="adv-edit-chip" x-show="advEditFiles().thumbChip === 'direct'" x-text="t('showcase.adv_edit.files.thumb_direct')"></span></figcaption>
+                                    <figcaption><span x-text="t('showcase.adv_edit.files.thumb')"></span> <span class="adv-edit-chip adv-edit-chip--warn" x-show="advEditFiles().thumbChip === 'stale'" x-text="t('showcase.adv_edit.files.thumb_stale')"></span><span class="adv-edit-chip" x-show="advEditFiles().thumbChip === 'direct'" x-text="t('showcase.adv_edit.files.thumb_direct')"></span> <button type="button" class="btn btn-xs adv-edit-thumb-regen" x-show="advEditFiles().canRegenThumb" :disabled="!!_advEditBusy" @click="regenAdvEditThumb()" x-text="t('showcase.adv_edit.files.regen')"></button></figcaption>
                                 </figure>
                             </div>
                             <div class="adv-edit-row" data-row="path">

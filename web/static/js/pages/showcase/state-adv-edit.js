@@ -1,4 +1,4 @@
-import { formatHms, mediaInfoText, advEditFilesView, advEditActionNotice, advEditPathStem, advEditRepathError, advEditUpdateNotice } from './lbx-logic.js';
+import { formatHms, mediaInfoText, advEditFilesView, advEditActionNotice, advEditPathStem, advEditRepathError, advEditUpdateNotice, advEditThumbNotice } from './lbx-logic.js';
 import { versionsOf } from './work-versions.js';
 
 export function stateAdvEdit() {
@@ -31,6 +31,26 @@ export function stateAdvEdit() {
                 if (gen === this._advEditGen) this.advEditLoadError = true;
             } finally {
                 if (gen === this._advEditGen) this.advEditLoading = false;
+            }
+        },
+        async regenAdvEditThumb() {
+            if (this._advEditBusy || !this.advEditOpen || !this.advEditFiles().canRegenThumb) return;
+            const gen = this._advEditGen, video = this.currentLightboxVideo;
+            this._advEditBusy = 'thumb';
+            try {
+                let data = null;
+                try {
+                    const resp = await fetch('/api/showcase/video/thumb-regenerate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: video.path }) });
+                    data = await resp.json();
+                } catch (e) { data = null; }
+                if (gen !== this._advEditGen) return;
+                const notice = advEditThumbNotice(data, window.t);
+                this.showToast(notice.text, notice.type);
+                if (notice.reload) await this.refreshVideoData(video);
+                if (gen !== this._advEditGen) return;
+                await this.loadAdvEditInfo();
+            } catch (e) { console.error(e); } finally {
+                if (gen === this._advEditGen) this._advEditBusy = '';
             }
         },
         async regenAdvEditPoster() {

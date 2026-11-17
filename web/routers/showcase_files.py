@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from core import media_probe
 from core.config import get_configured_gallery_dirs, load_config
 from core.config import STEM_IMAGE_MODES, normalize_external_manager
+from core.cover_signature import read_cover_signature
 from core.database import VideoRepository, get_db_path, init_db
 from core.logger import get_logger
 from core.media_probe_force import probe_now
@@ -236,3 +237,32 @@ def refresh_video(req: VideoPathRequest):
     except Exception:
         logger.exception("[refresh] 未預期錯誤")
         return JSONResponse({"success": False, "error": "更新失敗"}, status_code=500)
+
+
+@router.post("/video/thumb-regenerate")
+def regenerate_video_thumb(req: VideoPathRequest):
+    """重新產生牆上縮圖，不重讀影片中繼資料。"""
+    from core.video_refresh import sync_cover_and_thumbnail
+
+    try:
+        ctx, err = _resolve_scope(req.path)
+        if err is not None:
+            return err
+        if is_path_on_unreachable_source(ctx.row.path, ctx.config.get("gallery", {})):
+            return {"success": False, "error": "unreachable"}
+        if not ctx.config.get("thumbnail_cache_enabled", False):
+            return {"success": False, "error": "skipped"}
+        try:
+            cover_fs = uri_to_local_fs_path(ctx.row.cover_path, ctx.path_mappings) if ctx.row.cover_path else None
+        except ValueError:
+            cover_fs = None
+        if cover_fs is None or read_cover_signature(cover_fs) is None:
+            return {"success": False, "error": "no_cover"}
+        old_sig = ctx.repo.get_cover_sig(ctx.row.path)
+        result = sync_cover_and_thumbnail(ctx.repo, ctx.row.path, ctx.row.cover_path, old_sig, ctx.config, ctx.path_mappings)
+        if not result.thumb_ok:
+            return {"success": False, "error": "failed"}
+        return {"success": True, "cover_changed": result.changed}
+    except Exception:
+        logger.exception("[thumb-regenerate] 未預期錯誤")
+        return JSONResponse({"success": False, "error": "重新產生縮圖失敗"}, status_code=500)

@@ -274,3 +274,42 @@ test('test_adv_edit_busy_lock_and_late_responses_dropped', async () => {
         }
     } finally { for (const resolve of pendingResolves) resolve(response({ success: false })); globalThis.fetch = previous; clearWall(); cleanup(); }
 });
+
+test('test_adv_edit_thumb_regen_button_and_notices', async () => {
+    const { advEditFilesView, advEditThumbNotice } = await import('../lbx-logic.js');
+    for (const [info, expected] of [[null, false], [{cover: {exists: true}, thumb: {mode: 'cache'}}, true], [{cover: {exists: false}, thumb: {mode: 'cache'}}, false], [{cover: {exists: true}, thumb: {mode: 'cover'}}, false]]) {
+        assert.equal(advEditFilesView(info).canRegenThumb, expected);
+    }
+    for (const [data, key, type, reload] of [
+        [{success: true, cover_changed: false}, 'thumb_regen_done', 'success', true],
+        [{success: true, cover_changed: true}, 'thumb_regen_done_cover', 'success', true],
+        [{success: false, error: 'no_cover'}, 'thumb_no_cover', 'warning', false],
+        [{success: false, error: 'unreachable'}, 'unreachable', 'warning', false],
+        ...['failed', 'skipped', 'unknown'].map(error => [{success: false, error}, 'thumb_failed', 'error', false]),
+        [null, 'thumb_failed', 'error', false],
+    ]) assert.deepEqual(advEditThumbNotice(data, window.t), {text: 'showcase.adv_edit.files.' + key, type, reload});
+});
+
+test('test_adv_edit_thumb_regen_late_and_busy', async () => {
+    seed(); const previous = globalThis.fetch;
+    try {
+        let resolve, requests = 0, toast = 0, refresh = 0, loads = 0;
+        globalThis.fetch = () => { requests++; return new Promise(r => { resolve = r; }); };
+        const c = makeComponent({currentLightboxVideo: VIDEOS[0], advEditOpen: true, advEditInfo: {cover: {exists: true}, thumb: {mode: 'cache'}}, showToast: () => toast++, refreshVideoData: async () => refresh++, loadAdvEditInfo: async () => loads++});
+        const pending = c.regenAdvEditThumb();
+        await c.regenAdvEditThumb();
+        assert.equal(requests, 1);
+        c.closeAdvEdit();
+        resolve(response({success: true}));
+        await pending;
+        assert.equal(toast, 0); assert.equal(refresh, 0); assert.equal(loads, 0);
+        c.advEditOpen = true;
+        c.advEditInfo = {cover: {exists: true}, thumb: {mode: 'cache'}};
+        globalThis.fetch = async () => ({ok: false, json: async () => ({success: false, error: 'no_cover'})});
+        await c.regenAdvEditThumb();
+        assert.equal(toast, 1); assert.equal(refresh, 0); assert.equal(loads, 1);
+        globalThis.fetch = async () => response({success: true});
+        await c.regenAdvEditThumb();
+        assert.equal(toast, 2); assert.equal(refresh, 1); assert.equal(loads, 2);
+    } finally { globalThis.fetch = previous; cleanup(); }
+});

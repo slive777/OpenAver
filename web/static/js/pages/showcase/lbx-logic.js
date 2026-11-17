@@ -290,6 +290,7 @@ export function advEditFilesView(info, { borrowed = false, imgFail = {} } = {}) 
         poster: advEditPosterView(poster, imgFail),
         thumb: thumb.exists && !imgFail.thumb ? 'img' : thumb.mode === 'cache' && !thumb.exists && cover.exists ? 'pending' : 'broken',
         thumbChip: thumb.stale ? 'stale' : thumb.mode === 'cover' ? 'direct' : '',
+        canRegenThumb: thumb.mode === 'cache' && !!cover.exists,
         canRegen: !!poster.can_regen && !borrowed,
         canReread: info?.state === 'ok',
         folders: info?.readonly ? { open: '', source: folders.source || '', output: advEditOutputTarget(folders, info.nfo?.name) } : { open: folders.source || '', source: '', output: '' },
@@ -354,4 +355,11 @@ export function advEditUpdateNotice(data, t) {
     const code = data?.success === false ? data.error : null;
     const known = Object.hasOwn(messages, code);
     return { text: known ? messages[code]() : t('showcase.adv_edit.update.err_generic'), type: known ? 'warning' : 'error', reload: false, sync: code === 'unreachable' || code === 'not_found' };
+}
+
+export function advEditThumbNotice(data, t) {
+    if (data?.success === true) return { text: data.cover_changed ? t('showcase.adv_edit.files.thumb_regen_done_cover') : t('showcase.adv_edit.files.thumb_regen_done'), type: 'success', reload: true };
+    if (data?.success === false && data.error === 'no_cover') return { text: t('showcase.adv_edit.files.thumb_no_cover'), type: 'warning', reload: false };
+    if (data?.success === false && data.error === 'unreachable') return { text: t('showcase.adv_edit.files.unreachable'), type: 'warning', reload: false };
+    return { text: t('showcase.adv_edit.files.thumb_failed'), type: 'error', reload: false };
 }

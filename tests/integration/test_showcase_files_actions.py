@@ -590,3 +590,96 @@ def test_reprobe_endpoint_results(tmp_path, monkeypatch, mocker, case):
     after = env["repo"].get_media_probe_view(env["video_uri"])
     assert (after.media_width, after.media_probe_size) == (before.media_width, before.media_probe_size)
     spy.assert_not_called()
+
+
+@pytest.mark.parametrize('case', ['unreachable', 'skipped', 'no_cover', 'failed', 'unchanged', 'changed_auto', 'changed_manual'])
+def test_thumb_regenerate_outcomes(tmp_path, monkeypatch, mocker, case):
+    from core import thumbnail_cache
+    env = _make_base(tmp_path)
+    env['config']['thumbnail_cache_enabled'] = case != 'skipped'
+    mocker.patch('core.thumbnail_cache._thumb_dir', return_value=tmp_path / 'thumbs')
+    spy = mocker.patch('core.focal_trigger.maybe_submit_video_focal')
+    repo, uri, cover = env['repo'], env['video_uri'], env['cover']
+    with sqlite3.connect(env['db_path']) as conn:
+        conn.execute("UPDATE videos SET crop_mode=?, auto_focal=?, focal_attempted_at=? WHERE path=?", ('auto' if case == 'changed_auto' else 'manual', '0.3', '2020-01-01', uri))
+    if case != 'failed':
+        st = cover.stat()
+        assert repo.set_cover_signature(uri, st.st_mtime_ns, st.st_size)
+    if case.startswith('changed_'):
+        st = cover.stat()
+        _stripes(cover, 999)
+        os.utime(cover, ns=(st.st_atime_ns, st.st_mtime_ns + 1000000000))
+    if case == 'no_cover':
+        cover.unlink()
+    if case == 'failed':
+        cover.write_bytes(b'bad image')
+    thumb = thumbnail_cache.thumb_file_for(uri)
+    thumb.parent.mkdir(parents=True, exist_ok=True)
+    thumb.write_bytes(b'old thumb')
+    before = repo.get_by_path(uri)
+    sig_before = repo.get_cover_sig(uri)
+    if case == 'unreachable':
+        mocker.patch('web.routers.showcase_files.is_path_on_unreachable_source', return_value=True)
+    client = _wire(monkeypatch, db_path=env['db_path'], config=env['config'])
+    original_stat = os.stat
+    calls = []
+    def counted(path, *args, **kwargs):
+        if isinstance(path, (str, bytes, os.PathLike)) and os.fspath(path) == str(cover):
+            calls.append(path)
+        return original_stat(path, *args, **kwargs)
+    if case == 'unreachable':
+        monkeypatch.setattr(os, 'stat', counted)
+    resp = client.post('/api/showcase/video/thumb-regenerate', json={'path': uri})
+    assert resp.status_code == 200
+    expected = {'success': False, 'error': case} if case in ('unreachable', 'skipped', 'no_cover', 'failed') else {'success': True, 'cover_changed': case.startswith('changed_')}
+    assert resp.json() == expected
+    if case == 'unreachable':
+        assert not calls
+    if case in ('unreachable', 'skipped', 'no_cover'):
+        assert thumb.read_bytes() == b'old thumb'
+    if case in ('unchanged', 'changed_auto', 'changed_manual'):
+        assert thumb.read_bytes() != b'old thumb'
+        with Image.open(thumb) as image:
+            assert image.format == 'WEBP'
+        st = cover.stat()
+        assert repo.get_cover_sig(uri) == (st.st_mtime_ns, st.st_size)
+    row = repo.get_by_path(uri)
+    expected_focal = ('auto', '', None) if case == 'changed_auto' else (before.crop_mode, before.auto_focal, before.focal_attempted_at)
+    assert (row.crop_mode, row.auto_focal, row.focal_attempted_at) == expected_focal
+    assert spy.call_count == (1 if case == 'changed_auto' else 0)
+    if case == 'unchanged':
+        assert repo.get_cover_sig(uri) == sig_before
+
+
+@pytest.mark.parametrize('layout', ['plain', 'readonly'])
+def test_thumb_regenerate_writes_nothing_but_thumb_cache(tmp_path, monkeypatch, mocker, layout):
+    env = _make_base(tmp_path)
+    mocker.patch('core.thumbnail_cache._thumb_dir', return_value=tmp_path / 'thumbs')
+    mocker.patch('core.focal_trigger.maybe_submit_video_focal')
+    env['config']['thumbnail_cache_enabled'] = True
+    source = env['video_dir']
+    output = tmp_path / 'output'
+    output.mkdir()
+    if layout == 'readonly':
+        env['config']['gallery']['directories'][0].update(readonly=True, output_path=str(output))
+        target = output / env['cover'].name
+        target.write_bytes(env['cover'].read_bytes())
+        with sqlite3.connect(env['db_path']) as conn:
+            conn.execute('UPDATE videos SET cover_path=? WHERE path=?', (to_file_uri(str(target), {}), env['video_uri']))
+    else:
+        target = env['cover']
+    for root in (source, output):
+        (root / 'RGN-001-fanart.jpg').write_bytes(b'fanart distinct')
+        (root / 'RGN-001-poster.jpg').write_bytes(b'poster distinct')
+        (root / 'RGN-001.nfo').write_text('<movie/>')
+    with sqlite3.connect(env['db_path']) as conn:
+        conn.execute("UPDATE videos SET title=?, user_tags=?, user_rating=? WHERE path=?", ('personal title', '[\"tag\"]', 4, env['video_uri']))
+    row_before = env['repo'].get_by_path(env['video_uri'])
+    client = _wire(monkeypatch, db_path=env['db_path'], config=env['config'])
+    snapshots = (_snapshot_tree(source), _snapshot_tree(output))
+    resp = client.post('/api/showcase/video/thumb-regenerate', json={'path': env['video_uri']})
+    assert resp.status_code == 200
+    assert resp.json() == {'success': True, 'cover_changed': False}
+    assert (_snapshot_tree(source), _snapshot_tree(output)) == snapshots
+    row_after = env['repo'].get_by_path(env['video_uri'])
+    assert (row_after.title, row_after.user_tags, row_after.user_rating) == (row_before.title, row_before.user_tags, row_before.user_rating)
