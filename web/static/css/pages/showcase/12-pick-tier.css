@@ -1,0 +1,90 @@
+/* 201 精選三級專用：token 區塊以外的業務選擇器皆含 pick。
+ * token 定義主題色，業務規則只引用 token；燈箱 transition 必須無條件，
+ * 取消精選移除屬性後才能繼續完成淡出。 */
+:root {
+    --pick-gold: oklch(0.76 0.17 85);
+    --pick-silver: oklch(0.57 0.10 240);
+    --pick-bronze: oklch(0.64 0.15 48);
+    --pick-gold-line: oklch(0.74 0.15 85);
+    --pick-silver-line: oklch(0.58 0.09 240);
+    --pick-bronze-line: oklch(0.60 0.13 50);
+    --pick-gold-star: oklch(0.66 0.17 80);
+    --pick-silver-star: oklch(0.56 0.10 240);
+    --pick-bronze-star: oklch(0.56 0.12 52);
+    --pick-glow-a1: 20%;
+    --pick-glow-a2: 14%;
+    --pick-glow-a3: 10%;
+    --pick-glow-scale: 1;
+}
+
+[data-theme="dim"] {
+    --pick-gold: oklch(0.82 0.17 85);
+    --pick-silver: oklch(0.87 0.08 235);
+    --pick-bronze: oklch(0.72 0.16 52);
+    --pick-gold-line: oklch(0.84 0.14 85);
+    --pick-silver-line: oklch(0.86 0.06 235);
+    --pick-bronze-line: oklch(0.72 0.13 52);
+    --pick-gold-star: oklch(0.88 0.14 78);
+    --pick-silver-star: oklch(0.87 0.07 235);
+    --pick-bronze-star: oklch(0.72 0.13 52);
+    --pick-glow-a1: 18%;
+    --pick-glow-a2: 13%;
+    --pick-glow-a3: 9%;
+}
+
+[data-pick-tier="gold"] {
+    --pick-tier: var(--pick-gold);
+    --pick-line: var(--pick-gold-line);
+    --pick-star: var(--pick-gold-star);
+}
+
+[data-pick-tier="silver"] {
+    --pick-tier: var(--pick-silver);
+    --pick-line: var(--pick-silver-line);
+    --pick-star: var(--pick-silver-star);
+}
+
+[data-pick-tier="bronze"] {
+    --pick-tier: var(--pick-bronze);
+    --pick-line: var(--pick-bronze-line);
+    --pick-star: var(--pick-bronze-star);
+}
+
+[data-pick-tier="gold"],
+[data-pick-tier="silver"],
+[data-pick-tier="bronze"] {
+    --pick-glow:
+        0 calc(5px * var(--pick-glow-scale)) calc(10px * var(--pick-glow-scale)) calc(-4px * var(--pick-glow-scale)) color-mix(in oklch, var(--pick-tier) var(--pick-glow-a1), transparent),
+        0 calc(14px * var(--pick-glow-scale)) calc(24px * var(--pick-glow-scale)) calc(-10px * var(--pick-glow-scale)) color-mix(in oklch, var(--pick-tier) var(--pick-glow-a2), transparent),
+        0 calc(26px * var(--pick-glow-scale)) calc(46px * var(--pick-glow-scale)) calc(-18px * var(--pick-glow-scale)) color-mix(in oklch, var(--pick-tier) var(--pick-glow-a3), transparent);
+}
+
+.lightbox-content[data-pick-tier="gold"],
+.lightbox-content[data-pick-tier="silver"],
+.lightbox-content[data-pick-tier="bronze"] {
+    --pick-glow-scale: 1.2;
+}
+
+[data-theme="light"] :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview[data-pick-tier]:not(:hover) {
+    box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent), var(--fluent-shadow-4), var(--pick-glow);
+}
+
+[data-theme="dim"] :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview[data-pick-tier]:not(.hero-card, :hover) {
+    box-shadow: inset 0 1px 0 var(--glass-caption-edge-top), 0 0 0 1px var(--glass-edge-lowlight-strong), var(--fluent-shadow-16), var(--pick-glow);
+}
+
+.lightbox-content[data-pick-tier="gold"],
+.lightbox-content[data-pick-tier="silver"],
+.lightbox-content[data-pick-tier="bronze"] {
+    box-shadow: var(--fluent-shadow-28), var(--pick-glow);
+}
+
+[data-theme="dim"] .lightbox-content[data-pick-tier="gold"],
+[data-theme="dim"] .lightbox-content[data-pick-tier="silver"],
+[data-theme="dim"] .lightbox-content[data-pick-tier="bronze"] {
+    box-shadow: inset 0 1px 0 var(--glass-overlay-edge-top), inset 0 -1px 0 var(--glass-overlay-edge-bottom), var(--fluent-shadow-64), var(--pick-glow);
+}
+
+.lightbox-content {
+    transition: transform var(--duration-normal) var(--ease-out), box-shadow var(--fluent-duration-emphasis) var(--fluent-ease-standard);
+}

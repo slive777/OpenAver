@@ -319,7 +319,7 @@
 }
 
 /* 123-T3／T8：燈箱精選星（無補間）。兩層疊置：outline 永遠顯示、fill 用 --pick-fill clip。
- * 補間一律由 GSAP 擁有 —— 本區塊禁止任何 transition/animation。
+ * 灌滿的 --pick-fill 仍由 GSAP 擁有；等級色的過渡是 CSS transition（GSAP 不補 oklch／color-mix）。
  * Opus ①：兩層 <i> 必須 display:block（inline box 上 clip-path/transform 無效）。
  * Opus ④：色值定死走 token；不加陰影／glow／背景／邊框。
  *
@@ -396,21 +396,26 @@
 
 .lightbox-metadata .lb-title .pick-star-outline {
     color: var(--text-muted);     /* 未精選：低調，不與標題（--text-primary）搶 */
+    transition: color var(--fluent-duration-normal) var(--fluent-ease-standard);
     position: relative;
     z-index: 1;
 }
 
 .lightbox-metadata .lb-title .pick-star:hover .pick-star-outline,
-.lightbox-metadata .lb-title .pick-star:focus-visible .pick-star-outline,
+.lightbox-metadata .lb-title .pick-star:focus-visible .pick-star-outline {
+    color: var(--text-primary);
+}
+
 .lightbox-metadata .lb-title .pick-star.is-picked .pick-star-outline {
-    color: var(--text-primary);   /* 未精選 hover/focus、已精選：中性色 outline（199a） */
+    color: var(--pick-star, var(--text-primary));
 }
 
 .lightbox-metadata .lb-title .pick-star-fill {
     position: absolute;
     inset: 0 auto 0 0;            /* 靠左：必須跟 outline 那層（justify-content:flex-start）同一個 x */
     margin: auto 0;               /* 上下 auto ＝ 垂直置中，比照 outline 的 align-items:center */
-    color: var(--text-primary);   /* 中性色（199a） */
+    color: var(--pick-star, var(--text-primary));
+    transition: color var(--fluent-duration-normal) var(--fluent-ease-standard);
     clip-path: inset(var(--pick-fill, 100%) 0 0 0);
     pointer-events: none;
     z-index: 0;

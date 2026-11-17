@@ -587,6 +587,7 @@
                      :class="{ 'missing-cover': !video.has_cover }"
                      @click="openLightbox(getCurrentFilteredIndex(index))"
                      :style="`--card-index: ${index}`"
+                     :data-pick-tier="pickTierName(video.user_rating)"
                      :data-flip-id="video.path">
                     <div class="av-card-preview-img">
                         <!-- 67-A2: 三態（CD-67-3）。保留單一 <img> 沿用 handleCoverError 換圖；
@@ -734,7 +735,7 @@
                     </thead>
                     <tbody>
                         <template x-for="(video, index) in paginatedVideos" :key="video.path">
-                            <tr @click="openLightbox(getCurrentFilteredIndex(index))" class="table-row-clickable">
+                            <tr @click="openLightbox(getCurrentFilteredIndex(index))" class="table-row-clickable" :data-pick-tier="pickTierName(video.user_rating)">
                                 <td class="table-cell-index" x-text="getCurrentFilteredIndex(index) + 1"></td>
                                 <!-- 123-T8b：下面兩個 <span> 之間不得留空白字元。<td> 是 inline 格式化
                                      脈絡，換行縮排會塌成一個空格（實測讓星到番號的距離變成 11.4px，而 grid
@@ -785,7 +786,7 @@
                 <template x-for="(video, index) in paginatedVideos" :key="video.path">
                     <li class="list-item" @click="openLightbox(getCurrentFilteredIndex(index))">
                         <span class="pick-star-mark bi bi-star-fill" aria-hidden="true"
-                              x-show="(video.user_rating || 0) > 0"></span>
+                              x-show="(video.user_rating || 0) > 0" :data-pick-tier="pickTierName(video.user_rating)"></span>
                         <span class="list-number" x-text="video.number"></span>
                         <template x-if="(video.part_tokens || []).length">
                             <span class="cover-badge" x-text="formatPartLabel(video.part_tokens)"></span>
@@ -899,7 +900,8 @@
              @resize.window="lbxPopClose()"
              @click="handleLightboxBackdropClick($event)">
 
-            <div class="lightbox-content" @click.stop>
+            <div class="lightbox-content" @click.stop
+                 :data-pick-tier="currentLightboxActress ? null : pickTierName(currentLightboxVideo?.user_rating)">
                 <!-- Close Button (shared between actress and video branches) -->
                 <button class="lightbox-close"
                         @click="closeLightbox()"

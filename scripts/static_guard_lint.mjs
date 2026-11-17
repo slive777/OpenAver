@@ -5190,6 +5190,11 @@ const RULES = [
     note: '[122-T3] AC-7/AC-17 燈箱（199a-T2 搬到規格帶）：影片燈箱的分集標記必須掛在封面規格帶 .lbx-band 內（class="lbx-part"），消費 formatPartLabel(currentLightboxVideo.part_tokens)——漏掉時使用者開分集作品，封面上看不到 CD1-2 之類標記。window 2600：實測 anchor 到 class="lbx-part" 結尾 1962 字元（199a-T3 在版本膠囊加 7 個屬性後由 1285 增至 1962），加約 30% 餘裕',
   },
 
+  // 201-T5: 精選等級綁定。
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':data-pick-tier=', scope: { anchor: /<div class="av-card-preview"/, window: 390 }, note: '[lint-guard:201-T5-bind-card] 缺少等級綁定會讓使用者看不到對應的精選色彩。' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':data-pick-tier=', scope: { anchor: /class="table-row-clickable"/, window: 100 }, note: '[lint-guard:201-T5-bind-row] 缺少等級綁定會讓使用者看不到對應的精選色彩。' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':data-pick-tier=', scope: { anchor: /class="list-item"/, window: 365 }, note: '[lint-guard:201-T5-bind-list] 缺少等級綁定會讓使用者看不到對應的精選色彩。' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':data-pick-tier=', scope: { anchor: /<div class="lightbox-content" @click\.stop/, window: 205 }, note: '[lint-guard:201-T5-bind-lightbox] 缺少等級綁定會讓使用者看不到對應的精選色彩。' },
   // ==== [123-T5] CD-123-13：三個唯讀表面 + 燈箱既有插入點的粗顆粒守衛（AC-4/5/6） ====
   // [Codex review BLOCKER 修正] 前一版把 anchor 錨在「自己要驗的那段字面」上
   // （/<span class="pick-star-mark...[\s\S]{0,300}class="av-num"/ 這類）。anchor.exec()
@@ -5215,7 +5220,7 @@ const RULES = [
       'x-show="(video.user_rating || 0) > 0"',
       'aria-hidden="true"',
     ],
-    scope: { anchor: /class="footer-num-group"/, window: 250 },
+    scope: { anchor: /class="footer-num-group"/, window: 260 },
     note: '[123-T5] AC-4/5 grid/poster（共用同一份 markup）：.footer-num-group 內、.av-num 前必須有唯讀 .pick-star-mark（x-show 條件渲染，不佔位）。anchor 改錨 .footer-num-group（全檔唯一容器，不含 payload 字面，修 Codex review BLOCKER：舊 anchor 自我參照可被殘留註解假綠）。window 實測 197，取 250。',
   },
   {
@@ -5226,7 +5231,7 @@ const RULES = [
       'x-show="(video.user_rating || 0) > 0"',
       'aria-hidden="true"',
     ],
-    scope: { anchor: /class="table-cell-number"/, window: 260 },
+    scope: { anchor: /class="table-cell-number"/, window: 270 },
     note: '[123-T5] AC-4/5 table：.table-cell-number 內、.table-number-highlight 前必須有唯讀 .pick-star-mark。anchor 與 122-T3 table 規則共用同一個既驗證唯一的容器 class（修 Codex review BLOCKER：舊 anchor 自我參照可被殘留註解假綠）。window 實測 206，取 260。',
   },
   {
@@ -5237,7 +5242,7 @@ const RULES = [
       'x-show="(video.user_rating || 0) > 0"',
       'aria-hidden="true"',
     ],
-    scope: { anchor: /class="list-item"/, window: 280 },
+    scope: { anchor: /class="list-item"/, window: 300 },
     note: '[123-T5] AC-4/5 list：.list-item 內、.list-number 前必須有唯讀 .pick-star-mark。anchor 改錨 .list-item（<li> 開標籤，全檔唯一，不含 payload 字面，修 Codex review BLOCKER：舊 anchor 自我參照可被殘留註解假綠）。window 實測 228，取 280。',
   },
   {
@@ -5263,14 +5268,14 @@ const RULES = [
     file: 'web/templates/showcase.html',
     kind: 'forbidden-string',
     pattern: '@click',
-    scope: { anchor: /class="footer-num-group"/, window: 230 },
+    scope: { anchor: /class="footer-num-group"/, window: 270 },
     note: '[123-T5] AC-6 grid：.pick-star-mark 是唯讀標記，不得掛 @click（唯一切換入口在燈箱）。anchor 改錨 .footer-num-group（修 Codex review BLOCKER）。window 實測（anchor 到 </span> 結尾）205，取 230。',
   },
   {
     file: 'web/templates/showcase.html',
     kind: 'forbidden-string',
     pattern: '@click',
-    scope: { anchor: /class="table-cell-number"/, window: 240 },
+    scope: { anchor: /class="table-cell-number"/, window: 280 },
     note: '[123-T5] AC-6 table：.pick-star-mark 是唯讀標記，不得掛 @click（唯一切換入口在燈箱）。anchor 改錨 .table-cell-number（修 Codex review BLOCKER）。window 實測（anchor 到 </span> 結尾）214，取 240。',
   },
   {
@@ -5279,7 +5284,7 @@ const RULES = [
     pattern: '@click',
     scope: {
       anchor: /(?<=<li class="list-item" @click="openLightbox\(getCurrentFilteredIndex\(index\)\)">)/,
-      window: 190,
+      window: 280,
     },
     note: '[123-T5] AC-6 list：.pick-star-mark 是唯讀標記，不得掛 @click（唯一切換入口在燈箱）。anchor 不能直接用 class="list-item"（同一個 <li> 開標籤自己就掛著合法的 @click="openLightbox(...)"，window 從 anchor 起點往後切一定會把這段合法 @click 也切進去、恆假紅）；改用零寬 lookbehind 錨在該 <li> 開標籤結尾的 ">" 之後，把合法 @click 排除在 window 之外。window 實測（anchor 到 </span> 結尾）164，取 190。',
   },
