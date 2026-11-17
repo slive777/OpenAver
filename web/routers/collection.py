@@ -23,6 +23,7 @@ from core.logger import get_logger
 from core.version_group import reread_work_user_tags, representative_paths, resolve_work, resolve_works_bulk
 from core.nfo_updater import update_nfo_user_tags
 from core.path_utils import CURRENT_ENV, reverse_path_mapping, to_file_uri, uri_to_fs_path
+from core.pick_tier import tier_value, value_tier
 from core.scraper import extract_number, is_number_format
 from core.user_tags_write import apply_user_tags
 
@@ -870,17 +871,24 @@ user_rating_router = APIRouter(prefix="/api", tags=["user-rating"])
 class UserRatingRequest(BaseModel):
     paths: Optional[List[str]] = None
     file_path: Optional[str] = None
-    picked: bool
+    picked: Optional[bool] = None
+    tier: Optional[Literal['gold', 'silver', 'bronze', 'none']] = None
 
 
 @user_rating_router.post("/user-rating")
 def post_user_rating(request: UserRatingRequest) -> dict:
     """
-    批次／單筆冪等設定「精選」狀態（spec-123 CD-123-6/7/8；作品層，TASK-198b-T3）。
+    批次／單筆冪等設定「精選等級」（金／銀／銅／未精選，spec-123；等級制
+    TASK-201-T2，CD-201-3；作品層，TASK-198b-T3）。
 
     - `paths`（批次）與 `file_path`（單筆簡寫）二擇一，函式體內驗證（XOR），非 pydantic
       cross-field validator（跟隨本檔既有風格，見 TASK-123-T2.md「技術要點」）。
-    - `picked` 必填，缺欄位由 pydantic 自動回 422，不在此處理。
+    - `picked`（舊用法：true＝金、false＝取消）與 `tier`（新用法：gold/silver/bronze/
+      none）二擇一。解析規則：只有 `picked:true`＝金；只有 `picked:false`＝0；
+      只有 `tier`＝照 `tier`（`none`＝0）；兩者都有且一致（`picked:true`＋非 none、
+      `picked:false`＋`none`）＝照 `tier`；兩者都有但矛盾、或兩者都沒有＝HTTP 400
+      （`{"success": False, ...}`，在碰 DB 之前回）。缺 `picked`＋`tier` 的欄位組合由
+      函式體內驗證回 400，不靠 pydantic 自動 422。
     - 路徑先正規化（`_normalize_to_uri`），再過作品解析（`resolve_works_bulk`——
       批次版，同一資料夾只查一次 DB、只分組一次；語意與逐一 `resolve_work()` 相同），
       寫入目標 = `representative_paths(work)`（各版本 `members[0]`，不寫 part-2 列）；
@@ -891,7 +899,19 @@ def post_user_rating(request: UserRatingRequest) -> dict:
       （`results` 與輸入 1:1）。
     - **不寫 NFO**（spec §4.6，跟 `post_user_tags()` 不同，刻意不同步）。
     """
-    value = 1 if request.picked else 0
+    has_picked = request.picked is not None
+    has_tier = request.tier is not None
+    if has_tier and has_picked:
+        if not ((request.picked and request.tier != 'none') or (not request.picked and request.tier == 'none')):
+            return JSONResponse(status_code=400, content={"success": False, "error": "picked 與 tier 矛盾，只能擇一"})
+    elif not has_tier and not has_picked:
+        return JSONResponse(status_code=400, content={"success": False, "error": "必須提供 picked 或 tier"})
+    if has_tier:
+        value = tier_value(request.tier)
+    else:
+        value = tier_value('gold') if request.picked else tier_value('none')
+    picked_out = value > 0
+    tier_out = value_tier(value) or 'none'
 
     # 1. XOR 驗證（函式體內，非 validator；跟隨本檔既有 400 慣例，見 :222-225）
     has_paths = request.paths is not None
@@ -963,7 +983,7 @@ def post_user_rating(request: UserRatingRequest) -> dict:
                 counted.add(key)
                 changed += 1
 
-        return {"success": True, "picked": request.picked, "results": results, "changed": changed}
+        return {"success": True, "picked": picked_out, "tier": tier_out, "results": results, "changed": changed}
 
     except Exception as e:
         logger.error("[user-rating] 內部錯誤: %s", e)

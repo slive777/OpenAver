@@ -178,16 +178,43 @@ def test_versions_collapse_into_one_work(client, works_lib, mocker):
 
 def test_work_level_rating_and_tags_union(client, works_lib, mocker):
     _patch_showcase(mocker, works_lib)
+    repo = VideoRepository(works_lib["db_path"])
+    repo.set_user_rating(works_lib["o_uri"], 2)
+    repo.set_user_rating(works_lib["c_uri"], 3)
+
     resp = client.get("/api/showcase/videos")
     assert resp.status_code == 200
     work = next(
         v for v in resp.json()["videos"] if v["path"] == works_lib["c_uri"]
     )
-    assert work["user_rating"] == 1
+    assert work["user_rating"] == 3
     assert "想看" in work["user_tags"]
     for v in work["versions"]:
-        assert v["user_rating"] == 1
+        assert v["user_rating"] == 3
         assert "想看" in v["user_tags"]
+
+    repo.set_user_rating(works_lib["o_uri"], 0)
+    repo.set_user_rating(works_lib["c_uri"], 0)
+    repo.set_user_rating(works_lib["ltx_uri"], 0)
+
+    resp = client.get("/api/showcase/videos")
+    assert resp.status_code == 200
+    work = next(
+        v for v in resp.json()["videos"] if v["path"] == works_lib["c_uri"]
+    )
+    assert work["user_rating"] == 0
+    for v in work["versions"]:
+        assert v["user_rating"] == 0
+
+    repo.set_user_rating(works_lib["solo_uri"], 2)
+
+    resp = client.get("/api/showcase/videos")
+    assert resp.status_code == 200
+    solo = next(
+        v for v in resp.json()["videos"] if v["path"] == works_lib["solo_uri"]
+    )
+    assert solo["user_rating"] == 2
+    assert solo["versions"] == []
 
 
 def test_single_video_top_is_requested_version(client, works_lib, mocker):

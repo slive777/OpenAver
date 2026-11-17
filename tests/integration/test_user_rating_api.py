@@ -253,12 +253,13 @@ class TestScenario6NfoByteIdentical:
     def _nfo_fingerprint(nfo_path):
         return (nfo_path.read_bytes(), nfo_path.stat().st_mtime_ns)
 
-    def test_pick_leaves_nfo_byte_identical(self, nfo_client, nfo_db):
-        """picked: True（精選）前後，.nfo 的 bytes 與 mtime_ns 完全相同。"""
+    @pytest.mark.parametrize("payload", [{"picked": True}, {"tier": "silver"}], ids=["picked-true", "tier-silver"])
+    def test_pick_leaves_nfo_byte_identical(self, nfo_client, nfo_db, payload):
+        """picked: True／tier: silver（精選）前後，.nfo 的 bytes 與 mtime_ns 完全相同。"""
         db_path, video_uri, nfo_path = nfo_db
         before = self._nfo_fingerprint(nfo_path)
 
-        resp = nfo_client.post("/api/user-rating", json={"file_path": video_uri, "picked": True})
+        resp = nfo_client.post("/api/user-rating", json={"file_path": video_uri, **payload})
         assert resp.status_code == 200
         assert resp.json()["success"] is True
 
@@ -267,4 +268,46 @@ class TestScenario6NfoByteIdentical:
 
         repo = VideoRepository(db_path)
         assert repo.get_by_path(video_uri).user_rating > 0
+
+
+# ── TASK-201-T2：舊 picked 相容＋矛盾 400 ──────────────────────────────────────
+
+class TestTierWritesAndLegacyCompat:
+    """picked:true 照舊＝金；tier:'none'＝0；矛盾／缺欄 → 400 且 DB 不動。"""
+
+    def test_picked_true_writes_gold_and_tier_none_clears(self, client, tmp_db):
+        resp = client.post("/api/user-rating", json={"file_path": TEST_FILE_URI, "picked": True})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["picked"] is True
+        assert data["tier"] == "gold"
+        assert _rating(tmp_db, TEST_FILE_URI) == 3
+
+        resp = client.post("/api/user-rating", json={"file_path": TEST_FILE_URI, "tier": "none"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["picked"] is False
+        assert data["tier"] == "none"
+        assert _rating(tmp_db, TEST_FILE_URI) == 0
+
+        resp = client.post("/api/user-rating", json={"file_path": TEST_FILE_URI, "picked": True, "tier": "silver"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["tier"] == "silver"
+        assert _rating(tmp_db, TEST_FILE_URI) == 2
+
+    @pytest.mark.parametrize("payload", [
+        {"picked": False, "tier": "gold"},
+        {},
+    ], ids=["conflicting", "missing-both"])
+    def test_conflicting_or_missing_rating_returns_400_without_db_write(self, client, tmp_db, payload):
+        """矛盾（picked:false＋tier:'gold'）或兩者都不送 → 400，DB 值不變。"""
+        before = _rating(tmp_db, TEST_FILE_URI)
+        resp = client.post("/api/user-rating", json={"file_path": TEST_FILE_URI, **payload})
+        assert resp.status_code == 400
+        assert resp.json()["success"] is False
+        assert _rating(tmp_db, TEST_FILE_URI) == before
 

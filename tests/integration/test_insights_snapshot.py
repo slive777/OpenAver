@@ -479,6 +479,22 @@ class TestInsightsRecordShape:
         assert fixture_a["director"] == "Dir A"
         assert fixture_a["series"] == "Series A"
 
+    def test_changing_only_user_rating_leaves_snapshot_body_unchanged(
+        self, client, insights_setup, mocker
+    ):
+        """只改 user_rating（3／2／1 三態各一格）→ 分析頁快照 body 逐字相同。"""
+        from core.database import VideoRepository
+
+        before = _get_snapshot(client, mocker, insights_setup).json()
+        repo = VideoRepository(insights_setup["db_path"])
+        repo.set_user_rating(insights_setup["fixture_a_uri"], 3)
+        mid = _get_snapshot(client, mocker, insights_setup).json()
+        assert mid == before
+        repo.set_user_rating(insights_setup["fixture_a_uri"], 2)
+        assert _get_snapshot(client, mocker, insights_setup).json() == before
+        repo.set_user_rating(insights_setup["fixture_a_uri"], 1)
+        assert _get_snapshot(client, mocker, insights_setup).json() == before
+
 
 # ============ Tag Badge Alias Merge (CD-156-11) ============
 

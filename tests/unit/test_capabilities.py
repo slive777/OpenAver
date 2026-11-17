@@ -254,7 +254,7 @@ class TestCapabilitiesEndpoint:
 
 
     def test_user_rating_tool(self, client):
-        """user_rating tool（TASK-123-T2）：批次精選端點，confirmation_required 必為 True，
+        """user_rating tool：金／銀／銅三級（TASK-201-T2）；confirmation_required 必為 True，
         description 須含風險說明，且與 user_tags 的 ★ 標籤區分開來。"""
         data = client.get("/api/capabilities").json()
         tool = next((t for t in data["tools"] if t["name"] == "user_rating"), None)
@@ -267,6 +267,24 @@ class TestCapabilitiesEndpoint:
         assert "批次" in tool["description"] or "一鍵復原" in tool["description"] or "取消" in tool["description"]
         assert "user_tags" in tool["description"] or "★" in tool["description"]
         assert "showcase/videos" in tool.get("also_see", "")
+        props = tool["input_schema"]["properties"]
+        assert props["tier"]["enum"] == ["gold", "silver", "bronze", "none"]
+        assert "picked" in props
+        assert "picked" not in tool["input_schema"]["required"]
+        assert "金" in tool["description"] and "銀" in tool["description"] and "銅" in tool["description"]
+        assert "不寫 NFO" in tool["description"]
+
+
+class TestUserRatingReadDisclosures:
+    """R4／R6 讀取端說明：0=未精選／1=銅／2=銀／3=金，作品層取最高。"""
+
+    def test_collection_sql_and_showcase_videos_rating_legends(self, client):
+        data = client.get("/api/capabilities").json()
+        tools = {t["name"]: t for t in data["tools"]}
+        sql_desc = tools["collection_sql"]["database_schema"]["videos"]["user_rating"]
+        item_desc = tools["showcase_videos"]["output_schema"]["videos"]["item_fields"]["user_rating"]
+        for desc in (sql_desc, item_desc):
+            assert "3=金" in desc
 
 
     def test_video_rescrape_side_effect_flags(self, client):

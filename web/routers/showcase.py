@@ -31,6 +31,7 @@ from core.path_utils import (
     uri_to_local_fs_path,
 )
 from core.logger import get_logger
+from core.pick_tier import best
 from core.platform_info import DSM_PERMISSION_HINT, LINUX_PERMISSION_HINT, is_headless_server, is_synology
 from core.config import load_config, get_gallery_source_paths, get_configured_gallery_dirs, normalize_external_manager, STEM_IMAGE_MODES
 from core.title_writeback import apply_title_writeback
@@ -193,7 +194,7 @@ def _serialize_work_versions(work, path_mappings, enabled, probe_of, prefixes=No
     from core.source_reachability import owning_source_index
 
     firsts = [g.members[0] for g in work.versions]
-    work_rating = 1 if any((m.user_rating or 0) > 0 for m in firsts) else 0
+    work_rating = best(m.user_rating or 0 for m in firsts)
     work_tags = work_user_tags(work)
     if len(work.versions) == 1:
         first_path = work.versions[0].members[0].path
