@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 register(new URL('../../search/__tests__/alias-loader.mjs', import.meta.url), import.meta.url);
 
@@ -22,7 +23,7 @@ function field(key) {
 }
 
 test('test_field_table_validation_and_values', () => {
-    assert.equal(ADV_EDIT_DATA_FIELDS.map((f) => f.key).join(','), 'title,original_title,maker,series,actresses,release_date,plot,plot_translation');
+    assert.equal(ADV_EDIT_DATA_FIELDS.map((f) => f.key).join(','), 'title,original_title,actresses,maker,series,release_date,plot,plot_translation');
     assert.equal(ADV_EDIT_DATA_FIELDS.filter((f) => f.required).map((f) => f.key).join(','), 'title');
     const dateCases = [
         ['2024-02-30', 'invalid_date'],
@@ -49,6 +50,20 @@ test('test_field_table_validation_and_values', () => {
     assert.equal(isComposingEnter({ isComposing: true }), true);
     assert.equal(isComposingEnter({}), false);
     assert.equal(isComposingEnter(null), false);
+});
+
+test('test_field_table_i18n_keys_exist', () => {
+    const locale = JSON.parse(readFileSync(new URL('../../../../../../locales/zh_TW.json', import.meta.url), 'utf8'));
+    const data = locale.showcase.adv_edit.data;
+    const prefix = 'showcase.adv_edit.data.';
+    for (const f of ADV_EDIT_DATA_FIELDS) {
+        assert.ok(f.labelKey, `${f.key}: missing labelKey`);
+        for (const key of [f.labelKey, f.placeholderKey].filter(Boolean)) {
+            assert.ok(key.startsWith(prefix), `${f.key}: invalid key ${key}`);
+            assert.ok(Object.hasOwn(data, key.slice(prefix.length)), `${f.key}: missing translation ${key}`);
+        }
+    }
+    for (const key of ['actresses', 'release_date']) assert.ok(field(key).placeholderKey, `${key}: missing placeholderKey`);
 });
 
 function draftDisjoint(draft) {

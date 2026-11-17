@@ -107,6 +107,7 @@ export const ADV_EDIT_DATA_FIELDS = [
     {
         key: 'title',
         kind: 'text',
+        labelKey: 'showcase.adv_edit.data.label_title',
         required: true,
         read: (values) => readString(values, 'title'),
         toValue: (raw) => stringToValue(raw),
@@ -115,30 +116,17 @@ export const ADV_EDIT_DATA_FIELDS = [
     {
         key: 'original_title',
         kind: 'text',
+        labelKey: 'showcase.adv_edit.data.label_original_title',
         required: false,
         read: (values) => readString(values, 'original_title'),
         toValue: (raw) => stringToValue(raw),
         validate: () => null,
     },
     {
-        key: 'maker',
-        kind: 'text',
-        required: false,
-        read: (values) => readString(values, 'maker'),
-        toValue: (raw) => stringToValue(raw),
-        validate: () => null,
-    },
-    {
-        key: 'series',
-        kind: 'text',
-        required: false,
-        read: (values) => readString(values, 'series'),
-        toValue: (raw) => stringToValue(raw),
-        validate: () => null,
-    },
-    {
         key: 'actresses',
         kind: 'actors',
+        labelKey: 'showcase.adv_edit.data.label_actresses',
+        placeholderKey: 'showcase.adv_edit.data.ph_actresses',
         required: false,
         read: (values) => {
             if (!values) return '';
@@ -151,8 +139,28 @@ export const ADV_EDIT_DATA_FIELDS = [
         validate: () => null,
     },
     {
+        key: 'maker',
+        kind: 'text',
+        labelKey: 'showcase.adv_edit.data.label_maker',
+        required: false,
+        read: (values) => readString(values, 'maker'),
+        toValue: (raw) => stringToValue(raw),
+        validate: () => null,
+    },
+    {
+        key: 'series',
+        kind: 'text',
+        labelKey: 'showcase.adv_edit.data.label_series',
+        required: false,
+        read: (values) => readString(values, 'series'),
+        toValue: (raw) => stringToValue(raw),
+        validate: () => null,
+    },
+    {
         key: 'release_date',
         kind: 'date',
+        labelKey: 'showcase.adv_edit.data.label_release_date',
+        placeholderKey: 'showcase.adv_edit.data.ph_release_date',
         required: false,
         read: (values) => readString(values, 'release_date'),
         toValue: (raw) => stringToValue(raw),
@@ -161,6 +169,7 @@ export const ADV_EDIT_DATA_FIELDS = [
     {
         key: 'plot',
         kind: 'textarea',
+        labelKey: 'showcase.adv_edit.data.label_plot',
         required: false,
         read: (values) => readString(values, 'plot'),
         toValue: (raw) => stringToValue(raw),
@@ -169,6 +178,7 @@ export const ADV_EDIT_DATA_FIELDS = [
     {
         key: 'plot_translation',
         kind: 'textarea',
+        labelKey: 'showcase.adv_edit.data.label_plot_translation',
         required: false,
         read: (values) => readString(values, 'plot_translation'),
         toValue: (raw) => stringToValue(raw),

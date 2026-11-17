@@ -2209,6 +2209,28 @@
                 <div class="adv-edit-notice" data-notice="load_failed" x-show="advEditLoadError" x-text="t('showcase.adv_edit.files.load_failed')"></div>
             </div>
             <div class="adv-edit-sections">
+                <section class="adv-edit-sec adv-edit-sec--data">
+                    <div class="adv-edit-sec-head"><h4 class="adv-edit-sec-title" x-text="t('showcase.adv_edit.data.title')"></h4></div>
+                    <span class="loading loading-spinner loading-xs" x-show="!advEditData && advEditDataLoading"></span>
+                    <div class="adv-edit-notice adv-edit-notice--bad" data-notice="data_load_failed" x-show="!advEditData && !advEditDataLoading" x-text="t('showcase.adv_edit.data.load_failed')"></div>
+                    <div class="adv-edit-notice" data-notice="data_blocked" role="status" x-show="advEditDataNoteText()" x-text="advEditDataNoteText()"></div>
+                    <template x-for="f in advEditDataFields()" :key="f.key">
+                        <div class="adv-edit-row adv-edit-row--data" :data-row="'data-' + f.key">
+                            <span class="adv-edit-row-label" x-text="t(f.labelKey)"></span>
+                            <div class="adv-edit-row-value">
+                                <span class="adv-edit-data-text" :class="{ 'adv-edit-data-text--empty': !advEditDataValue(f.key) }" x-show="_advEditCell !== 'data:' + f.key" x-text="advEditDataValue(f.key) || '—'"></span>
+                                <template x-if="_advEditCell === 'data:' + f.key && f.kind !== 'textarea'"><input type="text" class="input input-bordered input-sm adv-edit-input" x-ref="advEditDataInput" x-model="advEditDataDraft" @input="advEditDataError = ''" :aria-label="t(f.labelKey)" :readonly="_advEditBusy === 'data'" @keydown.escape.stop="!$event.isComposing && cancelAdvEditCell()" @keydown.enter.prevent.stop="onAdvEditDataEnter($event)" :placeholder="f.placeholderKey ? t(f.placeholderKey) : ''"></template>
+                                <template x-if="_advEditCell === 'data:' + f.key && f.kind === 'textarea'"><textarea class="textarea textarea-bordered textarea-sm adv-edit-textarea" rows="4" x-ref="advEditDataInput" x-model="advEditDataDraft" @input="advEditDataError = ''" :aria-label="t(f.labelKey)" :readonly="_advEditBusy === 'data'" @keydown.escape.stop="!$event.isComposing && cancelAdvEditCell()"></textarea></template>
+                                <p class="adv-edit-data-error" role="alert" x-show="_advEditCell === 'data:' + f.key && advEditDataError" x-text="advEditDataErrorText()"></p>
+                            </div>
+                            <div class="adv-edit-row-actions">
+                                <button type="button" class="adv-edit-icon-btn adv-edit-data-edit" x-show="advEditData && advEditData.state === 'ok' && _advEditCell !== 'data:' + f.key" :disabled="!!_advEditCell || !!_advEditBusy || advEditDataLoading" @click="startAdvEditData(f.key)" :aria-label="t('showcase.adv_edit.data.edit', { field: t(f.labelKey) })" :title="t('showcase.adv_edit.data.edit', { field: t(f.labelKey) })"><i class="bi bi-pencil"></i></button>
+                                <button type="button" class="adv-edit-icon-btn adv-edit-data-save" x-show="_advEditCell === 'data:' + f.key" :disabled="!!_advEditBusy" @click="confirmAdvEditData()" :aria-label="t('showcase.adv_edit.data.save')" :title="t('showcase.adv_edit.data.save')"><i class="bi bi-check-lg"></i></button>
+                                <button type="button" class="adv-edit-icon-btn adv-edit-data-cancel" x-show="_advEditCell === 'data:' + f.key" :disabled="!!_advEditBusy" @click="cancelAdvEditData()" :aria-label="t('showcase.adv_edit.data.cancel')" :title="t('showcase.adv_edit.data.cancel')"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                        </div>
+                    </template>
+                </section>
                 <section class="adv-edit-sec adv-edit-sec--files">
                     <div class="adv-edit-sec-head">
                         <h4 class="adv-edit-sec-title" x-text="t('showcase.adv_edit.files.title')"></h4>
