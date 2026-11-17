@@ -2278,7 +2278,7 @@
             </div>
             <div class="modal-action fluent-modal-actions adv-edit-foot">
                 <button type="button" class="btn btn-ghost" @click="closeAdvEdit()">{{ t('showcase.adv_edit.close') }}</button>
-                <button type="button" class="btn btn-primary adv-edit-update" :disabled="!!_advEditBusy" @click="runAdvEditUpdate()" :title="t('showcase.adv_edit.update.tip')" x-text="_advEditBusy === 'update' ? t('showcase.adv_edit.update.running') : t('showcase.adv_edit.update.btn')"></button>
+                <button type="button" class="btn btn-primary adv-edit-update" :disabled="!!_advEditBusy || advEditDataEditing()" @click="runAdvEditUpdate()" :title="t('showcase.adv_edit.update.tip')" x-text="_advEditBusy === 'update' ? t('showcase.adv_edit.update.running') : t('showcase.adv_edit.update.btn')"></button>
             </div>
         </div>
     </dialog>

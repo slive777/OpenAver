@@ -175,3 +175,31 @@ export const ADV_EDIT_DATA_FIELDS = [
         validate: () => null,
     },
 ];
+
+export const ADV_EDIT_DATA_ERROR_KEYS = {
+    invalid_date: 'showcase.adv_edit.data.err_invalid_date',
+    title_empty: 'showcase.adv_edit.data.err_title_empty',
+    tag_invalid: 'showcase.adv_edit.data.err_tag_invalid',
+    tag_hidden: 'showcase.adv_edit.data.err_tag_hidden',
+    nfo_write_failed: 'showcase.adv_edit.data.err_write_failed',
+    db_write_failed: 'showcase.adv_edit.data.err_db_failed',
+    not_found: 'showcase.adv_edit.data.err_generic',
+    invalid_path: 'showcase.adv_edit.data.err_generic',
+    invalid_field: 'showcase.adv_edit.data.err_generic',
+    invalid_value: 'showcase.adv_edit.data.err_generic',
+    borrowed: 'showcase.adv_edit.data.note_borrowed',
+    no_nfo: 'showcase.adv_edit.data.note_no_nfo',
+    readonly_no_nfo: 'showcase.adv_edit.data.note_readonly_no_nfo',
+    nfo_ambiguous: 'showcase.adv_edit.data.note_nfo_ambiguous',
+    nfo_unreadable: 'showcase.adv_edit.data.note_nfo_unreadable',
+    unreachable: 'showcase.adv_edit.data.note_unreachable',
+    nfo_link_outside: 'showcase.adv_edit.data.note_nfo_link_outside',
+};
+
+export function errorKeyOf(code) {
+    return Object.hasOwn(ADV_EDIT_DATA_ERROR_KEYS, code) ? ADV_EDIT_DATA_ERROR_KEYS[code] : ADV_EDIT_DATA_ERROR_KEYS.not_found;
+}
+
+export function errorIsInline(code) {
+    return ['invalid_date', 'title_empty', 'tag_invalid', 'tag_hidden'].includes(code);
+}

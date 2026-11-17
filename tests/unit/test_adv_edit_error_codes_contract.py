@@ -2,12 +2,10 @@
 import re
 from pathlib import Path
 
-import pytest
 
 from core.nfo_field_edit import ERROR_CODES
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason='等 T6a')
 def test_error_codes_match_frontend_table():
     root = next(p for p in Path(__file__).resolve().parents if (p / 'web').is_dir())
     js = root / 'web/static/js/pages/showcase/adv-edit-data-logic.js'

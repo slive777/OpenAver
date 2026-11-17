@@ -1359,6 +1359,22 @@
         "err_nfo_unreadable": "讀不到這部片的 NFO（檔案壞了或沒有權限），沒有更新",
         "err_generic": "更新失敗，請再試一次"
       },
+      "data": {
+        "err_invalid_date": "發行日要寫成「年-月-日」，例如 2024-03-05，而且日期要真的存在",
+        "err_title_empty": "片名不能是空的",
+        "err_tag_invalid": "標籤裡不能有半形逗號",
+        "err_tag_hidden": "這個標籤本來就不會顯示，所以不能加",
+        "err_write_failed": "寫入失敗，這部片的 NFO 沒有被改動（可能被其他程式佔用，或沒有寫入權限）",
+        "err_db_failed": "資料庫寫入失敗，已恢復成原樣，請再試一次",
+        "err_generic": "儲存失敗，請再試一次",
+        "note_borrowed": "這個版本沒有自己的資料，請切到有資料的版本再改，或先對它按補完",
+        "note_no_nfo": "這部片沒有 NFO，請先按補完或進階重新刮削",
+        "note_readonly_no_nfo": "輸出資料夾裡沒有這部片可以寫的 NFO",
+        "note_nfo_ambiguous": "輸出資料夾有多份 NFO，無法判斷要改哪一份",
+        "note_nfo_unreadable": "現在讀不到這份 NFO（可能硬碟離線）",
+        "note_unreachable": "來源目前連不上",
+        "note_nfo_link_outside": "這個 NFO 是連到別處的捷徑，不能在這裡改"
+      },
       "files": {
         "title": "檔案",
         "folder_open": "📁 開資料夾",
