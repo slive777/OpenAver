@@ -88,3 +88,8 @@
 .lightbox-content {
     transition: transform var(--duration-normal) var(--ease-out), box-shadow var(--fluent-duration-emphasis) var(--fluent-ease-standard);
 }
+
+.pick-ring { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; overflow: visible; }
+.pick-ring path { fill: none; stroke: var(--pick-line); stroke-linecap: round; opacity: 0; }
+.pick-ring .soft { stroke-width: 3.5; stroke-opacity: 0.28; }
+.pick-ring .main { stroke-width: 1; }

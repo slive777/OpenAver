@@ -1193,6 +1193,7 @@
                 <!-- Video Lightbox Branch (wrapped in x-if to prevent 44b hero card conflict) -->
                 <template x-if="currentLightboxVideo && !currentLightboxActress">
                     <div class="lb-video-branch" style="display:contents">
+                        <svg class="pick-ring" aria-hidden="true" focusable="false"><path class="soft"/><path class="main"/></svg>
                         <!-- Cover Image -->
                         <!-- T8(Codex P2): has-cover 旗標 — 僅有封面時才讓 ≤480px min-height:0 塌到圖盒；
                              無封面時保留 min-height 避免 cover 區塌成 0 高（補封面入口會壞）。 -->

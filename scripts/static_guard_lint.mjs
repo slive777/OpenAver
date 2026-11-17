@@ -5200,6 +5200,12 @@ const RULES = [
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':data-pick-tier=', scope: { anchor: /class="table-row-clickable"/, window: 100 }, note: '[lint-guard:201-T5-bind-row] 缺少等級綁定會讓使用者看不到對應的精選色彩。' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':data-pick-tier=', scope: { anchor: /class="list-item"/, window: 365 }, note: '[lint-guard:201-T5-bind-list] 缺少等級綁定會讓使用者看不到對應的精選色彩。' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':data-pick-tier=', scope: { anchor: /<div class="lightbox-content" @click\.stop/, window: 205 }, note: '[lint-guard:201-T5-bind-lightbox] 缺少等級綁定會讓使用者看不到對應的精選色彩。' },
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /async togglePickStar\(\) \{/, braceBalanced: true }, pattern: /if \(newValue > 0\) \{\s*window\.ShowcaseAnimations\?\.playPickRing\?\.\(/,
+    note: '[lint-guard:201-T7-ring] 按星繞線必須掛在正等級之下，否則取消時也會繞線或按星沒有回饋。' },
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'structure-count', stripLineComments: true,
+    scope: { anchor: /async togglePickStar\(\) \{/, braceBalanced: true }, pattern: /playPickRing/, count: 1,
+    note: '[lint-guard:201-T7-ring-once] 繞線只能呼叫一次，否則失敗回滾時外框會閃第二圈。' },
   // ==== [123-T5] CD-123-13：三個唯讀表面 + 燈箱既有插入點的粗顆粒守衛（AC-4/5/6） ====
   // [Codex review BLOCKER 修正] 前一版把 anchor 錨在「自己要驗的那段字面」上
   // （/<span class="pick-star-mark...[\s\S]{0,300}class="av-num"/ 這類）。anchor.exec()

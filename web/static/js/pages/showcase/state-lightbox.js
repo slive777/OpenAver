@@ -864,6 +864,13 @@ export function stateLightbox() {
                     oldValue > 0,
                     newValue > 0
                 );
+                if (newValue > 0) {
+                    window.ShowcaseAnimations?.playPickRing?.(
+                        document.querySelector('.pick-ring'),
+                        document.querySelector('.pick-star'),
+                        document.querySelector('.lightbox-content')
+                    );
+                }
             });
 
             try {

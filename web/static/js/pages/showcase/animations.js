@@ -13,6 +13,7 @@
  *   - captureInfoState(gridEl) → { el, top, left, bottom }[]|null  資訊展開位置快照（整格非 0×0；只收位置）
  *   - playInfoExpand(captured, gridEl) → Tween|null  資訊展開 x/y 位移（舊或新在窗內才動；無 scale、無 stagger）
  *   - playPickFill(fillEl, outlineEl, wasPicked, isPicked)  123-T4: 精選灌滿／洩空
+ *   - playPickRing(ringEl, starEl, frameEl)  精選外框繞線
  *   - playPickSpark(anchorEl)                   123-T4: 灌滿到頂火花
  *   - killPickSpark()                           123-T4: 清殘留火花 dot
  *   - killPickStarTweens(opts)                  123-T4b：燈箱星 teardown（kill sink 收斂，
@@ -31,6 +32,8 @@
  */
 (function () {
     'use strict';
+
+    var pickRingTl = null;
 
     /**
      * 判斷是否應跳過動畫（Reduced Motion 降級）
@@ -733,6 +736,58 @@
                 repeat: 1,
                 ease: 'fluent'
             });
+        },
+
+        /**
+         * 按星時沿燈箱外框畫一圈，減少動態或缺少插件時略過。
+         * @param {Element} ringEl - SVG
+         * @param {Element} starEl - 星按鈕
+         * @param {Element} frameEl - 燈箱框
+         * @returns {gsap.core.Timeline|null}
+         */
+        playPickRing: function (ringEl, starEl, frameEl) {
+            if (shouldSkip()) { return null; }
+            if (!ringEl || !frameEl) return null;
+            if (typeof gsap === 'undefined' || typeof DrawSVGPlugin === 'undefined') return null;
+            if (!gsap.plugins.drawSVG) gsap.registerPlugin(DrawSVGPlugin);
+
+            var paths = ringEl.querySelectorAll('path');
+            if (pickRingTl) pickRingTl.kill();
+            gsap.killTweensOf(paths);
+            gsap.set(paths, { clearProps: 'strokeDasharray,strokeDashoffset,opacity' });
+            var w = frameEl.clientWidth;
+            var h = frameEl.clientHeight;
+            var INSET = 2;
+            var R = parseFloat(getComputedStyle(frameEl).borderTopLeftRadius) - INSET;
+            if (isNaN(R) || R < 0) R = 10;
+            var sx = w / 2;
+            if (starEl) {
+                var starRect = starEl.getBoundingClientRect();
+                var frameRect = frameEl.getBoundingClientRect();
+                sx = (starRect.left + starRect.width / 2 - frameRect.left) / frameRect.width * w;
+            }
+            sx = Math.max(INSET + R, Math.min(w - INSET - R, sx));
+            var d = 'M ' + sx + ',' + (h - INSET) +
+                ' L ' + (INSET + R) + ',' + (h - INSET) +
+                ' A ' + R + ' ' + R + ' 0 0 1 ' + INSET + ',' + (h - INSET - R) +
+                ' L ' + INSET + ',' + (INSET + R) +
+                ' A ' + R + ' ' + R + ' 0 0 1 ' + (INSET + R) + ',' + INSET +
+                ' L ' + (w - INSET - R) + ',' + INSET +
+                ' A ' + R + ' ' + R + ' 0 0 1 ' + (w - INSET) + ',' + (INSET + R) +
+                ' L ' + (w - INSET) + ',' + (h - INSET - R) +
+                ' A ' + R + ' ' + R + ' 0 0 1 ' + (w - INSET - R) + ',' + (h - INSET) + ' Z';
+            ringEl.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+            paths.forEach(function (path) { path.setAttribute('d', d); });
+            var tl = gsap.timeline({ onComplete: function () {
+                if (pickRingTl === tl) {
+                    gsap.set(paths, { clearProps: 'strokeDasharray,strokeDashoffset,opacity' });
+                    pickRingTl = null;
+                }
+            } });
+            pickRingTl = tl;
+            tl.fromTo(paths, { drawSVG: '0% 0%', opacity: 1 }, { drawSVG: '0% 100%', duration: 0.475, ease: 'fluent' }, 0);
+            tl.to(paths, { opacity: 0, duration: 0.361, ease: 'fluent-decel' }, 0.589);
+            return tl;
         },
 
         /**
