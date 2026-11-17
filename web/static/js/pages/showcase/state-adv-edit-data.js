@@ -1,4 +1,5 @@
-import { ADV_EDIT_DATA_FIELDS, errorKeyOf, errorIsInline, isComposingEnter } from './adv-edit-data-logic.js';
+import { ADV_EDIT_DATA_FIELDS, errorKeyOf, errorIsInline, isComposingEnter, tagDraftNew, tagDraftRemove, tagDraftAdd, tagDraftView, tagDraftPayload, tagRemovable, validateNfoTagInput } from './adv-edit-data-logic.js';
+import { parseWorkTags } from './lbx-logic.js';
 
 export function stateAdvEditData() {
     return {
@@ -28,7 +29,9 @@ export function stateAdvEditData() {
             this.advEditDataTagInput = '';
         },
         onAdvEditCellCancel() {
-            if (!String(this._advEditCell).startsWith('data:')) return false;
+            const cell = String(this._advEditCell);
+            if (!cell.startsWith('data:')) return false;
+            if (cell.endsWith('+')) { this.cancelAdvEditTagInput(); return true; }
             this.cancelAdvEditData();
             return true;
         },
@@ -92,6 +95,100 @@ export function stateAdvEditData() {
                 const stillEditing = this._advEditCell === cell;
                 if (data?.success === true) {
                     this.advEditData = { ...this.advEditData, values: { ...this.advEditData.values, ...data.values } };
+                    if (stillEditing) this.cancelAdvEditData();
+                    await this.refreshVideoData(video);
+                    if (gen !== this._advEditDataGen) return;
+                } else if (errorIsInline(data?.error)) {
+                    if (stillEditing) this.advEditDataError = data.error;
+                } else {
+                    if (stillEditing) this.cancelAdvEditData();
+                    this.showToast(window.t(errorKeyOf(data?.error)), 'error');
+                }
+            } finally {
+                if (gen === this._advEditDataGen) this._advEditBusy = '';
+            }
+        },
+        advEditTagKinds() {
+            return this.advEditData ? ['tags', 'utags'] : this.advEditDataLoading ? [] : ['utags'];
+        },
+        advEditTagLabel(kind) {
+            return kind === 'tags' ? window.t('showcase.adv_edit.data.label_tags') : window.t('showcase.adv_edit.data.label_utags');
+        },
+        advEditTagsCanEdit(kind) { return kind === 'utags' ? !!this.currentLightboxVideo?.path : this.advEditData?.state === 'ok'; },
+        advEditTagsEditing(kind) { return this._advEditCell === 'data:' + kind || this._advEditCell === 'data:' + kind + '+'; },
+        advEditTagBase(kind) {
+            if (kind === 'utags') return this.currentLightboxVideo?.user_tags || [];
+            return this.advEditData?.state === 'ok' ? this.advEditData.tags || [] : parseWorkTags(this.currentLightboxVideo);
+        },
+        advEditTagsView(kind) {
+            const draft = this.advEditDataTagDraft;
+            return tagDraftView(this.advEditTagBase(kind), draft?.kind === kind ? draft : tagDraftNew(kind));
+        },
+        advEditTagRemovable(tag) { return tagRemovable(tag); },
+        startAdvEditTags(kind) {
+            if (!['tags', 'utags'].includes(kind) || !this.advEditOpen || this._advEditCell || this._advEditBusy || this.advEditDataLoading || !this.advEditTagsCanEdit(kind)) return;
+            this._advEditCell = 'data:' + kind;
+            this.advEditDataTagDraft = tagDraftNew(kind);
+            this.advEditDataTagInput = '';
+            this.advEditDataError = '';
+        },
+        removeAdvEditTag(kind, text) {
+            const draft = this.advEditDataTagDraft;
+            if (this._advEditBusy || !draft || draft.kind !== kind || !this.advEditTagsEditing(kind)) return;
+            this.advEditDataTagDraft = tagDraftRemove(draft, this.advEditTagBase(kind), text);
+        },
+        startAdvEditTagInput(kind) {
+            if (this._advEditCell !== 'data:' + kind || this._advEditBusy) return;
+            this._advEditCell = 'data:' + kind + '+';
+            this.advEditDataTagInput = '';
+            this.advEditDataError = '';
+            this.$nextTick?.(() => this.$refs?.advEditTagInput?.focus());
+        },
+        onAdvEditTagInputEnter(kind, e) {
+            if (isComposingEnter(e)) return;
+            this.commitAdvEditTagInput(kind);
+        },
+        commitAdvEditTagInput(kind) {
+            const draft = this.advEditDataTagDraft;
+            if (this._advEditCell !== 'data:' + kind + '+' || draft?.kind !== kind) return true;
+            const text = String(this.advEditDataTagInput).trim();
+            if (text && kind === 'tags' && validateNfoTagInput(text) === 'tag_invalid') { this.advEditDataError = 'tag_invalid'; return false; }
+            if (text) this.advEditDataTagDraft = tagDraftAdd(draft, this.advEditTagBase(kind), text);
+            this._advEditCell = 'data:' + kind;
+            this.advEditDataTagInput = '';
+            return true;
+        },
+        cancelAdvEditTagInput() {
+            const cell = String(this._advEditCell);
+            if (!cell.startsWith('data:') || !cell.endsWith('+')) return;
+            this._advEditCell = cell.slice(0, -1);
+            this.advEditDataTagInput = '';
+            this.advEditDataError = '';
+        },
+        cancelAdvEditTags() { this.cancelAdvEditData(); },
+        async confirmAdvEditTags(kind) {
+            if (!this.advEditOpen || this._advEditBusy || !this.advEditTagsEditing(kind)) return;
+            if (String(this._advEditCell).endsWith('+') && this.commitAdvEditTagInput(kind) === false) return;
+            const payload = tagDraftPayload(this.advEditDataTagDraft);
+            if (payload === null) { this.cancelAdvEditData(); return; }
+            const video = this.currentLightboxVideo, path = video.path, cell = this._advEditCell, gen = this._advEditDataGen;
+            this._advEditBusy = 'data';
+            try {
+                if (kind === 'utags') {
+                    await this._applyUserTagsChange(payload);
+                    if (gen !== this._advEditDataGen) return;
+                    if (this._advEditCell === cell) this.cancelAdvEditData();
+                    return;
+                }
+                let data = null;
+                try {
+                    const resp = await fetch('/api/showcase/video/edit-field', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path, field: 'tags', add: payload.add, remove: payload.remove }) });
+                    data = await resp.json().catch(() => null);
+                } catch (e) { data = null; }
+                if (gen !== this._advEditDataGen) return;
+                const stillEditing = this._advEditCell === cell;
+                if (data?.success === true) {
+                    if (Array.isArray(data.tags)) this.advEditData = { ...this.advEditData, tags: data.tags };
                     if (stillEditing) this.cancelAdvEditData();
                     await this.refreshVideoData(video);
                     if (gen !== this._advEditDataGen) return;

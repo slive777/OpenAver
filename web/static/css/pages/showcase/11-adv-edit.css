@@ -90,3 +90,14 @@
     .adv-edit-row--data .adv-edit-row-value { grid-area: value; }
     .adv-edit-row--data .adv-edit-row-actions { grid-area: actions; }
 }
+
+.adv-edit-tag-list { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; min-width: 0; }
+.adv-edit-tag { display: inline-flex; align-items: center; gap: .25rem; height: 1.375rem; padding: 0 .5rem; border: 1px solid transparent; border-radius: var(--radius-pill); background: color-mix(in oklch, var(--text-primary) 8%, transparent); color: var(--text-secondary); font-size: .75rem; line-height: 1; white-space: nowrap; max-width: 100%; }
+.adv-edit-tag-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.adv-edit-tag--mine { border-color: var(--stroke-subtle); background: color-mix(in oklch, var(--text-primary) 12%, transparent); color: var(--text-primary); }
+.adv-edit-tag--fixed { cursor: help; color: var(--text-muted); }
+.adv-edit-tag-x { width: 1rem; height: 1rem; flex-shrink: 0; border: 0; border-radius: var(--radius-pill); background: transparent; color: inherit; cursor: pointer; }
+.adv-edit-tag-add { border: 1px dashed var(--stroke-default); border-radius: var(--radius-pill); height: 1.375rem; min-width: 1.375rem; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.adv-edit-tag-x:hover, .adv-edit-tag-add:hover { background: color-mix(in oklch, var(--text-primary) 10%, transparent); }
+.adv-edit-tag-x:focus-visible, .adv-edit-tag-add:focus-visible, .adv-edit-sec--data .adv-edit-tag-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.adv-edit-sec--data .adv-edit-tag-input { width: 8rem; max-width: 100%; height: 1.375rem; border: 1px solid var(--stroke-default); border-radius: var(--radius-pill); background: var(--surface-1); color: var(--text-primary); padding: 0 .5rem; font-size: .75rem; }

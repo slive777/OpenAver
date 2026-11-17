@@ -2224,9 +2224,33 @@
                                 <p class="adv-edit-data-error" role="alert" x-show="_advEditCell === 'data:' + f.key && advEditDataError" x-text="advEditDataErrorText()"></p>
                             </div>
                             <div class="adv-edit-row-actions">
-                                <button type="button" class="adv-edit-icon-btn adv-edit-data-edit" x-show="advEditData && advEditData.state === 'ok' && _advEditCell !== 'data:' + f.key" :disabled="!!_advEditCell || !!_advEditBusy || advEditDataLoading" @click="startAdvEditData(f.key)" :aria-label="t('showcase.adv_edit.data.edit', { field: t(f.labelKey) })" :title="t('showcase.adv_edit.data.edit', { field: t(f.labelKey) })"><i class="bi bi-pencil"></i></button>
-                                <button type="button" class="adv-edit-icon-btn adv-edit-data-save" x-show="_advEditCell === 'data:' + f.key" :disabled="!!_advEditBusy" @click="confirmAdvEditData()" :aria-label="t('showcase.adv_edit.data.save')" :title="t('showcase.adv_edit.data.save')"><i class="bi bi-check-lg"></i></button>
-                                <button type="button" class="adv-edit-icon-btn adv-edit-data-cancel" x-show="_advEditCell === 'data:' + f.key" :disabled="!!_advEditBusy" @click="cancelAdvEditData()" :aria-label="t('showcase.adv_edit.data.cancel')" :title="t('showcase.adv_edit.data.cancel')"><i class="bi bi-x-lg"></i></button>
+                                <button type="button" class="adv-edit-icon-btn adv-edit-data-edit" x-show="advEditData && advEditData.state === 'ok' && _advEditCell !== 'data:' + f.key" :disabled="!!_advEditCell || !!_advEditBusy || advEditDataLoading" @click="startAdvEditData(f.key)" :aria-label="t('showcase.adv_edit.data.edit', { field: t(f.labelKey) })" :title="t('showcase.adv_edit.data.edit', { field: t(f.labelKey) })"><i class="bi bi-pencil" aria-hidden="true"></i></button>
+                                <button type="button" class="adv-edit-icon-btn adv-edit-data-save" x-show="_advEditCell === 'data:' + f.key" :disabled="!!_advEditBusy" @click="confirmAdvEditData()" :aria-label="t('showcase.adv_edit.data.save')" :title="t('showcase.adv_edit.data.save')"><i class="bi bi-check-lg" aria-hidden="true"></i></button>
+                                <button type="button" class="adv-edit-icon-btn adv-edit-data-cancel" x-show="_advEditCell === 'data:' + f.key" :disabled="!!_advEditBusy" @click="cancelAdvEditData()" :aria-label="t('showcase.adv_edit.data.cancel')" :title="t('showcase.adv_edit.data.cancel')"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-for="k in advEditTagKinds()" :key="k">
+                        <div class="adv-edit-row adv-edit-row--data adv-edit-row--tags" :data-row="'data-' + k">
+                            <span class="adv-edit-row-label" x-text="advEditTagLabel(k)"></span>
+                            <div class="adv-edit-row-value">
+                                <div class="adv-edit-tag-list">
+                                    <template x-for="tag in advEditTagsView(k)" :key="tag.text">
+                                        <span class="adv-edit-tag" :class="{ 'adv-edit-tag--fixed': !advEditTagRemovable(tag), 'adv-edit-tag--mine': k === 'utags' }" :title="tag.from_filename ? t('showcase.adv_edit.data.tag_from_filename') : ''">
+                                            <span class="adv-edit-tag-text" x-text="tag.text"></span>
+                                            <button type="button" class="adv-edit-tag-x" x-show="advEditTagsEditing(k) && advEditTagRemovable(tag)" @click="removeAdvEditTag(k, tag.text)" :aria-label="t('showcase.adv_edit.data.tag_remove', { tag: tag.text })" :title="t('showcase.adv_edit.data.tag_remove', { tag: tag.text })"><i class="bi bi-x" aria-hidden="true"></i></button>
+                                        </span>
+                                    </template>
+                                    <span class="adv-edit-data-text adv-edit-data-text--empty" x-show="advEditTagsView(k).length === 0 && !advEditTagsEditing(k)">—</span>
+                                    <button type="button" class="adv-edit-tag-add" x-show="_advEditCell === 'data:' + k" @click="startAdvEditTagInput(k)" :aria-label="t('showcase.adv_edit.data.tag_add')" :title="t('showcase.adv_edit.data.tag_add')"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+                                    <template x-if="_advEditCell === 'data:' + k + '+'"><input type="text" class="adv-edit-tag-input" maxlength="40" x-ref="advEditTagInput" x-model="advEditDataTagInput" @input="advEditDataError = ''" :readonly="_advEditBusy === 'data'" :aria-label="t('showcase.adv_edit.data.tag_add')" :placeholder="t('showcase.adv_edit.data.ph_tag')" @keydown.enter.prevent.stop="onAdvEditTagInputEnter(k, $event)" @keydown.escape.stop="!$event.isComposing && cancelAdvEditTagInput()"></template>
+                                </div>
+                                <p class="adv-edit-data-error" role="alert" x-show="advEditTagsEditing(k) && advEditDataError" x-text="advEditDataErrorText()"></p>
+                            </div>
+                            <div class="adv-edit-row-actions">
+                                <button type="button" class="adv-edit-icon-btn adv-edit-tags-edit" x-show="!advEditTagsEditing(k) && advEditTagsCanEdit(k)" :disabled="!!_advEditCell || !!_advEditBusy || advEditDataLoading" @click="startAdvEditTags(k)" :aria-label="t('showcase.adv_edit.data.edit', { field: advEditTagLabel(k) })" :title="t('showcase.adv_edit.data.edit', { field: advEditTagLabel(k) })"><i class="bi bi-pencil" aria-hidden="true"></i></button>
+                                <button type="button" class="adv-edit-icon-btn adv-edit-tags-save" x-show="advEditTagsEditing(k)" :disabled="!!_advEditBusy" @click="confirmAdvEditTags(k)" :aria-label="t('showcase.adv_edit.data.save')" :title="t('showcase.adv_edit.data.save')"><i class="bi bi-check-lg" aria-hidden="true"></i></button>
+                                <button type="button" class="adv-edit-icon-btn adv-edit-tags-cancel" x-show="advEditTagsEditing(k)" :disabled="!!_advEditBusy" @click="cancelAdvEditTags()" :aria-label="t('showcase.adv_edit.data.cancel')" :title="t('showcase.adv_edit.data.cancel')"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                             </div>
                         </div>
                     </template>
