@@ -952,3 +952,144 @@ class TestCoverSignatureWriters:
 
         check_path = other if writer == "repath" else target
         assert repo.get_cover_sig(check_path) == before
+
+
+class TestUpdateNfoFields:
+    """TASK-200c-T3：VideoRepository.update_nfo_fields 窄更新＋相似片快取失效。"""
+
+    T3_OLD_STAMP = "2000-01-01 00:00:00"
+
+    @staticmethod
+    def _t3_row(repo, path):
+        from core.database import get_connection
+        conn = get_connection(repo.db_path)
+        try:
+            cur = conn.execute("SELECT * FROM videos WHERE path = ?", (path,))
+            cols = [c[0] for c in cur.description]
+            row = cur.fetchone()
+            return dict(zip(cols, row, strict=True)) if row else None
+        finally:
+            conn.close()
+
+    @staticmethod
+    def _t3_raw(repo, sql, params=()):
+        from core.database import get_connection
+        conn = get_connection(repo.db_path)
+        try:
+            conn.execute(sql, params)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def test_update_nfo_fields_writes_only_given_columns(self, temp_db, seed_crop_mode):
+        """使用者只改片商 → 只有該欄＋nfo_mtime／updated_at 變，其餘位元不變，旁證片不動。"""
+        repo = VideoRepository(temp_db)
+        target = to_file_uri("/t3_target.mp4")
+        witness = to_file_uri("/t3_witness.mp4")
+        cover = to_file_uri("/t3_cover.jpg")
+        repo.upsert(Video(
+            path=target, number="T3-001", title="原標", original_title="orig",
+            actresses=["X"], maker="M1", series="S1", release_date="2020-01-01",
+            tags=["t1", "t2"], has_plot=True, cover_path=cover,
+            user_tags=["mine"], output_dir=to_file_uri("/t3_out"),
+        ))
+        repo.upsert(Video(
+            path=witness, number="T3-002", title="旁證", original_title="witness",
+            actresses=["W"], maker="MW", series="SW", release_date="2021-05-05",
+            tags=["w1"], has_plot=False,
+            cover_path=to_file_uri("/t3_w.jpg"),
+            user_tags=["witness_tag"], output_dir=to_file_uri("/t3_w_out"),
+        ))
+        assert repo.set_user_rating(target, 1) is True
+        assert repo.update_auto_focal(target, "0.3,0.4", expected_cover_path=cover) is True
+        assert seed_crop_mode(repo, target, "default") is True
+        self._t3_raw(
+            repo, "UPDATE videos SET updated_at = ? WHERE path = ?",
+            (self.T3_OLD_STAMP, target),
+        )
+        before = self._t3_row(repo, target)
+        before_witness = self._t3_row(repo, witness)
+        assert before["user_tags"] not in (None, "", "[]")
+        assert before["user_rating"] == 1
+        assert before["cover_path"] == cover
+        assert before["auto_focal"] == "0.3,0.4"
+        assert before["crop_mode"] == "default"
+        assert before["maker"] == "M1"
+
+        assert repo.update_nfo_fields(target, {"maker": "M2"}, 999.0) is True
+        after = self._t3_row(repo, target)
+        changed = {k for k in before if before[k] != after[k]}
+        assert changed <= {"maker", "nfo_mtime", "updated_at"}
+        assert after["maker"] == "M2"
+        assert after["nfo_mtime"] == 999.0
+        assert after["updated_at"] != self.T3_OLD_STAMP
+        assert self._t3_row(repo, witness) == before_witness
+
+        with pytest.raises(ValueError):
+            repo.update_nfo_fields(target, {"maker": "M9", "bogus": 1}, 1001.0)
+        assert self._t3_row(repo, target)["maker"] == "M2"
+
+        with pytest.raises(ValueError):
+            repo.update_nfo_fields(target, {}, 1002.0)
+        assert self._t3_row(repo, target)["maker"] == "M2"
+
+        assert repo.update_nfo_fields(target, {"series": ""}, 1003.0) is True
+        assert repo.get_by_path(target).series is None
+
+        assert repo.update_nfo_fields(target, {"has_plot": None}, 1004.0) is True
+        assert self._t3_row(repo, target)["has_plot"] is None
+
+        assert repo.update_nfo_fields(to_file_uri("/t3_missing.mp4"), {"maker": "Z"}, 1.0) is False
+
+    @pytest.fixture
+    def t3_ranker_isolation(self):
+        """只給第 2 支用的隔離夾具：清 ranker 單例＋別名表快取，TagAlias  mock 為空。"""
+        from unittest.mock import MagicMock
+
+        from core.similar import canonicalize as _canon
+        from core.similar.ranker_cache import SimilarRankerCache
+
+        SimilarRankerCache._instance = None
+        _canon._invalidate_cache()
+        mock_alias_repo = MagicMock()
+        mock_alias_repo.get_all.return_value = []
+        with patch("core.database.TagAliasRepository", return_value=mock_alias_repo):
+            yield
+        SimilarRankerCache._instance = None
+        _canon._invalidate_cache()
+
+    def test_update_nfo_fields_invalidates_ranker_cache(self, temp_db, t3_ranker_isolation):
+        """使用者改掉女優 → 相似片排序改用新女優算，不再沿用舊共演降權。"""
+        from core.similar.ranker_cache import SimilarRankerCache
+
+        repo = VideoRepository(temp_db)
+        for i in range(20):
+            repo.upsert(Video(
+                path=to_file_uri(f"/t3_fill_{i:02d}.mp4"),
+                tags=[f"uniq{i}"], actresses=[f"F{i}"],
+            ))
+        id_a = repo.upsert(Video(
+            path=to_file_uri("/t3_A.mp4"), tags=["t1", "t2", "t3"], actresses=["X"],
+        ))
+        id_b = repo.upsert(Video(
+            path=to_file_uri("/t3_B.mp4"), tags=["t1", "t2", "t3"], actresses=["X"],
+        ))
+        id_c = repo.upsert(Video(
+            path=to_file_uri("/t3_C.mp4"), tags=["t1", "t2"], actresses=["Z"],
+        ))
+        path_b = to_file_uri("/t3_B.mp4")
+
+        with patch("core.similar.ranker_cache.VideoRepository", return_value=repo):
+            ranker = SimilarRankerCache.get()
+            target = repo.get_by_id(id_a)
+            assert [v.id for v in ranker.rank(target, top_k=1)] == [id_c]
+            assert ranker._score(target, repo.get_by_id(id_b)) == pytest.approx(0.50, abs=1e-3)
+            assert ranker._score(target, repo.get_by_id(id_c)) == pytest.approx(0.645, abs=1e-3)
+
+            assert repo.update_nfo_fields(path_b, {"actresses": ["Y"]}, 1.0) is True
+
+            ranker2 = SimilarRankerCache.get()
+            target2 = repo.get_by_id(id_a)
+            assert [v.id for v in ranker2.rank(target2, top_k=1)] == [id_b]
+            assert ranker2._score(target2, repo.get_by_id(id_b)) == pytest.approx(1.0, abs=1e-3)
+            assert ranker2._score(target2, repo.get_by_id(id_c)) == pytest.approx(0.645, abs=1e-3)

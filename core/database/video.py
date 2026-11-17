@@ -264,6 +264,24 @@ _MEDIA_PROBE_COLS = (
 _MEDIA_PROBE_SELECT_COLS = ", ".join(_MEDIA_PROBE_COLS)
 
 
+# 200c-T3：update_nfo_fields() 可寫欄位白名單（進階編輯 NFO 回寫的窄更新）。
+_NFO_EDITABLE_FIELDS = frozenset({
+    'title', 'original_title', 'actresses', 'maker', 'series',
+    'release_date', 'tags', 'has_plot',
+})
+
+
+def _nfo_field_value(col: str, value):
+    """update_nfo_fields() 單欄值轉換：list→JSON、series 空→NULL、has_plot 三態。"""
+    if col in ('actresses', 'tags'):
+        return json.dumps(value, ensure_ascii=False)
+    if col == 'series' and not value:
+        return None
+    if col == 'has_plot':
+        return None if value is None else (1 if value else 0)
+    return value
+
+
 # preserve-on-conflict 欄位集合（CD-98a-6）：比照 path — 首次 INSERT 帶 dataclass 預設值，
 # 衝突/repath 走下方 4 個 builder 時不無條件覆蓋。focal 只由專用 update_auto_focal/
 # update_manual_focal/reset_focal_to_auto mutator 改寫（update_crop_mode 已於 99a-T7
@@ -1461,6 +1479,40 @@ class VideoRepository:
             )
             conn.commit()
             return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def update_nfo_fields(self, path: str, fields: dict, nfo_mtime: float) -> bool:
+        """窄更新 NFO 回寫欄位（只寫傳入的欄位，不碰其他欄位，鏡射 update_titles）。
+
+        白名單外名字或空 dict → ValueError（開連線前拋，DB 不動）。
+        命中才 SimilarRankerCache.invalidate()（排序語料欄位）。
+
+        Returns:
+            bool: path 是否命中（rowcount > 0）。path 不存在時回 False，不拋例外。
+        """
+        if not fields or any(col not in _NFO_EDITABLE_FIELDS for col in fields):
+            raise ValueError(f"update_nfo_fields: unsupported fields: {sorted(fields)}")
+        assignments = ", ".join(f"{col} = ?" for col in fields)
+        values = [_nfo_field_value(col, fields[col]) for col in fields]
+        values.extend([nfo_mtime, path])
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                f"UPDATE videos SET {assignments}, nfo_mtime = ?, "
+                "updated_at = CURRENT_TIMESTAMP WHERE path = ?",
+                values,
+            )
+            conn.commit()
+            updated = cursor.rowcount > 0
+            if updated:
+                try:
+                    from core.similar.ranker_cache import SimilarRankerCache
+                    SimilarRankerCache.invalidate()  # 200c-T3：新方法自帶失效（B13）
+                except Exception:
+                    logger.exception("SimilarRankerCache invalidate failed (non-fatal)")
+            return updated
         finally:
             conn.close()
 
