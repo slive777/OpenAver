@@ -653,17 +653,17 @@ def read_edit_view(repo, video, config, path_mappings):
     readonly = resolve_owning_output_root(video.path, config) is not None
     nfo, reason = locate_editable_nfo(repo, video, config, path_mappings)
     if not reason:
+        filename = _filename(video, path_mappings)
+        fmt = config.get('scraper', {}).get('nfo_title_format', _DEFAULT_FORMAT)
         try:
-            plot, translation = read_plot_pair(load_tree(Path(nfo).read_bytes()))
-        except (OSError, FieldEditError):
+            rb = _read_back(nfo, video, filename, path_mappings, fmt)
+        except (OSError, ValueError, FieldEditError):
             reason = 'nfo_unreadable'
     if reason:
         return {'success': True, 'state': 'blocked', 'reason': reason, 'readonly': readonly}
-    values = {k: getattr(video, k) for k in ('title', 'original_title', 'actresses', 'maker', 'series', 'release_date')}
-    values['series'] = values['series'] or ''
-    values.update(plot=plot, plot_translation=translation)
+    keys = ('title', 'original_title', 'actresses', 'maker', 'series', 'release_date', 'plot', 'plot_translation')
     return {'success': True, 'state': 'ok', 'reason': None, 'readonly': readonly,
-            'values': values, 'tags': _tag_view(video.tags, _filename(video, path_mappings))}
+            'values': {k: rb[k] for k in keys}, 'tags': _tag_view(rb['tags'], filename)}
 
 
 def _read_back(nfo, video, filename, mappings, fmt):

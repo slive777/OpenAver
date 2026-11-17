@@ -148,7 +148,7 @@ def test_edit_field_errors_are_http_200_and_write_nothing(client, env, tmp_path,
 
 def test_multi_version_edit_touches_only_requested_version(client, env):
     repo, uri, mp4, nfo, _ = env
-    other, _, other_nfo = _add_video(repo, mp4.parent, 'MIAA-456.mp4', title='Other', studio='Other')
+    other, other_mp4, other_nfo = _add_video(repo, mp4.parent, 'MIAA-456.mp4', title='Other', studio='Other')
     assert len(resolve_work(repo, uri, {}).versions) == 2
     row_a, row_b = repo.get_by_path(uri), repo.get_by_path(other)
     assert row_a.title != row_b.title
@@ -164,7 +164,10 @@ def test_multi_version_edit_touches_only_requested_version(client, env):
     assert b'Custom' in nfo.read_bytes()
     assert other_nfo.read_bytes() == bytes_b and _file_state(other_nfo) == before_b
     assert repo.get_by_path(other) == row_b
-    assert client.get(GET, params={'path': other}).json()['values']['maker'] == row_b.maker
+    # GET reads the NFO itself: the other version's NFO maker, not its (DB-only) 'Other maker'.
+    nfo_maker = VideoScanner().scan_file(str(other_mp4)).maker
+    assert nfo_maker != row_b.maker
+    assert client.get(GET, params={'path': other}).json()['values']['maker'] == nfo_maker
 
 
 def test_tags_net_effect_and_batch_atomic(client, env):
@@ -260,3 +263,23 @@ def test_video_edit_field_example_drives_endpoint(client, env, capabilities_auth
     assert after.maker == 'S1'
     for field in ('title', 'actresses', 'series', 'release_date', 'tags'):
         assert getattr(after, field) == getattr(before, field)
+
+
+def test_get_edit_data_reads_externally_edited_nfo_and_noop_save_keeps_it(client, env):
+    repo, uri, _, nfo, _ = env
+    db_row = repo.get_by_path(uri)
+    nfo.write_text('<movie><title>Ext title</title><num>MIAA-456</num><studio>ExtMaker</studio><openaver_manual_maker>1</openaver_manual_maker>'
+                   '<set><name>Ext series</name></set><plot>Old plot</plot><tag>Mine</tag><tag>ExtTag</tag></movie>')
+    assert repo.get_by_path(uri) == db_row and db_row.maker != 'ExtMaker'
+    body = client.get(GET, params={'path': uri}).json()
+    assert body['state'] == 'ok'
+    assert body['values']['maker'] == 'ExtMaker'
+    assert body['values']['title'] == 'Ext title'
+    assert body['values']['series'] == 'Ext series'
+    assert isinstance(body['values']['actresses'], list)
+    assert 'ExtTag' in [tag['text'] for tag in body['tags']]
+    # Press the check mark without changing anything: the externally edited value must survive.
+    post = client.post(POST, json={'path': uri, 'field': 'maker', 'value': body['values']['maker']}).json()
+    assert post['success'] is True
+    assert '<studio>ExtMaker</studio>' in nfo.read_text()
+    assert repo.get_by_path(uri).maker == 'ExtMaker'
