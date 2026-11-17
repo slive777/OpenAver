@@ -46,7 +46,8 @@ class Video:
     auto_focal: str = ''
     crop_mode: str = 'auto'
     focal_attempted_at: Optional[str] = None  # NULL=從未偵測過；非 NULL=偵測跑過（Codex PR#105 P2）
-    user_rating: int = 0  # 精選標記（spec-123）；判準恆為 > 0，只由 set_user_rating()/
+    user_rating: int = 0  # 精選等級（spec-123；201-T1 等級制）：0 未精選／1 銅／2 銀／3 金；
+    # 判準恆為 > 0，只由 set_user_rating()/
     # set_user_rating_bulk() 與 repath() 分支 3 的 max() 合併寫入（CD-123-1/3/4）
     has_plot: Optional[bool] = None  # 187b：True=非空 <plot>、False=已確認沒有、None=未知
     created_at: Optional[datetime] = None
@@ -1642,6 +1643,8 @@ class VideoRepository:
     def set_user_rating(self, path: str, value: int) -> bool:
         """安全更新 user_rating 欄位（不碰其他欄位，鏡射 update_user_tags）。
 
+        值域（201-T1 等級制）：0 未精選／1 銅／2 銀／3 金；此處不驗值域，原值寫入。
+
         不呼叫 SimilarRankerCache.invalidate()——精選不是排序特徵欄位（spec-123 §4.8）。
 
         Returns:
@@ -1661,6 +1664,8 @@ class VideoRepository:
 
     def set_user_rating_bulk(self, paths: list[str], value: int) -> dict[str, bool]:
         """批次版，逐路徑回報命中與否（供 T2 §4.12 逐路徑回報）。
+
+        值域（201-T1 等級制）：0 未精選／1 銅／2 銀／3 金；此處不驗值域，原值寫入。
 
         空 paths → 直接回 {}，不查詢。單一連線、逐路徑 execute、最後一次 commit。
         不呼叫 SimilarRankerCache.invalidate()（同 set_user_rating）。

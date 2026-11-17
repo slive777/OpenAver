@@ -175,10 +175,28 @@ def _migrate_cover_sig_columns(cursor, existing_cols: set) -> None:
             cursor.execute(f"ALTER TABLE videos ADD COLUMN {col} {decl}")
 
 
+def _migrate_pick_tiers(cursor, existing_cols: set) -> None:
+    """精選等級升級遷移（201-T1 CD-201-2）：舊精選值（>0）一次升為金 3。
+
+    標記存在於 app_meta 的 pick_tiers_v1＝已升級過，已有標記則整個 no-op。
+    標記不存在時：'user_rating' in existing_cols 才 UPDATE（不碰 updated_at）；
+    無論欄位在不在都寫標記（全新 DB、無該欄的舊 DB 是欄位在遷移之後才由
+    init_db 的 ALTER 建立，若不寫標記第二次啟動會把使用者設的銅升成金）。
+    不另開交易，沿用 init_db 末尾那一次 commit。
+    """
+    done = cursor.execute("SELECT 1 FROM app_meta WHERE key = 'pick_tiers_v1'").fetchone()
+    if done:
+        return
+    if 'user_rating' in existing_cols:
+        cursor.execute("UPDATE videos SET user_rating = 3 WHERE user_rating > 0")
+    cursor.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('pick_tiers_v1', '1')")
+
+
 def _migrate_videos_db_only_columns(cursor, existing_cols: set) -> None:
-    """videos DB-only 欄遷移總入口：依序跑 media 探針欄與封面簽章欄。"""
+    """videos DB-only 欄遷移總入口：依序跑 media 探針欄、封面簽章欄與精選等級升級。"""
     _migrate_media_probe_columns(cursor, existing_cols)
     _migrate_cover_sig_columns(cursor, existing_cols)
+    _migrate_pick_tiers(cursor, existing_cols)
 
 
 def init_db(db_path: Path = None) -> None:
