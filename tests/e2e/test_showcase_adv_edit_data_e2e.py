@@ -164,6 +164,7 @@ def test_adv_edit_data_maker_end_state(page, server_url):
     with page.expect_response(lambda r: '/api/showcase/video/refresh' in r.url and r.request.method == 'POST') as refresh:
         page.locator('.adv-edit-update').click()
     assert refresh.value.ok, '更新請求失敗'
+    assert refresh.value.json()['success'] is True, '更新請求回 success:false'
     page.wait_for_function("selector => { const d = Alpine.$data(document.querySelector(selector)); return !d._advEditCell && !d._advEditBusy && !d.advEditDataLoading; }", arg=ROOT)
     assert hashlib.sha256(nfo.read_bytes()).hexdigest() == digest, '更新改動了 NFO'
     response = page.request.get(f'{url}/api/showcase/videos')
