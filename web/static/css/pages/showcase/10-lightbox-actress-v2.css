@@ -372,6 +372,14 @@
     opacity: 1;
 }
 
+/* 替身不透明、層級在真疊層之上、不擋點擊、不與 GSAP 補間雙重 easing。 */
+.lightbox-cover .lbx-ap-cover[data-lbx-ghost] {
+    z-index: 4;
+    opacity: 1;
+    transition: none;
+    pointer-events: none;
+}
+
 /* 覆寫 05 的 .lightbox-cover img（height:60vh; width:auto; object-fit:contain）：填滿外框、cover 裁法、預設右半邊；
    有對焦的片由 lbxApCoverLoaded 的 inline object-position 蓋過。原圖放大，不用縮圖端點。 */
 .lightbox-cover .lbx-ap-cover .lbx-ap-cover-img {

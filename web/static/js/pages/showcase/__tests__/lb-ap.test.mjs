@@ -203,3 +203,93 @@ test('test_ap_cover_cleared_when_work_hidden', async () => {
         sb._setActressIndex(null);
     }
 });
+
+const { coverSwapPlan } = await import('../lbx-logic.js');
+
+function withCoverGhosts(run) {
+    const oldAnimations = window.ShowcaseAnimations, oldOpenAver = window.OpenAver;
+    const registry = [];
+    let builds = 0, releases = 0;
+    window.OpenAver = { prefersReducedMotion: false };
+    window.ShowcaseAnimations = {
+        createGhost(_panel, { kind }) {
+            builds++;
+            const entry = { kind, released: false };
+            registry.push(entry);
+            return {
+                release() { entry.released = true; releases++; },
+                kill() { const i = registry.indexOf(entry); if (i >= 0) registry.splice(i, 1); },
+            };
+        },
+        killGhosts(kind) { for (let i = registry.length - 1; i >= 0; i--) if (!kind || registry[i].kind === kind) registry.splice(i, 1); },
+        ghostCount(kind) { return registry.filter((entry) => !kind || entry.kind === kind).length; },
+    };
+    const component = (cover = { path: 'a', cover_url: 'a' }) => makeComponent({
+        lbxApCover: cover, lbxApCoverShown: true,
+        $refs: { pickerCoverImg: { parentElement: { querySelector: () => ({}) } } },
+    });
+    try { run({ registry, component, builds: () => builds, releases: () => releases }); }
+    finally { window.ShowcaseAnimations = oldAnimations; window.OpenAver = oldOpenAver; }
+}
+
+test('test_cover_swap_plan_table', () => {
+    const base = { hadCover: true, toPhoto: false, prefersReducedMotion: false, sameSrc: false, bothNoImage: false };
+    for (const [change, expected] of [[{ hadCover: false }, 'none'], [{}, 'swap'], [{ sameSrc: true }, 'none'], [{ bothNoImage: true }, 'none'], [{ toPhoto: true }, 'out'], [{ prefersReducedMotion: true }, 'none'], [{ toPhoto: true, prefersReducedMotion: true }, 'none']]) {
+        assert.equal(coverSwapPlan({ ...base, ...change }), expected);
+    }
+});
+
+test('test_cover_ghost_waits_for_image_event', () => withCoverGhosts(({ component, builds, releases }) => {
+    const c = component({ path: 'a' });
+    c.lbxApOpenCover({ path: 'b', cover_url: 'b' });
+    assert.equal(builds(), 1);
+    assert.equal(releases(), 0);
+    c.lbxApOpenCover({ path: 'c', cover_url: 'c' });
+    assert.equal(builds(), 1);
+    c.lbxApCoverLoaded(null);
+    assert.equal(releases(), 1);
+    c.lbxApCoverLoaded(null);
+    assert.equal(releases(), 1);
+    c.lbxApOpenCover({ path: 'f', cover_url: 'f' });
+    c.lbxApCoverError();
+    assert.equal(releases(), 2);
+    const same = builds();
+    c.lbxApOpenCover({ path: 'g', cover_url: 'f' });
+    assert.equal(builds(), same);
+    c.lbxApOpenCover({ path: 'd' });
+    assert.equal(releases(), 3);
+    const before = builds();
+    c.lbxApOpenCover({ path: 'e' });
+    assert.equal(builds(), before);
+}));
+
+test('test_cover_reset_clears_ghost_without_building', () => withCoverGhosts(({ component, registry, builds, releases }) => {
+    const c = component();
+    c.lbxApOpenCover({ path: 'b', cover_url: 'b' });
+    assert.equal(registry.length, 1, '前置：登記表有 1 個');
+    c.lbxApReset();
+    assert.equal(registry.length, 0);
+    assert.equal(builds(), 1);
+    c.lbxApCoverLoaded(null);
+    assert.equal(releases(), 0);
+}));
+
+test('test_back_to_photo_ghost_survives_teardown', () => withCoverGhosts(({ component, registry, builds }) => {
+    const c = component();
+    c.lbxApBackToPhoto();
+    assert.equal(registry.length, 1);
+    assert.equal(registry[0].kind, 'cover');
+    assert.equal(registry[0].released, true);
+    window.ShowcaseAnimations.killGhosts();
+    const waiting = component();
+    waiting.lbxApOpenCover({ path: 'b', cover_url: 'b' });
+    const before = builds();
+    waiting.lbxApBackToPhoto();
+    assert.equal(builds(), before);
+    assert.equal(registry.length, 1);
+    assert.equal(registry[0].released, true);
+    window.ShowcaseAnimations.killGhosts();
+    window.OpenAver.prefersReducedMotion = true;
+    component().lbxApBackToPhoto();
+    assert.equal(registry.length, 0);
+}));

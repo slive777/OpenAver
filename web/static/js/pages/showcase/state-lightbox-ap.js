@@ -22,14 +22,20 @@
 import { _videos, _videosReady, _aliasMapLoaded, _actressIndex } from '@/showcase/state-base.js';
 import { worksOfActress } from '@/shared/actress-lookup.js';
 import { focalCellObjectPosition } from '@/shared/focal.js';
-import { batchLabel, nextBatchStart, sortWorksByRelease } from './lbx-logic.js';
+import { batchLabel, nextBatchStart, sortWorksByRelease, coverSwapPlan } from './lbx-logic.js';
 import { sameWork } from './work-versions.js';
 
 const LBX_AP_BATCH_SIZE = 6;
 
+function coverNodes(host) {
+    const frame = host.$refs?.pickerCoverImg?.parentElement;
+    return { frame, panel: frame?.querySelector?.(':scope > .lbx-ap-cover:not([data-lbx-ghost])') };
+}
+
 export function stateLightboxAp() {
     // 閉包狀態（不放 this，見檔頭）：整份排好序的作品清單
     let items = [];
+    let coverGhost = null;
 
     return {
         lbxApBatch: [],
@@ -65,6 +71,8 @@ export function stateLightboxAp() {
 
         // 換人（賦值前）與關燈箱都呼叫：回第一批、清空
         lbxApReset() {
+            window.ShowcaseAnimations?.killGhosts?.('cover');
+            coverGhost = null;
             items = [];
             this.lbxApStart = 0;
             this.lbxApTotal = 0;
@@ -79,6 +87,15 @@ export function stateLightboxAp() {
         // 這裡不判 lbxApStripLocked：鎖死只靠縮圖排的 :inert，多一道保險會讓「:inert 接線遺失」無人發現（FE-GUARD-25）。
         lbxApOpenCover(video) {
             if (!video || this.lbxApCover?.path === video.path) return;
+            const prev = this.lbxApCover;
+            const hadCover = !!prev && this.lbxApCoverShown;
+            const prevUrl = prev?.cover_full_url || prev?.cover_url || '';
+            const nextUrl = video.cover_full_url || video.cover_url || '';
+            const plan = coverSwapPlan({ hadCover, toPhoto: false, prefersReducedMotion: !!window.OpenAver?.prefersReducedMotion, sameSrc: prevUrl === nextUrl, bothNoImage: !prevUrl && !nextUrl });
+            if (plan === 'swap' && !coverGhost) {
+                const { frame, panel } = coverNodes(this);
+                coverGhost = window.ShowcaseAnimations?.createGhost?.(panel, { parent: frame, kind: 'cover' }) || null;
+            }
             this.lbxApCover = {
                 path: video.path,
                 number: video.number,
@@ -91,12 +108,24 @@ export function stateLightboxAp() {
             this.lbxApCoverFailed = false;
             // 沒有封面網址：沒有圖要等，直接顯示無封面塊（不透明底）
             this.lbxApCoverShown = !(video.cover_full_url || video.cover_url) || this.lbxApCoverShown;
+            if (!nextUrl && coverGhost) { coverGhost.release(); coverGhost = null; }
         },
 
-        lbxApBackToPhoto() { this.lbxApCover = null; this.lbxApCoverFailed = false; this.lbxApCoverShown = false; },
+        lbxApBackToPhoto() {
+            const plan = coverSwapPlan({ hadCover: !!this.lbxApCover && this.lbxApCoverShown, toPhoto: true, prefersReducedMotion: !!window.OpenAver?.prefersReducedMotion });
+            if (coverGhost) {
+                coverGhost.release();
+                coverGhost = null;
+            } else if (plan === 'out') {
+                const { frame, panel } = coverNodes(this);
+                window.ShowcaseAnimations?.createGhost?.(panel, { parent: frame, kind: 'cover' })?.release();
+            }
+            this.lbxApCover = null; this.lbxApCoverFailed = false; this.lbxApCoverShown = false;
+        },
 
         // 封面 <img> @error：讀不到 → 顯示無封面塊，同時結束淡入等待
         lbxApCoverError() {
+            if (coverGhost) { coverGhost.release(); coverGhost = null; }
             this.lbxApCoverFailed = true;
             this.lbxApCoverShown = true;
         },
@@ -104,6 +133,7 @@ export function stateLightboxAp() {
         // 封面 <img> @load：疊層盒（imgEl 的父層）比例量得到就套焦點裁法，量不到或不需裁就清成 ''（退 CSS 的右半邊基線）。
         // 回 null 也要清 inline——同一個 <img> 在 A→B 時是重用的，不清會把 A 的裁法殘留到 B。
         lbxApCoverLoaded(imgEl) {
+            if (coverGhost) { coverGhost.release(); coverGhost = null; }
             this.lbxApCoverShown = true;
             if (!imgEl) return;
             const box = imgEl.parentElement?.getBoundingClientRect?.();

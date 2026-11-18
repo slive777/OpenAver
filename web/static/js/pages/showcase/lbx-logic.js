@@ -366,3 +366,9 @@ export function advEditThumbNotice(data, t) {
 export function ghostOnClose({ placed, immediate, prefersReducedMotion }) {
     return !!placed && !immediate && !prefersReducedMotion;
 }
+
+export function coverSwapPlan({ hadCover, toPhoto, prefersReducedMotion, sameSrc, bothNoImage }) {
+    if (!hadCover || prefersReducedMotion) return 'none';
+    if (toPhoto) return 'out';
+    return sameSrc || bothNoImage ? 'none' : 'swap';
+}

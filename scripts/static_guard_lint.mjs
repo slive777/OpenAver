@@ -10133,6 +10133,21 @@ const RULES = [
 
   // ---- 199b-T6：點縮圖 → 大圖換成那部片的封面（疊層在照片外框內；互斥、換人重置、底條 ▶📁）----
   {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string', pattern: 'createGhost',
+    scope: { anchor: /lbxApOpenCover\(video\) \{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:202-T4-open-ghost] 換封面少了替身，使用者等待新圖時會看到空白或照片',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string', pattern: 'createGhost',
+    scope: { anchor: /lbxApBackToPhoto\(\) \{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:202-T4-back-ghost] 回照片少了替身，使用者看到封面硬切消失',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'forbidden-string', pattern: 'createGhost',
+    scope: { anchor: /lbxApReset\(\) \{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:202-T4-reset-no-ghost] 重置建立替身，使用者換人後會看到上一片封面殘影',
+  },
+  {
     file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string',
     pattern: 'this.lbxApCover = null;',
     scope: { anchor: /lbxApReset\(\) \{/, braceBalanced: true },
