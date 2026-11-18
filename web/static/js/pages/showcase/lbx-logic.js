@@ -363,3 +363,21 @@ export function advEditThumbNotice(data, t) {
     if (data?.success === false && data.error === 'unreachable') return { text: t('showcase.adv_edit.files.unreachable'), type: 'warning', reload: false };
     return { text: t('showcase.adv_edit.files.thumb_failed'), type: 'error', reload: false };
 }
+export function ghostOnClose({ placed, immediate, prefersReducedMotion }) {
+    return !!placed && !immediate && !prefersReducedMotion;
+}
+
+export function coverSwapPlan({ hadCover, toPhoto, prefersReducedMotion, sameSrc, bothNoImage }) {
+    if (!hadCover || prefersReducedMotion) return 'none';
+    if (toPhoto) return 'out';
+    return sameSrc || bothNoImage ? 'none' : 'swap';
+}
+
+// 只在適合的時機播放，避免縮圖排重複閃動。
+export function stripRevealPlan({ trigger, lightboxOpen, lightboxAnimating }) {
+    if (!lightboxOpen) return { play: false, photo: false, films: false, next: false };
+    if (trigger === 'switch') return { play: true, photo: true, films: true, next: true };
+    if (trigger === 'next') return { play: true, photo: false, films: true, next: false };
+    if (trigger === 'appear' && !lightboxAnimating) return { play: true, photo: true, films: true, next: true };
+    return { play: false, photo: false, films: false, next: false };
+}

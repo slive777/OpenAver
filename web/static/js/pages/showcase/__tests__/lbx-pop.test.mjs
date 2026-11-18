@@ -12,13 +12,15 @@ globalThis.Alpine = globalThis.Alpine || {
     store: () => ({ toolbarOpen: false, showcaseHasSearch: false }),
 };
 globalThis.document = globalThis.document || {
+    addEventListener() {},
     querySelector() { return null; },
     body: { classList: { add() {}, remove() {}, contains() { return false; } } },
 };
 
 register(new URL('../../search/__tests__/alias-loader.mjs', import.meta.url), import.meta.url);
 
-const { placePop, isOutsidePop } = await import('../lbx-logic.js');
+const { placePop, isOutsidePop, ghostOnClose } = await import('../lbx-logic.js');
+await import('../animations.js');
 const { stateLightbox } = await import('../state-lightbox.js');
 const { stateLightboxPicker } = await import('../state-lightbox-picker.js');
 const { stateLightboxMask } = await import('../state-lightbox-mask.js');
@@ -26,6 +28,36 @@ const { stateLightboxPop } = await import('../state-lightbox-pop.js');
 const { stateLightboxTags } = await import('../state-lightbox-tags.js');
 const { mergeState } = await import('@/shared/merge-state.js');
 const { _setFilteredVideos } = await import('../state-base.js');
+
+test('test_ghost_on_close_table', () => {
+    for (const placed of [false, true]) for (const immediate of [false, true]) for (const prefersReducedMotion of [false, true]) {
+        assert.equal(ghostOnClose({ placed, immediate, prefersReducedMotion }), placed && !immediate && !prefersReducedMotion);
+    }
+});
+
+test('test_create_ghost_under_reduced_motion_adds_nothing', () => {
+    window.OpenAver = { prefersReducedMotion: true, motion: { stripAlpine() {}, DURATION: { fast: 0.1, emphasis: 0.5 } } };
+    globalThis.gsap = { fromTo() { return { kill() {} }; } };
+    const parent = { children: [], appendChild(node) { this.children.push(node); } };
+    const src = { cloneNode() { return { style: {}, setAttribute() {}, removeAttribute() {} }; } };
+    const handle = window.ShowcaseAnimations.createGhost(src, { parent, kind: 'pop' });
+    assert.equal(typeof handle.release, 'function');
+    assert.equal(typeof handle.kill, 'function');
+    assert.equal(parent.children.length, 0);
+    assert.equal(window.ShowcaseAnimations.ghostCount(), 0);
+});
+
+test('test_open_second_pop_clears_old_ghost', () => {
+    window.OpenAver = { prefersReducedMotion: false, motion: { stripAlpine() {}, DURATION: { fast: 0.1, emphasis: 0.5 } } };
+    globalThis.gsap = { fromTo() { return { kill() {} }; } };
+    const parent = { children: [], appendChild(node) { this.children.push(node); node.parent = this; } };
+    const src = { cloneNode() { return { style: {}, setAttribute() {}, removeAttribute() {}, remove() { this.parent.children.splice(this.parent.children.indexOf(this), 1); } }; } };
+    window.ShowcaseAnimations.createGhost(src, { parent, kind: 'pop' });
+    assert.equal(window.ShowcaseAnimations.ghostCount('pop'), 1);
+    stateLightboxPop().lbxPopOpen('title', {});
+    assert.equal(window.ShowcaseAnimations.ghostCount('pop'), 0);
+    assert.equal(parent.children.length, 0);
+});
 
 test('test_place_pop_never_covers_cover_or_leaves_viewport', () => {
     const vw = 1920;
@@ -263,4 +295,21 @@ test('test_outside_pointerdown_closing_pop_swallows_backdrop_click', () => {
     } finally {
         globalThis.document = prevDoc;
     }
+});
+
+test('test_ghost_preserves_scroll_after_append', () => {
+    window.OpenAver = { prefersReducedMotion: false, motion: { stripAlpine() {}, DURATION: { fast: 0.1, emphasis: 0.5 } } };
+    globalThis.gsap = { fromTo() { return { kill() {} }; } };
+    let clone;
+    const parent = { appendChild(node) { node.attached = true; } };
+    const src = { scrollTop: 37, cloneNode() {
+        let scroll = 0;
+        clone = { style: {}, setAttribute() {}, removeAttribute() {}, remove() {},
+            get scrollTop() { return scroll; },
+            set scrollTop(value) { if (this.attached) scroll = value; },
+        };
+        return clone;
+    } };
+    const handle = window.ShowcaseAnimations.createGhost(src, { parent, kind: 'pop' });
+    try { assert.equal(clone.scrollTop, 37); } finally { handle.kill(); }
 });

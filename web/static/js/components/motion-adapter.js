@@ -26,6 +26,17 @@ console.warn('[motion-adapter] CustomEase plugin missing, fluent eases not regis
 
 var motion = {
 
+/** 移除替身上的 Alpine 指令與 template，避免再次初始化。 */
+stripAlpine: function (root) {
+    if (!root) return;
+    root.querySelectorAll('template').forEach(function (el) { el.remove(); });
+    [root].concat(Array.from(root.querySelectorAll('*'))).forEach(function (el) {
+        Array.from(el.attributes).forEach(function (attr) {
+            if (/^(x-|:|@)/.test(attr.name)) el.removeAttribute(attr.name);
+        });
+    });
+},
+
 /**
  * Phase 50.2.9: GSAP Duration 三角色常數（charter §5，CD-7 命名避讓既有 slow:300ms）
  *

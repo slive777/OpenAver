@@ -11,7 +11,7 @@
  */
 
 import { versionsOf } from './work-versions.js';
-import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields, orderFavoritesFirst, actorCardLines } from './lbx-logic.js';
+import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields, orderFavoritesFirst, actorCardLines, ghostOnClose } from './lbx-logic.js';
 
 const LBX_POP_HOVER_CLOSE_MS = 160;
 const LBX_POP_HOVER_OPEN_MS = 300;   // 滑鼠停在錨點多久才開（只用於 dwell 的錨點，199b-T3）
@@ -49,6 +49,7 @@ export function stateLightboxPop() {
         // 取代現有浮層（單槽）。anchorEl 只存起來，量測延到 $nextTick。
         lbxPopOpen(kind, anchorEl, { mode = 'click', anchorKey = '' } = {}) {
             if (this._navBlockedByFocalEdit?.()) return;
+            window.ShowcaseAnimations?.killGhosts?.('pop');
             this._lbxPopClearTimer();
             this._lbxPopClearOpenTimer();
             const gen = ++this._lbxPopGen;
@@ -108,13 +109,19 @@ export function stateLightboxPop() {
         },
 
         // lbxPop 已是 null 時零成本早退（@resize.window 與 closeLightbox 會在浮層沒開時也呼叫）
-        lbxPopClose({ restoreFocus = false } = {}) {
+        lbxPopClose({ restoreFocus = false, immediate = false } = {}) {
             this._lbxPopClearTimer();
             this._lbxPopClearOpenTimer();   // 關閉一律取消尚未到期的停留計時（浮層為空時也要清）
             this._lbxPopGen++;
             const cur = this.lbxPop;
+            if (immediate) window.ShowcaseAnimations?.killGhosts?.('pop');
             if (!cur) return;
             const anchor = this._lbxPopAnchorEl;
+            if (ghostOnClose({ placed: cur.placed, immediate, prefersReducedMotion: window.OpenAver?.prefersReducedMotion })) {
+                const host = this.$refs?.lbxPopHost;
+                const panel = host?.querySelector?.('.lbx-pop');
+                if (panel) window.ShowcaseAnimations?.createGhost?.(panel, { parent: host.parentElement, kind: 'pop' })?.release();
+            }
             this.lbxPop = null;
             this._lbxPopAnchorEl = null;
             if (restoreFocus && cur.mode === 'click' && anchor && anchor.isConnected) anchor.focus?.();

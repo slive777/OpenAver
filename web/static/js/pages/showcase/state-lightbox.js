@@ -391,7 +391,7 @@ export function stateLightbox() {
             this.addingLbTag = false;    // 關閉 lightbox 時重置 user tag 輸入框
             this._resetMask();           // 98b-T4：關燈箱丟棄未提交遮罩態（不 commit）
             this._lbPlotReset?.();       // 187b-T5a：關燈箱清簡介面（defense-in-depth）
-            this.lbxPopClose?.();        // 199a-T3：關燈箱收浮層（可選呼叫：只合併部分分片的 harness 沒有它）
+            this.lbxPopClose?.({ immediate: true });        // 199a-T3：關燈箱收浮層（可選呼叫：只合併部分分片的 harness 沒有它）
             this.closeAdvEdit?.();       // 200b-T10：關燈箱，彈窗跟著關（可選呼叫：只合併部分分片的 harness 沒有它）
             this.lbxApReset?.();         // 199b-T5：關燈箱清女優縮圖排（回第一批；可選呼叫）
             this._fetchSamplesFailed = {};
@@ -511,7 +511,7 @@ export function stateLightbox() {
             this._lightboxAnimating = false;
             this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
             this.lightboxOpen = false;
-            this.lbxPopClose?.();        // 199a-T5：從浮層（另有 N 位／ⓘ）點篩選也要收浮層，不然 250ms 內重開同一片還看得到舊浮層
+            this.lbxPopClose?.({ immediate: true });        // 199a-T5：從浮層（另有 N 位／ⓘ）點篩選也要收浮層，不然 250ms 內重開同一片還看得到舊浮層
             // 123-T3 / CD-123-14a：這條路徑本來就會經 addPill 重篩一次，述詞式不需要事先清任何東西。
             document.body.classList.remove('overflow-hidden');
 

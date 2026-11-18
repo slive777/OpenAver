@@ -46,6 +46,49 @@
     container: lbx-cover / inline-size;
 }
 
+.lbx-faces {
+    display: grid;
+    min-height: calc(46px + .625rem + 1.625rem);
+}
+
+.lbx-faces--no-band {
+    min-height: 46px;
+}
+
+.lightbox-cover .cover-actions.cover-actions--focal-edit .lbx-faces--no-band {
+    min-height: calc(46px + .625rem + 1.625rem);
+}
+
+.lbx-face {
+    grid-area: 1 / 1;
+    position: relative;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: .625rem;
+}
+
+.lbx-face-t-enter,
+.lbx-face-t-leave {
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.lbx-face-t-enter-start,
+.lbx-face-t-leave-end {
+    opacity: 0;
+}
+
+.lbx-face-t-enter-end,
+.lbx-face-t-leave-start {
+    opacity: 1;
+}
+
+.lightbox-cover .cover-actions.cover-actions--focal-edit .lbx-face-t-leave,
+.lightbox-cover .cover-actions.cover-actions--focal-edit .lbx-face-t-leave .lb-action-btn,
+.lbx-face-t-leave {
+    pointer-events: none;
+}
+
 .lbx-actions {
     display: flex;
     justify-content: center;
@@ -63,6 +106,10 @@
     color: color-mix(in oklch, white 78%, transparent);
     text-shadow: 0 1px 3px color-mix(in oklch, black 55%, transparent);
     pointer-events: none;
+}
+
+.lbx-faces:not(.lbx-faces--no-band) .lbx-focal-hint {
+    min-height: 1.625rem;
 }
 
 .lbx-band {
@@ -229,6 +276,11 @@
     pointer-events: auto;
     overflow-y: auto;
     overscroll-behavior: contain;
+}
+
+.lbx-pop[data-lbx-ghost] {
+    pointer-events: none;
+    transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -642,6 +694,11 @@ button.lbx-avatar {
     line-height: 1;
     white-space: nowrap;
     text-decoration: none;
+}
+
+/* 找回 199a 前 .lb-link 的 hover 過渡 */
+.lbx-people-row .lbx-work {
+    transition: color var(--duration-fast) var(--ease-out);
 }
 
 .lbx-people-row .lbx-work--num {
@@ -1097,6 +1154,12 @@ button.lbx-avatar {
     line-height: 1;
     white-space: nowrap;
     text-decoration: none;
+}
+
+/* 找回 199a 前 .lb-link 的 hover 過渡 */
+.lbx-tag-row .lbx-tag,
+.lbx-tags-pop .lbx-tag {
+    transition: color var(--duration-fast) var(--ease-out);
 }
 
 /* 你的標籤：中性色、比作品標籤強一階並加細框（不再是實心 accent） */

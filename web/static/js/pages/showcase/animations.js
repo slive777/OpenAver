@@ -55,6 +55,20 @@
         return !!(window.OpenAver?.prefersReducedMotion);
     }
 
+    var ghosts = new Set();
+    var NOOP_GHOST = { release: function () {}, kill: function () {} };
+    var AP_STRIP_STAGGER = 0.04;
+    var apReveal = { buttons: [], inner: [] };
+
+    /** 清除縮圖排動畫。 */
+    function killApStripReveal() {
+        var targets = apReveal.buttons.concat(apReveal.inner);
+        apReveal = { buttons: [], inner: [] };
+        if (!targets.length || typeof gsap === 'undefined') return;
+        targets.forEach(function (node) { gsap.killTweensOf(node); });
+        gsap.set(targets, { clearProps: 'opacity,transform' });
+    }
+
     // B5: 註冊 Flip plugin + CustomEase（base.html 已載入 CDN）
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof gsap !== 'undefined' && typeof Flip !== 'undefined') {
@@ -77,6 +91,63 @@
      * 目前所有方法為 placeholder，return null
      */
     var ShowcaseAnimations = {
+        /** 播放縮圖排進場動畫。 */
+        playApStripReveal: function (stripEl, opts) {
+            if (shouldSkip() || !stripEl || typeof gsap === 'undefined') return null;
+            killApStripReveal();
+            opts = opts || {};
+            var cells = [];
+            var photo = opts.photo && stripEl.querySelector('.lbx-ap-photo');
+            var next = opts.next && stripEl.querySelector('.lbx-ap-next');
+            if (photo) cells.push(photo);
+            if (opts.films) cells = cells.concat(Array.prototype.slice.call(stripEl.querySelectorAll('.lbx-ap-film')));
+            if (next) cells.push(next);
+            if (!cells.length) return null;
+            var dur = OpenAver.motion.DURATION.fast;
+            cells.forEach(function (cell, i) {
+                var children = Array.prototype.slice.call(cell.children);
+                gsap.fromTo(cell, { opacity: 0 }, { opacity: 1, duration: dur, ease: 'fluent-decel', delay: i * AP_STRIP_STAGGER, clearProps: 'opacity,transform' });
+                children.forEach(function (child) {
+                    gsap.fromTo(child, { y: 6 }, { y: 0, duration: dur, ease: 'fluent-decel', delay: i * AP_STRIP_STAGGER, clearProps: 'opacity,transform' });
+                });
+                apReveal.buttons.push(cell);
+                apReveal.inner = apReveal.inner.concat(children);
+            });
+            return null;
+        },
+        /** 建立替身。 */
+        createGhost: function (srcEl, { parent, kind } = {}) {
+            if (shouldSkip()) return NOOP_GHOST;
+            var motion = window.OpenAver?.motion;
+            if (typeof gsap === 'undefined' || !motion?.stripAlpine || !srcEl || !parent) return NOOP_GHOST;
+            var clone = srcEl.cloneNode(true);
+            motion.stripAlpine(clone);
+            clone.setAttribute('inert', '');
+            clone.setAttribute('aria-hidden', 'true');
+            clone.setAttribute('data-lbx-ghost', kind);
+            clone.removeAttribute('id');
+            clone.style.pointerEvents = 'none';
+            parent.appendChild(clone);
+            clone.scrollTop = srcEl.scrollTop;
+            var timer = null, tween = null, released = false;
+            var entry = { kind: kind, kill: function () {
+                if (!ghosts.delete(entry)) return;
+                if (timer !== null) clearTimeout(timer);
+                if (tween) tween.kill();
+                clone.remove();
+            } };
+            ghosts.add(entry);
+            return { kill: entry.kill, release: function () {
+                if (released || !ghosts.has(entry)) return;
+                released = true;
+                timer = setTimeout(entry.kill, motion.DURATION.emphasis * 1000);
+                tween = gsap.fromTo(clone, { opacity: 1 }, { opacity: 0, duration: motion.DURATION.fast, ease: 'fluent-accel', onComplete: entry.kill });
+            } };
+        },
+        /** 清除替身。 */
+        killGhosts: function (kind) { Array.from(ghosts).forEach(function (entry) { if (!kind || entry.kind === kind) entry.kill(); }); },
+        /** 取得替身數。 */
+        ghostCount: function (kind) { return Array.from(ghosts).filter(function (entry) { return !kind || entry.kind === kind; }).length; },
         /**
          * B6: 初始載入進場動畫
          * @param {Element} gridEl - .showcase-grid 容器
@@ -623,6 +694,8 @@
          * @param {object} [options] - { killOpen: true, killSwitch: true }
          */
         killLightboxAnimations: function (options) {
+            ShowcaseAnimations.killGhosts();
+            killApStripReveal(); // FE-MOTION-17：縮圖排依序浮現的 teardown
             options = options || {};
             var killOpen = options.killOpen !== false;
             var killSwitch = options.killSwitch !== false;

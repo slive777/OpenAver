@@ -560,7 +560,7 @@ export function stateBase() {
             // 同一個 path 上 has_plot false→true（補完後）走第二條，用 view.path 比對避免與第一條重複請求
             this.$watch('currentLightboxVideo?.path', () => { this._lbPlotReset?.(); if (this.lbPlotRowVisible?.()) this._lbPlotLoad?.(); })
             this.$watch('currentLightboxVideo?.has_plot', () => { if (this.lbPlotRowVisible?.() && this._lbPlotView?.path !== this.currentLightboxVideo?.path) this._lbPlotLoad?.(); })
-            this.$watch('currentLightboxVideo?.path', () => { this.lbxPopClose?.(); })
+            this.$watch('currentLightboxVideo?.path', () => { this.lbxPopClose?.({ immediate: true }); })
             // 100b-T2a（§B-1c 姊妹 watcher）：actress→actress 切換用（x-if 不重新掛載，watcher
             // 夠用）。video→actress／actress→video 的掛載瞬間已由 _setActressLightboxIndex()／
             // prevLightboxVideo()／nextLightboxVideo() 內的同步 _resetMask() 擋住（gotchas-frontend

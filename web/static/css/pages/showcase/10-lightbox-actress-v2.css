@@ -13,6 +13,14 @@
     container: lbx-ap-meta / inline-size;
 }
 
+.lbx-actress-branch .lightbox-cover .cover-actions {
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    gap: .625rem;
+    padding: 1.5rem .75rem .625rem;
+}
+
 @media (min-width: 769px) and (min-height: 720px) {
     .lightbox-content:has(> .lbx-actress-branch) {
         max-height: 96vh;
@@ -203,11 +211,12 @@
     margin-top: .25rem;
     flex: none;
     overflow: hidden;
+    transition: filter var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .lbx-ap-meta .lbx-ap-strip[aria-disabled="true"] {
     pointer-events: none;
-    opacity: .5;
+    filter: opacity(.5);
 }
 
 .lbx-ap-meta .lbx-ap-strip .lbx-ap-cell {
@@ -228,6 +237,10 @@
     padding: 0;
     font-family: inherit;
     cursor: pointer;
+    outline: 2px solid transparent;
+    outline-offset: -2px;
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                outline-color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .lbx-ap-meta .lbx-ap-strip .lbx-ap-film:hover,
@@ -238,8 +251,7 @@
 /* 選中框與鍵盤焦點：往內畫（負的 outline-offset）——外偏移會被 .lbx-ap-strip 的 overflow:hidden 裁掉，
    也不用 border 寬度變化（會推動格子尺寸，點擊化前後格寬格高要相同） */
 .lbx-ap-meta .lbx-ap-strip .lbx-ap-film.is-selected {
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
+    outline-color: var(--accent);
 }
 
 .lbx-ap-meta .lbx-ap-strip .lbx-ap-film:focus-visible,
@@ -366,6 +378,14 @@
 
 .lightbox-cover .lbx-ap-cover.is-shown {
     opacity: 1;
+}
+
+/* 替身不透明、層級在真疊層之上、不擋點擊、不與 GSAP 補間雙重 easing。 */
+.lightbox-cover .lbx-ap-cover[data-lbx-ghost] {
+    z-index: 4;
+    opacity: 1;
+    transition: none;
+    pointer-events: none;
 }
 
 /* 覆寫 05 的 .lightbox-cover img（height:60vh; width:auto; object-fit:contain）：填滿外框、cover 裁法、預設右半邊；

@@ -203,3 +203,154 @@ test('test_ap_cover_cleared_when_work_hidden', async () => {
         sb._setActressIndex(null);
     }
 });
+
+const { coverSwapPlan } = await import('../lbx-logic.js');
+
+function withCoverGhosts(run) {
+    const oldAnimations = window.ShowcaseAnimations, oldOpenAver = window.OpenAver;
+    const registry = [];
+    let builds = 0, releases = 0;
+    window.OpenAver = { prefersReducedMotion: false };
+    window.ShowcaseAnimations = {
+        createGhost(_panel, { kind }) {
+            builds++;
+            const entry = { kind, released: false };
+            registry.push(entry);
+            return {
+                release() { entry.released = true; releases++; },
+                kill() { const i = registry.indexOf(entry); if (i >= 0) registry.splice(i, 1); },
+            };
+        },
+        killGhosts(kind) { for (let i = registry.length - 1; i >= 0; i--) if (!kind || registry[i].kind === kind) registry.splice(i, 1); },
+        ghostCount(kind) { return registry.filter((entry) => !kind || entry.kind === kind).length; },
+    };
+    const component = (cover = { path: 'a', cover_url: 'a' }) => makeComponent({
+        lbxApCover: cover, lbxApCoverShown: true,
+        $refs: { pickerCoverImg: { parentElement: { querySelector: () => ({}) } } },
+    });
+    try { run({ registry, component, builds: () => builds, releases: () => releases }); }
+    finally { window.ShowcaseAnimations = oldAnimations; window.OpenAver = oldOpenAver; }
+}
+
+test('test_cover_swap_plan_table', () => {
+    const base = { hadCover: true, toPhoto: false, prefersReducedMotion: false, sameSrc: false, bothNoImage: false };
+    for (const [change, expected] of [[{ hadCover: false }, 'none'], [{}, 'swap'], [{ sameSrc: true }, 'none'], [{ bothNoImage: true }, 'none'], [{ toPhoto: true }, 'out'], [{ prefersReducedMotion: true }, 'none'], [{ toPhoto: true, prefersReducedMotion: true }, 'none']]) {
+        assert.equal(coverSwapPlan({ ...base, ...change }), expected);
+    }
+});
+
+test('test_cover_ghost_waits_for_image_event', () => withCoverGhosts(({ component, builds, releases }) => {
+    const c = component({ path: 'a' });
+    c.lbxApOpenCover({ path: 'b', cover_url: 'b' });
+    assert.equal(builds(), 1);
+    assert.equal(releases(), 0);
+    c.lbxApOpenCover({ path: 'c', cover_url: 'c' });
+    assert.equal(builds(), 1);
+    c.lbxApCoverLoaded(null);
+    assert.equal(releases(), 1);
+    c.lbxApCoverLoaded(null);
+    assert.equal(releases(), 1);
+    c.lbxApOpenCover({ path: 'f', cover_url: 'f' });
+    c.lbxApCoverError();
+    assert.equal(releases(), 2);
+    const same = builds();
+    c.lbxApOpenCover({ path: 'g', cover_url: 'f' });
+    assert.equal(builds(), same);
+    c.lbxApOpenCover({ path: 'd' });
+    assert.equal(releases(), 3);
+    const before = builds();
+    c.lbxApOpenCover({ path: 'e' });
+    assert.equal(builds(), before);
+}));
+
+test('test_cover_reset_clears_ghost_without_building', () => withCoverGhosts(({ component, registry, builds, releases }) => {
+    const c = component();
+    c.lbxApOpenCover({ path: 'b', cover_url: 'b' });
+    assert.equal(registry.length, 1, '前置：登記表有 1 個');
+    c.lbxApReset();
+    assert.equal(registry.length, 0);
+    assert.equal(builds(), 1);
+    c.lbxApCoverLoaded(null);
+    assert.equal(releases(), 0);
+}));
+
+test('test_back_to_photo_ghost_survives_teardown', () => withCoverGhosts(({ component, registry, builds }) => {
+    const c = component();
+    c.lbxApBackToPhoto();
+    assert.equal(registry.length, 1);
+    assert.equal(registry[0].kind, 'cover');
+    assert.equal(registry[0].released, true);
+    window.ShowcaseAnimations.killGhosts();
+    const waiting = component();
+    waiting.lbxApOpenCover({ path: 'b', cover_url: 'b' });
+    const before = builds();
+    waiting.lbxApBackToPhoto();
+    assert.equal(builds(), before);
+    assert.equal(registry.length, 1);
+    assert.equal(registry[0].released, true);
+    window.ShowcaseAnimations.killGhosts();
+    window.OpenAver.prefersReducedMotion = true;
+    component().lbxApBackToPhoto();
+    assert.equal(registry.length, 0);
+}));
+
+const { stripRevealPlan } = await import('../lbx-logic.js');
+
+test('test_strip_reveal_plan_table', () => {
+    assert.equal(stripRevealPlan({ trigger: 'switch', lightboxOpen: true }).play, true);
+    const all = { play: true, photo: true, films: true, next: true };
+    const none = { play: false, photo: false, films: false, next: false };
+    const base = { lightboxOpen: true, lightboxAnimating: false };
+    for (const [change, expected] of [
+        [{ trigger: 'switch' }, all],
+        [{ trigger: 'next' }, { play: true, photo: false, films: true, next: false }],
+        [{ trigger: 'appear' }, all], [{ trigger: 'appear', lightboxAnimating: true }, none],
+        ...['switch', 'next', 'appear', 'unknown'].map((trigger) => [{ trigger, lightboxOpen: false }, none]),
+        [{ trigger: 'unknown' }, none],
+    ]) assert.deepEqual(stripRevealPlan({ ...base, ...change }), expected);
+});
+
+test('test_strip_reveal_wiring_targets_and_counts', async () => {
+    const sb = await import('../state-base.js');
+    const oldFetch = globalThis.fetch, oldAnimations = window.ShowcaseAnimations, oldQuery = document.querySelector;
+    const calls = [], strip = {};
+    globalThis.fetch = async () => ({ ok: false });
+    window.ShowcaseAnimations = { playApStripReveal(el, opts) { assert.equal(el, strip); calls.push(opts); } };
+    document.querySelector = (selector) => selector === '.showcase-lightbox .lbx-ap-strip' ? strip : null;
+    try {
+        await sb._loadAliasMap();
+        sb._setActresses([{ name: 'A' }]);
+        sb._setActressesLoaded(false);
+        const videos = Array.from({ length: 14 }, (_, i) => ({ path: `video-${i}`, number: `AAA-${i}`, actresses: 'A' }));
+        sb._setVideos(videos);
+        sb._setVideosReady(true);
+        const c = makeComponent({ $nextTick(fn) { fn(); }, lightboxOpen: true, _lightboxAnimating: false, actressLightboxSource: 'grid', currentLightboxActress: { name: 'A' } });
+        c._refreshActressDerived();
+        calls.length = 0;
+        c.lbxApNext();
+        assert.equal(calls.length, 1, '前置：下一批呼叫動畫一次');
+        assert.equal(c.lbxApStart, 6);
+        assert.deepEqual(c.lbxApBatch, videos.slice(6, 12));
+        for (const [start, length] of [[12, 2], [0, 6], [6, 6], [12, 2]]) {
+            c.lbxApNext();
+            assert.equal(c.lbxApStart, start);
+            assert.equal(c.lbxApBatch.length, length);
+            assert.deepEqual(c.lbxApBatch, videos.slice(start, start + 6));
+        }
+        assert.equal(calls.length, 5);
+        for (const opts of calls) assert.deepEqual(opts, { photo: false, films: true, next: false });
+        sb._setVideosReady(false);
+        c.lbxApRebuild();
+        assert.equal(c.lbxApStripVisible(), false);
+        calls.length = 0;
+        sb._setVideosReady(true);
+        c._refreshActressDerived();
+        assert.equal(calls.length, 1);
+        assert.deepEqual(calls[0], { photo: true, films: true, next: true });
+        c._refreshActressDerived();
+        assert.equal(calls.length, 1);
+    } finally {
+        globalThis.fetch = oldFetch; window.ShowcaseAnimations = oldAnimations; document.querySelector = oldQuery;
+        sb._setVideos([]); sb._setVideosReady(false); sb._setActressIndex(null); sb._setActresses([]); sb._setActressesLoaded(false);
+    }
+});

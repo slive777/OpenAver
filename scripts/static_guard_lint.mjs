@@ -365,17 +365,20 @@ const RULES = [
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: 'x-show="!_maskVisible" @click="playVideo(',
+    pattern: /^\s*<button\b[^\n>]*(?<![\w:-])@click="playVideo\(/m,
+    scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/,
     note: '[TestMaskToggleGuard] 99a-T4：play 鈕編輯中暫隱（CD-6）',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: 'x-show="!_maskVisible" @click="openLocal(',
+    pattern: /^\s*<button\b[^\n>]*(?<![\w:-])@click="openLocal\(/m,
+    scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/,
     note: '[TestMaskToggleGuard] 99a-T4：開資料夾鈕編輯中暫隱（CD-6）',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: 'x-show="shouldShowEnrichButton(currentLightboxVideo) && !_maskVisible"',
+    pattern: /^\s*(?<![\w:-])x-show="shouldShowEnrichButton\(currentLightboxVideo\)"\s*$/m,
+    scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/,
     note: '[TestMaskToggleGuard] 99a-T4：補缺鈕編輯中暫隱（CD-6，錨完整值防 has_cover/has_nfo 條件被誤刪只剩 !_maskVisible）；149b：條件改抽成 shouldShowEnrichButton()，has_cover/has_nfo 的判斷邏輯本身由 enrich-gate.js 的 node:test 守，這條 required-string 只守『呼叫點沒有被誤刪成只剩 !_maskVisible』這個原本要守的目的',
   },
   {
@@ -535,10 +538,12 @@ const RULES = [
   // 拆成兩條 scope-anchored 規則，各自錨到專屬 <template x-if> 分支（全檔僅出現一次，
   // 唯一性已用 grep 確認），window 只需蓋過該分支內的 ✓/✗ 兩處、且在下一分支的同 pattern
   // 之前收尾，兩個分支才能被「各自」的 count:2 下限獨立守住。
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 11300 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解與 199b-T6 封面疊層；199b-T6 後 anchor 到第二個 ✗ 結尾實測 8959 字元〔owner 修正後；超過原 8800〕，window 8800→11300＝實測＋約 26%；與下一條影片 scope 的 anchor 相距 22373 字元，仍安全不重疊）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: [/^\s*(?<![\w:-])x-show="_maskVisible && !_maskDetecting"\s*$/m, /^\s*(?<![\w:-])@click\.stop="confirmMask\(\)"\s*$/m, /^\s*(?<![\w:-])@click\.stop="cancelMask\(\)"\s*$/m], scope: /<div class="cover-actions"\s*\n\s*:data-picker-open[\s\S]*?(<div class="lbx-face lbx-face--edit"[\s\S]*?(?=\n\s*<p class="lbx-focal-hint"))/, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優編輯面等待偵測完成並保留確認與取消' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: [/^\s*<p\s+(?<![\w:-])class="lbx-focal-hint"\s*$/m, /^\s*(?<![\w:-])x-show="!_maskSettling"\s*$/m, /^\s*(?<![\w:-])x-text="t\('showcase\.lightbox\.focal_hint'\)"><\/p>\s*$/m], scope: /<div class="cover-actions"\s*\n\s*:data-picker-open[\s\S]*?(<div class="lbx-face lbx-face--edit"[\s\S]*?)(?=\n                            <\/div>\n                        <\/div>)/, note: '[lint-guard:202-T6b-hint] 女優編輯面提示句' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: [/^\s*(?<![\w:-])x-show="!_maskVisible"\s*$/m, /^\s*(?<![\w:-])@click\.stop="searchActressFilms\(/m, /^\s*(?<![\w:-])@click\.stop="openActressPicker\(\)"\s*$/m], scope: /<div class="cover-actions"\s*\n\s*:data-picker-open[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/, note: '[lint-guard:202-T6b-normal-face] 女優 normal 面收起按鈕' },
   // 200a-T3：影片分支 ✓/✗ 搬回 .lbx-cover-layer；錨 cover-actions.lbx-cover-layer（女優那份無 lbx-cover-layer，互不重疊）。
   // window：anchor 到第二個 ✗ </button> 結尾實測 2800，取 3640＝＋約 30%。
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<div class="cover-actions lbx-cover-layer"/, window: 3640 }, note: '[lint-guard:200a-T3-confirm-cancel] 影片燈箱 ✓／✗ 少了 detect 完成才可提交的收窄 gating → 偵測中就出現可按的 ✓／✗，使用者按下去存／取消的是還沒算完的位置' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: [/^\s*(?<![\w:-])x-show="_maskVisible && !_maskDetecting"\s*$/m, /^\s*(?<![\w:-])@click\.stop="confirmMask\(\)"\s*$/m, /^\s*(?<![\w:-])@click\.stop="cancelMask\(\)"\s*$/m], scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--edit"[\s\S]*?(?=\n\s*<p class="lbx-focal-hint"))/, note: '[lint-guard:200a-T3-confirm-cancel] 影片燈箱 ✓／✗ 少了 detect 完成才可提交的收窄 gating → 偵測中就出現可按的 ✓／✗，使用者按下去存／取消的是還沒算完的位置' },
   // window：anchor 到 include 實測 3028，取 3936＝＋約 30%。
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: "{% include '_macros/focal_mask.html' %}", scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 3936 }, note: '[lint-guard:200a-T3-include] 影片分支少了 focal_mask include → 使用者在影片燈箱選「調整海報裁切」後選單收起了但封面上沒有任何亮窗或 ✓／✗，功能整個不可用而其他檢查全綠' },
   { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'class="lb-mask-btn"', count: 1, note: '[lint-guard:200a-T3-no-video-focal-btn] 片名列或封面又多了一顆 .lb-mask-btn（應只有女優名字列那一顆）→ 影片燈箱多出對焦入口、與「⋯ → 調整海報裁切」雙入口並存，使用者搞不清從哪進' },
@@ -589,11 +594,15 @@ const RULES = [
     note: '[lint-guard:199a-T3-esc-order] 影片 Esc 的「先收浮層」層排到 closeLightbox 之後 → 使用者想收起檔案提示按 Esc，整座燈箱一起關掉，要重開再找回那部片',
   },
   {
-    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
-    pattern: /(?<![\w:-])this\.lbxPopClose\?\.\(\)/,
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', stripLineComments: true,
+    pattern: /(?<![\w:-])this\.lbxPopClose\?\.\(\{ immediate: true \}\)/,
     scope: { anchor: /closeLightbox\(\) \{/, braceBalanced: true },
     note: '[lint-guard:199a-T3-close-reset] closeLightbox 少了 lbxPopClose?.()（或寫成沒有 ?. 的裸呼叫）→ 使用者關燈箱時浮層還留在畫面上，重開別部片還看到上一部的檔案提示',
   },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', stripLineComments: true, pattern: 'ShowcaseAnimations.killGhosts();', scope: { anchor: /killLightboxAnimations: function \(options\) \{/, braceBalanced: true }, note: '[lint-guard:202-T3-kill] 換片若未清替身，舊浮層會留在畫面上。' },
+  { file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'required-string', stripLineComments: true, pattern: 'createGhost', scope: { anchor: /lbxPopClose\(\{ restoreFocus = false, immediate = false \} = \{\}\) \{/, braceBalanced: true }, note: '[lint-guard:202-T3-create] 關閉浮層若未建立替身，使用者看不到淡出。' },
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', stripLineComments: true, pattern: 'this.lbxPopClose?.({ immediate: true })', scope: { anchor: /searchFromMetadata\([^)]*\) \{/, braceBalanced: true }, note: '[lint-guard:202-T3-search] 篩選跳轉若未立即關閉，舊浮層會拖尾。' },
+  { file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'required-string', stripLineComments: true, pattern: 'killGhosts', scope: { anchor: /lbxPopOpen\(kind, anchorEl, \{ mode = 'click', anchorKey = '' \} = \{\}\) \{/, braceBalanced: true }, note: '[lint-guard:202-T3-open] 開新浮層若未清替身，使用者會看到重疊。' },
   { file: 'web/static/js/pages/showcase/state-adv-edit.js', kind: 'required-string', stripLineComments: true, pattern: '/api/showcase/video/files?path=', scope: { anchor: /loadAdvEditInfo\(\) \{/, braceBalanced: true }, note: '[lint-guard:200b-T11a-endpoints] 使用者開啟編輯窗 → 缺少端點就看不到檔案現況。' },
   { file: 'web/static/js/pages/showcase/state-adv-edit.js', kind: 'required-string', stripLineComments: true, pattern: '/api/showcase/video/thumb-regenerate', scope: { anchor: /regenAdvEditThumb\(\) \{/, braceBalanced: true }, note: '[lint-guard:200b-T14-endpoint] 縮圖重產端點必須接線。' },
   { file: 'web/templates/showcase.html', kind: 'required-string', stripLineComments: true, pattern: [/(?<![\w:-])x-show="advEditFiles\(\)\.canRegenThumb"/, /(?<![\w:-])@click="regenAdvEditThumb\(\)"/, /(?<![\w:-]):disabled="!!_advEditBusy"/], scope: /<button\b[^>]*adv-edit-thumb-regen[^>]*>/, note: '[lint-guard:200b-T14-wired] 縮圖重產按鈕必須接線。' },
@@ -671,8 +680,8 @@ const RULES = [
   { file: 'web/static/js/pages/showcase/state-adv-edit-data.js', kind: 'required-string', stripLineComments: true, scope: { anchor: /onAdvEditTagInputEnter\(kind, e\) \{/, braceBalanced: true }, pattern: /isComposingEnter/, note: '[lint-guard:200c-T7-i] 選字時不得提交。' },
   { file: 'web/static/js/pages/showcase/state-adv-edit-data.js', kind: 'required-string', stripLineComments: true, scope: { anchor: /async confirmAdvEditTags\(kind\) \{/, braceBalanced: true }, pattern: ['/api/showcase/video/edit-field', 'add:', 'remove:', '_applyUserTagsChange', 'refreshVideoData', '_advEditBusy'], note: '[lint-guard:200c-T7-j] 儲存須寫入差集並刷新。' },
   {
-    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',
-    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\.lbxPopClose\?\.\(\);\s*\}\)/,
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', stripLineComments: true,
+    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\.lbxPopClose\?\.\(\{ immediate: true \}\);\s*\}\)/,
     note: '[lint-guard:199a-T3-watch-close] 換片 $watch 少了 lbxPopClose → 使用者在膠囊上開著檔案提示時換到下一部片，上一部片的檔名與規格還浮在畫面上、內容對不上目前這部',
   },
   {
@@ -727,16 +736,22 @@ const RULES = [
     scope: /<(?:button|span)\b[^>]*\bclass="lbx-menu-item lbx-menu-item--advedit"[^>]*>/,
     note: '[lint-guard:200b-T10-menu-wired] 使用者開啟選單進入進階編輯，缺接線會無法開窗。' },
   {
-    // window：anchor 到 band x-show 前綴實測 3480，取 4524＝＋約 30%。
+    // window：anchor 到 cancelMask 屬性末端實測 8154，取 11000（餘裕超過 30%）。
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: [
-      ":class=\"{'cover-actions--focal-edit': _maskVisible}\"",
-      '@click.stop="confirmMask()"',
-      '@click.stop="cancelMask()"',
-      'x-show="!_maskVisible && (lbVersions().length',
+      /^\s*<div\s+class="cover-actions lbx-cover-layer"[^\n>]*(?<![\w:-]):class="\{'cover-actions--focal-edit': _maskVisible\}"/m,
+      /^\s*(?<![\w:-])@click\.stop="confirmMask\(\)"\s*$/m,
+      /^\s*(?<![\w:-])@click\.stop="cancelMask\(\)"\s*$/m,
+      /^\s*(?<![\w:-])x-show="!_maskVisible"\s*$/m,
     ],
-    scope: { anchor: /<div class="cover-actions lbx-cover-layer"/, window: 4524 },
+    scope: { anchor: /^ *<div class="cover-actions lbx-cover-layer"/m, window: 11000 },
     note: '[lint-guard:200a-T3-edit-bar] 影片燈箱編輯條接線被刪（focal-edit class／✓／✗／規格帶編輯中收起）→ 編輯中滑鼠移開封面後 ✓／✗ 消失、或 ▶📁🔍／版本膠囊還擋著拖曳；女優分支同字面餵不飽本規則',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/,
+    pattern: [/^\s*(?<![\w:-])x-show="!_maskVisible"\s*$/m, /^\s*<div\s+(?<![\w:-])class="lbx-band"/m],
+    note: '[lint-guard:202-T6a-normal-face] normal 面需收起按鈕及規格帶',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
@@ -813,7 +828,7 @@ const RULES = [
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'order',
-    scope: { anchor: /lbxPopClose\(\{ restoreFocus = false \} = \{\}\) \{/, braceBalanced: true },
+    scope: { anchor: /lbxPopClose\(\{ restoreFocus = false, immediate = false \} = \{\}\) \{/, braceBalanced: true },
     stripLineComments: true,
     items: [
       { pattern: /this\._lbxPopClearOpenTimer\(\);/ },
@@ -5131,7 +5146,7 @@ const RULES = [
     pattern: 'openRemoveActressModal()',
     scope: {
       anchor: /<div class="cover-actions"\s*\n\s*:data-picker-open="_pickerOpen"/,
-      window: 3000,
+      window: 6600,
     },
     note: '[117b-T9] AC-9.1：.cover-actions 不得再呼叫 openRemoveActressModal()（必須真搬走，不是複製一份）。破了＝照片浮層與名字行各一顆刪除，或搬走失敗',
   },
@@ -10127,7 +10142,43 @@ const RULES = [
     note: '[lint-guard:199b-T5-strip-after-chips] 縮圖排排到別名＋資訊那一行之前，或跑出資料區外 → 使用者看到縮圖排夾在名字與別名之間，或固定高度的資料區把它裁掉',
   },
 
+  // 202-T5b：縮圖排在換人後浮現，首次開啟不重播。
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'killApStripReveal();',
+    scope: { anchor: /killLightboxAnimations: function \(options\) \{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:202-T5b-teardown] 關燈箱未清除縮圖動畫，使用者重開時可能看到殘留樣式',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: 'lbxApReveal',
+    scope: { anchor: /★ ghost fly/, window: 2800 }, stripLineComments: true,
+    note: '[lint-guard:202-T5b-open-no-reveal] 首次開啟又播放縮圖動畫，使用者會看到重複進場',
+  },
+  ...[
+    ['openActressLightbox', /openActressLightbox\(index\) \{/],
+    ['prevActressLightbox', /prevActressLightbox\(\) \{/],
+    ['nextActressLightbox', /nextActressLightbox\(\) \{/],
+  ].map(([name, anchor]) => ({
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order', scope: { anchor, braceBalanced: true }, stripLineComments: true,
+    items: [{ pattern: 'playLightboxSwitch' }, { pattern: "lbxApReveal?.('switch')" }],
+    note: `[lint-guard:202-T5b-switch-${name}] 換人後未依序播放縮圖，使用者會看到舊畫面或縮圖不浮現`,
+  })),
+
   // ---- 199b-T6：點縮圖 → 大圖換成那部片的封面（疊層在照片外框內；互斥、換人重置、底條 ▶📁）----
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string', pattern: 'createGhost',
+    scope: { anchor: /lbxApOpenCover\(video\) \{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:202-T4-open-ghost] 換封面少了替身，使用者等待新圖時會看到空白或照片',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string', pattern: 'createGhost',
+    scope: { anchor: /lbxApBackToPhoto\(\) \{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:202-T4-back-ghost] 回照片少了替身，使用者看到封面硬切消失',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'forbidden-string', pattern: 'createGhost',
+    scope: { anchor: /lbxApReset\(\) \{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:202-T4-reset-no-ghost] 重置建立替身，使用者換人後會看到上一片封面殘影',
+  },
   {
     file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string',
     pattern: 'this.lbxApCover = null;',
