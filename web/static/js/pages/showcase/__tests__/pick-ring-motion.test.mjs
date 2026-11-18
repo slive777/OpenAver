@@ -162,3 +162,28 @@ test('按星繞線: 減少動態不建補間', () => {
         assert.deepEqual(calls, { timeline: 0, fromTo: 0, to: 0, set: 0, killTweensOf: 0 });
     } finally { for (const [key, value] of Object.entries(saved)) globalThis[key] = value; }
 });
+
+test('按星繞線: 換片或關燈箱時停掉進行中的繞線', () => {
+    const saved = Object.fromEntries(['gsap', 'DrawSVGPlugin', 'getComputedStyle', 'OpenAver'].map(k => [k, globalThis[k]]));
+    const calls = { kills: 0, set: [], killTweensOf: [] };
+    const tl = { fromTo() { return tl; }, to() { return tl; }, kill() { calls.kills++; } };
+    const paths = [{ setAttribute() {} }, { setAttribute() {} }];
+    const ring = { querySelectorAll() { return paths; }, setAttribute() {} };
+    const frame = { clientWidth: 400, clientHeight: 300, getBoundingClientRect() { return { left: 0, width: 400 }; } };
+    const star = { getBoundingClientRect() { return { left: 190, width: 20 }; } };
+    try {
+        globalThis.DrawSVGPlugin = {};
+        globalThis.getComputedStyle = () => ({ borderTopLeftRadius: '12px' });
+        globalThis.gsap = { plugins: { drawSVG: true }, registerPlugin() {}, timeline() { return tl; },
+            set(target, props) { calls.set.push([target, props]); }, killTweensOf(target) { calls.killTweensOf.push(target); } };
+        globalThis.OpenAver = { prefersReducedMotion: false };
+        assert.equal(window.ShowcaseAnimations.playPickRing(ring, star, frame), tl);
+        calls.set.length = 0;
+        calls.killTweensOf.length = 0;
+        window.ShowcaseAnimations.killPickStarTweens({});
+        assert.equal(calls.kills, 1);
+        assert.ok(calls.set.some(([target, props]) => target === paths &&
+            ['strokeDasharray', 'strokeDashoffset', 'opacity'].every(prop => props.clearProps?.split(',').includes(prop))));
+        assert.ok(calls.killTweensOf.includes(paths));
+    } finally { for (const [key, value] of Object.entries(saved)) globalThis[key] = value; }
+});

@@ -34,6 +34,18 @@
     'use strict';
 
     var pickRingTl = null;
+    var pickRingPaths = null;
+
+    /**
+     * 換片或關燈箱時停掉進行中的繞線，否則會畫在新片外框。
+     */
+    function stopPickRing(paths) {
+        if (pickRingTl) { pickRingTl.kill(); pickRingTl = null; }
+        if (paths) {
+            gsap.killTweensOf(paths);
+            gsap.set(paths, { clearProps: 'strokeDasharray,strokeDashoffset,opacity' });
+        }
+    }
 
     /**
      * 判斷是否應跳過動畫（Reduced Motion 降級）
@@ -752,9 +764,7 @@
             if (!gsap.plugins.drawSVG) gsap.registerPlugin(DrawSVGPlugin);
 
             var paths = ringEl.querySelectorAll('path');
-            if (pickRingTl) pickRingTl.kill();
-            gsap.killTweensOf(paths);
-            gsap.set(paths, { clearProps: 'strokeDasharray,strokeDashoffset,opacity' });
+            stopPickRing(paths);
             var w = frameEl.clientWidth;
             var h = frameEl.clientHeight;
             var INSET = 2;
@@ -782,9 +792,11 @@
                 if (pickRingTl === tl) {
                     gsap.set(paths, { clearProps: 'strokeDasharray,strokeDashoffset,opacity' });
                     pickRingTl = null;
+                    pickRingPaths = null;
                 }
             } });
             pickRingTl = tl;
+            pickRingPaths = paths;
             tl.fromTo(paths, { drawSVG: '0% 0%', opacity: 1 }, { drawSVG: '0% 100%', duration: 0.475, ease: 'fluent' }, 0);
             tl.to(paths, { opacity: 0, duration: 0.361, ease: 'fluent-decel' }, 0.589);
             return tl;
@@ -930,6 +942,7 @@
          * 存在性 guard（querySelector 有命中才 gsap.set）：常見路徑上該選擇器 0 命中
          * （切換到女優燈箱、或 .pick-star-fill 只在影片燈箱裡），guard 避免 gsap.set(null, ...)
          * 洗版 console.warn（沿用搬移前三處呼叫端的既有 guard）。
+         * 一併停掉進行中的按星繞線。
          *
          * @param {Object} [opts]
          * @param {boolean} [opts.clearFill] - 是否對 .pick-star-fill clearProps '--pick-fill'
@@ -953,6 +966,7 @@
                 if (starEl) gsap.set(starEl, { clearProps: 'transform' });
             }
 
+            stopPickRing(pickRingPaths);
             ShowcaseAnimations.killPickSpark();
             return null;
         }
