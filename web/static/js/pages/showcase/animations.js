@@ -128,6 +128,7 @@
             clone.removeAttribute('id');
             clone.style.pointerEvents = 'none';
             parent.appendChild(clone);
+            clone.scrollTop = srcEl.scrollTop;
             var timer = null, tween = null, released = false;
             var entry = { kind: kind, kill: function () {
                 if (!ghosts.delete(entry)) return;

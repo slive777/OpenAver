@@ -296,3 +296,20 @@ test('test_outside_pointerdown_closing_pop_swallows_backdrop_click', () => {
         globalThis.document = prevDoc;
     }
 });
+
+test('test_ghost_preserves_scroll_after_append', () => {
+    window.OpenAver = { prefersReducedMotion: false, motion: { stripAlpine() {}, DURATION: { fast: 0.1, emphasis: 0.5 } } };
+    globalThis.gsap = { fromTo() { return { kill() {} }; } };
+    let clone;
+    const parent = { appendChild(node) { node.attached = true; } };
+    const src = { scrollTop: 37, cloneNode() {
+        let scroll = 0;
+        clone = { style: {}, setAttribute() {}, removeAttribute() {}, remove() {},
+            get scrollTop() { return scroll; },
+            set scrollTop(value) { if (this.attached) scroll = value; },
+        };
+        return clone;
+    } };
+    const handle = window.ShowcaseAnimations.createGhost(src, { parent, kind: 'pop' });
+    try { assert.equal(clone.scrollTop, 37); } finally { handle.kill(); }
+});
