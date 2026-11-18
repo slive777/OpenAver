@@ -231,6 +231,11 @@
     overscroll-behavior: contain;
 }
 
+.lbx-pop[data-lbx-ghost] {
+    pointer-events: none;
+    transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .lbx-pop {
         transition: none;

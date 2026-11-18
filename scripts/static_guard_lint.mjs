@@ -589,11 +589,15 @@ const RULES = [
     note: '[lint-guard:199a-T3-esc-order] 影片 Esc 的「先收浮層」層排到 closeLightbox 之後 → 使用者想收起檔案提示按 Esc，整座燈箱一起關掉，要重開再找回那部片',
   },
   {
-    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
-    pattern: /(?<![\w:-])this\.lbxPopClose\?\.\(\)/,
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', stripLineComments: true,
+    pattern: /(?<![\w:-])this\.lbxPopClose\?\.\(\{ immediate: true \}\)/,
     scope: { anchor: /closeLightbox\(\) \{/, braceBalanced: true },
     note: '[lint-guard:199a-T3-close-reset] closeLightbox 少了 lbxPopClose?.()（或寫成沒有 ?. 的裸呼叫）→ 使用者關燈箱時浮層還留在畫面上，重開別部片還看到上一部的檔案提示',
   },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', stripLineComments: true, pattern: 'ShowcaseAnimations.killGhosts();', scope: { anchor: /killLightboxAnimations: function \(options\) \{/, braceBalanced: true }, note: '[lint-guard:202-T3-kill] 換片若未清替身，舊浮層會留在畫面上。' },
+  { file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'required-string', stripLineComments: true, pattern: 'createGhost', scope: { anchor: /lbxPopClose\(\{ restoreFocus = false, immediate = false \} = \{\}\) \{/, braceBalanced: true }, note: '[lint-guard:202-T3-create] 關閉浮層若未建立替身，使用者看不到淡出。' },
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', stripLineComments: true, pattern: 'this.lbxPopClose?.({ immediate: true })', scope: { anchor: /searchFromMetadata\([^)]*\) \{/, braceBalanced: true }, note: '[lint-guard:202-T3-search] 篩選跳轉若未立即關閉，舊浮層會拖尾。' },
+  { file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'required-string', stripLineComments: true, pattern: 'killGhosts', scope: { anchor: /lbxPopOpen\(kind, anchorEl, \{ mode = 'click', anchorKey = '' \} = \{\}\) \{/, braceBalanced: true }, note: '[lint-guard:202-T3-open] 開新浮層若未清替身，使用者會看到重疊。' },
   { file: 'web/static/js/pages/showcase/state-adv-edit.js', kind: 'required-string', stripLineComments: true, pattern: '/api/showcase/video/files?path=', scope: { anchor: /loadAdvEditInfo\(\) \{/, braceBalanced: true }, note: '[lint-guard:200b-T11a-endpoints] 使用者開啟編輯窗 → 缺少端點就看不到檔案現況。' },
   { file: 'web/static/js/pages/showcase/state-adv-edit.js', kind: 'required-string', stripLineComments: true, pattern: '/api/showcase/video/thumb-regenerate', scope: { anchor: /regenAdvEditThumb\(\) \{/, braceBalanced: true }, note: '[lint-guard:200b-T14-endpoint] 縮圖重產端點必須接線。' },
   { file: 'web/templates/showcase.html', kind: 'required-string', stripLineComments: true, pattern: [/(?<![\w:-])x-show="advEditFiles\(\)\.canRegenThumb"/, /(?<![\w:-])@click="regenAdvEditThumb\(\)"/, /(?<![\w:-]):disabled="!!_advEditBusy"/], scope: /<button\b[^>]*adv-edit-thumb-regen[^>]*>/, note: '[lint-guard:200b-T14-wired] 縮圖重產按鈕必須接線。' },
@@ -671,8 +675,8 @@ const RULES = [
   { file: 'web/static/js/pages/showcase/state-adv-edit-data.js', kind: 'required-string', stripLineComments: true, scope: { anchor: /onAdvEditTagInputEnter\(kind, e\) \{/, braceBalanced: true }, pattern: /isComposingEnter/, note: '[lint-guard:200c-T7-i] 選字時不得提交。' },
   { file: 'web/static/js/pages/showcase/state-adv-edit-data.js', kind: 'required-string', stripLineComments: true, scope: { anchor: /async confirmAdvEditTags\(kind\) \{/, braceBalanced: true }, pattern: ['/api/showcase/video/edit-field', 'add:', 'remove:', '_applyUserTagsChange', 'refreshVideoData', '_advEditBusy'], note: '[lint-guard:200c-T7-j] 儲存須寫入差集並刷新。' },
   {
-    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string',
-    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\.lbxPopClose\?\.\(\);\s*\}\)/,
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', stripLineComments: true,
+    pattern: /(?<![\w:-])\$watch\('currentLightboxVideo\?\.path',\s*\(\)\s*=>\s*\{\s*this\.lbxPopClose\?\.\(\{ immediate: true \}\);\s*\}\)/,
     note: '[lint-guard:199a-T3-watch-close] 換片 $watch 少了 lbxPopClose → 使用者在膠囊上開著檔案提示時換到下一部片，上一部片的檔名與規格還浮在畫面上、內容對不上目前這部',
   },
   {
@@ -813,7 +817,7 @@ const RULES = [
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox-pop.js', kind: 'order',
-    scope: { anchor: /lbxPopClose\(\{ restoreFocus = false \} = \{\}\) \{/, braceBalanced: true },
+    scope: { anchor: /lbxPopClose\(\{ restoreFocus = false, immediate = false \} = \{\}\) \{/, braceBalanced: true },
     stripLineComments: true,
     items: [
       { pattern: /this\._lbxPopClearOpenTimer\(\);/ },

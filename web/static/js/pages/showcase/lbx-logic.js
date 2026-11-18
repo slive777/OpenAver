@@ -363,3 +363,6 @@ export function advEditThumbNotice(data, t) {
     if (data?.success === false && data.error === 'unreachable') return { text: t('showcase.adv_edit.files.unreachable'), type: 'warning', reload: false };
     return { text: t('showcase.adv_edit.files.thumb_failed'), type: 'error', reload: false };
 }
+export function ghostOnClose({ placed, immediate, prefersReducedMotion }) {
+    return !!placed && !immediate && !prefersReducedMotion;
+}
