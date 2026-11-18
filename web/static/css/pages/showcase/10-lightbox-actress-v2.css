@@ -203,11 +203,12 @@
     margin-top: .25rem;
     flex: none;
     overflow: hidden;
+    transition: filter var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .lbx-ap-meta .lbx-ap-strip[aria-disabled="true"] {
     pointer-events: none;
-    opacity: .5;
+    filter: opacity(.5);
 }
 
 .lbx-ap-meta .lbx-ap-strip .lbx-ap-cell {
@@ -228,6 +229,10 @@
     padding: 0;
     font-family: inherit;
     cursor: pointer;
+    outline: 2px solid transparent;
+    outline-offset: -2px;
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                outline-color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .lbx-ap-meta .lbx-ap-strip .lbx-ap-film:hover,
@@ -238,8 +243,7 @@
 /* 選中框與鍵盤焦點：往內畫（負的 outline-offset）——外偏移會被 .lbx-ap-strip 的 overflow:hidden 裁掉，
    也不用 border 寬度變化（會推動格子尺寸，點擊化前後格寬格高要相同） */
 .lbx-ap-meta .lbx-ap-strip .lbx-ap-film.is-selected {
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
+    outline-color: var(--accent);
 }
 
 .lbx-ap-meta .lbx-ap-strip .lbx-ap-film:focus-visible,
