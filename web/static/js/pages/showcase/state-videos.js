@@ -553,7 +553,7 @@ export function stateVideos() {
         },
 
         // 跨切面 teardown 唯一實作（四個呼叫點：state-base.js 斷點 handler ×2、
-        // toggleActressMode()、hero 橋接、clearAllFilters()）。無條件覆寫兩個 slot，冪等。
+        // toggleActressMode()、hero 橋接、clearAllFilters()）。無條件覆寫四個 slot（_pillEditor／_releaseEditor／_resolutionEditor／_pickEditor），冪等。
         _teardownPillEditors() {
             this._pillEditor = null;
             this._releaseEditor = null;

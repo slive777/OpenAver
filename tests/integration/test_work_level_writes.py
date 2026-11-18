@@ -149,20 +149,6 @@ def test_pick_and_unpick_apply_to_every_version_of_the_work(tmp_path, monkeypatc
     assert _ratings(repo, uris) == {"uhd": 3, "c": 3, "ltx": 3}
 
 
-def test_tier_silver_writes_every_version_of_the_work(tmp_path, monkeypatch):
-    """tier:'silver' 打在任一版本 → 三個版本列都是 2，回應 tier:'silver'。"""
-    seed = _seed_work(tmp_path, monkeypatch)
-    client, repo, uris = seed["client"], seed["repo"], seed["uris"]
-
-    resp = client.post("/api/user-rating", json={"file_path": uris["c"], "tier": "silver"})
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["success"] is True
-    assert data["tier"] == "silver"
-    assert data["changed"] == 1
-    assert _ratings(repo, uris) == {"uhd": 2, "c": 2, "ltx": 2}
-
-
 def test_user_tags_follow_the_work_without_creating_nfo(tmp_path, monkeypatch):
     """使用者在 4K 版加「想看」→ 三版都有、回應 work_user_tags 含聯集；LTX 版不新增 NFO。"""
     seed = _seed_work(

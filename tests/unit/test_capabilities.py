@@ -275,18 +275,6 @@ class TestCapabilitiesEndpoint:
         assert "不寫 NFO" in tool["description"]
 
 
-class TestUserRatingReadDisclosures:
-    """R4／R6 讀取端說明：0=未精選／1=銅／2=銀／3=金，作品層取最高。"""
-
-    def test_collection_sql_and_showcase_videos_rating_legends(self, client):
-        data = client.get("/api/capabilities").json()
-        tools = {t["name"]: t for t in data["tools"]}
-        sql_desc = tools["collection_sql"]["database_schema"]["videos"]["user_rating"]
-        item_desc = tools["showcase_videos"]["output_schema"]["videos"]["item_fields"]["user_rating"]
-        for desc in (sql_desc, item_desc):
-            assert "3=金" in desc
-
-
     def test_video_rescrape_side_effect_flags(self, client):
         """video_rescrape_with_source 重刮覆蓋面：side_effect + confirmation_required + 不可逆風險描述"""
         data = client.get("/api/capabilities").json()

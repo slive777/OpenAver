@@ -491,7 +491,7 @@ _TOOLS: list[dict] = [
                 "label": "TEXT — 廠牌",
                 "tags": "TEXT — 標籤 JSON array",
                 "user_tags": "TEXT — 用戶自訂標籤 JSON array",
-                "user_rating": "INTEGER — 精選等級（0=未精選 / 1=銅 / 2=銀 / 3=金；作品層取最高；只由 POST /api/user-rating 寫入）",
+                "user_rating": "INTEGER — 精選等級（0=未精選 / 1=銅 / 2=銀 / 3=金；每列是一個版本；整部作品＝各版本取最高；只由 POST /api/user-rating 寫入）",
                 "sample_images": "TEXT — 劇照 JSON array",
                 "duration": "INTEGER — 片長（分鐘）",
                 "size_bytes": "INTEGER — 檔案大小",
