@@ -644,6 +644,11 @@ button.lbx-avatar {
     text-decoration: none;
 }
 
+/* 找回 199a 前 .lb-link 的 hover 過渡 */
+.lbx-people-row .lbx-work {
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
 .lbx-people-row .lbx-work--num {
     color: var(--text-primary);
     font-weight: 600;
@@ -1097,6 +1102,12 @@ button.lbx-avatar {
     line-height: 1;
     white-space: nowrap;
     text-decoration: none;
+}
+
+/* 找回 199a 前 .lb-link 的 hover 過渡 */
+.lbx-tag-row .lbx-tag,
+.lbx-tags-pop .lbx-tag {
+    transition: color var(--duration-fast) var(--ease-out);
 }
 
 /* 你的標籤：中性色、比作品標籤強一階並加細框（不再是實心 accent） */

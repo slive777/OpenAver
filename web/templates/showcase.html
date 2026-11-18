@@ -211,10 +211,10 @@
                                            :aria-label="t('showcase.pill.editor.range_max')">
                                 </div>
                                 <div class="pill-editor-actions" x-show="_pillEditorHasRangeInput()">
-                                    <button type="button" class="pill-editor-btn cancel" @click="_cancelPillEditor()"
-                                            :aria-label="t('common.action.cancel')"><i class="bi bi-x-lg"></i></button>
                                     <button type="button" class="pill-editor-btn confirm" @click="_commitPillEditor()"
                                             :aria-label="t('common.action.confirm')"><i class="bi bi-check-lg"></i></button>
+                                    <button type="button" class="pill-editor-btn cancel" @click="_cancelPillEditor()"
+                                            :aria-label="t('common.action.cancel')"><i class="bi bi-x-lg"></i></button>
                                 </div>
                             </div>
                         </template>
@@ -278,10 +278,10 @@
                                            :aria-label="t('showcase.pill.editor.to_month')">
                                 </div>
                                 <div class="pill-editor-actions" x-show="_releaseEditorHasInput()">
-                                    <button type="button" class="pill-editor-btn cancel" @click="_cancelReleaseEditor()"
-                                            :aria-label="t('common.action.cancel')"><i class="bi bi-x-lg"></i></button>
                                     <button type="button" class="pill-editor-btn confirm" @click="_commitReleaseEditor()"
                                             :aria-label="t('common.action.confirm')"><i class="bi bi-check-lg"></i></button>
+                                    <button type="button" class="pill-editor-btn cancel" @click="_cancelReleaseEditor()"
+                                            :aria-label="t('common.action.cancel')"><i class="bi bi-x-lg"></i></button>
                                 </div>
                             </div>
                         </template>
