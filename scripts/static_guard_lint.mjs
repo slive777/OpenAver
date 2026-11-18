@@ -366,19 +366,19 @@ const RULES = [
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: /^\s*<button\b[^\n>]*(?<![\w:-])@click="playVideo\(/m,
-    scope: /<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit")/,
+    scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/,
     note: '[TestMaskToggleGuard] 99a-T4：play 鈕編輯中暫隱（CD-6）',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: /^\s*<button\b[^\n>]*(?<![\w:-])@click="openLocal\(/m,
-    scope: /<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit")/,
+    scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/,
     note: '[TestMaskToggleGuard] 99a-T4：開資料夾鈕編輯中暫隱（CD-6）',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: /^\s*(?<![\w:-])x-show="shouldShowEnrichButton\(currentLightboxVideo\)"\s*$/m,
-    scope: /<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit")/,
+    scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/,
     note: '[TestMaskToggleGuard] 99a-T4：補缺鈕編輯中暫隱（CD-6，錨完整值防 has_cover/has_nfo 條件被誤刪只剩 !_maskVisible）；149b：條件改抽成 shouldShowEnrichButton()，has_cover/has_nfo 的判斷邏輯本身由 enrich-gate.js 的 node:test 守，這條 required-string 只守『呼叫點沒有被誤刪成只剩 !_maskVisible』這個原本要守的目的',
   },
   {
@@ -538,10 +538,12 @@ const RULES = [
   // 拆成兩條 scope-anchored 規則，各自錨到專屬 <template x-if> 分支（全檔僅出現一次，
   // 唯一性已用 grep 確認），window 只需蓋過該分支內的 ✓/✗ 兩處、且在下一分支的同 pattern
   // 之前收尾，兩個分支才能被「各自」的 count:2 下限獨立守住。
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 11300 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解與 199b-T6 封面疊層；199b-T6 後 anchor 到第二個 ✗ 結尾實測 8959 字元〔owner 修正後；超過原 8800〕，window 8800→11300＝實測＋約 26%；與下一條影片 scope 的 anchor 相距 22373 字元，仍安全不重疊）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: [/^\s*(?<![\w:-])x-show="_maskVisible && !_maskDetecting"\s*$/m, /^\s*(?<![\w:-])@click\.stop="confirmMask\(\)"\s*$/m, /^\s*(?<![\w:-])@click\.stop="cancelMask\(\)"\s*$/m], scope: /<div class="cover-actions"\s*\n\s*:data-picker-open[\s\S]*?(<div class="lbx-face lbx-face--edit"[\s\S]*?(?=\n\s*<p class="lbx-focal-hint"))/, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優編輯面等待偵測完成並保留確認與取消' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: [/^\s*<p\s+(?<![\w:-])class="lbx-focal-hint"\s*$/m, /^\s*(?<![\w:-])x-show="!_maskSettling"\s*$/m, /^\s*(?<![\w:-])x-text="t\('showcase\.lightbox\.focal_hint'\)"><\/p>\s*$/m], scope: /<div class="cover-actions"\s*\n\s*:data-picker-open[\s\S]*?(<div class="lbx-face lbx-face--edit"[\s\S]*?)(?=\n                            <\/div>\n                        <\/div>)/, note: '[lint-guard:202-T6b-hint] 女優編輯面提示句' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: [/^\s*(?<![\w:-])x-show="!_maskVisible"\s*$/m, /^\s*(?<![\w:-])@click\.stop="searchActressFilms\(/m, /^\s*(?<![\w:-])@click\.stop="openActressPicker\(\)"\s*$/m], scope: /<div class="cover-actions"\s*\n\s*:data-picker-open[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/, note: '[lint-guard:202-T6b-normal-face] 女優 normal 面收起按鈕' },
   // 200a-T3：影片分支 ✓/✗ 搬回 .lbx-cover-layer；錨 cover-actions.lbx-cover-layer（女優那份無 lbx-cover-layer，互不重疊）。
   // window：anchor 到第二個 ✗ </button> 結尾實測 2800，取 3640＝＋約 30%。
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: [/^\s*(?<![\w:-])x-show="_maskVisible && !_maskDetecting"\s*$/m, /^\s*(?<![\w:-])@click\.stop="confirmMask\(\)"\s*$/m, /^\s*(?<![\w:-])@click\.stop="cancelMask\(\)"\s*$/m], scope: /<div class="lbx-face lbx-face--edit"[\s\S]*?(?=\n\s*<p class="lbx-focal-hint")/, note: '[lint-guard:200a-T3-confirm-cancel] 影片燈箱 ✓／✗ 少了 detect 完成才可提交的收窄 gating → 偵測中就出現可按的 ✓／✗，使用者按下去存／取消的是還沒算完的位置' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: [/^\s*(?<![\w:-])x-show="_maskVisible && !_maskDetecting"\s*$/m, /^\s*(?<![\w:-])@click\.stop="confirmMask\(\)"\s*$/m, /^\s*(?<![\w:-])@click\.stop="cancelMask\(\)"\s*$/m], scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--edit"[\s\S]*?(?=\n\s*<p class="lbx-focal-hint"))/, note: '[lint-guard:200a-T3-confirm-cancel] 影片燈箱 ✓／✗ 少了 detect 完成才可提交的收窄 gating → 偵測中就出現可按的 ✓／✗，使用者按下去存／取消的是還沒算完的位置' },
   // window：anchor 到 include 實測 3028，取 3936＝＋約 30%。
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: "{% include '_macros/focal_mask.html' %}", scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 3936 }, note: '[lint-guard:200a-T3-include] 影片分支少了 focal_mask include → 使用者在影片燈箱選「調整海報裁切」後選單收起了但封面上沒有任何亮窗或 ✓／✗，功能整個不可用而其他檢查全綠' },
   { file: 'web/templates/showcase.html', kind: 'structure-count', pattern: 'class="lb-mask-btn"', count: 1, note: '[lint-guard:200a-T3-no-video-focal-btn] 片名列或封面又多了一顆 .lb-mask-btn（應只有女優名字列那一顆）→ 影片燈箱多出對焦入口、與「⋯ → 調整海報裁切」雙入口並存，使用者搞不清從哪進' },
@@ -747,7 +749,7 @@ const RULES = [
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
-    scope: /<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit")/,
+    scope: /<div class="cover-actions lbx-cover-layer"[\s\S]*?(<div class="lbx-face lbx-face--normal"[\s\S]*?(?=\n\s*<div class="lbx-face lbx-face--edit"))/,
     pattern: [/^\s*(?<![\w:-])x-show="!_maskVisible"\s*$/m, /^\s*<div\s+(?<![\w:-])class="lbx-band"/m],
     note: '[lint-guard:202-T6a-normal-face] normal 面需收起按鈕及規格帶',
   },
@@ -5144,7 +5146,7 @@ const RULES = [
     pattern: 'openRemoveActressModal()',
     scope: {
       anchor: /<div class="cover-actions"\s*\n\s*:data-picker-open="_pickerOpen"/,
-      window: 3000,
+      window: 6600,
     },
     note: '[117b-T9] AC-9.1：.cover-actions 不得再呼叫 openRemoveActressModal()（必須真搬走，不是複製一份）。破了＝照片浮層與名字行各一顆刪除，或搬走失敗',
   },

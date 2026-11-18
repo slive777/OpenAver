@@ -1041,39 +1041,66 @@
                                  :data-picker-open="_pickerOpen"
                                  :class="{'cover-actions--focal-edit': _maskVisible}"
                                  x-show="!lbxApCover">
-                                <button class="lb-action-btn"
-                                        x-show="actressLightboxSource === 'grid' && !_maskVisible"
-                                        @click.stop="searchActressFilms(currentLightboxActress?.name, $el)"
-                                        :disabled="_ghostFlyInFlight"
-                                        :class="{ 'opacity-50 cursor-not-allowed': _ghostFlyInFlight }"
-                                        :data-tooltip="t('showcase.actress.search_films')"
-                                        :aria-label="t('showcase.actress.search_films')">
-                                    <i class="bi bi-camera-reels"></i>
-                                </button>
-                                <!-- 換照片按鈕（49b T4cd）-->
-                                <button class="lb-action-btn"
-                                        x-show="currentLightboxActress?.is_favorite && !_maskVisible"
-                                        @click.stop="openActressPicker()"
-                                        :data-tooltip="t('showcase.actress.change_photo')"
-                                        :aria-label="t('showcase.actress.change_photo')">
-                                    <i class="bi bi-arrow-clockwise" :class="{ spin: _pickerLoading }"></i>
-                                </button>
-                                <!-- 100b-T2a：✓/✗ 鏡射影片版（:754-767），複用既有 5 個
-                                     showcase.lightbox.mask_* i18n key（裁決4，不新增 key）。 -->
-                                <button class="lb-action-btn lb-action-btn--success"
-                                        x-show="_maskVisible && !_maskDetecting"
-                                        @click.stop="confirmMask()"
-                                        :data-tooltip="t('showcase.lightbox.mask_confirm')"
-                                        :aria-label="t('showcase.lightbox.mask_confirm')">
-                                    <i class="bi bi-check-lg"></i>
-                                </button>
-                                <button class="lb-action-btn lb-action-btn--danger"
-                                        x-show="_maskVisible && !_maskDetecting"
-                                        @click.stop="cancelMask()"
-                                        :data-tooltip="t('showcase.lightbox.mask_cancel')"
-                                        :aria-label="t('showcase.lightbox.mask_cancel')">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
+                                <div class="lbx-faces">
+                                    <div class="lbx-face lbx-face--normal"
+                                         x-show="!_maskVisible"
+                                         x-transition:enter="lbx-face-t-enter"
+                                         x-transition:enter-start="lbx-face-t-enter-start"
+                                         x-transition:enter-end="lbx-face-t-enter-end"
+                                         x-transition:leave="lbx-face-t-leave"
+                                         x-transition:leave-start="lbx-face-t-leave-start"
+                                         x-transition:leave-end="lbx-face-t-leave-end"
+                                    >
+                                        <div class="lbx-actions">
+                                            <button class="lb-action-btn"
+                                                    x-show="actressLightboxSource === 'grid'"
+                                                    @click.stop="searchActressFilms(currentLightboxActress?.name, $el)"
+                                                    :disabled="_ghostFlyInFlight"
+                                                    :class="{ 'opacity-50 cursor-not-allowed': _ghostFlyInFlight }"
+                                                    :data-tooltip="t('showcase.actress.search_films')"
+                                                    :aria-label="t('showcase.actress.search_films')">
+                                                <i class="bi bi-camera-reels"></i>
+                                            </button>
+                                            <!-- 換照片按鈕（49b T4cd）-->
+                                            <button class="lb-action-btn"
+                                                    x-show="currentLightboxActress?.is_favorite"
+                                                    @click.stop="openActressPicker()"
+                                                    :data-tooltip="t('showcase.actress.change_photo')"
+                                                    :aria-label="t('showcase.actress.change_photo')">
+                                                <i class="bi bi-arrow-clockwise" :class="{ spin: _pickerLoading }"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="lbx-face lbx-face--edit"
+                                         x-show="_maskVisible && !_maskDetecting"
+                                         x-transition:enter="lbx-face-t-enter"
+                                         x-transition:enter-start="lbx-face-t-enter-start"
+                                         x-transition:enter-end="lbx-face-t-enter-end"
+                                         x-transition:leave="lbx-face-t-leave"
+                                         x-transition:leave-start="lbx-face-t-leave-start"
+                                         x-transition:leave-end="lbx-face-t-leave-end"
+                                    >
+                                        <div class="lbx-actions">
+                                            <!-- 100b-T2a：✓/✗ 鏡射影片版（:754-767），複用既有 5 個
+                                                 showcase.lightbox.mask_* i18n key（裁決4，不新增 key）。 -->
+                                            <button class="lb-action-btn lb-action-btn--success"
+                                                    @click.stop="confirmMask()"
+                                                    :data-tooltip="t('showcase.lightbox.mask_confirm')"
+                                                    :aria-label="t('showcase.lightbox.mask_confirm')">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                            <button class="lb-action-btn lb-action-btn--danger"
+                                                    @click.stop="cancelMask()"
+                                                    :data-tooltip="t('showcase.lightbox.mask_cancel')"
+                                                    :aria-label="t('showcase.lightbox.mask_cancel')">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                        <p class="lbx-focal-hint"
+                                           x-show="!_maskSettling"
+                                           x-text="t('showcase.lightbox.focal_hint')"></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

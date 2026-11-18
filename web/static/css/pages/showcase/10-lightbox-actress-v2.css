@@ -13,6 +13,14 @@
     container: lbx-ap-meta / inline-size;
 }
 
+.lbx-actress-branch .lightbox-cover .cover-actions {
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    gap: .625rem;
+    padding: 1.5rem .75rem .625rem;
+}
+
 @media (min-width: 769px) and (min-height: 720px) {
     .lightbox-content:has(> .lbx-actress-branch) {
         max-height: 96vh;
