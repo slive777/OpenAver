@@ -293,3 +293,64 @@ test('test_back_to_photo_ghost_survives_teardown', () => withCoverGhosts(({ comp
     component().lbxApBackToPhoto();
     assert.equal(registry.length, 0);
 }));
+
+const { stripRevealPlan } = await import('../lbx-logic.js');
+
+test('test_strip_reveal_plan_table', () => {
+    assert.equal(stripRevealPlan({ trigger: 'switch', lightboxOpen: true }).play, true);
+    const all = { play: true, photo: true, films: true, next: true };
+    const none = { play: false, photo: false, films: false, next: false };
+    const base = { lightboxOpen: true, lightboxAnimating: false };
+    for (const [change, expected] of [
+        [{ trigger: 'switch' }, all],
+        [{ trigger: 'next' }, { play: true, photo: false, films: true, next: false }],
+        [{ trigger: 'appear' }, all], [{ trigger: 'appear', lightboxAnimating: true }, none],
+        ...['switch', 'next', 'appear', 'unknown'].map((trigger) => [{ trigger, lightboxOpen: false }, none]),
+        [{ trigger: 'unknown' }, none],
+    ]) assert.deepEqual(stripRevealPlan({ ...base, ...change }), expected);
+});
+
+test('test_strip_reveal_wiring_targets_and_counts', async () => {
+    const sb = await import('../state-base.js');
+    const oldFetch = globalThis.fetch, oldAnimations = window.ShowcaseAnimations, oldQuery = document.querySelector;
+    const calls = [], strip = {};
+    globalThis.fetch = async () => ({ ok: false });
+    window.ShowcaseAnimations = { playApStripReveal(el, opts) { assert.equal(el, strip); calls.push(opts); } };
+    document.querySelector = (selector) => selector === '.showcase-lightbox .lbx-ap-strip' ? strip : null;
+    try {
+        await sb._loadAliasMap();
+        sb._setActresses([{ name: 'A' }]);
+        sb._setActressesLoaded(false);
+        const videos = Array.from({ length: 14 }, (_, i) => ({ path: `video-${i}`, number: `AAA-${i}`, actresses: 'A' }));
+        sb._setVideos(videos);
+        sb._setVideosReady(true);
+        const c = makeComponent({ $nextTick(fn) { fn(); }, lightboxOpen: true, _lightboxAnimating: false, actressLightboxSource: 'grid', currentLightboxActress: { name: 'A' } });
+        c._refreshActressDerived();
+        calls.length = 0;
+        c.lbxApNext();
+        assert.equal(calls.length, 1, '前置：下一批呼叫動畫一次');
+        assert.equal(c.lbxApStart, 6);
+        assert.deepEqual(c.lbxApBatch, videos.slice(6, 12));
+        for (const [start, length] of [[12, 2], [0, 6], [6, 6], [12, 2]]) {
+            c.lbxApNext();
+            assert.equal(c.lbxApStart, start);
+            assert.equal(c.lbxApBatch.length, length);
+            assert.deepEqual(c.lbxApBatch, videos.slice(start, start + 6));
+        }
+        assert.equal(calls.length, 5);
+        for (const opts of calls) assert.deepEqual(opts, { photo: false, films: true, next: false });
+        sb._setVideosReady(false);
+        c.lbxApRebuild();
+        assert.equal(c.lbxApStripVisible(), false);
+        calls.length = 0;
+        sb._setVideosReady(true);
+        c._refreshActressDerived();
+        assert.equal(calls.length, 1);
+        assert.deepEqual(calls[0], { photo: true, films: true, next: true });
+        c._refreshActressDerived();
+        assert.equal(calls.length, 1);
+    } finally {
+        globalThis.fetch = oldFetch; window.ShowcaseAnimations = oldAnimations; document.querySelector = oldQuery;
+        sb._setVideos([]); sb._setVideosReady(false); sb._setActressIndex(null); sb._setActresses([]); sb._setActressesLoaded(false);
+    }
+});

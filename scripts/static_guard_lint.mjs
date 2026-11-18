@@ -10140,6 +10140,27 @@ const RULES = [
     note: '[lint-guard:199b-T5-strip-after-chips] 縮圖排排到別名＋資訊那一行之前，或跑出資料區外 → 使用者看到縮圖排夾在名字與別名之間，或固定高度的資料區把它裁掉',
   },
 
+  // 202-T5b：縮圖排在換人後浮現，首次開啟不重播。
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'killApStripReveal();',
+    scope: { anchor: /killLightboxAnimations: function \(options\) \{/, braceBalanced: true }, stripLineComments: true,
+    note: '[lint-guard:202-T5b-teardown] 關燈箱未清除縮圖動畫，使用者重開時可能看到殘留樣式',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: 'lbxApReveal',
+    scope: { anchor: /★ ghost fly/, window: 2800 }, stripLineComments: true,
+    note: '[lint-guard:202-T5b-open-no-reveal] 首次開啟又播放縮圖動畫，使用者會看到重複進場',
+  },
+  ...[
+    ['openActressLightbox', /openActressLightbox\(index\) \{/],
+    ['prevActressLightbox', /prevActressLightbox\(\) \{/],
+    ['nextActressLightbox', /nextActressLightbox\(\) \{/],
+  ].map(([name, anchor]) => ({
+    file: 'web/static/js/pages/showcase/state-actress.js', kind: 'order', scope: { anchor, braceBalanced: true }, stripLineComments: true,
+    items: [{ pattern: 'playLightboxSwitch' }, { pattern: "lbxApReveal?.('switch')" }],
+    note: `[lint-guard:202-T5b-switch-${name}] 換人後未依序播放縮圖，使用者會看到舊畫面或縮圖不浮現`,
+  })),
+
   // ---- 199b-T6：點縮圖 → 大圖換成那部片的封面（疊層在照片外框內；互斥、換人重置、底條 ▶📁）----
   {
     file: 'web/static/js/pages/showcase/state-lightbox-ap.js', kind: 'required-string', pattern: 'createGhost',

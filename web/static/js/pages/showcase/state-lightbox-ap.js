@@ -22,7 +22,7 @@
 import { _videos, _videosReady, _aliasMapLoaded, _actressIndex } from '@/showcase/state-base.js';
 import { worksOfActress } from '@/shared/actress-lookup.js';
 import { focalCellObjectPosition } from '@/shared/focal.js';
-import { batchLabel, nextBatchStart, sortWorksByRelease, coverSwapPlan } from './lbx-logic.js';
+import { batchLabel, nextBatchStart, sortWorksByRelease, coverSwapPlan, stripRevealPlan } from './lbx-logic.js';
 import { sameWork } from './work-versions.js';
 
 const LBX_AP_BATCH_SIZE = 6;
@@ -38,6 +38,18 @@ export function stateLightboxAp() {
     let coverGhost = null;
 
     return {
+        // 等縮圖排更新後播放，避免舊畫面或已關閉的燈箱閃動。
+        lbxApReveal(trigger) {
+            const plan = stripRevealPlan({ trigger, lightboxOpen: this.lightboxOpen, lightboxAnimating: this._lightboxAnimating });
+            if (!plan.play) return;
+            const generation = this._lightboxGeneration;
+            this.$nextTick(() => {
+                if (this._lightboxGeneration !== generation) return;
+                const strip = document.querySelector('.showcase-lightbox .lbx-ap-strip');
+                if (!strip) return;
+                window.ShowcaseAnimations?.playApStripReveal?.(strip, { photo: plan.photo, films: plan.films, next: plan.next });
+            });
+        },
         lbxApBatch: [],
         lbxApStart: 0,
         lbxApTotal: 0,
@@ -155,6 +167,7 @@ export function stateLightboxAp() {
             const next = nextBatchStart(this.lbxApStart, LBX_AP_BATCH_SIZE, this.lbxApTotal);
             this.lbxApStart = next;
             this.lbxApBatch = items.slice(next, next + LBX_AP_BATCH_SIZE);
+            this.lbxApReveal('next');
         },
 
         // ≤ 6 部整個「下一批」格不渲染

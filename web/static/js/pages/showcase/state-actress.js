@@ -370,7 +370,9 @@ export function stateActress() {
             }
             this.actressWorkRev++;
             this._refreshLbActorAges?.();
+            const wasVisible = !!this.lbxApStripVisible?.();
             this.lbxApRebuild?.();
+            if (!wasVisible && this.lbxApStripVisible?.()) this.lbxApReveal?.('appear');
             if (_actressesLoaded) this.applyActressFilterAndSort();
         },
 
@@ -682,6 +684,7 @@ export function stateActress() {
                         });
                         if (!tl) self._lightboxAnimating = false;
                     }
+                    self.lbxApReveal?.('switch');
                 });
                 return;
             }
@@ -789,6 +792,7 @@ export function stateActress() {
                     });
                     if (!tl) self._lightboxAnimating = false;
                 }
+                self.lbxApReveal?.('switch');
             });
         },
 
@@ -825,6 +829,7 @@ export function stateActress() {
                     });
                     if (!tl) self._lightboxAnimating = false;
                 }
+                self.lbxApReveal?.('switch');
             });
         },
 
