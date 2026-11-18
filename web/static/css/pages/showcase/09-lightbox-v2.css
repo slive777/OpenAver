@@ -55,6 +55,10 @@
     min-height: 46px;
 }
 
+.lightbox-cover .cover-actions.cover-actions--focal-edit .lbx-faces--no-band {
+    min-height: calc(46px + .625rem + 1.625rem);
+}
+
 .lbx-face {
     grid-area: 1 / 1;
     position: relative;
