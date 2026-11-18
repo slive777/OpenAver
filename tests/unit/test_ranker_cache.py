@@ -102,3 +102,48 @@ def test_get_empty_corpus():
 
     assert result is not None
     assert isinstance(result, SimilarRanker)
+
+
+# ──────────────────────────────────────────────────────────
+# T9：改 user_rating 不影響相似排名（TASK-201-T2 A12）
+# ──────────────────────────────────────────────────────────
+def test_changing_only_user_rating_preserves_rank_order():
+    """同語料只差 user_rating → rank() 的 number 序列逐位相同且排名非空。"""
+    from core.database import Video
+    from core.similar.ranker_cache import SimilarRankerCache
+
+    def _corpus(rating: int):
+        target = Video(
+            number="TGT-001", tags=["rareA", "rareB", "t_only"],
+            maker="MakerT", user_rating=rating,
+        )
+        cands = [
+            Video(
+                number=f"CAND-{i:03d}", tags=["rareA", "rareB", f"u{i}"],
+                maker=f"Maker{i}",
+            )
+            for i in range(12)
+        ]
+        pads = [
+            Video(number=f"PAD-{i:03d}", tags=[f"pad{i}"])
+            for i in range(60)
+        ]
+        return [target, *cands, *pads]
+
+    videos = _corpus(0)
+    with patch("core.similar.ranker_cache.VideoRepository") as mock_repo_cls:
+        mock_repo_cls.return_value.get_all.return_value = videos
+        first = SimilarRankerCache.get()
+        out_before = first.rank(videos[0])
+        assert len(out_before) > 0
+
+    for v in videos:
+        v.user_rating = 3
+    with patch("core.similar.ranker_cache.VideoRepository") as mock_repo_cls:
+        mock_repo_cls.return_value.get_all.return_value = videos
+        SimilarRankerCache.invalidate()
+        second = SimilarRankerCache.get()
+        out_after = second.rank(videos[0])
+
+    assert len(out_after) > 0
+    assert [v.number for v in out_after] == [v.number for v in out_before]

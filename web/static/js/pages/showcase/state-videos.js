@@ -236,6 +236,8 @@ export function stateVideos() {
             if (dim === 'release' && this._releaseEditor) this._releaseEditor = null;
             // TASK-198a-T4：resolution pill 同理（恆 0/1 枚）。
             if (dim === 'resolution' && this._resolutionEditor) this._resolutionEditor = null;
+            // TASK-201-T6a：pick pill 同理（恆 0/1 枚）。
+            if (dim === 'pick' && this._pickEditor) this._pickEditor = null;
         },
 
         // TASK-123-T6：「只看精選」漏斗選單項 ＋ pill chip 的一組讀寫入口（CD-123-9：
@@ -246,10 +248,11 @@ export function stateVideos() {
         },
 
         togglePickPill() {
-            if (this._hasPickPill()) {
-                this.removePill('pick', '1');
+            var picks = this.pills.filter((p) => p.dim === 'pick');
+            if (picks.length > 0) {
+                picks.forEach((p) => this.removePill('pick', p.value));
             } else {
-                this.addPill('pick', '1');
+                this._setPickPill({ value: '1' });
             }
         },
 
@@ -257,7 +260,7 @@ export function stateVideos() {
         // 會變成一顆寫著「1」的 chip）——其餘 dim 逐字回傳 pill.value，不做成 dim→formatter
         // 對應表（plan §4 風險表：超過 2 個特例才升級）。
         pillLabel(pill) {
-            if (pill.dim === 'pick') return window.t('showcase.pick.chip_label');
+            if (pill.dim === 'pick') return this.pickPillText(pill);
             if (pill.dim === 'release') return this.releasePillText(pill);
             if (pill.dim === 'resolution') return this.resolutionPillText(pill);
             return pill.value;
@@ -270,7 +273,8 @@ export function stateVideos() {
         // release pill 恆 0/1 枚，不需要像女優版那樣比對 dim。
         _toggleReleaseEditor(pill) {
             if (!this._pillPopoverEnabled) return;               // 第二層防禦（斷點閘門）
-            this._resolutionEditor = null;                       // 198a-T4：三個浮層 slot 至多一個非 null
+            // 影片模式三個浮層 slot 至多一個非 null（198a-T4）。
+            this._resolutionEditor = null; this._pickEditor = null;
             if (this._releaseEditor) { this._releaseEditor = null; return; }  // 同一枚再點＝關閉
             var loParsed = pill.op === 'range' ? parseEndpoint(pill.value) : null;
             var hiParsed = pill.op === 'range' ? parseEndpoint(pill.value2) : null;
@@ -445,7 +449,8 @@ export function stateVideos() {
 
         _toggleResolutionEditor(pill) {
             if (!this._pillPopoverEnabled) return;               // 第二層防禦（斷點閘門）
-            this._releaseEditor = null;                          // 三個浮層 slot 至多一個非 null
+            // 影片模式三個浮層 slot 至多一個非 null。
+            this._releaseEditor = null; this._pickEditor = null;
             if (this._resolutionEditor) { this._resolutionEditor = null; return; }  // 同一枚再點＝關閉
             this._resolutionEditor = { op: pill.op, value: pill.value };
         },
@@ -490,12 +495,70 @@ export function stateVideos() {
             this._setResolutionPill({ dim: 'resolution', op: '=', value: tier });
         },
 
+        // ── TASK-201-T6a：精選 pill 浮層狀態機（照 _toggleResolutionEditor 一組的手勢）──
+
+        _togglePickEditor(pill) {
+            if (!this._pillPopoverEnabled) return;               // 第二層防禦（斷點閘門）
+            // 影片模式三個浮層 slot 至多一個非 null。
+            this._releaseEditor = null; this._resolutionEditor = null;
+            if (this._pickEditor) { this._pickEditor = null; return; }  // 同一枚再點＝關閉
+            this._pickEditor = { op: pill.op ?? '>=', value: pill.value };
+        },
+
+        _applyPickOp(op) {
+            if (!this._pickEditor) return;
+            this._setPickPill({ op: op, value: this._pickEditor.value });
+            this._pickEditor = null;
+        },
+
+        _applyPickTier(value) {
+            if (!this._pickEditor) return;
+            this._setPickPill({ op: this._pickEditor.op, value: value });
+            this._pickEditor = null;
+        },
+
+        _cancelPickEditor() {
+            this._pickEditor = null;
+        },
+
+        // 唯一寫入者：一律建構全新物件、整包取代同維度（恆 0/1 枚）。
+        // 同 key 只改 op 時 keyed x-for 沿用 DOM，靠新物件＋重新賦值陣列才會重繪 chip（FE-ALPINE-20）。
+        _setPickPill(pill) {
+            var next = this.pills.filter(function (p) { return p.dim !== 'pick'; });
+            var built = { dim: 'pick', value: pill.value };
+            if (pill.op !== undefined) built.op = pill.op;
+            next.push(built);
+            this.pills = next;
+            this._animateFilter();      // ⚠ 不是 applyFilterAndSort()（saveState 只在 _animateFilter 裡）
+            this._reconcileHeroCard();
+        },
+
+        // 顯示文字：無 op（＝>=）且 value '1' 沿用「★精選」；其餘顯示 ★精選 {op}{tier}。
+        pickPillText(pill) {
+            var op = pill.op === undefined ? '>=' : pill.op;
+            var tier = this.pickTierList().find(function (t) { return t.value === pill.value; });
+            if (tier === undefined) return window.t('showcase.pick.chip_label');
+            if (op === '>=' && pill.value === '1') return window.t('showcase.pick.chip_label');
+            var symbol = op === '<=' ? '≤' : op === '>=' ? '≥' : '=';
+            return window.t('showcase.pick.chip_tier', { op: symbol, tier: tier.label });
+        },
+
+        // T6b 模板消費：順序固定金→銀→銅。
+        pickTierList() {
+            return [
+                { value: '3', tier: 'gold', label: window.t('showcase.pick.tier.gold') },
+                { value: '2', tier: 'silver', label: window.t('showcase.pick.tier.silver') },
+                { value: '1', tier: 'bronze', label: window.t('showcase.pick.tier.bronze') },
+            ];
+        },
+
         // 跨切面 teardown 唯一實作（四個呼叫點：state-base.js 斷點 handler ×2、
-        // toggleActressMode()、hero 橋接、clearAllFilters()）。無條件覆寫兩個 slot，冪等。
+        // toggleActressMode()、hero 橋接、clearAllFilters()）。無條件覆寫四個 slot（_pillEditor／_releaseEditor／_resolutionEditor／_pickEditor），冪等。
         _teardownPillEditors() {
             this._pillEditor = null;
             this._releaseEditor = null;
             this._resolutionEditor = null;
+            this._pickEditor = null;
         },
 
         // TASK-115-T9: 搜尋框 Backspace 刪最後一枚 pill（IME 組字中一律不刪）

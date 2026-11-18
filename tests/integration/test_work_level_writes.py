@@ -140,12 +140,13 @@ def test_pick_and_unpick_apply_to_every_version_of_the_work(tmp_path, monkeypatc
     assert resp.status_code == 200
     data = resp.json()
     assert data["success"] is True
+    assert data["tier"] == "gold"
     assert data["results"] == [
         {"path": uris["c"], "ok": True},
         {"path": uris["uhd"], "ok": True},
     ]
     assert data["changed"] == 1
-    assert _ratings(repo, uris) == {"uhd": 1, "c": 1, "ltx": 1}
+    assert _ratings(repo, uris) == {"uhd": 3, "c": 3, "ltx": 3}
 
 
 def test_user_tags_follow_the_work_without_creating_nfo(tmp_path, monkeypatch):

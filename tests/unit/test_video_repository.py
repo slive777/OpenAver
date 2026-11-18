@@ -594,9 +594,9 @@ class TestUserRatingPreserveOnConflict:
         assert result is not None
         assert result.user_rating == 1
 
-    # ── 場景 4：repath() 分支 3（碰撞 delete-merge）old 有精選、new 沒有 → 合併保留 old ──
+    # ── 場景 4：repath() 分支 3（碰撞 delete-merge）兩列等級不同 → 留較高者（new 較高）──
 
-    def test_repath_collision_merge_keeps_old_rating_when_new_has_none(self, temp_db):
+    def test_repath_collision_merge_keeps_higher_tier_when_new_is_higher(self, temp_db):
         repo = VideoRepository(temp_db)
         old_uri = to_file_uri("/user_rating_collision_old_has.mp4")
         new_uri = to_file_uri("/user_rating_collision_old_has_new.mp4")
@@ -604,19 +604,19 @@ class TestUserRatingPreserveOnConflict:
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.upsert(Video(path=old_uri, title="舊片"))
             repo.upsert(Video(path=new_uri, title="既有新路徑片"))
-        assert repo.set_user_rating(old_uri, 1) is True
-        # new_row user_rating 維持預設 0（未精選）
+        assert repo.set_user_rating(old_uri, 2) is True
+        assert repo.set_user_rating(new_uri, 3) is True
 
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.repath(old_uri, new_uri, Video(path=new_uri, title="重掃描新片"))
 
         result = repo.get_by_path(new_uri)
         assert result is not None
-        assert result.user_rating == 1, "old 列的精選值必須存活到合併後的列，不被 new 的 0 蓋掉"
+        assert result.user_rating == 3, "碰撞合併留較高等級：old 銀 2＋new 金 3→3"
 
-    # ── 場景 5：repath() 分支 3 old 沒有、new 有精選 → 合併後仍保留 new 的精選值 ──
+    # ── 場景 5：repath() 分支 3 兩列等級不同 → 留較高者（old 較高）──
 
-    def test_repath_collision_merge_keeps_new_rating_when_old_has_none(self, temp_db):
+    def test_repath_collision_merge_keeps_higher_tier_when_old_is_higher(self, temp_db):
         repo = VideoRepository(temp_db)
         old_uri = to_file_uri("/user_rating_collision_new_has.mp4")
         new_uri = to_file_uri("/user_rating_collision_new_has_new.mp4")
@@ -624,15 +624,15 @@ class TestUserRatingPreserveOnConflict:
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.upsert(Video(path=old_uri, title="舊片"))
             repo.upsert(Video(path=new_uri, title="既有新路徑片"))
+        assert repo.set_user_rating(old_uri, 3) is True
         assert repo.set_user_rating(new_uri, 1) is True
-        # old_row user_rating 維持預設 0（未精選）
 
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.repath(old_uri, new_uri, Video(path=new_uri, title="重掃描新片"))
 
         result = repo.get_by_path(new_uri)
         assert result is not None
-        assert result.user_rating == 1, "new 原本的精選值不該被 old 的 0 蓋掉"
+        assert result.user_rating == 3, "碰撞合併留較高等級：old 金 3＋new 銅 1→3"
 
 
 class TestFocalModelColumn:

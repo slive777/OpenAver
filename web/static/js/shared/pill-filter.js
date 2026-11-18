@@ -13,6 +13,7 @@
 
 import { expandPill, matchesReleasePill, parseEndpoint } from './release-window.js';
 import { tierRank } from './resolution-tier.js';
+import { matchesPickPill, PICK_OPS } from './pick-tier.js';
 
 export function normalizePillValue(s) {
     if (s === null || s === undefined) return '';
@@ -47,10 +48,10 @@ var WHOLE_FIELD_DIMS = { maker: 'maker', director: 'director', series: 'series',
 
 function _buildSingleMatcher(pill, nameToGroup, tagToGroup) {
     var dim = pill.dim;
-    // TASK-123-T6：pick 是唯一不看 pill.value 的分支（不像下面幾支要 normalizePillValue
-    // 或展開 alias set），放最前面避免下一個讀者以為它也走 WHOLE_FIELD_DIMS 的路徑。
+    // TASK-201-T3：pick 的比對委派給 pick-tier.js 的 matchesPickPill（等級制，
+    // op 缺省＝>=，未精選在任何條件下都不符）。
     if (dim === 'pick') {
-        return function (video) { return (video.user_rating || 0) > 0; };
+        return function (video) { return matchesPickPill(video, pill); };
     }
     // TASK-124a-T1：release 維度，展開＋比對皆委派給 release-window.js（純函式）。
     // fail-closed 沿用本檔既有風格（內嵌匿名函式，非模組級單例，與 57 行同型——
@@ -154,7 +155,7 @@ export function serializePills(pills) {
     if (!Array.isArray(pills)) return [];
     return pills.map(function (p) {
         var out = { dim: p.dim, value: p.value };
-        if (p.dim === 'release' || p.dim === 'resolution') {
+        if (p.dim === 'release' || p.dim === 'resolution' || p.dim === 'pick') {
             if (p.op !== undefined) out.op = p.op;
         }
         if (p.dim === 'release') {
@@ -193,6 +194,14 @@ export function deserializePills(raw) {
             if (p.op !== '=' && p.op !== '<=' && p.op !== '>=') continue;
             if (tierRank(value) < 0) continue;
             out.push({ dim: dim, value: value, op: p.op });
+            continue;
+        }
+        if (dim === 'pick') {
+            if (value !== '1' && value !== '2' && value !== '3') continue;
+            if (p.op !== undefined && PICK_OPS.indexOf(p.op) < 0) continue;
+            var pickPill = { dim: dim, value: value };
+            if (p.op !== undefined) pickPill.op = p.op;
+            out.push(pickPill);
             continue;
         }
         out.push({ dim: dim, value: value });

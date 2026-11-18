@@ -35,7 +35,7 @@
 
 /* 123-T5：牆上三處（grid/table/list）唯讀精選星標。獨立於 .lightbox-metadata .lb-details
    .pick-star（T3，可切換、有 clip-path 兩層疊置動效），不共用——牆上永遠只顯示單一實心
-   金色狀態（x-show gate 掉未精選），不需要 outline/fill 兩層、不需要點擊區 padding、
+   等級色狀態（x-show gate 掉未精選），不需要 outline/fill 兩層、不需要點擊區 padding、
    不需要 focus 樣式。硬套 .pick-star 會帶進一堆牆上永遠用不到的規則，還會把本不該耦合
    的東西耦合在一起（T3 未來改兩層結構時意外波及牆上三處）。
    固定 rem（非 em）：grid 窄螢幕/poster 斷點會把 .av-num 縮到 0.7rem，但星标是 .av-num
@@ -44,7 +44,7 @@
    ⚠️ 唯讀標記：不得加 transition/animation，也不接 GSAP —— 牆上不做任何動畫/火花，
    那是燈箱（T3/T4）的行為，牆上這顆星只是靜態狀態指示。 */
 .pick-star-mark {
-    color: var(--star-glow);
+    color: var(--pick-star, var(--star-glow));
     font-size: 0.75rem;
     line-height: 1;
     vertical-align: middle;

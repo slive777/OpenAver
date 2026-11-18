@@ -17,6 +17,7 @@ import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/whe
 import { shouldShowEnrichButton } from '@/shared/enrich-gate.js';
 import { computeActorAgesMap } from '@/shared/actress-release-age.js';
 import { versionsOf, sameWork, refreshRoute, applyWorkUpdate, writeWorkFields } from './work-versions.js';
+import { nextPickValue, pickTierName } from '@/shared/pick-tier.js';
 import { actorFavsOf } from './lbx-logic.js';
 
 
@@ -852,7 +853,7 @@ export function stateLightbox() {
             if (dicts.some((d) => this._pickInFlight[d.path])) return;
 
             var oldValue = video.user_rating || 0;
-            var newValue = oldValue > 0 ? 0 : 1;
+            var newValue = nextPickValue(oldValue);
 
             dicts.forEach((d) => { this._pickInFlight[d.path] = true; });
             writeWorkFields(dicts, { user_rating: newValue }, this.paginatedVideos, this.currentLightboxVideo);
@@ -863,13 +864,20 @@ export function stateLightbox() {
                     oldValue > 0,
                     newValue > 0
                 );
+                if (newValue > 0) {
+                    window.ShowcaseAnimations?.playPickRing?.(
+                        document.querySelector('.pick-ring'),
+                        document.querySelector('.pick-star'),
+                        document.querySelector('.lightbox-content')
+                    );
+                }
             });
 
             try {
                 var resp = await fetch('/api/user-rating', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ file_path: path, picked: newValue > 0 }),
+                    body: JSON.stringify({ file_path: path, tier: pickTierName(newValue) ?? 'none' }),
                 });
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 var data = await resp.json();
@@ -1049,12 +1057,13 @@ export function stateLightbox() {
             // TASK-124a-T2：新增 _releaseEditor 分支（兩個 slot 依 §3.5 不變式恆不同時非
             // null，三元式安全）。
             // TASK-198a-T4：納入第三個 slot _resolutionEditor（三個 slot 至多一個非 null）。
-            if (this._pillEditor || this._releaseEditor || this._resolutionEditor) {
+            if (this._pillEditor || this._releaseEditor || this._resolutionEditor || this._pickEditor) {
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     if (this._pillEditor) this._cancelPillEditor();
                     else if (this._releaseEditor) this._cancelReleaseEditor();
-                    else this._cancelResolutionEditor();
+                    else if (this._resolutionEditor) this._cancelResolutionEditor();
+                    else this._cancelPickEditor();
                     return;
                 }
                 return;                       // 第二段：鎖其餘鍵。不得 preventDefault

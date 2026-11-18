@@ -3213,6 +3213,35 @@ const RULES = [
       }
     },
   },
+  {
+    id: 'CG-201-01', file: 'pages/showcase/12-pick-tier.css', kind: 'fn',
+    check(ctx) {
+      const blocks = flattenRuleBlocks(ctx.blocks).filter(({ selector }) => !!selector);
+      if (!blocks.length) { ctx.fail('CG-201-01(empty): 無可解析規則'); return; }
+      const splitSelectors = (selector) => {
+        const parts = []; let depth = 0; let current = '';
+        for (const ch of selector) {
+          if (ch === '(' || ch === '[') depth += 1;
+          else if (ch === ')' || ch === ']') depth -= 1;
+          if (ch === ',' && depth === 0) { parts.push(current.trim()); current = ''; }
+          else current += ch;
+        }
+        if (current.trim()) parts.push(current.trim());
+        return parts;
+      };
+      const contexts = flattenWithMedia(ctx.blocks);
+      for (const [index, { selector, declarations }] of blocks.entries()) {
+        if (/(?:^|[;{\s])(?:backdrop-)?filter\s*:|\bblur\s*\(/i.test(declarations)) ctx.fail('CG-201-01(blur): 禁止濾鏡與模糊');
+        const token = contexts[index].media.length === 0 && (selector.trim() === ':root' || selector.trim() === '[data-theme="dim"]');
+        if (!token && /oklch\s*\(/i.test(declarations)) ctx.fail('CG-201-01(oklch): 色值限於頂層 token 區塊');
+        if (!token) for (const one of splitSelectors(selector)) {
+          const allowed = one === '.lightbox-content' && /^\s*transition\s*:[^;]+;?\s*$/.test(declarations);
+          if (!one.includes('pick') && !allowed) ctx.fail(`CG-201-01(isolation): 選擇器缺隔離標記 — ${one}`);
+        }
+      }
+    },
+  },
+
 ];
 
 // 解析 _showcase_css.html 的 <link href> 出現順序——單一來源＝ CD-148a-3 的 template，

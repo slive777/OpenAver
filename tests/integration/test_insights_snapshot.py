@@ -479,7 +479,6 @@ class TestInsightsRecordShape:
         assert fixture_a["director"] == "Dir A"
         assert fixture_a["series"] == "Series A"
 
-
 # ============ Tag Badge Alias Merge (CD-156-11) ============
 
 class TestInsightsTagBadgeAliasMerge:

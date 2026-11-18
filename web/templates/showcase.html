@@ -84,7 +84,7 @@
                         <span class="filter-pill-list" role="list" x-show="pills.length">
                             <template x-for="pill in pills" :key="pill.dim + '::' + normalizePillValue(pill.value)">
                                 <span class="filter-pill" role="listitem"
-                                      :class="{ 'is-editing': (!!_releaseEditor && pill.dim === 'release') || (!!_resolutionEditor && pill.dim === 'resolution') }"
+                                      :class="{ 'is-editing': (!!_releaseEditor && pill.dim === 'release') || (!!_resolutionEditor && pill.dim === 'resolution') || (!!_pickEditor && pill.dim === 'pick') }"
                                       :title="pill.dim === 'pick' ? t('showcase.pick.chip_label') : t('showcase.pill.title', { dim: t('showcase.pill.dim_label.' + pill.dim), value: pillLabel(pill) })">
                                     <!-- 124a-T3: release pill 依 _pillPopoverEnabled（≤480px 為 false）
                                          分流成可點／不可點，鏡射女優版 button/span 換型別的既有手法
@@ -101,7 +101,12 @@
                                                 @click.stop="_toggleResolutionEditor(pill)"
                                                 x-text="pillLabel(pill)"></button>
                                     </template>
-                                    <template x-if="!((pill.dim === 'release' || pill.dim === 'resolution') && _pillPopoverEnabled)">
+                                    <template x-if="pill.dim === 'pick' && _pillPopoverEnabled">
+                                        <button type="button" class="filter-pill-value"
+                                                @click.stop="_togglePickEditor(pill)"
+                                                x-text="pillLabel(pill)"></button>
+                                    </template>
+                                    <template x-if="!((pill.dim === 'release' || pill.dim === 'resolution' || pill.dim === 'pick') && _pillPopoverEnabled)">
                                         <span class="filter-pill-value" x-text="pillLabel(pill)"></span>
                                     </template>
                                     <button type="button" class="filter-pill-remove"
@@ -308,6 +313,36 @@
                             <template x-for="tier in resolutionTierList()" :key="tier">
                                 <button type="button" class="pill-editor-mode" :class="{ 'is-active': _resolutionEditor?.value === tier }"
                                         @click="_applyResolutionTier(tier)" x-text="tier"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 201-T6b: 點一顆即套用並關閉；浮層關閉時仍求值，對 _pickEditor 使用 ?.；
+                         位置須在解析度浮層之後。 -->
+                    <div class="pill-editor-popover"
+                         x-show="_pickEditor && !showFavoriteActresses && _pillPopoverEnabled"
+                         x-cloak
+                         x-transition.opacity.duration.150ms
+                         x-trap="!!_pickEditor"
+                         @click.outside="_pickEditor && _cancelPickEditor()"
+                         @click.stop
+                         role="dialog"
+                         aria-modal="false"
+                         aria-labelledby="pick-editor-title">
+                        <div class="pill-editor-title" id="pick-editor-title" x-text="t('showcase.pill.dim_label.pick')"></div>
+
+                        <div class="pill-editor-modes">
+                            <button type="button" class="pill-editor-mode" :class="{ 'is-active': _pickEditor?.op === '=' }"
+                                    @click="_applyPickOp('=')" :aria-label="t('showcase.pill.op.eq')">=</button>
+                            <button type="button" class="pill-editor-mode" :class="{ 'is-active': _pickEditor?.op === '<=' }"
+                                    @click="_applyPickOp('<=')" :aria-label="t('showcase.pill.op.lte')">≤</button>
+                            <button type="button" class="pill-editor-mode" :class="{ 'is-active': _pickEditor?.op === '>=' }"
+                                    @click="_applyPickOp('>=')" :aria-label="t('showcase.pill.op.gte')">≥</button>
+                        </div>
+                        <div class="pill-editor-modes pill-editor-modes--tiers">
+                            <template x-for="tier in pickTierList()" :key="tier.value">
+                                <button type="button" class="pill-editor-mode" :class="{ 'is-active': _pickEditor?.value === tier.value }"
+                                        @click="_applyPickTier(tier.value)" x-text="tier.label"></button>
                             </template>
                         </div>
                     </div>
@@ -587,6 +622,7 @@
                      :class="{ 'missing-cover': !video.has_cover }"
                      @click="openLightbox(getCurrentFilteredIndex(index))"
                      :style="`--card-index: ${index}`"
+                     :data-pick-tier="pickTierName(video.user_rating)"
                      :data-flip-id="video.path">
                     <div class="av-card-preview-img">
                         <!-- 67-A2: 三態（CD-67-3）。保留單一 <img> 沿用 handleCoverError 換圖；
@@ -734,7 +770,7 @@
                     </thead>
                     <tbody>
                         <template x-for="(video, index) in paginatedVideos" :key="video.path">
-                            <tr @click="openLightbox(getCurrentFilteredIndex(index))" class="table-row-clickable">
+                            <tr @click="openLightbox(getCurrentFilteredIndex(index))" class="table-row-clickable" :data-pick-tier="pickTierName(video.user_rating)">
                                 <td class="table-cell-index" x-text="getCurrentFilteredIndex(index) + 1"></td>
                                 <!-- 123-T8b：下面兩個 <span> 之間不得留空白字元。<td> 是 inline 格式化
                                      脈絡，換行縮排會塌成一個空格（實測讓星到番號的距離變成 11.4px，而 grid
@@ -785,7 +821,7 @@
                 <template x-for="(video, index) in paginatedVideos" :key="video.path">
                     <li class="list-item" @click="openLightbox(getCurrentFilteredIndex(index))">
                         <span class="pick-star-mark bi bi-star-fill" aria-hidden="true"
-                              x-show="(video.user_rating || 0) > 0"></span>
+                              x-show="(video.user_rating || 0) > 0" :data-pick-tier="pickTierName(video.user_rating)"></span>
                         <span class="list-number" x-text="video.number"></span>
                         <template x-if="(video.part_tokens || []).length">
                             <span class="cover-badge" x-text="formatPartLabel(video.part_tokens)"></span>
@@ -899,7 +935,8 @@
              @resize.window="lbxPopClose()"
              @click="handleLightboxBackdropClick($event)">
 
-            <div class="lightbox-content" @click.stop>
+            <div class="lightbox-content" @click.stop
+                 :data-pick-tier="currentLightboxActress ? null : pickTierName(currentLightboxVideo?.user_rating)">
                 <!-- Close Button (shared between actress and video branches) -->
                 <button class="lightbox-close"
                         @click="closeLightbox()"
@@ -1191,6 +1228,7 @@
                 <!-- Video Lightbox Branch (wrapped in x-if to prevent 44b hero card conflict) -->
                 <template x-if="currentLightboxVideo && !currentLightboxActress">
                     <div class="lb-video-branch" style="display:contents">
+                        <svg class="pick-ring" aria-hidden="true" focusable="false"><path class="soft"/><path class="main"/></svg>
                         <!-- Cover Image -->
                         <!-- T8(Codex P2): has-cover 旗標 — 僅有封面時才讓 ≤480px min-height:0 塌到圖盒；
                              無封面時保留 min-height 避免 cover 區塌成 0 高（補封面入口會壞）。 -->
@@ -1347,7 +1385,7 @@
                                      class="lb-title"><button type="button" class="pick-star"
                                         :class="{'is-picked': (currentLightboxVideo?.user_rating || 0) > 0}"
                                         :aria-pressed="(currentLightboxVideo?.user_rating || 0) > 0"
-                                        :aria-label="(currentLightboxVideo?.user_rating||0) > 0 ? t('showcase.pick.remove_aria') : t('showcase.pick.add_aria')"
+                                        :aria-label="pickStarAria(currentLightboxVideo?.user_rating)"
                                         :aria-busy="!!_pickInFlight[currentLightboxVideo?.path]"
                                         @click.stop="togglePickStar()"><i class="bi bi-star pick-star-outline" aria-hidden="true"></i><i class="bi bi-star-fill pick-star-fill" aria-hidden="true"
                                        :style="{ '--pick-fill': (currentLightboxVideo?.user_rating || 0) > 0 ? '0%' : '100%' }"></i></button><span x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></span></div>

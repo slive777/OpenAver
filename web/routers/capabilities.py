@@ -491,7 +491,7 @@ _TOOLS: list[dict] = [
                 "label": "TEXT — 廠牌",
                 "tags": "TEXT — 標籤 JSON array",
                 "user_tags": "TEXT — 用戶自訂標籤 JSON array",
-                "user_rating": "INTEGER — 精選標記（1=精選 / 0=未精選；只由 POST /api/user-rating 寫入）",
+                "user_rating": "INTEGER — 精選等級（0=未精選 / 1=銅 / 2=銀 / 3=金；每列是一個版本；整部作品＝各版本取最高；只由 POST /api/user-rating 寫入）",
                 "sample_images": "TEXT — 劇照 JSON array",
                 "duration": "INTEGER — 片長（分鐘）",
                 "size_bytes": "INTEGER — 檔案大小",
@@ -749,8 +749,9 @@ _TOOLS: list[dict] = [
     {
         "name": "user_rating",
         "description": (
-            "批次或單筆冪等設定「精選」狀態（picked: true/false)，效果套用到整部作品的全部版本。"
-            "⚠️ side effect：一次呼叫可改動多部影片的精選狀態，批次取消無一鍵復原。"
+            "批次或單筆冪等設定精選等級（picked 或 tier 二擇一，效果套用到整部作品的全部版本；"
+            "金＞銀＞銅，等級只存在 OpenAver 資料庫、不寫 NFO、Jellyfin 看不到；"
+            "⚠️ side effect：一次呼叫可改動多部影片的精選等級，批次改等級無一鍵復原。"
             "精選是獨立欄位（user_rating），不是 user_tags 裡的 ★ 標籤——兩者互不影響、不會互相覆蓋。"
             "分集片（-cd1/-cd2 等）自動解析到代表段，效果套用到整組。"
         ),
@@ -761,21 +762,23 @@ _TOOLS: list[dict] = [
             "properties": {
                 "paths": {"type": "array", "items": {"type": "string"}, "description": "批次影片路徑清單（file:/// URI），與 file_path 二擇一，最多 500 筆"},
                 "file_path": {"type": "string", "description": "單筆影片路徑（file:/// URI），與 paths 二擇一"},
-                "picked": {"type": "boolean", "description": "目標精選狀態，true=設為精選，false=取消精選"},
+                "picked": {"type": "boolean", "description": "舊用法，true＝金、false＝取消精選；與 tier 二擇一"},
+                "tier": {"type": "string", "enum": ["gold", "silver", "bronze", "none"], "description": "目標等級：gold=金、silver=銀、bronze=銅、none=取消精選（金＞銀＞銅）；與 picked 二擇一，兩者矛盾回 400"},
             },
-            "required": ["picked"],
+            "required": [],
         },
         "output_schema": {
             "success": "boolean",
-            "picked": "boolean — 本次設定的目標狀態",
+            "picked": "boolean — 等級是否為金銀銅任一（value > 0）",
+            "tier": "string — 本次設定的目標等級（gold/silver/bronze/none）",
             "results": "[{path, ok, reason?}] — 逐路徑回報，與輸入 1:1 對應；reason 目前只有 not_found",
-            "changed": "integer — 成功命中的作品數（同一作品的多個輸入去重後計數；分集片去重後計數）。注意：本來就已是目標狀態的片也算命中，不代表這麼多片的星真的變了",
+            "changed": "integer — 成功命中的作品數（同一作品的多個輸入去重後計數；分集片去重後計數）。注意：本來就已是目標等級的片也算命中，不代表這麼多片的星真的變了",
         },
         "side_effect": True,
         "confirmation_required": True,
         "retry_safe": True,
         "also_see": "GET /api/showcase/videos — 查詢影片目前的 user_rating 欄位",
-        "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"file:///C:/AVtest/SONE-205/SONE-205.mp4\",\"picked\":true}}' {base}/api/user-rating",
+        "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"file:///C:/AVtest/SONE-205/SONE-205.mp4\",\"tier\":\"silver\"}}' {base}/api/user-rating",
     },
     {
         "name": "get_user_tags",
@@ -854,7 +857,7 @@ _TOOLS: list[dict] = [
                     "label": "string",
                     "sample_images": "array[string] — 劇照 gallery image URLs（真正的 array）",
                     "user_tags": "array[string] — 用戶自訂標籤（真正的 array，可空）",
-                    "user_rating": "integer — 精選標記（1=精選 / 0=未精選；無條件輸出）",
+                    "user_rating": "integer — 精選等級（0=未精選 / 1=銅 / 2=銀 / 3=金；作品層取最高；無條件輸出）",
                     "has_cover": "boolean — DB 初判 cover_path 非空（不做 IO 檢查）",
                     "has_nfo": "boolean — nfo_mtime > 0（41a 寫入契約）",
                     "auto_focal": "string — 封面焦點 'x,y'（4 位小數）或空字串",

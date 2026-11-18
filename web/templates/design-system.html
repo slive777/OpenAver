@@ -317,6 +317,32 @@
                     </div>
                 </div>
 
+
+                <h4 class="ds-group-label">Pick Tier（精選三級）</h4>
+                <div class="ds-color-grid">
+                    <div class="ds-color-swatch" style="background: var(--pick-gold);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--pick-gold</span>
+                            <code class="ds-color-hex" data-var="--pick-gold"></code>
+                            <span class="ds-color-usage">精選・金（背光、繞線）</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--pick-silver);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--pick-silver</span>
+                            <code class="ds-color-hex" data-var="--pick-silver"></code>
+                            <span class="ds-color-usage">精選・銀（冰藍）</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--pick-bronze);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--pick-bronze</span>
+                            <code class="ds-color-hex" data-var="--pick-bronze"></code>
+                            <span class="ds-color-usage">精選・銅（背光、繞線）</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- 文字色 -->
@@ -1609,6 +1635,59 @@
                 <p class="ds-desc" style="margin-top: 0.75rem;">
                     Hover 時 footer 切換為完整 profile 摘要（透過 <code>.footer-default</code>/<code>.footer-hover</code> + Alpine <code>x-text</code> 動態組合，僅在 showcase.css 載入頁面生效）
                 </p>
+            </div>
+
+
+            <div class="ds-subsection">
+                <h3>4. Pick Tier（精選三級）</h3>
+                <p class="ds-desc">精選卡以 data-pick-tier="gold|silver|bronze" 觸發底部背光與小星變色，未精選時不帶此屬性。</p>
+                <div class="ds-card-demo" style="display: flex; flex-wrap: wrap; gap: 1.5rem; padding-bottom: 2.5rem;">
+                    <div class="av-card-preview" style="width: 200px;" data-pick-tier="gold">
+                        <div class="av-card-preview-img">
+                            <img src="/static/img/demo/ipzz-001.jpg" alt="示意封面">
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <div class="footer-default"><span class="footer-num-group"><span class="pick-star-mark bi bi-star-fill" aria-hidden="true"></span><span class="av-num">PICK-001</span></span><span class="av-actress">金</span></div>
+                        </div>
+                    </div>
+                    <div class="av-card-preview" style="width: 200px;" data-pick-tier="silver">
+                        <div class="av-card-preview-img">
+                            <img src="/static/img/demo/ipzz-001.jpg" alt="示意封面">
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <div class="footer-default"><span class="footer-num-group"><span class="pick-star-mark bi bi-star-fill" aria-hidden="true"></span><span class="av-num">PICK-002</span></span><span class="av-actress">銀</span></div>
+                        </div>
+                    </div>
+                    <div class="av-card-preview" style="width: 200px;" data-pick-tier="bronze">
+                        <div class="av-card-preview-img">
+                            <img src="/static/img/demo/ipzz-001.jpg" alt="示意封面">
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <div class="footer-default"><span class="footer-num-group"><span class="pick-star-mark bi bi-star-fill" aria-hidden="true"></span><span class="av-num">PICK-003</span></span><span class="av-actress">銅</span></div>
+                        </div>
+                    </div>
+                    <div class="av-card-preview" style="width: 200px;">
+                        <div class="av-card-preview-img">
+                            <img src="/static/img/demo/ipzz-001.jpg" alt="示意封面">
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <div class="footer-default"><span class="footer-num-group"><span class="av-num">PICK-004</span></span><span class="av-actress">未精選</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ds-card-demo" style="display: flex; gap: 1.5rem; align-items: center;">
+                    <span class="pick-star-mark bi bi-star-fill" data-pick-tier="gold" aria-hidden="true"></span>金
+                    <span class="pick-star-mark bi bi-star-fill" data-pick-tier="silver" aria-hidden="true"></span>銀
+                    <span class="pick-star-mark bi bi-star-fill" data-pick-tier="bronze" aria-hidden="true"></span>銅
+                </div>
+                <div class="ds-card-demo">
+                    <span class="filter-pill" role="listitem"><span class="filter-pill-value">★精選</span><button type="button" class="filter-pill-remove" aria-label="remove filter" style="pointer-events: none;">✕</button></span>
+                    <span class="filter-pill" role="listitem"><span class="filter-pill-value">★精選 ≥銀</span><button type="button" class="filter-pill-remove" aria-label="remove filter" style="pointer-events: none;">✕</button></span>
+                </div>
+                <pre class="ds-code"><code>data-pick-tier="gold"
+data-pick-tier="silver"
+data-pick-tier="bronze"
+未精選＝不帶屬性</code></pre>
             </div>
 
         </section>

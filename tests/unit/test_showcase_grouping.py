@@ -296,7 +296,7 @@ class TestAC12PickThenSerializeStaysOneCard:
         self, make_populated_db, make_client, group_showcase_config
     ):
         """精選 cd2（非代表段，經 resolve_group() 落到 cd1）→ 序列化整組同樣只有
-        1 筆、user_rating == 1——驗證 resolve_group() 代表段解析在序列化層的另一面。"""
+        1 筆、user_rating == 3——驗證 resolve_group() 代表段解析在序列化層的另一面。"""
         db_path, _part1_path, part2_path = self._make_group_db(make_populated_db)
         client = self._make_group_client(make_client, db_path, group_showcase_config)
 
@@ -309,5 +309,5 @@ class TestAC12PickThenSerializeStaysOneCard:
         data = listing.json()
         assert data["total"] == 1, "分集片精選後序列化層必須仍只吐一張合併卡"
         card = data["videos"][0]
-        assert card["user_rating"] == 1
+        assert card["user_rating"] == 3
         assert card["part_tokens"] == ["cd1", "cd2"]

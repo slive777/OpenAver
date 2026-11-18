@@ -1507,7 +1507,8 @@
         "height": "身高",
         "cup": "罩杯",
         "release": "發售日",
-        "resolution": "解析度"
+        "resolution": "解析度",
+        "pick": "精選"
       },
       "title": "{dim}：{value}",
       "remove_aria": "移除篩選：{value}",
@@ -1723,8 +1724,15 @@
     "pick": {
       "add_aria": "加入精選",
       "remove_aria": "取消精選",
+      "tier": {
+        "gold": "金",
+        "silver": "銀",
+        "bronze": "銅"
+      },
+      "next_aria": "精選：{tier}，按一下改為{next}",
       "save_failed": "精選儲存失敗，請稍後再試",
-      "chip_label": "★精選"
+      "chip_label": "★精選",
+      "chip_tier": "★精選 {op}{tier}"
     },
     "gallery": {
       "prev": "上一張 (←)",

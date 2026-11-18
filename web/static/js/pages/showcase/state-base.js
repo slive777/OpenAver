@@ -342,6 +342,8 @@ export function stateBase() {
         _releaseEditor: null,
         // TASK-198a-T4：解析度 pill 浮層獨立 slot（null 或 { op, value }；三個 slot 至多一個非 null）。
         _resolutionEditor: null,
+        // TASK-201-T6a：精選 pill 浮層獨立 slot（null 或 { op, value }；三個 slot 至多一個非 null）。
+        _pickEditor: null,
         _pillPopoverEnabled: (typeof window.matchMedia === 'function')
             ? !window.matchMedia('(max-width: 480px)').matches
             : (window.innerWidth > 480),
