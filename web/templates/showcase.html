@@ -1073,6 +1073,7 @@
                                     </div>
                                     <div class="lbx-face lbx-face--edit"
                                          x-show="_maskVisible && !_maskDetecting"
+                                         :inert="!_maskVisible"
                                          x-transition:enter="lbx-face-t-enter"
                                          x-transition:enter-start="lbx-face-t-enter-start"
                                          x-transition:enter-end="lbx-face-t-enter-end"
@@ -1384,6 +1385,7 @@
                                     </div>
                                     <div class="lbx-face lbx-face--edit"
                                          x-show="_maskVisible && !_maskDetecting"
+                                         :inert="!_maskVisible"
                                          x-transition:enter="lbx-face-t-enter"
                                          x-transition:enter-start="lbx-face-t-enter-start"
                                          x-transition:enter-end="lbx-face-t-enter-end"
