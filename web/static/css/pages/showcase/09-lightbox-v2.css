@@ -46,6 +46,45 @@
     container: lbx-cover / inline-size;
 }
 
+.lbx-faces {
+    display: grid;
+    min-height: calc(46px + .625rem + 1.625rem);
+}
+
+.lbx-faces--no-band {
+    min-height: 46px;
+}
+
+.lbx-face {
+    grid-area: 1 / 1;
+    position: relative;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: .625rem;
+}
+
+.lbx-face-t-enter,
+.lbx-face-t-leave {
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.lbx-face-t-enter-start,
+.lbx-face-t-leave-end {
+    opacity: 0;
+}
+
+.lbx-face-t-enter-end,
+.lbx-face-t-leave-start {
+    opacity: 1;
+}
+
+.lightbox-cover .cover-actions.cover-actions--focal-edit .lbx-face-t-leave,
+.lightbox-cover .cover-actions.cover-actions--focal-edit .lbx-face-t-leave .lb-action-btn,
+.lbx-face-t-leave {
+    pointer-events: none;
+}
+
 .lbx-actions {
     display: flex;
     justify-content: center;
@@ -63,6 +102,10 @@
     color: color-mix(in oklch, white 78%, transparent);
     text-shadow: 0 1px 3px color-mix(in oklch, black 55%, transparent);
     pointer-events: none;
+}
+
+.lbx-faces:not(.lbx-faces--no-band) .lbx-focal-hint {
+    min-height: 1.625rem;
 }
 
 .lbx-band {
