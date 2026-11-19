@@ -100,6 +100,7 @@ _startup_state_provider = None
 _startup_log_opener = None
 _startup_quit_handler = None
 _loaded_hook = None
+_page_loaded_subscriber = None
 _row_busy = threading.Lock()
 _write_lock = threading.Lock()  # client.json 讀改寫的序列化（網路 I/O 不得在鎖內）
 
@@ -150,6 +151,12 @@ def set_loaded_hook(fn):
     """註冊「頁面載入完成」鉤子 fn(kind, window, gen)；None＝取消"""
     global _loaded_hook
     _loaded_hook = fn
+
+
+def set_page_loaded_subscriber(fn):
+    """Subscribe to classified page loads, or cancel with None."""
+    global _page_loaded_subscriber
+    _page_loaded_subscriber = fn
 
 
 def _request_restart():
@@ -618,12 +625,16 @@ class Api:
     @staticmethod
     def _notify_loaded_hook(kind, window, gen):
         """通知已註冊的載入完成鉤子；鉤子例外只記型別名、不外丟"""
-        if _loaded_hook is None:
-            return
-        try:
-            _loaded_hook(kind, window, gen)
-        except Exception as e:
-            logger.warning(f"[pywebview] loaded hook failed ({type(e).__name__})")
+        if _loaded_hook is not None and kind in ("server", "offline"):
+            try:
+                _loaded_hook(kind, window, gen)
+            except Exception as e:
+                logger.warning(f"[pywebview] loaded hook failed ({type(e).__name__})")
+        if _page_loaded_subscriber is not None:
+            try:
+                _page_loaded_subscriber(kind, window, gen)
+            except Exception as e:
+                logger.warning(f"[pywebview] page loaded subscriber failed ({type(e).__name__})")
 
     @staticmethod
     def _signal_bridge_ready(window, kind):

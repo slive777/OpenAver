@@ -658,6 +658,53 @@ def test_loaded_hook_runs_for_server_and_offline_pages(fx):
         fx.m.set_loaded_hook(None)
 
 
+def test_page_loaded_subscriber_gets_every_kind_old_hook_unchanged(fx):
+    old, subscriber = Mock(), Mock()
+    fx.m.set_loaded_hook(old)
+    try:
+        fx.m.set_page_loaded_subscriber(subscriber)
+        fx.window.real_url = STARTUP_URL
+        fx.api._expect_startup()
+        _load_startup(fx)
+        subscriber.assert_called_once_with("startup", fx.window, fx.api._nav_gen)
+        old.assert_not_called()
+        subscriber.reset_mock()
+        _load(fx, TRUSTED)
+        old.assert_called_once_with("server", fx.window, fx.api._nav_gen)
+        subscriber.assert_called_once_with("server", fx.window, fx.api._nav_gen)
+        old.reset_mock()
+        subscriber.reset_mock()
+        fx.api._expect_offline()
+        _load_offline(fx)
+        old.assert_called_once_with("offline", fx.window, fx.api._nav_gen)
+        subscriber.assert_called_once_with("offline", fx.window, fx.api._nav_gen)
+        old.reset_mock()
+        subscriber.reset_mock()
+        _load(fx, OTHER)
+        old.assert_not_called()
+        subscriber.assert_not_called()
+        old.side_effect = RuntimeError("old")
+        _load(fx, TRUSTED)
+        subscriber.assert_called_once_with("server", fx.window, fx.api._nav_gen)
+        old.side_effect = None
+        old.reset_mock()
+        subscriber.side_effect = RuntimeError("new")
+        _load(fx, TRUSTED)
+        old.assert_called_once_with("server", fx.window, fx.api._nav_gen)
+        subscriber.side_effect = None
+        subscriber.reset_mock()
+        fx.m.set_loaded_hook(None)
+        _load(fx, TRUSTED)
+        subscriber.assert_called_once_with("server", fx.window, fx.api._nav_gen)
+        subscriber.reset_mock()
+        fx.m.set_page_loaded_subscriber(None)
+        _load(fx, TRUSTED)
+        subscriber.assert_not_called()
+    finally:
+        fx.m.set_loaded_hook(None)
+        fx.m.set_page_loaded_subscriber(None)
+
+
 # ---------------------------------------------------------------------------
 # 203-T6：第三種頁面種類 startup（偽造、綁定本次 real_url、延遲退出、兩頁不互借）
 # ---------------------------------------------------------------------------

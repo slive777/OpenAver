@@ -193,6 +193,13 @@ def tray_locale() -> str:
     return _client_data().get("tray_locale") or FALLBACK_LOCALE
 
 
+def shell_theme() -> str:
+    if mode() == "client":
+        return "system"
+    theme = core_config.load_config().get("general", {}).get("theme")
+    return "dim" if theme == "dim" else "light"
+
+
 def auto_check_update() -> bool:
     if mode() == "local":
         value = core_config.load_config().get("general", {}).get("auto_check_update", True)

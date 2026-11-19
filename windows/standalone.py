@@ -9,6 +9,7 @@ import threading
 import socket
 import logging
 import traceback
+import types
 from pathlib import Path
 
 # 確保專案根目錄在 sys.path 中
@@ -30,7 +31,7 @@ import pywebview_api
 from tray import CMD_QUIT, DesktopLifecycle, NativeTrayIcon
 from core import client_settings
 from core.proxy_policy import current_settings
-from windows import app_icon, cf_boot, cf_shell, cf_windows, restart, shell_boot, shell_sync, update_notice
+from windows import app_icon, cf_boot, cf_shell, cf_windows, health_probe, restart, shell_boot, shell_sync, startup_boot, update_notice
 from windows.health_probe import (
     CLIENT_HOST,
     PROBE_OK,
@@ -43,6 +44,7 @@ startup_trace.mark("modules_loaded")
 
 # 配置
 PORT = 49152  # 使用動態/私有端口範圍 (49152-65535)，避免權限問題
+STARTUP_PAGE = os.path.join(WINDOWS_DIR, "offline", "startup.html")
 
 
 # ============ WebView2 檢查 ============
@@ -571,13 +573,18 @@ def _arm_first_page_mark(window) -> None:
     window.events.loaded += on_first_loaded
 
 
-def _create_main_window(boot, local_origin, saved):
+def _create_main_window(boot, local_origin, saved, background_color=None):
     """建主視窗：信任 origin 與（離線時）小頁狀態都必須早於 create_window。"""
-    api._set_trusted_origin(client_settings.server_origin(local_origin))
+    if local_origin is not None:
+        api._set_trusted_origin(client_settings.server_origin(local_origin))
+    if boot.kind == "startup":
+        api._expect_startup()
     if boot.kind == "offline":
         api._set_offline_state(boot.offline.reason, boot.offline.failed_url)
         api._expect_offline()
     create_kwargs = dict(js_api=None, width=saved['width'], height=saved['height'])
+    if background_color is not None:
+        create_kwargs['background_color'] = background_color
     if saved['x'] is not None and saved['y'] is not None:
         create_kwargs['x'] = saved['x']
         create_kwargs['y'] = saved['y']
@@ -660,6 +667,64 @@ def _make_cf_agent(cf_set, origin, token, server_remote, supported):
     return agent
 
 
+def _make_page_loaded_subscriber(boot_state):
+    def on_loaded(kind, window, gen):
+        if gen != pywebview_api.api._nav_gen:
+            return
+        if kind == "startup":
+            startup_trace.mark("startup_screen_shown")
+        elif kind in ("server", "offline"):
+            boot_state.mark_ready()
+            startup_trace.mark("first_page_loaded")
+    return on_loaded
+
+
+def _arm_page_marks(boot_state):
+    pywebview_api.set_page_loaded_subscriber(_make_page_loaded_subscriber(boot_state))
+
+
+def _start_boot_worker(worker, *args):
+    thread = threading.Thread(target=worker, args=args, name="oa-boot-worker", daemon=True)
+    thread.start()
+    return thread
+
+
+def _shutdown_lan_listener_if_loaded():
+    module = sys.modules.get("web.lan_listener")
+    if module is not None:
+        module.lan_listener.shutdown()
+
+
+def _local_boot_worker(window, boot_state, logger, debug_mode, cf_set, cf_supported, cf_agent_box):
+    try:
+        port = find_free_port(PORT, logger)
+        logger.info("使用端口: %s", port)
+        server_thread = threading.Thread(target=run_server, args=(port, debug_mode), daemon=True)
+        server_thread.start()
+        startup_trace.mark("server_thread_started")
+        result = wait_for_server(port, server_thread)
+        if result != PROBE_OK:
+            logger.error("伺服器啟動失敗 result=%s", result)
+            return
+        startup_trace.mark("server_ready")
+        from web.app import app as _app
+        from web.lan_listener import lan_listener
+        lan_listener.wire(_app, local_port=port)
+        _maybe_autostart_lan_listener(lan_listener, logger)
+        local_origin = f'http://{CLIENT_HOST}:{port}'
+        cf_agent = _make_cf_agent(cf_set, local_origin, None, False, cf_supported)
+        cf_agent_box["agent"] = cf_agent
+        cf_agent.announce()
+        cf_agent.start()
+        boot = shell_boot.resolve_boot(local_origin, client_settings.shell_kind())
+        api._set_trusted_origin(client_settings.server_origin(local_origin))
+        if not boot_state.claim_navigation():
+            return
+        window.load_url(boot.url)
+    except Exception:
+        logger.exception("本機啟動失敗")
+
+
 def _run_client_mode(logger):
     """連線模式：只開殼，不起任何本機服務。"""
     import window_state
@@ -731,60 +796,30 @@ def main():
         _run_client_mode(logger)
         return
 
-    # 2. 尋找可用端口
-    try:
-        port = find_free_port(PORT, logger)
-        logger.info(f"使用端口: {port}")
-    except RuntimeError as e:
-        # 端口綁定失敗，顯示詳細的解決方案
-        show_error(
-            "啟動失敗 - 無法綁定端口",
-            str(e),
-            None,
-            logger
-        )
-        sys.exit(1)
-
-    # 3. 在背景 thread 啟動 FastAPI
-    logger.info("啟動伺服器...")
-    server_thread = threading.Thread(target=run_server, args=(port, debug_mode), daemon=True)
-    server_thread.start()
-    startup_trace.mark("server_thread_started")
-
-    # 3. 等待伺服器就緒
-    logger.info("等待伺服器就緒...")
-    _wait_for_server_or_exit(port, logger, server_thread)
-    startup_trace.mark("server_ready")
-    logger.info("伺服器已就緒")
-
-    # 3b. 接線 LAN listener manager（dual-listener 架構）
-    from web.app import app as _app
-    from web.lan_listener import lan_listener
-    lan_listener.wire(_app, local_port=port)
-    _maybe_autostart_lan_listener(lan_listener, logger)
-
-    # 4. 啟動 PyWebView 窗口
+    theme = client_settings.shell_theme()
+    boot_state = startup_boot.BootState(client_settings.tray_locale(), theme, health_probe._debug_log_hint())
     logger.info("啟動視窗...")
     webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
 
     import window_state
     saved = window_state.load_state()
-    local_origin = f'http://{CLIENT_HOST}:{port}'
-    boot = shell_boot.resolve_boot(local_origin, client_settings.shell_kind())
-    window = _create_main_window(boot, local_origin, saved)
+    boot = shell_boot.BootTarget("startup", STARTUP_PAGE, "OpenAver", None)
+    window = _create_main_window(boot, None, saved, startup_boot.background_color(theme))
     startup_trace.mark("main_window_created")
 
     cf_supported = cf_windows.cf_shell_supported()
     cf_set = cf_windows.build_cf_windows(logger, current_settings()) if cf_supported else cf_windows.CfWindowSet()
     startup_trace.mark("cf_windows_created")
     jl_win, javten_win = cf_set.jl_win, cf_set.javten_win
-    cf_agent = _make_cf_agent(cf_set, local_origin, None, False, cf_supported)
+    cf_agent_box = {"agent": None}
 
     # CD-70c-2 Layer 1: closing a hidden CF window hides it instead of destroying it
     # (cf_windows.attach_close_guards); app-quit lets it close so we don't trap the shutdown sequence.
     _app_state = {"quitting": False}
-    lifecycle = _setup_windows_lifecycle(window, jl_win, javten_win, saved, lan_listener)
+    lifecycle = _setup_windows_lifecycle(window, jl_win, javten_win, saved,
+                                         types.SimpleNamespace(shutdown=_shutdown_lan_listener_if_loaded))
     _register_bridge_seams(window, lifecycle)
+    pywebview_api.set_startup_state_provider(boot_state.get_state)
 
     def _on_main_closing():
         if lifecycle is not None:
@@ -805,30 +840,28 @@ def main():
                 javten_win.destroy()
             except Exception:
                 logger.warning("failed to destroy javten window on app close")
-        lan_listener.shutdown()
+        _shutdown_lan_listener_if_loaded()
 
     window.events.closing += _on_main_closing
     cf_windows.attach_close_guards(
         cf_set, lambda: lifecycle.quitting if lifecycle is not None else _app_state["quitting"])
 
-    # CD-70c-1: announce 必須在 webview.start() 之前（首頁 SSR 時註冊表已有這台殼）；失敗不致命
-    cf_agent.announce()
-
     def startup(w):
-        _arm_first_page_mark(w)
+        _arm_page_marks(boot_state)
         _attach_window_state(w, saved, lifecycle, logger)
-        cf_agent.start()
+        _start_boot_worker(_local_boot_worker, w, boot_state, logger, debug_mode,
+                           cf_set, cf_supported, cf_agent_box)
 
     # 5. 開始 GUI 事件循環（阻塞直到窗口關閉）
     # 根據平台選擇 GUI 後端
     try:
-        if sys.platform == 'darwin':
-            webview.start(startup, window, icon=app_icon.icon_path(APP_DIR))  # macOS 使用預設 (Cocoa/WebKit)
-        else:
-            webview.start(startup, window, gui='edgechromium', icon=app_icon.icon_path(APP_DIR))  # Windows
+        _start_gui(startup, window)
     finally:
-        cf_agent.stop()
-        _shutdown_and_maybe_restart(lifecycle)
+        try:
+            if cf_agent_box["agent"] is not None:
+                cf_agent_box["agent"].stop()
+        finally:
+            _shutdown_and_maybe_restart(lifecycle)
 
 
 if __name__ == '__main__':

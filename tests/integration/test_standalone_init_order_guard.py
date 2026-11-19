@@ -2,8 +2,8 @@
 Standalone init-order AST 守衛（CD-70c-1 + CD-70c-2 Layer 1 防回退；168d-T4 改寫）
 
 視窗建立與關閉守衛已搬到 windows/cf_windows.py（168d CD-7），本檔因此掃兩棵樹：
-  - standalone.py：``main()`` 直屬恰一次 ``cf_windows.build_cf_windows(...)`` 與恰一次
-    ``cf_agent.announce()``，皆在 ``webview.start`` 之前、build 在 announce 前、皆不在 ``startup()`` 內；
+  - standalone.py：``main()`` 直屬恰一次 ``cf_windows.build_cf_windows(...)``，
+    且在 ``_start_gui`` 之前；announce 由 worker 行為測試承接；
     ``attach_close_guards`` 恰一次；``_on_main_closing`` 仍銷毀 jl_win／javten_win（B1 殭屍行程）。
   - cf_windows.py：``build_cf_windows`` 內兩個 hidden=True 視窗各自在自己的 try（該 try 不含
     ``PyWebViewCfTransport(`` 建構——helper 內已無 register，原述詞會恆真，見 BE-TEST-11/30）；
@@ -253,24 +253,17 @@ class TestStandaloneInitOrderGuard:
 
 
     def test_cf_build_and_announce_before_webview_start(self):
-        """(b) main() 直屬恰一次 build_cf_windows 與恰一次 announce，皆在 webview.start 前，build 在 announce 前。
-
-        mutation: 刪掉 announce() → 恰一次斷言紅；把它移到 webview.start 之後 → 順序斷言紅。
-        """
+        """main() 直屬恰一次 build_cf_windows，且早於 _start_gui。"""
         tree, _ = self._parse()
         main_node = _find_main_func(tree)
         assert main_node is not None, "main() not found"
         direct_calls = _collect_direct_calls_in_main_body(main_node)
         build_calls = [c for c in direct_calls if _is_cf_build_call(c)]
-        announce_calls = [c for c in direct_calls if _is_announce_call(c)]
-        start_calls = [c for c in direct_calls if _is_webview_start_call(c)]
+        start_calls = [c for c in direct_calls if isinstance(c.func, ast.Name) and c.func.id == "_start_gui"]
         assert len(build_calls) == 1, f"expected exactly 1 cf_windows.build_cf_windows() in main(), found {len(build_calls)}"
-        assert len(announce_calls) == 1, f"expected exactly 1 announce() in main(), found {len(announce_calls)}"
-        assert start_calls, "webview.start() not found in main() body"
+        assert start_calls, "_start_gui() not found in main() body"
         first_start = min(c.lineno for c in start_calls)
-        assert build_calls[0].lineno < announce_calls[0].lineno < first_start, (
-            "order must be build_cf_windows() -> announce() -> webview.start() in main() (CD-70c-1)"
-        )
+        assert build_calls[0].lineno < first_start
 
 
     def _create_call_checks(self, matcher, label):
@@ -288,11 +281,11 @@ class TestStandaloneInitOrderGuard:
         assert main_node is not None, "main() not found"
         direct_calls = _collect_direct_calls_in_main_body(main_node)
         build_calls = [c for c in direct_calls if _is_cf_build_call(c)]
-        start_calls = [c for c in direct_calls if _is_webview_start_call(c)]
+        start_calls = [c for c in direct_calls if isinstance(c.func, ast.Name) and c.func.id == "_start_gui"]
         assert len(build_calls) == 1, "main() must call cf_windows.build_cf_windows() exactly once"
-        assert start_calls, "webview.start() not found in main() body"
+        assert start_calls, "_start_gui() not found in main() body"
         assert build_calls[0].lineno < min(c.lineno for c in start_calls), (
-            f"build_cf_windows() (creates the {label} window) must be called BEFORE webview.start() (CD-70c-1)"
+            f"build_cf_windows() (creates the {label} window) must be called BEFORE _start_gui()"
         )
         assert _call_has_hidden_true(creates[0]), (
             f"{label} webview.create_window() (line {creates[0].lineno}) must carry hidden=True — "
@@ -301,7 +294,7 @@ class TestStandaloneInitOrderGuard:
 
     def test_jl_create_window_before_webview_start(self):
         """(b) JL create_window（標題含 'JavLibrary'）在 build_cf_windows 內、hidden=True，
-        且 main() 在 webview.start 前呼叫 build（BE-TEST-05：JL 與 javten 各自獨立斷言）。"""
+        且 main() 在 _start_gui 前呼叫 build（BE-TEST-05：JL 與 javten 各自獨立斷言）。"""
         self._create_call_checks(_is_jl_create_window_call, "JavLibrary")
 
 

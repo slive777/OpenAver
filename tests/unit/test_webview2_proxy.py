@@ -401,7 +401,8 @@ def test_no_proxy_path_is_unchanged(build_env):
     ws = cf_windows.build_cf_windows(build_env.logger, 'settings')
     jl, jt = ws.jl_win, ws.javten_win
     urls = {t: u for t, u, _, _ in build_env.webview.created}
-    assert urls == {JL_TITLE: JAVLIBRARY_ORIGIN, JT_TITLE: 'about:blank'}
+    assert urls == {JL_TITLE: JAVLIBRARY_ORIGIN, JT_TITLE: None}
+    assert not (urls[JT_TITLE] or '').startswith(('http://', 'https://'))
     transport = ws.transport
     assert transport._pending == set()
     assert transport._origins['javlibrary'] == transport._origin(JAVLIBRARY_ORIGIN)
@@ -414,7 +415,8 @@ def test_applied_proxy_windows_start_on_blank_and_unseeded(build_env):
     build_env.setup('windows', _proxy())
     ws = cf_windows.build_cf_windows(build_env.logger, 'settings')
     urls = {t: u for t, u, _, _ in build_env.webview.created}
-    assert urls == {JL_TITLE: 'about:blank', JT_TITLE: 'about:blank'}
+    assert urls == {JL_TITLE: None, JT_TITLE: None}
+    assert all(not (url or '').startswith(('http://', 'https://')) for url in urls.values())
     transport = ws.transport
     assert transport._origins['javlibrary'] is None
     assert transport._pending == {'javlibrary', 'fc-javten'}
@@ -455,7 +457,8 @@ def test_mac_never_touches_proxy_machinery(build_env, monkeypatch):
     ws = cf_windows.build_cf_windows(build_env.logger, 'settings')
     assert build_env.installs == [] and build_env.records == [] and called == []
     urls = {t: u for t, u, _, _ in build_env.webview.created}
-    assert urls == {JL_TITLE: JAVLIBRARY_ORIGIN, JT_TITLE: 'about:blank'}
+    assert urls == {JL_TITLE: JAVLIBRARY_ORIGIN, JT_TITLE: None}
+    assert not (urls[JT_TITLE] or '').startswith(('http://', 'https://'))
     transport = ws.transport
     assert transport._pending == set()
 
