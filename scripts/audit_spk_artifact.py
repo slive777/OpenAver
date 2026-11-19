@@ -1,6 +1,6 @@
 """Audit both bundled Python architectures in a Synology SPK.
 
-Usage: python scripts/audit_spk_artifact.py <spk-glob> [--strict]
+Usage: python scripts/audit_spk_artifact.py <spk-glob> [--strict] [--max-mb N]
 Exit 0 when the package passes, 1 otherwise.
 """
 
@@ -17,9 +17,27 @@ from audit_build_artifact import RICH_GROUP_TOP_DIRS, rich_group_dist_info_dirs
 
 ARCHS = ("aarch64", "x86_64")
 MIN_DIST_INFO_RATIO = 0.5
+SLIM_LEFTOVER_PREFIXES = (
+    "lib/libpython3",
+    "lib/python3.12/tkinter",
+    "lib/python3.12/lib-dynload/_tkinter",
+    "lib/libtcl",
+    "lib/libtk",
+)
 
 
-def audit(spk_path: str | Path, strict: bool = False) -> tuple[int, list[str]]:
+def slim_leftovers(names, arch_prefix) -> list[str]:
+    leftovers = []
+    for name in names:
+        if not name.startswith(arch_prefix):
+            continue
+        rel = name[len(arch_prefix):]
+        if rel.startswith(SLIM_LEFTOVER_PREFIXES):
+            leftovers.append(rel)
+    return sorted(leftovers)
+
+
+def audit(spk_path: str | Path, strict: bool = False, max_mb: float | None = None) -> tuple[int, list[str]]:
     """Return an exit code and findings; all checks hard-fail regardless of strict."""
     path = Path(spk_path)
     messages: list[str] = []
@@ -32,6 +50,10 @@ def audit(spk_path: str | Path, strict: bool = False) -> tuple[int, list[str]]:
                 members = {item.name.removeprefix("./").rstrip("/"): item for item in package}
     except (OSError, tarfile.TarError, ValueError, KeyError) as exc:
         return 1, [f"[FAIL] Invalid SPK {path.name}: {exc}"]
+
+    size_mb = path.stat().st_size / (1024 * 1024)
+    if max_mb is not None and size_mb > max_mb:
+        messages.append(f"[FAIL] SPK exceeds size ceiling: {size_mb:.1f} MB > {max_mb} MB")
 
     missing: list[str] = []
     counts: dict[str, int] = {}
@@ -46,6 +68,12 @@ def audit(spk_path: str | Path, strict: bool = False) -> tuple[int, list[str]]:
             or not executable.isfile()
         ):
             missing.append(arch)
+        slim = slim_leftovers(members, prefix)
+        if slim:
+            messages.append(
+                f"[FAIL] {arch}: {len(slim)} slimmed-out leftover(s) in python tree, "
+                f"e.g. {', '.join(slim[:5])}"
+            )
         site_prefix = f"{prefix}lib/python3.12/site-packages/"
         top_names = {
             name[len(site_prefix):].split("/", 1)[0]
@@ -77,7 +105,9 @@ def audit(spk_path: str | Path, strict: bool = False) -> tuple[int, list[str]]:
 
     if messages:
         return 1, messages
-    return 0, [
+    if max_mb is not None:
+        messages.append(f"[OK  ] Size within ceiling ({size_mb:.1f} MB <= {max_mb} MB)")
+    return 0, messages + [
         f"[OK] {path.name}: both interpreters present; "
         f"dist-info counts aarch64={counts['aarch64']}, x86_64={counts['x86_64']}"
     ]
@@ -91,12 +121,13 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Compatibility with audit_build_artifact.py; all checks already hard-fail",
     )
+    parser.add_argument("--max-mb", type=float, default=None)
     args = parser.parse_args(argv)
     matches = glob.glob(args.spk_glob)
     if len(matches) != 1:
         print(f"[FAIL] Expected exactly one SPK, got {len(matches)}: {args.spk_glob}")
         return 1
-    code, messages = audit(matches[0], args.strict)
+    code, messages = audit(matches[0], args.strict, args.max_mb)
     for message in messages:
         print(message)
     return code

@@ -42,9 +42,9 @@ def _make_spk(
         _add_file(spk, "package.tgz", package_bytes.getvalue())
 
 
-def _audit(path: Path) -> subprocess.CompletedProcess[str]:
+def _audit(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(AUDITOR), str(path), "--strict"],
+        [sys.executable, str(AUDITOR), str(path), "--strict", *args],
         capture_output=True,
         text=True,
         check=False,
@@ -117,3 +117,42 @@ def test_audit_spk_rich_group_leftovers(tmp_path: Path, case: str) -> None:
         assert "x86_64" in combined, f"case={case}: output must name the arch\n{combined}"
         for name in rich_group_dirs:
             assert name in combined, f"case={case}: {name!r} missing\n{combined}"
+
+
+@pytest.mark.parametrize(("limit", "code"), [("0.001", 1), ("10", 0)], ids=["over", "within"])
+def test_audit_spk_size_ceiling(tmp_path: Path, limit: str, code: int) -> None:
+    spk = tmp_path / "size.spk"
+    _make_spk(spk, ("aarch64", "x86_64"))
+    result = _audit(spk, "--max-mb", limit)
+    assert result.returncode == code, result.stdout + result.stderr
+    if code == 1:
+        assert "ceiling" in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("case", ["libpython", "tkinter_pkg", "tkinter_ext", "tcl_tk", "pil_finder_ok"])
+def test_audit_spk_slim_leftovers(tmp_path: Path, case: str) -> None:
+    cases = {
+        "libpython": ("aarch64", ["lib/libpython3.12.so.1.0"]),
+        "tkinter_pkg": ("x86_64", ["lib/python3.12/tkinter/__init__.py"]),
+        "tkinter_ext": ("aarch64", ["lib/python3.12/lib-dynload/_tkinter.so"]),
+        "tcl_tk": ("x86_64", ["lib/libtcl9.0.so", "lib/libtk9.0.so"]),
+    }
+    if case == "pil_finder_ok":
+        extra = {f"python-{arch}/lib/python3.12/site-packages/PIL/_tkinter_finder.py": b"x"
+                 for arch in ("aarch64", "x86_64")}
+    else:
+        arch, paths = cases[case]
+        extra = {f"python-{arch}/{path}": b"x" for path in paths}
+    spk = tmp_path / f"{case}.spk"
+    _make_spk(spk, ("aarch64", "x86_64"), extra=extra)
+    result = _audit(spk)
+    output = result.stdout + result.stderr
+    if case == "pil_finder_ok":
+        assert result.returncode == 0, output
+    else:
+        assert result.returncode == 1, output
+        failures = "\n".join(line for line in output.splitlines() if "[FAIL]" in line)
+        assert arch in failures
+        assert ("x86_64" if arch == "aarch64" else "aarch64") not in failures
+        for path in paths:
+            assert path in failures

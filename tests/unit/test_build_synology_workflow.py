@@ -26,6 +26,7 @@ def test_build_synology_audits_strictly():
     assert any(
         "python scripts/audit_spk_artifact.py" in step.get("run", "")
         and "--strict" in step["run"]
+        and "--max-mb" in step["run"]
         for step in _synology_steps()
     )
 

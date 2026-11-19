@@ -46,8 +46,8 @@ jobs:
 
       - name: Run artifact audit
         # --strict：T2 已移除 uvloop → uvloop/langdetect 由 WARN 翻 hard-fail（擋 release）
-        # --max-mb 48：T2 後 ZIP ~34.6MB（uvloop 16MB 已除）；收緊以擋未來 bloat 回歸
-        run: python scripts/audit_build_artifact.py "dist/*-Windows-*.zip" --platform win --max-mb 48 --strict
+        # 上限 46：本機實建 41,460,765 bytes（39.540 MiB）× 1.15 向上取整；尚未以 CI 實跑核對
+        run: python scripts/audit_build_artifact.py "dist/*-Windows-*.zip" --platform win --max-mb 46 --strict
 
       - name: Prepare artifact
         run: |
@@ -136,10 +136,10 @@ jobs:
       - name: Build macOS package
         run: python build_macos.py
 
-      # mac audit：v0.18.17 mac ZIP 53MB＋pymediainfo universal2 wheel 壓縮增量約 7MB
-      # （plan 預估，T6 以真成品實測）≈ 60MB，上限 68。dist-info 靜態檢查兩平台皆帶入（T3）。
+      # 上限 51：macmini 實建 45,681,297 bytes（43.565 MiB）× 1.15 向上取整；尚未以 CI 實跑核對。
+      # dist-info 靜態檢查兩平台皆帶入（T3）。
       - name: Run artifact audit
-        run: python scripts/audit_build_artifact.py "dist/*-macOS-*.zip" --platform mac --max-mb 68 --strict
+        run: python scripts/audit_build_artifact.py "dist/*-macOS-*.zip" --platform mac --max-mb 51 --strict
 
       - name: Prepare artifact
         run: |
@@ -249,7 +249,8 @@ jobs:
         run: bash synology/build_spk.sh "${{ steps.ver.outputs.spk_version }}" "$GITHUB_SHA" "aarch64 x86_64"
 
       - name: Run artifact audit
-        run: python scripts/audit_spk_artifact.py synology/out/*.spk --strict
+        # 上限 93：本機實建 84,439,040 bytes（80.527 MiB）× 1.15 向上取整；尚未以 CI 實跑核對
+        run: python scripts/audit_spk_artifact.py synology/out/*.spk --strict --max-mb 93
 
       - name: Rename release asset
         run: |
@@ -299,13 +300,14 @@ jobs:
           spk=$(ls spk/OpenAver-v*-Synology-beta.spk)
           bash scripts/repack_linux.sh "$spk" dist
 
-      # --max-mb 85：x86_64 實測 73.1 MB × 1.15 向上取整；aarch64 本機量不到，沿用同值，
-      # 首次 CI 若紅在 SIZE 依 CI 數字調整。glob 各只能匹配一個檔。
+      # 上限 54：本機實建 48,619,025 bytes（46.367 MiB）× 1.15 向上取整；尚未以 CI 實跑核對。
+      # glob 各只能匹配一個檔。
       - name: Run artifact audit (x86_64)
-        run: python scripts/audit_build_artifact.py "dist/*-Linux-x86_64.tar.gz" --platform linux --max-mb 85 --strict
+        run: python scripts/audit_build_artifact.py "dist/*-Linux-x86_64.tar.gz" --platform linux --max-mb 54 --strict
 
       - name: Run artifact audit (aarch64)
-        run: python scripts/audit_build_artifact.py "dist/*-Linux-aarch64.tar.gz" --platform linux --max-mb 85 --strict
+        # 上限 49：本機實建 43,849,009 bytes（41.818 MiB）× 1.15 向上取整；尚未以 CI 實跑核對
+        run: python scripts/audit_build_artifact.py "dist/*-Linux-aarch64.tar.gz" --platform linux --max-mb 49 --strict
 
       # 解壓進乾淨 HOME：日誌固定寫 ~/OpenAver/logs，只設資料根隔離不到（BE-TEST-50）。
       - name: Expand x86_64 asset
