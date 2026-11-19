@@ -2,11 +2,13 @@
 OpenAver PyWebView 共用 API 模組
 供 launcher.py 和 standalone.py 共用
 """
+import contextlib
 import os
 import sys
 import json
 import subprocess
 import threading
+import time
 from urllib.parse import urlparse
 import webview
 import core.client_connect as client_connect
@@ -74,6 +76,9 @@ _SCOPE = {
     "update_context": "server",
     "update_run": "server",
     "cf_retry": "server",
+    "startup_get_state": "startup",
+    "startup_open_log_folder": "startup",
+    "startup_quit": "startup",
 }
 
 # 導航空窗複查只在能讀到原生 URL 的平台啟用（其餘維持 168a 現狀）
@@ -83,6 +88,7 @@ _PAGE_KEYS = frozenset({"player", "close_action", "auto_check_update"})
 
 _COPY_MAX_BYTES = 64 * 1024
 _ROW_TEST_TIMEOUT = 5.0
+STARTUP_QUIT_DELAY = 0.3
 
 # 連線頁暫存：登入成功拿到的 token 只留在這裡（Python 端），不回傳頁面
 _draft = {"origin": None, "token": None}
@@ -90,6 +96,9 @@ _restart_handler = None
 _offline_text_provider = None
 _cf_status_provider = None
 _cf_retry_handler = None
+_startup_state_provider = None
+_startup_log_opener = None
+_startup_quit_handler = None
 _loaded_hook = None
 _row_busy = threading.Lock()
 _write_lock = threading.Lock()  # client.json 讀改寫的序列化（網路 I/O 不得在鎖內）
@@ -117,6 +126,24 @@ def set_cf_retry_handler(fn):
     """註冊「CF 驗證視窗重試」處理器 fn() -> {ok, cf}（168e-T13；未註冊＝cf_retry 回 unavailable）"""
     global _cf_retry_handler
     _cf_retry_handler = fn
+
+
+def set_startup_state_provider(fn):
+    """註冊啟動頁狀態提供者 fn() -> dict（203-T6；未註冊＝startup_get_state 回空 dict）"""
+    global _startup_state_provider
+    _startup_state_provider = fn
+
+
+def set_startup_log_opener(fn):
+    """註冊「開 log 資料夾」處理器 fn()（203-T6；未註冊＝unavailable）"""
+    global _startup_log_opener
+    _startup_log_opener = fn
+
+
+def set_startup_quit_handler(fn):
+    """註冊啟動頁的結束處理器 fn()（203-T6；未註冊＝延遲後銷毀所有視窗）"""
+    global _startup_quit_handler
+    _startup_quit_handler = fn
 
 
 def set_loaded_hook(fn):
@@ -324,6 +351,52 @@ def _is_offline_landing(js_raw, native_raw):
     return parsed.path.endswith("/offline.html")
 
 
+def _landing_key(url):
+    """URL → (origin, path)；非字串或解析不出 origin 回 None（fail-closed）"""
+    if not isinstance(url, str):
+        return None
+    origin = client_settings.normalize_origin(url)
+    if origin is None:
+        return None
+    try:
+        parsed = urlparse(url.strip())
+    except ValueError:
+        return None
+    return origin, parsed.path
+
+
+def _is_startup_landing(js_raw, native_raw, real_url):
+    """JS 與原生 URL 同 origin、都在 loopback /startup.html，且與本次 real_url 的（origin，路徑）逐字相等"""
+    js_origin = client_settings.normalize_origin(js_raw)
+    native_origin = client_settings.normalize_origin(native_raw)
+    if js_origin is None or js_origin != native_origin:
+        return False
+    try:
+        parsed = urlparse(native_raw.strip())
+    except ValueError:
+        return False
+    if parsed.hostname not in _OFFLINE_HOSTS:
+        return False
+    if not parsed.path.endswith("/startup.html"):
+        return False
+    key = _landing_key(native_raw)
+    return key is not None and key == _landing_key(real_url)
+
+
+def _startup_quit_later():
+    """延遲後結束 App：已註冊 quit handler 交給它，否則逐一銷毀所有視窗（各自吞例外）"""
+    time.sleep(STARTUP_QUIT_DELAY)
+    if _startup_quit_handler is not None:
+        try:
+            _startup_quit_handler()
+        except Exception as e:
+            logger.warning(f"[pywebview] startup quit handler failed ({type(e).__name__})")
+        return
+    for w in list(webview.windows):
+        with contextlib.suppress(Exception):
+            w.destroy()
+
+
 def is_video_file(filename, extensions=None):
     """檢查是否為影片檔案
 
@@ -418,12 +491,14 @@ class Api:
     """供前端 JS 調用的 Python API（信任閘：依落地頁面種類放行，預設 fail-closed）"""
 
     def __init__(self):
-        self._page_kind = None  # None / "server" / "offline"
+        self._page_kind = None  # None / "server" / "offline" / "startup"
         self._trusted_origin = None
         self._nav_gen = 0
         self._seen_origin = None
         self._offline_expected = False
-        self._offline_origin = None
+        self._offline_landing = None
+        self._startup_expected = False
+        self._startup_landing = None
         self._offline_state = None
 
     def _get_trusted(self):
@@ -448,12 +523,40 @@ class Api:
             if sys.platform not in _NATIVE_RECHECK_PLATFORMS:
                 return False
             native = self._native_origin()
-            if native is not None and native == self._seen_origin:
+            if native is not None and native == self._seen_origin and self._landing_intact(scope):
                 return False
             reason = "navigating"
         origin = None if self._seen_origin is None else str(self._seen_origin)[:128]
         logger.warning(f"[pywebview] {method} refused reason={reason} origin={origin!r}")
         return True
+
+    def _landing_intact(self, scope):
+        """offline／startup 小頁 scope：原生 URL 的（origin，路徑）仍等於分類時記下的鍵"""
+        if scope == "offline":
+            recorded = self._offline_landing
+        elif scope == "startup":
+            recorded = self._startup_landing
+        else:
+            return True
+        if recorded is None:
+            return False
+        return _landing_key(self._native_raw()) == recorded
+
+    @staticmethod
+    def _native_raw():
+        """此刻原生視窗的 URL 原字串；讀不到或任何例外回 None"""
+        try:
+            return get_window().get_current_url()
+        except Exception:
+            return None
+
+    @staticmethod
+    def _real_url():
+        """殼決定的內建伺服器落地網址；讀不到或任何例外回 None（fail-closed）"""
+        try:
+            return get_window().real_url
+        except Exception:
+            return None
 
     @staticmethod
     def _native_origin():
@@ -466,6 +569,10 @@ class Api:
     def _expect_offline(self):
         """殼即將載入離線小頁：下一次通過世代守衛的驗證才可把本機 /offline.html 判成小頁"""
         self._offline_expected = True
+
+    def _expect_startup(self):
+        """殼即將載入本機啟動畫面：下一次通過世代守衛的驗證才可判成 startup"""
+        self._startup_expected = True
 
     def _set_offline_state(self, reason, failed_url):
         """離線狀態容器：網址只存規範化後的 scheme://host[:port]（不含票證）"""
@@ -495,9 +602,10 @@ class Api:
         if gen != self._nav_gen:
             return
         expected, self._offline_expected = self._offline_expected, False
+        startup_expected, self._startup_expected = self._startup_expected, False
         origin = self._agreed_origin(js_raw, native_raw) if ok else None
         self._seen_origin = origin
-        self._page_kind = self._classify(origin, js_raw, native_raw, expected)
+        self._page_kind = self._classify(origin, js_raw, native_raw, expected, startup_expected)
         if self._page_kind == "server":
             window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
         elif self._page_kind is None:
@@ -548,13 +656,18 @@ class Api:
             return None
         return js_origin
 
-    def _classify(self, origin, js_raw, native_raw, expected):
-        """伺服器頁優先；其次（等待中或同一小頁重整）的本機離線小頁；其餘 None"""
+    def _classify(self, origin, js_raw, native_raw, offline_expected, startup_expected):
+        """伺服器頁優先；其次（等待中或同一小頁重整）的本機啟動頁／離線小頁；其餘 None"""
         if origin is not None and origin == self._trusted_origin:
             return "server"
-        remembered = self._offline_origin is not None and origin == self._offline_origin
-        if (expected or remembered) and _is_offline_landing(js_raw, native_raw):
-            self._offline_origin = origin
+        key = _landing_key(native_raw)
+        startup_remembered = self._startup_landing is not None and key == self._startup_landing
+        if (startup_expected or startup_remembered) and _is_startup_landing(js_raw, native_raw, self._real_url()):
+            self._startup_landing = key
+            return "startup"
+        offline_remembered = self._offline_landing is not None and key == self._offline_landing
+        if (offline_expected or offline_remembered) and _is_offline_landing(js_raw, native_raw):
+            self._offline_landing = key
             return "offline"
         return None
 
@@ -1043,6 +1156,41 @@ class Api:
             return refused
         return _switch_local()
 
+    # --- 203-T6：啟動畫面（本機 startup 頁；沒有頁面可控參數）---
+
+    def startup_get_state(self):
+        """啟動頁初始狀態：provider 回 dict 原樣回；未註冊／例外／非 dict → 空 dict"""
+        if self._denied("startup_get_state"):
+            return _untrusted()
+        if _startup_state_provider is None:
+            return {}
+        try:
+            state = _startup_state_provider()
+        except Exception as e:
+            logger.warning(f"[pywebview] startup state provider failed ({type(e).__name__})")
+            return {}
+        return state if isinstance(state, dict) else {}
+
+    def startup_open_log_folder(self):
+        """開 log 資料夾；未註冊 → unavailable、拋例外 → failed"""
+        if self._denied("startup_open_log_folder"):
+            return _untrusted()
+        if _startup_log_opener is None:
+            return _failed("unavailable")
+        try:
+            _startup_log_opener()
+        except Exception as e:
+            logger.warning(f"[pywebview] startup log opener failed ({type(e).__name__})")
+            return _failed("failed")
+        return _done()
+
+    def startup_quit(self):
+        """結束 App：同步部分只啟動 daemon 緒並立即回 done，關窗延到背景（cocoa 不能在 bridge 執行緒關）"""
+        if self._denied("startup_quit"):
+            return _untrusted()
+        threading.Thread(target=_startup_quit_later, daemon=True).start()
+        return _done()
+
 
 
 def on_drop(e):
@@ -1212,6 +1360,18 @@ def offline_switch_local_restart():
     return api.offline_switch_local_restart()
 
 
+def startup_get_state():
+    return api.startup_get_state()
+
+
+def startup_open_log_folder():
+    return api.startup_open_log_folder()
+
+
+def startup_quit():
+    return api.startup_quit()
+
+
 def local_settings_get():
     return api.local_settings_get()
 
@@ -1239,4 +1399,5 @@ def exposed_functions():
             connect_save_path_map, connect_apply_restart, connect_switch_local_restart,
             connect_show_offline, copy_text, offline_get_state, offline_retry, offline_save_url,
             offline_login, offline_switch_local_restart,
+            startup_get_state, startup_open_log_folder, startup_quit,
             local_settings_get, local_settings_save, update_check, update_context, update_run]

@@ -6,6 +6,7 @@ oracle：(a) 載入序列、(i) before_load 立即撤銷、(ii) 遲到驗證不�
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock
 
 import pytest
@@ -220,7 +221,8 @@ WHITELIST = {"open_file", "open_folder", "open_url",
              "offline_get_state", "offline_retry", "offline_save_url", "offline_login",
              "offline_switch_local_restart",
              "local_settings_get", "local_settings_save", "update_check", "update_context",
-             "update_run", "cf_retry"}
+             "update_run", "cf_retry",
+             "startup_get_state", "startup_open_log_folder", "startup_quit"}
 
 
 def test_exposed_bridge_surface_is_exactly_the_whitelist(api_module):
@@ -287,6 +289,15 @@ def _load_raw(fx, js, native):
 
 def _load_offline(fx, origin=OFFLINE_ORIGIN):
     _load_raw(fx, origin, origin + "/offline.html")
+
+
+STARTUP_ORIGIN = OFFLINE_ORIGIN
+STARTUP_URL = OFFLINE_ORIGIN + "/startup.html"
+STARTUP_METHODS = ["startup_get_state", "startup_open_log_folder", "startup_quit"]
+
+
+def _load_startup(fx, origin=OFFLINE_ORIGIN):
+    _load_raw(fx, origin, origin + "/startup.html")
 
 
 def _write_client(tmp_path, url=SERVER_LAN):
@@ -366,6 +377,8 @@ SCOPE_LITERAL = {
     "offline_login": "offline", "offline_switch_local_restart": "offline",
     "local_settings_get": "server", "local_settings_save": "server", "update_check": "server",
     "update_context": "server", "update_run": "server", "cf_retry": "server",
+    "startup_get_state": "startup", "startup_open_log_folder": "startup",
+    "startup_quit": "startup",
 }
 NEW_ARGS = {
     "connect_get_state": (), "connect_probe": (SERVER_LAN,), "connect_login": (SERVER_LAN, "1234"),
@@ -376,8 +389,10 @@ NEW_ARGS = {
     "offline_login": ("1234",), "offline_switch_local_restart": (),
     "local_settings_get": (), "local_settings_save": ({},), "update_check": (),
     "update_context": (), "update_run": (), "cf_retry": (),
+    "startup_get_state": (), "startup_open_log_folder": (), "startup_quit": (),
 }
 OFFLINE_METHODS = sorted(m for m, k in SCOPE_LITERAL.items() if k == "offline")
+STARTUP_LITERAL_METHODS = sorted(m for m, k in SCOPE_LITERAL.items() if k == "startup")
 UNTRUSTED_REPLY = {"ok": False, "reason": "untrusted"}
 
 
@@ -413,6 +428,12 @@ def mx(fx, tmp_path, monkeypatch):
     monkeypatch.setattr(self_update, "launch_installer", fx.mocks["launch_installer"])
     fx.mocks["update_local_settings"] = Mock(return_value={"ok": True, "changed": []})
     monkeypatch.setattr(client_settings, "update_local_settings", fx.mocks["update_local_settings"])
+    fx.mocks["startup_state"] = Mock(return_value={"ok": True})
+    fx.m.set_startup_state_provider(fx.mocks["startup_state"])
+    fx.mocks["startup_log_opener"] = Mock()
+    fx.m.set_startup_log_opener(fx.mocks["startup_log_opener"])
+    fx.mocks["startup_quit"] = Mock()
+    fx.m.set_startup_quit_handler(fx.mocks["startup_quit"])
     return fx
 
 
@@ -422,6 +443,10 @@ def _land(fx, kind):
     elif kind == "offline":
         fx.api._expect_offline()
         _load_offline(fx)
+    elif kind == "startup":
+        fx.window.real_url = STARTUP_URL
+        fx.api._expect_startup()
+        _load_startup(fx)
     else:
         _load(fx, OTHER)
     assert fx.api._page_kind == (None if kind == "none" else kind)
@@ -451,12 +476,13 @@ def _assert_zero_effects(fx):
 
 
 def test_scope_matrix_literal_covers_exactly_the_scope_table(api_module):
-    assert len(SCOPE_LITERAL) == 28
+    assert len(SCOPE_LITERAL) == 31
     assert set(SCOPE_LITERAL) == set(api_module._SCOPE)
     assert {m: api_module._SCOPE[m] for m in SCOPE_LITERAL} == SCOPE_LITERAL
 
 
-@pytest.mark.parametrize("method", ["offline_get_state", "open_file"])
+@pytest.mark.parametrize("method", ["offline_get_state", "open_file",
+                                    "startup_get_state", "startup_open_log_folder", "startup_quit"])
 def test_scope_matrix_method_passes_on_its_own_page_kind(mx, method):
     _land(mx, SCOPE_LITERAL[method])
     result = _matrix_call(mx, method)
@@ -497,7 +523,16 @@ def test_scope_matrix_method_passes_on_its_own_page_kind(mx, method):
     ("update_check", "none"),
     ("update_context", "none"),
     ("update_run", "none"),
-])
+    ("startup_get_state", "none"),
+    ("startup_get_state", "server"),
+    ("startup_get_state", "offline"),
+    ("startup_open_log_folder", "none"),
+    ("startup_open_log_folder", "server"),
+    ("startup_open_log_folder", "offline"),
+    ("startup_quit", "none"),
+    ("startup_quit", "server"),
+    ("startup_quit", "offline"),
+] + [(method, "startup") for method in SCOPE_LITERAL if SCOPE_LITERAL[method] != "startup"])
 def test_scope_matrix_denied_on_other_page_kinds(mx, method, kind):
     if SCOPE_LITERAL[method] == kind:
         pytest.skip("own page kind")
@@ -621,5 +656,121 @@ def test_loaded_hook_runs_for_server_and_offline_pages(fx):
         hook.assert_not_called()
     finally:
         fx.m.set_loaded_hook(None)
+
+
+# ---------------------------------------------------------------------------
+# 203-T6：第三種頁面種類 startup（偽造、綁定本次 real_url、延遲退出、兩頁不互借）
+# ---------------------------------------------------------------------------
+_NON_STARTUP_LANDINGS = [
+    # 原生主機不是 loopback（JS 與原生 origin 一致）
+    (STARTUP_ORIGIN, "http://10.0.0.5:55555/startup.html", STARTUP_URL),
+    # 路徑只是以 /startup.html 結尾，不是它
+    (STARTUP_ORIGIN, OFFLINE_ORIGIN + "/startup.html.evil", STARTUP_URL),
+    # JS 與原生 origin 不一致：原生恰為 real_url，只有 JS 回別的 port
+    ("http://127.0.0.1:1/", STARTUP_URL, STARTUP_URL),
+    # real_url 非字串 → fail-closed（None == None 不算相符）
+    (STARTUP_ORIGIN, STARTUP_URL, None),
+    # 等的是啟動頁、實際載到離線頁：旗標已消耗，也不憑空變 offline
+    (OFFLINE_ORIGIN, OFFLINE_URL, STARTUP_URL),
+]
+
+
+@pytest.mark.parametrize("js,native,real", _NON_STARTUP_LANDINGS)
+def test_forged_startup_page_is_not_classified(fx, js, native, real):
+    fx.window.real_url = real
+    fx.api._expect_startup()
+    _load_raw(fx, js, native)
+    assert fx.api._page_kind is None
+    assert fx.api._startup_expected is False  # 旗標已消耗
+    assert fx.api._denied("startup_quit") is True
+
+
+@pytest.mark.parametrize("case", ["other_port", "native_path_moved", "offline_native_path_moved"])
+def test_startup_landing_is_bound_to_this_runs_server(mx, case):
+    if case == "other_port":
+        # real_url 綁的是 55555；同機另一埠也有 /startup.html
+        mx.window.real_url = STARTUP_URL
+        mx.api._expect_startup()
+        other = "http://127.0.0.1:55556"
+        _load_raw(mx, other, other + "/startup.html")
+        assert mx.api._page_kind is None
+        _reset(mx)
+        for mock in mx.mocks.values():
+            mock.reset_mock()
+        assert mx.m.startup_quit() == UNTRUSTED_REPLY
+        _assert_zero_effects(mx)
+        return
+    if case == "offline_native_path_moved":
+        # 離線頁分類後原生 origin 不變、路徑換掉：舊分類仍在但 offline scope 全拒
+        _land(mx, "offline")
+        mx.window.get_current_url.return_value = OFFLINE_ORIGIN + "/next"
+        for method in OFFLINE_METHODS:
+            assert _matrix_call(mx, method) == UNTRUSTED_REPLY, method
+        _assert_zero_effects(mx)
+        return
+    # 分類成 startup 後原生 origin 不變、路徑換掉：舊分類仍在但小頁 scope 全拒
+    _land(mx, "startup")
+    mx.window.get_current_url.return_value = OFFLINE_ORIGIN + "/next"
+    assert mx.m.startup_get_state() == UNTRUSTED_REPLY
+    assert mx.m.offline_get_state() == UNTRUSTED_REPLY
+    _assert_zero_effects(mx)
+
+
+@pytest.mark.parametrize("with_handler", [False, True])
+def test_startup_quit_returns_before_closing_windows(mx, monkeypatch, with_handler):
+    started = []
+
+    class _FakeThread:
+        def __init__(self, target=None, daemon=None, **kwargs):
+            self.target = target
+            self.daemon = daemon
+            self.started = False
+            started.append(self)
+
+        def start(self):
+            self.started = True
+
+    monkeypatch.setattr(mx.m, "threading", SimpleNamespace(
+        Thread=_FakeThread, Lock=mx.m.threading.Lock, Event=mx.m.threading.Event))
+    monkeypatch.setattr(mx.m, "STARTUP_QUIT_DELAY", 0)
+    _land(mx, "startup")
+    handler = Mock()
+    mx.m.set_startup_quit_handler(handler if with_handler else None)
+    windows = [MagicMock(), MagicMock()]
+    mx.m.webview.windows = windows
+    assert mx.m.startup_quit() == {"ok": True, "reason": None}
+    assert len(started) == 1 and started[0].daemon is True and started[0].started
+    for window in windows:
+        window.destroy.assert_not_called()
+    started[0].target()
+    if with_handler:
+        handler.assert_called_once_with()
+        for window in windows:
+            window.destroy.assert_not_called()
+    else:
+        handler.assert_not_called()
+        for window in windows:
+            window.destroy.assert_called_once()
+
+
+def test_startup_then_offline_pages_do_not_borrow_each_other(mx):
+    _land(mx, "startup")
+    for method in OFFLINE_METHODS:
+        assert _matrix_call(mx, method) == UNTRUSTED_REPLY, method
+    _assert_zero_effects(mx)
+    mx.api._expect_offline()
+    mx.window.events.before_load.fire()
+    assert mx.api._page_kind is None
+    mx.window.evaluate_js.return_value = OFFLINE_ORIGIN
+    mx.window.get_current_url.return_value = OFFLINE_URL
+    mx.window.events.loaded.fire()
+    assert mx.api._page_kind == "offline"
+    _reset(mx)
+    for mock in mx.mocks.values():
+        mock.reset_mock()
+    for method in STARTUP_METHODS:
+        assert _matrix_call(mx, method) == UNTRUSTED_REPLY, method
+    _assert_zero_effects(mx)
+
 
 
