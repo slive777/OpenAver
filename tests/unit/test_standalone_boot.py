@@ -345,6 +345,17 @@ def test_main_opens_startup_window_before_backend_and_cf_windows_before_gui(monk
     assert not {"port", "server", "announce"} & set(e for e in events if isinstance(e, str))
 
 
+def test_local_gui_return_arms_exit_backstop_after_cleanup(monkeypatch, tmp_path):
+    events, _ = _main_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(standalone, "_start_gui", lambda *a: events.append("gui_return"))
+    monkeypatch.setattr(standalone, "_shutdown_and_maybe_restart", lambda *a: events.append("cleanup"))
+    arm = MagicMock(side_effect=lambda: events.append("arm"))
+    monkeypatch.setattr(standalone, "_arm_exit_backstop", arm)
+    standalone.main()
+    arm.assert_called_once_with()
+    assert events.index("gui_return") < events.index("cleanup") < events.index("arm")
+
+
 def test_main_window_urls_share_pywebview_local_server_root(monkeypatch, tmp_path):
     import webview.http as webview_http
 

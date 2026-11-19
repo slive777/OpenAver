@@ -608,11 +608,13 @@ class Api:
         js_raw, native_raw, ok = self._read_origins(window)
         if gen != self._nav_gen:
             return
-        expected, self._offline_expected = self._offline_expected, False
+        expected = self._offline_expected
         startup_expected, self._startup_expected = self._startup_expected, False
         origin = self._agreed_origin(js_raw, native_raw) if ok else None
         self._seen_origin = origin
         self._page_kind = self._classify(origin, js_raw, native_raw, expected, startup_expected)
+        if self._page_kind != "startup":
+            self._offline_expected = False
         if self._page_kind == "server":
             window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
         elif self._page_kind is None:

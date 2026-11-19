@@ -27,6 +27,7 @@ from windows.cf_windows import CfWindowSet  # noqa: E402
 
 SERVER = "http://192.168.1.180:8000"
 TOKEN = "TKN-SENTINEL-T5B"
+REAL_START_BOOT_WORKER = standalone._start_boot_worker
 
 
 class _FakeEvent:
@@ -60,6 +61,15 @@ class _FakeWindow:
         if self.maximize_error:
             raise self.maximize_error
 
+    def load_url(self, url):
+        self._ev.append(("load_url", url))
+
+    def set_title(self, title):
+        self._ev.append(("set_title", title))
+
+    def hide(self):
+        self._ev.append("hide")
+
 
 class _FakeLifecycle:
     def __init__(self, events):
@@ -82,6 +92,9 @@ class _FakeLifecycle:
     def register_cf_windows(self, mapping):
         self._ev.append(("register_cf_windows", sorted(mapping)))
 
+    def quit_now(self):
+        self.quitting = True
+
 
 class _ClosableWindow:
     """destroy() 會依序呼叫已掛的 closing handler；任何一個回 False 就取消關閉（pywebview 語意）。"""
@@ -97,6 +110,12 @@ class _ClosableWindow:
 
     def expose(self, *fns):
         pass
+
+    def load_url(self, url):
+        self._ev.append(("load_url", url))
+
+    def set_title(self, title):
+        self._ev.append(("set_title", title))
 
     def destroy(self):
         for fn in list(self.events.closing.handlers):
@@ -152,6 +171,14 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(standalone.pywebview_api, "_loaded_hook", None)
     monkeypatch.setattr(standalone.pywebview_api, "_page_loaded_subscriber", None, raising=False)
     monkeypatch.setattr(standalone.pywebview_api, "_cf_retry_handler", None)
+    for name in ("_startup_state_provider", "_startup_log_opener", "_startup_quit_handler"):
+        monkeypatch.setattr(standalone.pywebview_api, name, None)
+    monkeypatch.setattr(standalone.startup_boot, "system_prefers_dark", lambda: False, raising=False)
+    monkeypatch.setattr(standalone, "_start_boot_worker", lambda worker, *a: worker(*a))
+    monkeypatch.setattr(standalone, "_arm_exit_backstop", MagicMock())
+    monkeypatch.setattr(standalone, "_notify_if_page_silent", MagicMock())
+    monkeypatch.setattr(standalone, "show_error", Mock(side_effect=AssertionError("native notice")))
+    monkeypatch.setattr(standalone, "_win_message_box", Mock(side_effect=AssertionError("native notice")))
     e.start_check = Mock(side_effect=lambda: events.append("start_check"))
     monkeypatch.setattr(standalone.update_notice, "start_background_check", e.start_check)
     monkeypatch.setattr(standalone.restart, "_state", {"requested": False, "spawned": False})
@@ -212,7 +239,7 @@ def env(monkeypatch, tmp_path):
     real_start = threading.Thread.start
 
     def guarded_start(self):   # 只放行重啟的延遲退出執行緒；其餘仍禁
-        if self.name == standalone.restart.QUIT_THREAD_NAME:
+        if self.name in (standalone.restart.QUIT_THREAD_NAME, "oa-boot-worker"):
             return real_start(self)
         return boom()
 
@@ -248,6 +275,146 @@ def _ok_preflight(monkeypatch):
     monkeypatch.setattr(client_connect, "preflight", lambda url, token: Preflight("ok", None, {}))
 
 
+def test_client_gui_return_arms_exit_backstop_after_cleanup(monkeypatch, env):
+    _client_json()
+    _ok_preflight(monkeypatch)
+    arm = MagicMock(side_effect=lambda: env.events.append("arm"))
+    monkeypatch.setattr(standalone, "_arm_exit_backstop", arm)
+    monkeypatch.setattr(standalone.webview, "start", _fake_start(env))
+    standalone._run_client_mode(env.logger)
+    arm.assert_called_once_with()
+    assert env.events.index("gui_loop_exit") < env.events.index("cf.stop") < env.events.index("spawn") < env.events.index("arm")
+
+
+def test_client_window_opens_before_preflight_and_gui_callback_returns(monkeypatch, env):
+    _client_json()
+    entered, release, done = threading.Event(), threading.Event(), threading.Event()
+    threads = []
+
+    def resolve(*args):
+        env.events.append("resolve_entered")
+        entered.set()
+        release.wait(3)
+        done.set()
+        return standalone.shell_boot.BootTarget("client", SERVER, "OpenAver", None)
+
+    def start_worker(worker):
+        threads.append(REAL_START_BOOT_WORKER(worker))
+
+    monkeypatch.setattr(standalone.shell_boot, "resolve_boot", resolve)
+    monkeypatch.setattr(standalone, "_start_boot_worker", start_worker)
+
+    def in_loop():
+        try:
+            assert entered.wait(3)
+            assert not done.is_set()
+            assert not any(isinstance(e, tuple) and e[0] == "load_url" for e in env.events)
+            assert threads[0].daemon is True
+        finally:
+            release.set()
+            for thread in threads:
+                thread.join(3)
+
+    monkeypatch.setattr(standalone.webview, "start", _fake_start(env, in_loop))
+    standalone._run_client_mode(env.logger)
+    assert env.events.index(("create_window", standalone.STARTUP_PAGE)) < env.events.index("resolve_entered")
+    assert len([e for e in env.events if isinstance(e, tuple) and e[0] == "load_url"]) == 1
+
+
+@pytest.mark.parametrize("offline", [False, True])
+def test_client_trust_and_offline_state_set_before_navigation(monkeypatch, env, offline):
+    _client_json()
+    monkeypatch.setattr(client_connect, "preflight", lambda *a: Preflight(
+        "offline" if offline else "ok", "unreachable" if offline else None, {}))
+    monkeypatch.setattr(standalone.webview, "start", _fake_start(env))
+    standalone._run_client_mode(env.logger)
+    if offline:
+        state = ("offline_state", "unreachable", SERVER)
+        assert TOKEN not in str(state)
+        assert env.events.index(state) < env.events.index("expect_offline") < env.events.index(
+            ("load_url", standalone.shell_boot.OFFLINE_PAGE))
+        assert not any(isinstance(e, tuple) and e[0] == "trusted" for e in env.events)
+        env.boom.assert_not_called()
+    else:
+        local_origin = f"http://{standalone.CLIENT_HOST}:{standalone.PORT}"
+        url = client_settings.shell_entry_url(local_origin, client_settings.shell_kind(), token=TOKEN)
+        assert env.events.index(("trusted", SERVER)) < env.events.index(("load_url", url))
+        assert ("set_title", "OpenAver — 192.168.1.180") in env.events
+
+
+@pytest.mark.parametrize("case", ["normal", "before_controller", "during_build"])
+def test_client_cf_windows_registered_and_destroyed_when_quit_interleaves(monkeypatch, env, case):
+    _client_json()
+    _ok_preflight(monkeypatch)
+    main, jl, javten, wins = _closable_cf(env, monkeypatch)
+    lifecycle = standalone.DesktopLifecycle(main, {}, {}, lambda *a: None, read_close_action=lambda: "tray")
+    monkeypatch.setattr(standalone, "_setup_windows_lifecycle", lambda *a: None if case == "during_build" else lifecycle)
+    if case == "before_controller":
+        monkeypatch.setattr(standalone, "_start_boot_worker", lambda worker, *a: (main.events.closing.handlers[0](), worker(*a)))
+    if case == "during_build":
+        original = standalone.cf_windows.build_cf_windows
+        def build(*a, **kw):
+            result = original(*a, **kw)
+            main.events.closing.handlers[0]()
+            return result
+        monkeypatch.setattr(standalone.cf_windows, "build_cf_windows", build)
+
+    def in_loop():
+        if case == "normal":
+            assert set(lifecycle.cf_windows.values()) == {jl, javten}
+            jl.destroy()
+            assert jl.hidden and jl in wins
+        else:
+            assert jl not in wins and javten not in wins
+            assert not lifecycle.cf_windows
+            assert not any(isinstance(e, tuple) and e[0] == "load_url" for e in env.events)
+            assert standalone.pywebview_api._startup_state_provider.__self__.error is None
+    monkeypatch.setattr(standalone.webview, "start", _fake_start(env, in_loop))
+    standalone._run_client_mode(env.logger)
+
+
+@pytest.mark.parametrize("case", ["starting", "ready", "darwin"])
+def test_client_x_during_startup_quits_but_after_home_follows_close_action(monkeypatch, env, case):
+    _client_json()
+    _ok_preflight(monkeypatch)
+    lifecycle = standalone.DesktopLifecycle(env.win, {}, {}, lambda *a: None, read_close_action=lambda: "tray")
+    tray = MagicMock()
+    tray.start.return_value = True
+    lifecycle.attach_tray(tray)
+    lifecycle.start_tray()
+    lifecycle.prompt = MagicMock(side_effect=AssertionError("prompt"))
+    env.win.hide = MagicMock()
+    monkeypatch.setattr(standalone, "_setup_windows_lifecycle", lambda *a: None if case == "darwin" else lifecycle)
+    def in_loop():
+        if case == "ready":
+            monkeypatch.setattr(standalone.pywebview_api.api, "_nav_gen", 4)
+            standalone.pywebview_api._page_loaded_subscriber("server", object(), 4)
+        env.win.events.closing.handlers[0]()
+        if case == "ready":
+            env.win.hide.assert_called_once()
+            assert not lifecycle.quitting
+        else:
+            env.win.hide.assert_not_called()
+            standalone._arm_exit_backstop.assert_called()
+            if case == "starting":
+                assert lifecycle.quitting
+        lifecycle.prompt.assert_not_called()
+    monkeypatch.setattr(standalone.webview, "start", _fake_start(env, in_loop))
+    standalone._run_client_mode(env.logger)
+
+
+@pytest.mark.parametrize("dark", [False, True])
+def test_client_window_background_follows_os_dark_mode(monkeypatch, env, dark):
+    _client_json()
+    _ok_preflight(monkeypatch)
+    monkeypatch.setattr(standalone.startup_boot, "system_prefers_dark", lambda: dark)
+    monkeypatch.setattr(standalone.webview, "start", _fake_start(env))
+    standalone._run_client_mode(env.logger)
+    assert env.create_calls[0][1] == standalone.STARTUP_PAGE
+    assert env.create_calls[0][2]["background_color"] == standalone.startup_boot.THEME_BACKGROUNDS[
+        "dim" if dark else "light"]
+
+
 # ---------- client 模式流程 ----------
 
 def test_client_mode_ok_starts_no_local_server(monkeypatch, env):
@@ -259,40 +426,14 @@ def test_client_mode_ok_starts_no_local_server(monkeypatch, env):
     env.boom.assert_not_called()
     assert len(env.create_calls) == 1
     title, url, kw = env.create_calls[0]
-    assert "192.168.1.180" in title
-    assert url.startswith(SERVER) and "oa_token=" in url
+    assert title == "OpenAver"
+    assert url == standalone.STARTUP_PAGE
     assert kw["js_api"] is None
     messages = [str(c) for c in env.logger.info.call_args_list]
     assert not any("啟動伺服器" in m or "等待伺服器就緒" in m for m in messages)
     assert ("trusted", SERVER) in env.events
-    assert env.events.index(("trusted", SERVER)) < env.events.index(
-        ("create_window", url))
+    assert env.events.index(("create_window", url)) < env.events.index(("trusted", SERVER))
     assert "expect_offline" not in env.events
-
-
-def test_offline_boot_expects_offline_before_create_window(monkeypatch, env):
-    _client_json()
-    monkeypatch.setattr(client_connect, "preflight",
-                        lambda url, token: Preflight("offline", "unreachable", {}))
-    flag = {"expected_at_create": None}
-    orig = standalone.webview.create_window
-
-    def create(title, url, **kw):
-        flag["expected_at_create"] = "expect_offline" in env.events
-        flag["state_at_create"] = [x for x in env.events if isinstance(x, tuple) and x[0] == "offline_state"]
-        return orig(title, url, **kw)
-
-    monkeypatch.setattr(standalone.webview, "create_window", create)
-    monkeypatch.setattr(standalone.webview, "start", _fake_start(env))
-    standalone._run_client_mode(env.logger)
-
-    from windows.shell_boot import OFFLINE_PAGE
-    print("EVENTS:", [x for x in env.events if x in ("expect_offline",) or isinstance(x, tuple)])  # noqa: T201
-    assert flag["expected_at_create"] is True
-    assert flag["state_at_create"] == [("offline_state", "unreachable", SERVER)]
-    assert env.create_calls[0][1] == OFFLINE_PAGE
-    assert TOKEN not in str(flag["state_at_create"])
-    env.boom.assert_not_called()
 
 
 # ---------- 168d：CF 殼接線（client） ----------
@@ -316,7 +457,7 @@ def test_client_mode_wires_cf_once_with_same_origin_and_token(monkeypatch, env):
     seq = [x for x in env.events if x in ("cf.fetch", "cf.build", "mark:cf_windows_created", "cf.announce",
                                            "gui_loop_enter", "cf.start", "gui_loop_exit", "cf.stop",
                                            "shutdown_after_loop", "spawn")]
-    assert seq == ["cf.fetch", "cf.build", "mark:cf_windows_created", "cf.announce", "gui_loop_enter",
+    assert seq == ["gui_loop_enter", "cf.fetch", "cf.build", "mark:cf_windows_created", "cf.announce",
                    "cf.start", "gui_loop_exit", "cf.stop", "shutdown_after_loop", "spawn"]
     controller = standalone.pywebview_api._cf_status_provider.__self__      # 168e-T13：provider 改由控制器轉接
     assert standalone.pywebview_api._cf_status_provider == controller.status

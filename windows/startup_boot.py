@@ -14,6 +14,24 @@ THEME_BACKGROUNDS = {
 }
 
 
+def system_prefers_dark() -> bool:
+    try:
+        import sys
+        if sys.platform == "win32":
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as key:
+                return winreg.QueryValueEx(key, "AppsUseLightTheme")[0] == 0
+        if sys.platform == "darwin":
+            import subprocess
+            result = subprocess.run(["defaults", "read", "-g", "AppleInterfaceStyle"],
+                                    capture_output=True, text=True, timeout=2, check=False)
+            return result.returncode == 0 and result.stdout.strip() == "Dark"
+    except Exception as e:
+        logger.warning("system theme detection failed (%s)", type(e).__name__)
+    return False
+
+
 def background_color(theme, system_dark=False):
     if theme == "dim" or (theme == "system" and system_dark):
         return THEME_BACKGROUNDS["dim"]

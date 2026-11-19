@@ -551,23 +551,10 @@ def _setup_windows_lifecycle(window, jl_win, javten_win, saved, lan_listener) ->
 
 # ============ 主程序 ============
 
-def _arm_first_page_mark(window) -> None:
-    """首頁載入計時：對 events.loaded 掛一次回呼；去重由 startup_trace.mark 負責。"""
-    def on_first_loaded():
-        startup_trace.mark("first_page_loaded")
-
-    window.events.loaded += on_first_loaded
-
-
-def _create_main_window(boot, local_origin, saved, background_color=None):
-    """建主視窗：信任 origin 與（離線時）小頁狀態都必須早於 create_window。"""
-    if local_origin is not None:
-        api._set_trusted_origin(client_settings.server_origin(local_origin))
+def _create_main_window(boot, saved, background_color=None):
+    """建立主視窗並公開橋接方法。"""
     if boot.kind == "startup":
         api._expect_startup()
-    if boot.kind == "offline":
-        api._set_offline_state(boot.offline.reason, boot.offline.failed_url)
-        api._expect_offline()
     create_kwargs = dict(js_api=None, width=saved['width'], height=saved['height'])
     if background_color is not None:
         create_kwargs['background_color'] = background_color
@@ -804,44 +791,77 @@ def _run_client_mode(logger):
     """連線模式：只開殼，不起任何本機服務。"""
     import window_state
     saved = window_state.load_state()
+    theme = client_settings.shell_theme()
+    log_path = health_probe._debug_log_hint()
+    boot_state = startup_boot.BootState(client_settings.tray_locale(), theme, log_path)
     local_origin = f'http://{CLIENT_HOST}:{PORT}'
-    boot = shell_boot.resolve_boot(local_origin, client_settings.shell_kind())
-    startup_trace.mark("client_preflight_done")
-    window = _create_main_window(boot, local_origin, saved)
+    boot = shell_boot.BootTarget("startup", STARTUP_PAGE, "OpenAver", None)
+    window = _create_main_window(boot, saved, startup_boot.background_color(theme, startup_boot.system_prefers_dark()))
     startup_trace.mark("main_window_created")
-    cf = cf_boot.CfShellController(logger, boot.kind, local_origin)
-    pywebview_api.set_cf_status_provider(cf.status)
-    pywebview_api.set_cf_retry_handler(cf.retry)
-    cf.initial()
-    if cf.agent is not None:
-        startup_trace.mark("cf_windows_created")
-    lifecycle = _setup_windows_lifecycle(window, cf.cf_set.jl_win, cf.cf_set.javten_win, saved, None)
+    lifecycle = _setup_windows_lifecycle(window, None, None, saved, None)
     _register_bridge_seams(window, lifecycle)
+    quit_startup = _make_startup_quit(window, lifecycle)
+    pywebview_api.set_startup_state_provider(boot_state.get_state)
+    pywebview_api.set_startup_log_opener(lambda: _open_log_folder(log_path))
+    pywebview_api.set_startup_quit_handler(quit_startup)
+    cf_box = {"cf": None}
     cf_quitting = {"v": False}
-    if lifecycle is not None:
-        window.events.closing += lifecycle.on_window_closing
-    else:
-        # 沒有 lifecycle（Mac）：關主視窗要設 quitting 並銷毀隱藏的 CF 視窗，否則視窗計數不歸零、行程殘留
-        def _on_main_closing():
-            cf_quitting["v"] = True
-            cf.destroy_all()
+    is_quitting = lambda: lifecycle.quitting if lifecycle is not None else cf_quitting["v"]
 
-        window.events.closing += _on_main_closing
-    cf.bind(lifecycle, lambda: lifecycle.quitting if lifecycle is not None else cf_quitting["v"])
-    cf.attach_guards()
-    cf.announce_initial()
+    def _on_main_closing():
+        starting = _close_during_startup(boot_state, lifecycle)
+        if lifecycle is not None:
+            if starting:
+                return None
+            return lifecycle.on_window_closing()
+        cf_quitting["v"] = True
+        if cf_box["cf"] is not None:
+            cf_box["cf"].destroy_all()
+        return None
+
+    window.events.closing += _on_main_closing
+
+    def boot_worker():
+        try:
+            boot = shell_boot.resolve_boot(local_origin, client_settings.shell_kind())
+            startup_trace.mark("client_preflight_done")
+            cf = cf_boot.CfShellController(logger, boot.kind, local_origin)
+            cf_box["cf"] = cf
+            pywebview_api.set_cf_status_provider(cf.status)
+            pywebview_api.set_cf_retry_handler(cf.retry)
+            cf.bind(lifecycle, is_quitting)
+            cf.initial()
+            if cf.agent is not None:
+                startup_trace.mark("cf_windows_created")
+            cf.announce_initial()
+            cf.start()
+            if boot.kind == "offline":
+                api._set_offline_state(boot.offline.reason, boot.offline.failed_url)
+            else:
+                window.set_title(boot.title)
+                api._set_trusted_origin(client_settings.server_origin(local_origin))
+            if not boot_state.claim_navigation():
+                return
+            if boot.kind == "offline":
+                api._expect_offline()
+            window.load_url(boot.url)
+        except Exception:
+            logger.exception("client 啟動失敗")
+            _fail_boot(boot_state, quit_startup, logger, "died")
 
     def startup(w):
-        _arm_first_page_mark(w)
+        _arm_page_marks(boot_state)
         _attach_window_state(w, saved, lifecycle, logger)
-        cf.start()
         update_notice.start_background_check()
+        _start_boot_worker(boot_worker)
 
     try:
         _start_gui(startup, window)
     finally:
-        cf.stop()
+        if cf_box["cf"] is not None:
+            cf_box["cf"].stop()
         _shutdown_and_maybe_restart(lifecycle)
+        _arm_exit_backstop()
 
 
 def main():
@@ -880,7 +900,7 @@ def main():
     import window_state
     saved = window_state.load_state()
     boot = shell_boot.BootTarget("startup", STARTUP_PAGE, "OpenAver", None)
-    window = _create_main_window(boot, None, saved, startup_boot.background_color(theme))
+    window = _create_main_window(boot, saved, startup_boot.background_color(theme))
     startup_trace.mark("main_window_created")
 
     cf_supported = cf_windows.cf_shell_supported()
@@ -944,6 +964,7 @@ def main():
                 cf_agent_box["agent"].stop()
         finally:
             _shutdown_and_maybe_restart(lifecycle)
+            _arm_exit_backstop()
 
 
 if __name__ == '__main__':

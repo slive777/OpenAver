@@ -820,4 +820,23 @@ def test_startup_then_offline_pages_do_not_borrow_each_other(mx):
     _assert_zero_effects(mx)
 
 
+def test_startup_loaded_does_not_consume_pending_offline(fx):
+    fx.window.real_url = STARTUP_URL
+    fx.api._expect_startup()
+    fx.api._expect_offline()
+    _load_startup(fx)
+    assert fx.api._page_kind == "startup"
+    _load_offline(fx)
+    assert fx.api._page_kind == "offline"
+    assert fx.api._denied("offline_get_state") is False
+
+
+def test_trusted_server_loaded_consumes_pending_offline(fx):
+    fx.api._set_trusted_origin(TRUSTED)
+    fx.api._expect_offline()
+    _load(fx, TRUSTED)
+    assert fx.api._page_kind == "server"
+    assert fx.api._offline_expected is False
+
+
 
