@@ -86,6 +86,18 @@
       "login_failed": "登入失敗，請稍後再試",
       "retry_failed": "仍然連不上，請確認伺服器已開機、網址正確"
     },
+    "startup": {
+      "starting": "正在啟動…",
+      "message": {
+        "timeout": "OpenAver 沒能在 {seconds} 秒內啟動完成",
+        "died": "OpenAver 啟動到一半停止了",
+        "no_port": "OpenAver 找不到可以使用的連接埠"
+      },
+      "hint": "請關掉後再開一次；若一直出現，請把記錄檔附在回報裡",
+      "log_label": "記錄檔位置",
+      "open_log": "開啟記錄檔所在資料夾",
+      "close": "關閉"
+    },
     "restart": {
       "spawn_failed": "無法自動重新啟動 OpenAver，請手動重新開啟。"
     },
