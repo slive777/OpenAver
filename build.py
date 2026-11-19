@@ -246,6 +246,14 @@ def _norm_pkg_name(spec: str) -> str:
     return re.split(r"[=<>!~\[]", spec, maxsplit=1)[0].strip().lower().replace("_", "-")
 
 
+RICH_GROUP_PKG_NAMES: frozenset[str] = frozenset(["rich", "pygments", "markdown-it-py", "mdurl"])
+
+
+def _is_rich_group_pkg(filename: str) -> bool:
+    """此 wheel／sdist 檔名是否屬於 rich 組（Windows 包不帶這四個套件）。"""
+    return _pkg_name_from_filename(filename) in RICH_GROUP_PKG_NAMES
+
+
 def _download_one_package(
     pkg_spec: str,
     wheels_dir: Path,
@@ -494,8 +502,8 @@ def download_and_install_packages(python_dir: Path):  # noqa: C901 — Windows w
 
     # ── 解壓：只提取 manifest 內的檔案（不 glob 整個 cache） ──
     print("\n[4/6] 安裝套件到 site-packages...")
-    wheel_files = [f for f in extract_manifest if f.suffix == ".whl"]
-    tar_files = [f for f in extract_manifest if f.name.endswith(".tar.gz")]
+    wheel_files = [f for f in extract_manifest if f.suffix == ".whl" and not _is_rich_group_pkg(f.name)]
+    tar_files = [f for f in extract_manifest if f.name.endswith(".tar.gz") and not _is_rich_group_pkg(f.name)]
     print(f"  Manifest: {len(wheel_files)} 個 wheel, {len(tar_files)} 個 tar.gz")
 
     for wheel_file in sorted(wheel_files, key=lambda f: f.name):

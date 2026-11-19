@@ -50,6 +50,10 @@ for A in $ARCHS; do
     echo "[build] resolved $(wc -l < "$CONSTRAINT") dists on $A"
   fi
   find "$PKG/python-$A" -name __pycache__ -prune -exec rm -rf {} +
+  rm -rf "$SP/rich" "$SP/pygments" "$SP/markdown_it" "$SP/mdurl" \
+    "$SP"/rich-[0-9]*.dist-info "$SP"/pygments-[0-9]*.dist-info \
+    "$SP"/Pygments-[0-9]*.dist-info "$SP"/markdown_it_py-[0-9]*.dist-info \
+    "$SP"/mdurl-[0-9]*.dist-info
 done
 
 ( cd "$PKG" && tar czf "$WORK/package.tgz" app python-* )

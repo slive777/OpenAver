@@ -63,6 +63,10 @@ REMOVE_PACKAGES = [
     'setuptools', 'setuptools-*', '_distutils_hack',
     'wheel', 'wheel-*',
     'pkg_resources',
+    'rich', 'rich-[0-9]*',
+    'pygments', 'pygments-[0-9]*',
+    'markdown_it', 'markdown_it_py-[0-9]*',
+    'mdurl', 'mdurl-[0-9]*',
 ]
 
 

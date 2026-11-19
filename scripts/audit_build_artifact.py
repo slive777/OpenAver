@@ -107,6 +107,17 @@ _DIST_INFO_SCALE_GATE = 20
 
 # Packages that must NEVER appear in a release ZIP (test/dev tools).
 # Match on site-packages/<pkg>/ top-level directory prefix.
+RICH_GROUP_TOP_DIRS: frozenset[str] = frozenset(["rich", "pygments", "markdown_it", "mdurl"])
+
+RICH_GROUP_DIST_NAMES: frozenset[str] = frozenset(["rich", "pygments", "markdown_it_py", "mdurl"])
+
+
+def rich_group_dist_info_dirs(top_dirs: set[str]) -> list[str]:
+    """Return sorted leftover rich-group *.dist-info dirs among top-level names."""
+    names = {n: n[: -len(".dist-info")].rsplit("-", 1)[0].lower().replace("-", "_") for n in top_dirs if n.endswith(".dist-info")}
+    return sorted(n for n, dist in names.items() if dist in RICH_GROUP_DIST_NAMES)
+
+
 HARD_FAIL_PKGS: frozenset[str] = frozenset(
     [
         "playwright",
@@ -119,7 +130,7 @@ HARD_FAIL_PKGS: frozenset[str] = frozenset(
         "coverage",
         "twine",
     ]
-)
+) | RICH_GROUP_TOP_DIRS
 
 # Packages that should not be in the ZIP but whose presence is not
 # release-blocking until explicitly enabled via --strict.
@@ -547,6 +558,14 @@ def audit(
                 f" site-packages/ — test/dev tool must not be in release ZIP"
             )
             failed = True
+
+    # Rich-group dist-info leftovers (dist-name scan, no top-level dir needed)
+    for dist_dir in rich_group_dist_info_dirs(top_dirs):
+        messages.append(
+            f"[FAIL] HARD-FAIL: leftover rich-group dist-info '{dist_dir}' found in"
+            f" site-packages/ — rich group must not be in release ZIP"
+        )
+        failed = True
 
     # Warn tier
     for pkg in sorted(warn_pkgs):

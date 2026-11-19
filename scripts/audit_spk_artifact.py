@@ -12,6 +12,8 @@ import sys
 import tarfile
 from pathlib import Path
 
+from audit_build_artifact import RICH_GROUP_TOP_DIRS, rich_group_dist_info_dirs
+
 
 ARCHS = ("aarch64", "x86_64")
 MIN_DIST_INFO_RATIO = 0.5
@@ -45,6 +47,14 @@ def audit(spk_path: str | Path, strict: bool = False) -> tuple[int, list[str]]:
         ):
             missing.append(arch)
         site_prefix = f"{prefix}lib/python3.12/site-packages/"
+        top_names = {
+            name[len(site_prefix):].split("/", 1)[0]
+            for name in members
+            if name.startswith(site_prefix) and len(name[len(site_prefix):].split("/", 1)[0]) > 0
+        }
+        leftovers = sorted(RICH_GROUP_TOP_DIRS & top_names) + rich_group_dist_info_dirs(top_names)
+        for leftover in leftovers:
+            messages.append(f"[FAIL] {arch}: leftover rich-group '{leftover}' in site-packages")
         counts[arch] = len({
             name[len(site_prefix):].split("/", 1)[0]
             for name in members
