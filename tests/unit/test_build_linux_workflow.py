@@ -49,3 +49,20 @@ def test_build_linux_audit_gates_upload_for_both_arches():
         for flag in ("--platform linux", "--strict", "--max-mb"):
             assert flag in runs[audit]
         assert repack < audit < first_publish
+
+
+def test_verify_linux_aarch64_job_shape():
+    jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+    job = jobs["verify-linux-aarch64"]
+    assert job["runs-on"] == "ubuntu-24.04-arm"
+    needs = job["needs"]
+    assert "build-linux" in ([needs] if isinstance(needs, str) else needs)
+    steps = job["steps"]
+    assert any(s.get("uses") == "actions/download-artifact@v5"
+               and s.get("with", {}).get("name") == "OpenAver-Linux"
+               and s.get("with", {}).get("path") == "dist" for s in steps)
+    runs = [s.get("run", "") for s in steps]
+    assert any("Linux-aarch64.tar.gz" in run for run in runs)
+    assert any("python/bin/python3" in run and "verify_artifact_imports.py --strict" in run for run in runs)
+    assert any("RTLD_NOW" in run for run in runs)
+    assert any("/api/health" in run for run in runs)
