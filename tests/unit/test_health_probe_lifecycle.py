@@ -8,7 +8,6 @@ TASK-130a-T3: windows/health_probe.py 伺服器 thread 生命週期與三態探�
 4. 探活拿到 200 → PROBE_OK。
 5. run_server 未預期例外 → logger.exception 留痕且不往外拋。
 6. 逾時／thread 死亡路徑各留痕恰好一次（含最後一次被吞例外）。
-7. format_startup_message 兩句不同、含 port、不含代理字樣；PROBE_OK → ""；值域外 → 逾時文案。
 8. 四種 flag 組合：活著×逾時／死掉×未逾時／死掉×已逾時／活著×200。
 """
 import threading
@@ -108,39 +107,28 @@ def test_thread_death_aborts_probe_early(monkeypatch):
 # ----- D6: once-only logging -----
 
 
-# ----- D7: format_startup_message -----
-
-def test_format_startup_message_variants():
-    """D7 / AC-T3-5: 兩句不同、含 port、不含代理；OK→''；值域外→逾時文案。"""
-    port = 49199
-    fmt = health_probe.format_startup_message
-    timeout_msg = fmt(_const("PROBE_TIMEOUT"), port)
-    died_msg = fmt(_const("PROBE_THREAD_DIED"), port)
-    ok_msg = fmt(_const("PROBE_OK"), port)
-    unknown_msg = fmt("not-a-real-result", port)
-
-    assert timeout_msg != died_msg
-    assert str(port) in timeout_msg
-    assert "debug.log" in timeout_msg
-    assert "debug.log" in died_msg
-    assert ok_msg == ""
-    assert unknown_msg == timeout_msg
-
-    proxy_needles = ("代理", "proxy", "Proxy", "PROXY", "HTTP_PROXY", "http_proxy")
-    for needle in proxy_needles:
-        assert needle not in timeout_msg, f"timeout 文案含代理字樣 {needle!r}"
-        assert needle not in died_msg, f"thread_died 文案含代理字樣 {needle!r}"
-
-    # 不得含原始例外內容
-    assert "PermissionError" not in timeout_msg
-    assert "PermissionError" not in died_msg
-    assert "Traceback" not in timeout_msg
-    assert "Traceback" not in died_msg
-    assert "Error:" not in timeout_msg
-    assert "Error:" not in died_msg
+@pytest.mark.parametrize("threshold", [1, 3])
+def test_wait_for_server_cancelled_returns_without_waiting_for_timeout(monkeypatch, alive_thread, threshold):
+    _failing_opener(monkeypatch)
+    calls = [0]
+    def cancelled():
+        calls[0] += 1
+        return calls[0] >= threshold
+    start = time.monotonic()
+    assert wait_for_server(49152, alive_thread, timeout=30, cancelled=cancelled) == "cancelled"
+    assert time.monotonic() - start < 2
 
 
-# [lint-guard: pytest-justified] 跨檔 runtime 契約：core/logger.py 的預設路徑
-# 必須與 windows/health_probe.py::_debug_log_hint() 的實際輸出是同一個地方。
-# 只把前兩條「logger 源碼含某字面」搬去 lint 會拆斷這個關係——那樣 lint pattern、
-# 測試的 expected_tail、兩支產品碼會變成四份各自為政的字面，改一半而兩邊都綠。
+def test_debug_log_hint_matches_core_logger_default(monkeypatch, tmp_path):
+    import io
+    from unittest.mock import MagicMock
+    from core import logger as core_logger
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(core_logger, "_initialized", False)
+    root = MagicMock(); root.handlers = []
+    monkeypatch.setattr(core_logger.logging, "getLogger", lambda *a: root)
+    handler = MagicMock()
+    monkeypatch.setattr(core_logger, "RotatingFileHandler", handler)
+    monkeypatch.setattr(io, "TextIOWrapper", MagicMock())
+    core_logger.setup_logging()
+    assert str(handler.call_args.args[0]) == health_probe._debug_log_hint()

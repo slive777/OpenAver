@@ -180,14 +180,4 @@ class TestStandaloneLoopbackOnlyGuard:
             )
 
 
-# [lint-guard: pytest-justified] Python-AST 源碼語意守衛（跨兩檔對帳 CLIENT_HOST 的賦值/匯入形狀），lint 表達不了
-class TestStandaloneStartupProbeWiringGuard:
-    """TASK-130a-T3: standalone.py 探活三態呼叫端 AST 守衛（Linux 無法 import standalone）"""
-
-    def _wait_for_server_or_exit_def(self, tree: ast.Module) -> ast.FunctionDef:
-        for node in tree.body:
-            if isinstance(node, ast.FunctionDef) and node.name == "_wait_for_server_or_exit":
-                return node
-        raise AssertionError("standalone.py 找不到 _wait_for_server_or_exit FunctionDef")
-
 

@@ -1,5 +1,6 @@
 """Local startup sequencing and page-load ownership."""
 import sys
+import subprocess
 import threading
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,7 +27,8 @@ def boot_env(monkeypatch):
     monkeypatch.setitem(sys.modules, "web.lan_listener", SimpleNamespace(lan_listener=listener))
     monkeypatch.setattr(standalone, "find_free_port", lambda *a: 49152)
     monkeypatch.setattr(standalone, "run_server", lambda *a: None)
-    monkeypatch.setattr(standalone, "wait_for_server", lambda *a: standalone.PROBE_OK)
+    monkeypatch.setattr(standalone, "wait_for_server", lambda *a, **k: standalone.PROBE_OK)
+    monkeypatch.setattr(standalone, "_notify_if_page_silent", MagicMock(), raising=False)
     monkeypatch.setattr(standalone, "_maybe_autostart_lan_listener", lambda *a: events.append("lan"))
     monkeypatch.setattr(standalone, "_make_cf_agent", lambda *a: agent)
     monkeypatch.setattr(standalone.api, "_set_trusted_origin", lambda origin: events.append(("trusted", origin)))
@@ -35,11 +37,63 @@ def boot_env(monkeypatch):
     window.load_url.side_effect = lambda url: events.append(("load_url", url))
     state = startup_boot.BootState("zh_TW", "light", "")
     return SimpleNamespace(events=events, agent=agent, window=window, state=state,
-                           logger=MagicMock(), box={"agent": None})
+                           logger=MagicMock(), box={"agent": None}, quit=MagicMock())
 
 
 def _args(e):
-    return (e.window, e.state, e.logger, False, object(), True, e.box)
+    return (e.window, e.state, e.logger, False, object(), True, e.box, e.quit)
+
+
+@pytest.mark.parametrize("case,expected", [("timeout", ("timeout", "")), ("died", ("died", "")),
+    ("no_port", ("no_port", "msg")), ("unexpected", ("died", "")), ("cancelled", None)])
+def test_boot_failures_become_error_state_never_dialog_or_navigation(monkeypatch, boot_env, case, expected):
+    e = boot_env
+    monkeypatch.setattr(standalone, "show_error", MagicMock(side_effect=AssertionError("dialog")))
+    monkeypatch.setattr(standalone, "_win_message_box", MagicMock(side_effect=AssertionError("dialog")))
+    monkeypatch.setattr(standalone, "wait_for_server", MagicMock(return_value={"timeout": "timeout", "died": "thread_died", "cancelled": "cancelled"}.get(case, "ok")))
+    if case == "no_port":
+        monkeypatch.setattr(standalone, "find_free_port", MagicMock(side_effect=RuntimeError("msg")))
+    if case == "unexpected":
+        monkeypatch.setattr(standalone, "_make_cf_agent", MagicMock(side_effect=ValueError("bad")))
+    standalone._local_boot_worker(*_args(e))
+    assert e.state.error == expected
+    if expected:
+        assert isinstance(e.state.error[1], str)
+    e.window.load_url.assert_not_called()
+    standalone.show_error.assert_not_called()
+    standalone._win_message_box.assert_not_called()
+    assert standalone._notify_if_page_silent.call_count == (0 if case == "cancelled" else 1)
+
+
+@pytest.mark.parametrize("case", ["win32", "darwin", "polled", "quitting"])
+def test_silent_page_falls_back_to_native_notice_then_quits(monkeypatch, case):
+    state = startup_boot.BootState("zh_TW", "light", "/tmp/debug.log")
+    state.set_error("died")
+    if case == "polled": state.get_state()
+    if case == "quitting": state.request_quit()
+    monkeypatch.setattr(standalone.sys, "platform", "darwin" if case == "darwin" else "win32")
+    msgbox, run, quit_mock = MagicMock(), MagicMock(), MagicMock()
+    monkeypatch.setattr(standalone, "_win_message_box", msgbox)
+    monkeypatch.setattr(standalone, "subprocess", subprocess, raising=False)
+    monkeypatch.setattr(subprocess, "run", run)
+    t = [0.0]
+    standalone._notify_if_page_silent(state, quit_mock, MagicMock(), timeout=10,
+        clock=lambda: t[0], sleep=lambda s: t.__setitem__(0, t[0] + s))
+    if case == "win32":
+        msgbox.assert_called_once()
+        assert startup_boot.startup_texts("zh_TW")["message_died"] in msgbox.call_args.args[0]
+        assert "/tmp/debug.log" in msgbox.call_args.args[0]
+        run.assert_not_called()
+    elif case == "darwin":
+        run.assert_called_once()
+        argv = run.call_args.args[0]
+        assert argv[0] == "osascript" and "/tmp/debug.log" in argv[-1]
+        assert startup_boot.startup_texts("zh_TW")["message_died"] in argv[-1]
+        assert all(argv[-1] not in argv[i+1] for i, arg in enumerate(argv[:-1]) if arg == "-e")
+        msgbox.assert_not_called()
+    else:
+        msgbox.assert_not_called(); run.assert_not_called()
+    assert quit_mock.call_count == (1 if case in ("win32", "darwin") else 0)
 
 
 @pytest.mark.parametrize("announced", [True, False])
@@ -48,7 +102,7 @@ def test_worker_navigates_home_only_after_probe_and_announce(monkeypatch, boot_e
     probe_entered, probe_release = threading.Event(), threading.Event()
     announce_entered, announce_release = threading.Event(), threading.Event()
 
-    def probe(*args):
+    def probe(*args, **kwargs):
         probe_entered.set()
         assert probe_release.wait(3)
         e.events.append("probe")
@@ -117,7 +171,7 @@ def test_page_loaded_marks_follow_kind_and_generation(monkeypatch, kind, gen, ke
 def _main_env(monkeypatch, tmp_path):
     events = []
     for slot in ("_page_loaded_subscriber", "_loaded_hook", "_restart_handler",
-                 "_offline_text_provider", "_startup_state_provider"):
+                 "_offline_text_provider", "_startup_state_provider", "_startup_log_opener", "_startup_quit_handler"):
         monkeypatch.setattr(standalone.pywebview_api, slot, None)
     monkeypatch.setenv("OPENAVER_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(standalone, "setup_logging", lambda **k: None)
@@ -134,6 +188,7 @@ def _main_env(monkeypatch, tmp_path):
     monkeypatch.setattr(standalone.cf_windows, "attach_close_guards", lambda *a: None)
     monkeypatch.setattr(standalone, "_setup_windows_lifecycle", lambda *a: None)
     monkeypatch.setattr(standalone, "_attach_window_state", lambda *a: None)
+    monkeypatch.setattr(standalone, "_arm_exit_backstop", MagicMock(), raising=False)
     monkeypatch.setitem(sys.modules, "window_state", SimpleNamespace(load_state=lambda: {"width": 800, "height": 600, "x": None, "y": None, "maximized": False}))
     window = MagicMock()
     monkeypatch.setattr(standalone.webview, "create_window", lambda title, url, **kw: events.append(("create", url, kw)) or window)
@@ -141,6 +196,108 @@ def _main_env(monkeypatch, tmp_path):
     monkeypatch.setattr(standalone.api, "_set_trusted_origin", lambda origin: events.append(("trusted", origin)))
     monkeypatch.setattr(standalone.pywebview_api, "_startup_state_provider", None)
     return events, window
+
+
+class _Collector:
+    def __init__(self): self.handlers = []
+    def __iadd__(self, handler):
+        self.handlers.append(handler)
+        return self
+
+
+def _closing_env(monkeypatch, tmp_path):
+    _, window = _main_env(monkeypatch, tmp_path)
+    window.events.closing = _Collector()
+    states = []
+    base = standalone.startup_boot.BootState
+    class State(base):
+        def __init__(self, *args):
+            super().__init__(*args)
+            states.append(self)
+    monkeypatch.setattr(standalone.startup_boot, "BootState", State)
+    lifecycle = standalone.DesktopLifecycle(window, {}, {}, lambda *a: None, read_close_action=lambda: "tray")
+    lifecycle.prompt = MagicMock(side_effect=AssertionError("prompt"))
+    tray = MagicMock(); tray.start.return_value = True
+    lifecycle.attach_tray(tray); lifecycle.start_tray()
+    return window, states, lifecycle
+
+
+@pytest.mark.parametrize("platform,phase", [("win32", "starting"), ("win32", "error"), ("darwin", "starting")])
+def test_x_during_startup_quits_even_when_close_action_is_tray(monkeypatch, tmp_path, platform, phase):
+    window, states, lifecycle = _closing_env(monkeypatch, tmp_path)
+    jl, javten = MagicMock(), MagicMock()
+    monkeypatch.setattr(standalone, "_setup_windows_lifecycle", lambda *a: lifecycle if platform == "win32" else None)
+    monkeypatch.setattr(standalone.cf_windows, "build_cf_windows", lambda *a: standalone.cf_windows.CfWindowSet(jl_win=jl, javten_win=javten))
+    def gui(startup, win):
+        if phase == "error": states[0].set_error("died")
+        assert window.events.closing.handlers[0]() is None
+        window.hide.assert_not_called(); lifecycle.prompt.assert_not_called()
+        if platform == "win32": assert lifecycle.quitting
+        else:
+            jl.destroy.assert_called_once(); javten.destroy.assert_called_once()
+        standalone._arm_exit_backstop.assert_called()
+    monkeypatch.setattr(standalone, "_start_gui", gui)
+    standalone.main()
+
+
+@pytest.mark.parametrize("ready_first", [True, False])
+def test_ready_and_close_race_has_exactly_one_winner(monkeypatch, tmp_path, ready_first):
+    window, states, lifecycle = _closing_env(monkeypatch, tmp_path)
+    monkeypatch.setattr(standalone, "_setup_windows_lifecycle", lambda *a: lifecycle)
+    def gui(startup, win):
+        state = states[0]
+        if ready_first: assert state.mark_ready()
+        window.events.closing.handlers[0]()
+        if ready_first:
+            window.hide.assert_called_once(); assert not lifecycle.quitting
+        else:
+            assert not state.mark_ready()
+            monkeypatch.setattr(standalone.pywebview_api.api, "_nav_gen", 4)
+            standalone._make_page_loaded_subscriber(state)("server", object(), 4)
+            assert state.phase == "starting" and lifecycle.quitting
+    monkeypatch.setattr(standalone, "_start_gui", gui)
+    standalone.main()
+
+
+@pytest.mark.parametrize("platform", ["win32", "darwin"])
+def test_error_screen_buttons_are_wired_open_log_folder_and_quit(monkeypatch, tmp_path, platform):
+    arm_backstop = standalone._arm_exit_backstop
+    _, window = _main_env(monkeypatch, tmp_path)
+    lifecycle = MagicMock() if platform == "win32" else None
+    monkeypatch.setattr(standalone, "_setup_windows_lifecycle", lambda *a: lifecycle)
+    monkeypatch.setattr(standalone.sys, "platform", platform)
+    path = tmp_path / "OpenAver" / "logs" / "debug.log"
+    monkeypatch.setattr(standalone.health_probe, "_debug_log_hint", lambda: str(path))
+    start, run = MagicMock(), MagicMock()
+    monkeypatch.setattr(standalone.os, "startfile", start, raising=False)
+    monkeypatch.setattr(standalone, "subprocess", subprocess, raising=False)
+    monkeypatch.setattr(subprocess, "run", run)
+    w1, w2 = MagicMock(), MagicMock()
+    monkeypatch.setattr(standalone.webview, "windows", [w1, w2])
+    def gui(startup, win):
+        opener = standalone.pywebview_api._startup_log_opener
+        quit_handler = standalone.pywebview_api._startup_quit_handler
+        opener()
+        if platform == "win32": start.assert_called_once_with(str(path.parent))
+        else: run.assert_called_once_with(["open", str(path.parent)], check=True)
+        quit_handler()
+        standalone._arm_exit_backstop.assert_called()
+        if lifecycle: lifecycle.handle_tray_command.assert_called_once_with(standalone.CMD_QUIT)
+        else: w1.destroy.assert_called_once(); w2.destroy.assert_called_once()
+    monkeypatch.setattr(standalone, "_start_gui", gui)
+    standalone.main()
+    start.reset_mock(); run.reset_mock()
+    monkeypatch.setattr(standalone.health_probe, "_debug_log_hint", lambda: "OpenAver 的 logs 資料夾")
+    def bad_path_gui(startup, win):
+        with pytest.raises(ValueError):
+            standalone.pywebview_api._startup_log_opener()
+        start.assert_not_called(); run.assert_not_called()
+    monkeypatch.setattr(standalone, "_start_gui", bad_path_gui)
+    standalone.main()
+    exit_fn = MagicMock()
+    thread = arm_backstop(delay=0, exit_fn=exit_fn)
+    thread.join(2)
+    exit_fn.assert_called_once_with(0)
 
 
 def test_gui_callback_returns_at_once_and_worker_is_daemon(monkeypatch, tmp_path):

@@ -465,6 +465,8 @@ def test_main_waits_for_restart_parent_before_startup(monkeypatch, tmp_path):
 
 
 def test_token_filter_installed_before_resolve_boot(monkeypatch, tmp_path):
+    monkeypatch.setattr(standalone.pywebview_api, "_startup_log_opener", None)
+    monkeypatch.setattr(standalone.pywebview_api, "_startup_quit_handler", None)
     monkeypatch.setenv("OPENAVER_DATA_DIR", str(tmp_path))
     events = []
     _patch_main_prelude(monkeypatch, events)
@@ -488,7 +490,7 @@ def test_token_filter_installed_before_resolve_boot(monkeypatch, tmp_path):
     monkeypatch.setattr(standalone, "find_free_port", lambda *a, **k: 49152)
     monkeypatch.setattr(standalone, "_start_boot_worker", lambda worker, *a: worker(*a))
     monkeypatch.setattr(standalone, "_start_gui", lambda startup, window: startup(window))
-    monkeypatch.setattr(standalone, "wait_for_server", lambda *a: standalone.PROBE_OK)
+    monkeypatch.setattr(standalone, "wait_for_server", lambda *a, **k: standalone.PROBE_OK)
     monkeypatch.setattr(standalone, "run_server", lambda *a: None)
     monkeypatch.setitem(sys.modules, "web.app", types.SimpleNamespace(app=object()))
     ll = types.SimpleNamespace(lan_listener=MagicMock())
@@ -504,29 +506,6 @@ def test_token_filter_installed_before_resolve_boot(monkeypatch, tmp_path):
         standalone.main()
     assert "resolve_boot" in events
     assert events.index("install_filter") < events.index("resolve_boot")
-
-
-def _local_main(monkeypatch, env):
-    """本機模式 main() 的共用假件（同上一格）；回傳 events。"""
-    monkeypatch.setattr(standalone, "find_free_port", lambda *a, **k: 49152)
-    monkeypatch.setattr(standalone, "run_server", lambda *a, **k: None)
-    monkeypatch.setattr(standalone.threading.Thread, "start", lambda self: None)
-    monkeypatch.setattr(standalone, "_wait_for_server_or_exit", lambda *a, **k: None)
-    monkeypatch.setattr(standalone, "_maybe_autostart_lan_listener", lambda *a: None)
-    monkeypatch.setattr(standalone, "setup_logging", lambda **k: None)
-    monkeypatch.setattr(standalone, "get_logger", lambda name: MagicMock())
-    monkeypatch.setattr(standalone, "bootstrap_data_layout", lambda: MagicMock(status="already_complete"))
-    monkeypatch.setattr(standalone, "_ensure_webview2_runtime", lambda logger: None)
-    monkeypatch.setattr(standalone.restart, "wait_for_parent_exit", lambda *a, **k: None)
-    monkeypatch.setattr(standalone.shell_boot, "install_webview_token_filter", lambda: None)
-    monkeypatch.setattr(standalone, "current_settings", lambda: ProxySettings(url="http://proxy.example:8080"))
-    monkeypatch.setitem(sys.modules, "web.app", types.SimpleNamespace(app=object()))
-    monkeypatch.setitem(sys.modules, "web.lan_listener", types.SimpleNamespace(lan_listener=MagicMock()))
-    if not getattr(standalone.webview.start, "_preset", False):
-        monkeypatch.setattr(standalone.webview, "start", _fake_start(env))
-    monkeypatch.setattr(standalone, "_setup_windows_lifecycle", lambda *a: env.lifecycle)
-    standalone.main()
-    return env.events
 
 
 # ---------- lifecycle / window state ----------

@@ -4,8 +4,10 @@ OpenAver Windows 單機版啟動器
 """
 import contextlib
 import os
+import subprocess
 import sys
 import threading
+import time
 import socket
 import logging
 import traceback
@@ -34,8 +36,9 @@ from core.proxy_policy import current_settings
 from windows import app_icon, cf_boot, cf_shell, cf_windows, health_probe, restart, shell_boot, shell_sync, startup_boot, update_notice
 from windows.health_probe import (
     CLIENT_HOST,
+    PROBE_CANCELLED,
     PROBE_OK,
-    format_startup_message,
+    PROBE_TIMEOUT,
     run_server,
     wait_for_server,
 )
@@ -45,6 +48,8 @@ startup_trace.mark("modules_loaded")
 # 配置
 PORT = 49152  # 使用動態/私有端口範圍 (49152-65535)，避免權限問題
 STARTUP_PAGE = os.path.join(WINDOWS_DIR, "offline", "startup.html")
+STARTUP_PAGE_READY_TIMEOUT = 10
+STARTUP_EXIT_BACKSTOP_S = 3.0
 
 
 # ============ WebView2 檢查 ============
@@ -441,25 +446,6 @@ def find_free_port(start_port=49152, logger=None, max_attempts=100):
     raise RuntimeError(error_msg)
 
 
-def _wait_for_server_or_exit(port, logger, server_thread) -> None:
-    """Wait for the local server; show error and exit(1) on timeout.
-
-    Extracted from main() so the P2-A inner-try around javten create_window
-    stays inside the function-size budget (MAX_LINES = 200). Fall-through
-    or sys.exit(1) — same control flow as the inlined block.
-    """
-    result = wait_for_server(port, server_thread)
-    if result != PROBE_OK:
-        logger.error("伺服器啟動失敗 result=%s", result)
-        show_error(
-            "啟動失敗",
-            format_startup_message(result, port),
-            None,
-            logger
-        )
-        sys.exit(1)
-
-
 def _bootstrap_data_layout_or_exit(logger) -> None:
     """資料根定版；失敗 → 顯示錯誤視窗 → sys.exit(1)。
 
@@ -624,6 +610,87 @@ def _destroy_all_windows():
             w.destroy()
 
 
+def _native_notice(message, logger):
+    if sys.platform == "win32":
+        _win_message_box(message, "OpenAver", yes_no=False)
+    elif sys.platform == "darwin":
+        subprocess.run(["osascript", "-e", "on run argv", "-e",
+            'display dialog (item 1 of argv) with title "OpenAver" buttons {"OK"} default button "OK" with icon stop',
+            "-e", "end run", message], check=False)
+    else:
+        logger.error("啟動失敗：%s", message)
+
+
+def _log_boot_exceptions(fn):
+    def guarded(boot_state, quit_startup, logger, *args, **kwargs):
+        try:
+            return fn(boot_state, quit_startup, logger, *args, **kwargs)
+        except Exception:
+            logger.exception("啟動失敗處理失敗")
+    return guarded
+
+
+@_log_boot_exceptions
+def _notify_if_page_silent(boot_state, quit_startup, logger, timeout=STARTUP_PAGE_READY_TIMEOUT,
+                           clock=time.monotonic, sleep=time.sleep):
+    deadline = clock() + timeout
+    while not (boot_state.error_polled or boot_state.quitting):
+        if clock() >= deadline:
+            try:
+                _native_notice(boot_state.native_message(), logger)
+            finally:
+                quit_startup()
+            return
+        sleep(0.1)
+
+
+@_log_boot_exceptions
+def _fail_boot(boot_state, quit_startup, logger, kind, detail=""):
+    if not boot_state.set_error(kind, detail):
+        return
+    _notify_if_page_silent(boot_state, quit_startup, logger)
+
+
+def _open_log_folder(log_path):
+    path = Path(log_path)
+    if not path.is_absolute():
+        raise ValueError("invalid log path")
+    folder = str(path.parent)
+    if sys.platform == "win32":
+        os.startfile(folder)
+    else:
+        subprocess.run(["open" if sys.platform == "darwin" else "xdg-open", folder], check=True)
+
+
+def _arm_exit_backstop(delay=STARTUP_EXIT_BACKSTOP_S, exit_fn=None):
+    def force_exit():
+        time.sleep(delay)
+        get_logger("standalone").warning("啟動期間強制結束")
+        (exit_fn or os._exit)(0)
+    thread = threading.Thread(target=force_exit, daemon=True)
+    thread.start()
+    return thread
+
+
+def _make_startup_quit(window, lifecycle):
+    quit_app = _make_quit_app(window, lifecycle)
+    def quit_startup():
+        _arm_exit_backstop()
+        quit_app()
+    return quit_startup
+
+
+def _close_during_startup(boot_state, lifecycle):
+    if not boot_state.request_quit():
+        return False
+    try:
+        if lifecycle is not None:
+            lifecycle.quit_now()
+    finally:
+        _arm_exit_backstop()
+    return True
+
+
 def _register_bridge_seams(window, lifecycle):
     """註冊 bridge 的兩個注入接縫（重啟、小頁文案）；兩種模式都要呼叫。"""
     quit_app = _make_quit_app(window, lifecycle)
@@ -695,16 +762,23 @@ def _shutdown_lan_listener_if_loaded():
         module.lan_listener.shutdown()
 
 
-def _local_boot_worker(window, boot_state, logger, debug_mode, cf_set, cf_supported, cf_agent_box):
+def _local_boot_worker(window, boot_state, logger, debug_mode, cf_set, cf_supported, cf_agent_box, quit_startup):
     try:
-        port = find_free_port(PORT, logger)
+        try:
+            port = find_free_port(PORT, logger)
+        except RuntimeError as exc:
+            _fail_boot(boot_state, quit_startup, logger, "no_port", str(exc))
+            return
         logger.info("使用端口: %s", port)
         server_thread = threading.Thread(target=run_server, args=(port, debug_mode), daemon=True)
         server_thread.start()
         startup_trace.mark("server_thread_started")
-        result = wait_for_server(port, server_thread)
+        result = wait_for_server(port, server_thread, cancelled=lambda: boot_state.quitting)
         if result != PROBE_OK:
+            if result == PROBE_CANCELLED:
+                return
             logger.error("伺服器啟動失敗 result=%s", result)
+            _fail_boot(boot_state, quit_startup, logger, "timeout" if result == PROBE_TIMEOUT else "died")
             return
         startup_trace.mark("server_ready")
         from web.app import app as _app
@@ -723,6 +797,7 @@ def _local_boot_worker(window, boot_state, logger, debug_mode, cf_set, cf_suppor
         window.load_url(boot.url)
     except Exception:
         logger.exception("本機啟動失敗")
+        _fail_boot(boot_state, quit_startup, logger, "died")
 
 
 def _run_client_mode(logger):
@@ -797,7 +872,8 @@ def main():
         return
 
     theme = client_settings.shell_theme()
-    boot_state = startup_boot.BootState(client_settings.tray_locale(), theme, health_probe._debug_log_hint())
+    log_path = health_probe._debug_log_hint()
+    boot_state = startup_boot.BootState(client_settings.tray_locale(), theme, log_path)
     logger.info("啟動視窗...")
     webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
 
@@ -819,10 +895,16 @@ def main():
     lifecycle = _setup_windows_lifecycle(window, jl_win, javten_win, saved,
                                          types.SimpleNamespace(shutdown=_shutdown_lan_listener_if_loaded))
     _register_bridge_seams(window, lifecycle)
+    quit_startup = _make_startup_quit(window, lifecycle)
     pywebview_api.set_startup_state_provider(boot_state.get_state)
+    pywebview_api.set_startup_log_opener(lambda: _open_log_folder(log_path))
+    pywebview_api.set_startup_quit_handler(quit_startup)
 
     def _on_main_closing():
+        starting = _close_during_startup(boot_state, lifecycle)
         if lifecycle is not None:
+            if starting:
+                return None
             result = lifecycle.on_window_closing()
             _app_state["quitting"] = lifecycle.quitting
             return result
@@ -850,7 +932,7 @@ def main():
         _arm_page_marks(boot_state)
         _attach_window_state(w, saved, lifecycle, logger)
         _start_boot_worker(_local_boot_worker, w, boot_state, logger, debug_mode,
-                           cf_set, cf_supported, cf_agent_box)
+                           cf_set, cf_supported, cf_agent_box, quit_startup)
 
     # 5. 開始 GUI 事件循環（阻塞直到窗口關閉）
     # 根據平台選擇 GUI 後端

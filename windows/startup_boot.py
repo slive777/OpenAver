@@ -99,6 +99,18 @@ class BootState:
             self._navigation_claimed = True
             return True
 
+    def native_message(self):
+        try:
+            with self._lock:
+                kind, detail = self._error if self._error is not None else ("died", "")
+                label = self._texts.get("log_label", "")
+                log_line = f"{label}：{self._log_path}" if self._log_path else ""
+                return "\n\n".join(str(part) for part in
+                    (self._texts.get(f"message_{kind}", ""), detail, self._texts.get("hint", ""), log_line) if part)
+        except Exception:
+            logger.exception("組合啟動錯誤訊息失敗")
+            return ""
+
     def get_state(self):
         with self._lock:
             if self._phase == "error":
