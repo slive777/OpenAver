@@ -146,6 +146,44 @@ jobs:
           cd dist
           unzip *-macOS-*.zip -d artifact
 
+      - name: Verify Mach-O slices and signatures (shipped tree)
+        run: |
+          find dist/artifact/OpenAver -type f > "$RUNNER_TEMP/openaver-files.txt"
+          count=0
+          bad=0
+          while IFS= read -r f; do
+            if ! kind=$(file -b "$f"); then
+              echo "file failed: $f"
+              bad=1
+              continue
+            fi
+            if ! printf '%s\n' "$kind" | grep -q 'Mach-O'; then
+              continue
+            fi
+            count=$((count + 1))
+            if archs=$(lipo -archs "$f"); then
+              if [ "$archs" != arm64 ]; then
+                echo "Unexpected architectures ($archs): $f"
+                bad=1
+              fi
+            else
+              echo "lipo failed: $f"
+              bad=1
+            fi
+            if ! codesign --verify --strict "$f"; then
+              echo "Signature verification failed: $f"
+              bad=1
+            fi
+          done < "$RUNNER_TEMP/openaver-files.txt"
+          if [ "$count" -lt 50 ]; then
+            echo "Mach-O count insufficient: $count < 50"
+            bad=1
+          fi
+          echo "Mach-O files checked: $count"
+          if [ "$bad" -ne 0 ]; then
+            exit 1
+          fi
+
       # 產物 runtime import sweep：macos runner 原生執行產物自帶 python3（CD-97-2）。
       # 與 Upload to Release 同 job，step 順序即 gate（CD-97-3）。
       - name: Runtime import sweep (shipped python3)

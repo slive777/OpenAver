@@ -19,6 +19,7 @@ import tarfile
 import urllib.request
 import subprocess
 import platform
+import tempfile
 from pathlib import Path
 
 # ============ 配置 ============
@@ -67,7 +68,17 @@ REMOVE_PACKAGES = [
     'pygments', 'pygments-[0-9]*',
     'markdown_it', 'markdown_it_py-[0-9]*',
     'mdurl', 'mdurl-[0-9]*',
+    'PyObjCTest',
 ]
+
+
+MACHO_MAGICS = (
+    b"\xca\xfe\xba\xbe",  # fat (big-endian header)
+    b"\xca\xfe\xba\xbf",  # fat64
+    b"\xcf\xfa\xed\xfe",  # thin 64-bit (little-endian: arm64 / x86_64)
+    b"\xce\xfa\xed\xfe",  # thin 32-bit
+)
+MACHO_MIN_COUNT = 50
 
 
 # ============ 工具函數 ============
@@ -429,6 +440,86 @@ def optimize_package():
         print(f"  移除 {len(removed_packages)} 個開發工具: {', '.join(removed_packages[:5])}{'...' if len(removed_packages) > 5 else ''}")
 
 
+def is_macho_file(path: Path) -> bool:
+    """以檔頭判定 Mach-O。"""
+    with path.open("rb") as source:
+        return source.read(4) in MACHO_MAGICS
+
+
+def iter_macho_files(python_dir: Path):
+    for path in python_dir.rglob("*"):
+        if path.is_file() and not path.is_symlink() and is_macho_file(path):
+            yield path
+
+
+def macho_archs(path: Path):
+    try:
+        result = subprocess.run(
+            ["lipo", "-archs", str(path)], check=True, capture_output=True, text=True
+        )
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(f"{path}: lipo -archs 失敗: {error.stderr}") from error
+    return result.stdout.split()
+
+
+def remove_dsym_directories(python_dir: Path):
+    count = 0
+    for path in python_dir.rglob("*.dSYM"):
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+            count += 1
+    print(f"  已移除 {count} 個 dSYM 目錄")
+
+
+def thin_macho_to_arm64(python_dir: Path):
+    print("\n  瘦身 Mach-O 並重新簽章...")
+    tmp_dir = BUILD_DIR / "_thin_tmp"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    count = 0
+    for path in iter_macho_files(python_dir):
+        archs = macho_archs(path)
+        if "x86_64" not in archs:
+            continue
+        if "arm64" not in archs:
+            raise RuntimeError(f"{path}: 沒有 arm64 架構: {archs}")
+        with tempfile.NamedTemporaryFile(dir=tmp_dir, delete=False) as temp:
+            tmp = Path(temp.name)
+        try:
+            subprocess.run(["lipo", "-thin", "arm64", "-output", str(tmp), str(path)], check=True)
+            shutil.copymode(path, tmp)
+            os.replace(tmp, path)
+            subprocess.run(["codesign", "--force", "--sign", "-", str(path)], check=True)
+        finally:
+            tmp.unlink(missing_ok=True)
+        count += 1
+    print(f"  已瘦身並簽章 {count} 個 Mach-O")
+    return count
+
+
+def verify_macho_tree(python_dir: Path):
+    print("\n  驗證 Mach-O 架構與簽章...")
+    failures = []
+    count = 0
+    for path in iter_macho_files(python_dir):
+        count += 1
+        try:
+            archs = macho_archs(path)
+            if archs != ["arm64"]:
+                failures.append(f"{path}: 架構為 {archs}")
+        except RuntimeError as error:
+            failures.append(str(error))
+        result = subprocess.run(
+            ["codesign", "--verify", "--strict", str(path)], capture_output=True, text=True
+        )
+        if result.returncode:
+            failures.append(f"{path}: 簽章驗證失敗: {result.stderr.strip()}")
+    if count < MACHO_MIN_COUNT:
+        failures.append(f"Mach-O 筆數不足: {count} < {MACHO_MIN_COUNT}")
+    if failures:
+        raise RuntimeError(f"Mach-O 驗證失敗 {len(failures)} 項:\n" + "\n".join(failures[:20]))
+    print(f"  已驗證 {count} 個 Mach-O")
+
+
 def create_zip_package():
     """打包成 ZIP"""
     print("\n[7/7] 打包成 ZIP...")
@@ -484,6 +575,9 @@ def main():
         copy_project_files()
         create_launcher_scripts()
         optimize_package()
+        remove_dsym_directories(python_dir)
+        thin_macho_to_arm64(python_dir)
+        verify_macho_tree(python_dir)
         zip_path = create_zip_package()
 
         print("\n" + "=" * 50)
