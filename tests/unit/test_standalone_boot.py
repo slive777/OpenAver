@@ -26,8 +26,6 @@ def boot_env(monkeypatch):
     listener.wire.side_effect = lambda *a, **k: events.append("wire")
     monkeypatch.setitem(sys.modules, "web.app", SimpleNamespace(app=object()))
     monkeypatch.setitem(sys.modules, "web.lan_listener", SimpleNamespace(lan_listener=listener))
-    monkeypatch.setattr(standalone, "find_free_port", lambda *a: 49152)
-    monkeypatch.setattr(standalone, "run_server", lambda *a: None)
     monkeypatch.setattr(standalone, "wait_for_server", lambda *a, **k: standalone.PROBE_OK)
     monkeypatch.setattr(standalone, "_notify_if_page_silent", MagicMock(), raising=False)
     monkeypatch.setattr(standalone, "_maybe_autostart_lan_listener", lambda *a: events.append("lan"))
@@ -41,8 +39,9 @@ def boot_env(monkeypatch):
                            logger=MagicMock(), box={"agent": None}, quit=MagicMock())
 
 
-def _args(e):
-    return (e.window, e.state, e.logger, False, object(), True, e.box, e.quit)
+def _args(e, backend=None):
+    return (e.window, e.state, e.logger, object(), True, e.box, e.quit,
+            backend or SimpleNamespace(port=49152, thread=object(), port_error=None))
 
 
 @pytest.mark.parametrize("case", ["shown", "timeout", "quit"])
@@ -83,11 +82,12 @@ def test_boot_failures_become_error_state_never_dialog_or_navigation(monkeypatch
     monkeypatch.setattr(standalone, "show_error", MagicMock(side_effect=AssertionError("dialog")))
     monkeypatch.setattr(standalone, "_win_message_box", MagicMock(side_effect=AssertionError("dialog")))
     monkeypatch.setattr(standalone, "wait_for_server", MagicMock(return_value={"timeout": "timeout", "died": "thread_died", "cancelled": "cancelled"}.get(case, "ok")))
+    backend_for_case = None
     if case == "no_port":
-        monkeypatch.setattr(standalone, "find_free_port", MagicMock(side_effect=RuntimeError("msg")))
+        backend_for_case = SimpleNamespace(port=None, thread=None, port_error="msg")
     if case == "unexpected":
         monkeypatch.setattr(standalone, "_make_cf_agent", MagicMock(side_effect=ValueError("bad")))
-    standalone._local_boot_worker(*_args(e))
+    standalone._local_boot_worker(*_args(e, backend_for_case))
     assert e.state.error == expected
     if expected:
         assert isinstance(e.state.error[1], str)
@@ -175,11 +175,12 @@ def test_worker_never_navigates_when_backend_not_ready_or_user_quit(monkeypatch,
     probe = MagicMock(return_value={"timeout": standalone.health_probe.PROBE_TIMEOUT,
                                    "died": standalone.health_probe.PROBE_THREAD_DIED}.get(case, standalone.PROBE_OK))
     monkeypatch.setattr(standalone, "wait_for_server", probe)
+    backend_for_case = None
     if case == "port":
-        monkeypatch.setattr(standalone, "find_free_port", MagicMock(side_effect=RuntimeError("no port")))
+        backend_for_case = SimpleNamespace(port=None, thread=None, port_error="no port")
     if case == "quit":
         assert e.state.request_quit()
-    standalone._local_boot_worker(*_args(e))
+    standalone._local_boot_worker(*_args(e, backend_for_case))
     e.window.load_url.assert_not_called()
 
 
@@ -202,6 +203,8 @@ def test_page_loaded_marks_follow_kind_and_generation(monkeypatch, kind, gen, ke
 
 def _main_env(monkeypatch, tmp_path):
     monkeypatch.setattr(standalone.api, "_page_kind", "startup")
+    monkeypatch.setattr(standalone, "find_free_port", lambda *a, **k: 49152)
+    monkeypatch.setattr(standalone, "run_server", lambda *a, **k: None)
     events = []
     for slot in ("_page_loaded_subscriber", "_loaded_hook", "_restart_handler",
                  "_offline_text_provider", "_startup_state_provider", "_startup_log_opener", "_startup_quit_handler"):
@@ -229,6 +232,77 @@ def _main_env(monkeypatch, tmp_path):
     monkeypatch.setattr(standalone.api, "_set_trusted_origin", lambda origin: events.append(("trusted", origin)))
     monkeypatch.setattr(standalone.pywebview_api, "_startup_state_provider", None)
     return events, window
+
+
+def test_local_backend_starts_before_window_and_worker_waits_on_its_port(monkeypatch, tmp_path):
+    events, window = _main_env(monkeypatch, tmp_path)
+    monkeypatch.setenv("OPENAVER_DEBUG", "1")
+    ports = iter((51234, 51235))
+    calls, waits = [], []
+    def find(*args):
+        port = next(ports)
+        events.append(("port", port))
+        return port
+    def server(port, debug):
+        calls.append((port, debug, threading.current_thread()))
+    def wait(port, thread, **kwargs):
+        waits.append((port, thread))
+        return standalone.PROBE_OK
+    monkeypatch.setattr(standalone, "find_free_port", find)
+    monkeypatch.setattr(standalone, "run_server", server)
+    monkeypatch.setattr(standalone, "wait_for_server", wait)
+    monkeypatch.setitem(sys.modules, "web.app", SimpleNamespace(app=object()))
+    monkeypatch.setitem(sys.modules, "web.lan_listener", SimpleNamespace(lan_listener=MagicMock()))
+    monkeypatch.setattr(standalone, "_maybe_autostart_lan_listener", lambda *a: None)
+    monkeypatch.setattr(standalone, "_make_cf_agent", lambda *a: MagicMock())
+    monkeypatch.setattr(client_settings, "shell_kind", lambda: "standalone")
+    monkeypatch.setattr(standalone, "_start_boot_worker", lambda worker, *a: worker(*a))
+    monkeypatch.setattr(standalone, "_start_gui", lambda startup, win: startup(win))
+    standalone.main()
+    thread = calls[0][2]
+    thread.join(3)
+    assert not thread.is_alive()
+    create = next(e for e in events if isinstance(e, tuple) and e[0] == "create")
+    assert events.index(("port", 51234)) < events.index(create)
+    assert len([e for e in events if isinstance(e, tuple) and e[0] == "port"]) == 1
+    assert calls == [(51234, True, thread)]
+    assert waits == [(51234, thread)] and waits[0][1] is thread
+    window.load_url.assert_called_once_with(client_settings.shell_entry_url("http://127.0.0.1:51234", "standalone"))
+
+
+def test_local_backend_without_free_port_starts_no_server_and_shows_no_port_error(monkeypatch, tmp_path):
+    events, window = _main_env(monkeypatch, tmp_path)
+    def find(*args):
+        events.append("port")
+        raise RuntimeError("no free port")
+    server, wait = MagicMock(), MagicMock()
+    marks, targets = [], []
+    original_start = threading.Thread.start
+    def spy(thread):
+        targets.append(thread._target)
+        return original_start(thread)
+    monkeypatch.setattr(threading.Thread, "start", spy)
+    monkeypatch.setattr(standalone, "find_free_port", find)
+    monkeypatch.setattr(standalone, "run_server", server)
+    monkeypatch.setattr(standalone, "wait_for_server", wait)
+    monkeypatch.setattr(standalone, "_notify_if_page_silent", MagicMock())
+    monkeypatch.setattr(standalone.startup_trace, "mark", marks.append)
+    monkeypatch.setitem(sys.modules, "web.app", SimpleNamespace(app=object()))
+    monkeypatch.setitem(sys.modules, "web.lan_listener", SimpleNamespace(lan_listener=MagicMock()))
+    monkeypatch.setattr(standalone, "_maybe_autostart_lan_listener", lambda *a: None)
+    monkeypatch.setattr(standalone, "_make_cf_agent", lambda *a: MagicMock())
+    monkeypatch.setattr(client_settings, "shell_kind", lambda: "standalone")
+    monkeypatch.setattr(standalone, "_start_boot_worker", lambda worker, *a: worker(*a))
+    monkeypatch.setattr(standalone, "_start_gui", lambda startup, win: startup(win))
+    standalone.main()
+    create = next(e for e in events if isinstance(e, tuple) and e[0] == "create")
+    assert events.index("port") < events.index(create)
+    assert events.count("port") == 1
+    assert server not in targets
+    assert "server_thread_started" not in marks
+    assert wait.call_count == 0
+    assert window.load_url.call_count == 0
+    assert standalone.pywebview_api._startup_state_provider.__self__.error == ("no_port", "no free port")
 
 
 class _Collector:
@@ -358,11 +432,10 @@ def test_gui_callback_returns_at_once_and_worker_is_daemon(monkeypatch, tmp_path
                 thread.join(3)
 
 
-def test_main_opens_startup_window_before_backend_and_cf_windows_before_gui(monkeypatch, tmp_path):
+def test_main_starts_backend_before_startup_window_and_cf_windows_before_gui(monkeypatch, tmp_path):
     events, window = _main_env(monkeypatch, tmp_path)
     monkeypatch.setattr(standalone, "_start_boot_worker", lambda *a: events.append("worker"), raising=False)
-    monkeypatch.setattr(standalone, "find_free_port", lambda *a: events.append("port"))
-    monkeypatch.setattr(standalone, "run_server", lambda *a: events.append("server"))
+    monkeypatch.setattr(standalone, "find_free_port", lambda *a: events.append("port") or 49152)
     def gui(startup, win):
         events.append("gui")
         assert standalone.pywebview_api._startup_state_provider is not None
@@ -373,9 +446,9 @@ def test_main_opens_startup_window_before_backend_and_cf_windows_before_gui(monk
     assert create[1] == standalone.STARTUP_PAGE
     assert create[2]["js_api"] is None
     assert create[2]["background_color"] == startup_boot.background_color(client_settings.shell_theme())
-    assert events.index("expect") < events.index(create) < events.index("build") < events.index("gui")
+    assert events.index("port") < events.index("expect") < events.index(create) < events.index("build") < events.index("gui")
     assert not any(isinstance(e, tuple) and e[0] == "trusted" for e in events[:events.index("gui")])
-    assert not {"port", "server", "announce"} & set(e for e in events if isinstance(e, str))
+    assert "announce" not in events
 
 
 def test_local_gui_return_arms_exit_backstop_after_cleanup(monkeypatch, tmp_path):

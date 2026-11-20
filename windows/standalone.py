@@ -849,18 +849,25 @@ def _wait_startup_page_shown(boot_state, logger):
         time.sleep(STARTUP_PAGE_POLL_S)
 
 
-def _local_boot_worker(window, boot_state, logger, debug_mode, cf_set, cf_supported, cf_agent_box, quit_startup):
+def _start_local_backend(logger, debug_mode):
     try:
-        try:
-            port = find_free_port(PORT, logger)
-        except RuntimeError as exc:
-            _fail_boot(boot_state, quit_startup, logger, "no_port", str(exc))
+        port = find_free_port(PORT, logger)
+    except RuntimeError as exc:
+        return types.SimpleNamespace(port=None, thread=None, port_error=str(exc))
+    logger.info("使用端口: %s", port)
+    thread = threading.Thread(target=run_server, args=(port, debug_mode), daemon=True)
+    thread.start()
+    startup_trace.mark("server_thread_started")
+    return types.SimpleNamespace(port=port, thread=thread, port_error=None)
+
+
+def _local_boot_worker(window, boot_state, logger, cf_set, cf_supported, cf_agent_box, quit_startup, backend):
+    try:
+        if backend.port_error is not None:
+            _fail_boot(boot_state, quit_startup, logger, "no_port", backend.port_error)
             return
-        logger.info("使用端口: %s", port)
-        server_thread = threading.Thread(target=run_server, args=(port, debug_mode), daemon=True)
-        server_thread.start()
-        startup_trace.mark("server_thread_started")
-        result = wait_for_server(port, server_thread, cancelled=lambda: boot_state.quitting)
+        port = backend.port
+        result = wait_for_server(port, backend.thread, cancelled=lambda: boot_state.quitting)
         if result != PROBE_OK:
             if result == PROBE_CANCELLED:
                 return
@@ -1028,6 +1035,7 @@ def main():
         _run_client_mode(logger)
         return
 
+    backend = _start_local_backend(logger, debug_mode)
     theme = client_settings.shell_theme()
     log_path = health_probe._debug_log_hint()
     boot_state = startup_boot.BootState(client_settings.tray_locale(), theme, log_path)
@@ -1088,8 +1096,8 @@ def main():
     def startup(w):
         _arm_page_marks(boot_state)
         _attach_window_state(w, saved, lifecycle, logger)
-        _start_boot_worker(_local_boot_worker, w, boot_state, logger, debug_mode,
-                           cf_set, cf_supported, cf_agent_box, quit_startup)
+        _start_boot_worker(_local_boot_worker, w, boot_state, logger,
+                           cf_set, cf_supported, cf_agent_box, quit_startup, backend)
 
     # 5. 開始 GUI 事件循環（阻塞直到窗口關閉）
     # 根據平台選擇 GUI 後端
