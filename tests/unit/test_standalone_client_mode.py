@@ -240,7 +240,7 @@ def env(monkeypatch, tmp_path):
     real_start = threading.Thread.start
 
     def guarded_start(self):   # 只放行重啟的延遲退出執行緒；其餘仍禁
-        if self.name in (standalone.restart.QUIT_THREAD_NAME, "oa-boot-worker"):
+        if self.name in (standalone.restart.QUIT_THREAD_NAME, "oa-boot-worker", "oa-client-prefetch"):
             return real_start(self)
         return boom()
 
@@ -274,6 +274,81 @@ def _fake_start(env, in_loop=None):
 
 def _ok_preflight(monkeypatch):
     monkeypatch.setattr(client_connect, "preflight", lambda url, token: Preflight("ok", None, {}))
+
+
+@pytest.mark.parametrize("offline", [False, True])
+def test_client_prefetch_starts_before_gui_loop_and_worker_reuses_its_result(monkeypatch, env, offline):
+    _client_json()
+    monkeypatch.setattr(client_connect, "preflight", lambda *a: Preflight(
+        "offline" if offline else "ok", "unreachable" if offline else None, {}))
+    entered = threading.Event()
+    resolves, fetches = [], []
+    real_resolve = standalone.shell_boot.resolve_boot
+    real_fetch = standalone.cf_windows.fetch_client_cf
+
+    def resolve(*args):
+        resolves.append(threading.current_thread().name)
+        entered.set()
+        return real_resolve(*args)
+
+    def fetch(*args):
+        fetches.append(threading.current_thread().name)
+        return real_fetch(*args)
+
+    def start(startup, window, **kw):
+        assert entered.wait(2)
+        startup(window)
+
+    monkeypatch.setattr(standalone.shell_boot, "resolve_boot", resolve)
+    monkeypatch.setattr(standalone.cf_windows, "fetch_client_cf", fetch)
+    monkeypatch.setattr(standalone.webview, "start", start)
+    standalone._run_client_mode(env.logger)
+    assert resolves == ["oa-client-prefetch"]
+    assert fetches == ([] if offline else ["oa-client-prefetch"])
+    loads = [e for e in env.events if isinstance(e, tuple) and e[0] == "load_url"]
+    assert len(loads) == 1
+    if offline:
+        assert loads[0][1] == standalone.shell_boot.OFFLINE_PAGE
+
+
+@pytest.mark.parametrize("case", ["raises", "stalls"])
+def test_client_worker_falls_back_to_live_preflight_when_prefetch_fails_or_stalls(monkeypatch, env, case):
+    _client_json()
+    _ok_preflight(monkeypatch)
+    gate = threading.Event()
+    calls = []
+    real_resolve = standalone.shell_boot.resolve_boot
+
+    def resolve(*args):
+        calls.append(threading.current_thread().name)
+        if len(calls) == 1:
+            if case == "raises":
+                raise RuntimeError("prefetch failed")
+            gate.wait(3)
+        return real_resolve(*args)
+
+    monkeypatch.setattr(standalone.shell_boot, "resolve_boot", resolve)
+    if case == "stalls":
+        monkeypatch.setattr(standalone, "CLIENT_PREFETCH_WAIT_S", 0.05)
+    monkeypatch.setattr(standalone.webview, "start", _fake_start(env))
+    try:
+        standalone._run_client_mode(env.logger)
+        assert len(calls) == 2
+        local_origin = f"http://{standalone.CLIENT_HOST}:{standalone.PORT}"
+        url = client_settings.shell_entry_url(local_origin, client_settings.shell_kind(), token=TOKEN)
+        loads = [e for e in env.events if isinstance(e, tuple) and e[0] == "load_url"]
+        assert loads == [("load_url", url)]
+        assert env.events.index(("trusted", SERVER)) < env.events.index(loads[0])
+        assert len(env.cf.fetch_calls) == 1
+        assert standalone.pywebview_api._startup_state_provider.__self__.error is None
+        assert env.logger.exception.call_count == 0
+    finally:
+        gate.set()
+        for thread in threading.enumerate():
+            if thread.name == "oa-client-prefetch":
+                thread.join(3)
+                if thread.is_alive():
+                    pytest.fail("prefetch thread did not finish")
 
 
 def test_client_worker_holds_navigation_until_startup_page_is_up(monkeypatch, env):
@@ -474,10 +549,10 @@ def test_client_mode_wires_cf_once_with_same_origin_and_token(monkeypatch, env):
     assert ("trusted", agent.origin) in env.events          # 與 _set_trusted_origin 同一個值（CD-9）
     assert agent.origin == SERVER and agent.token == TOKEN
     assert agent.kw["server_remote"] is True and agent.kw["supported"] is True
-    seq = [x for x in env.events if x in ("cf.fetch", "cf.build", "mark:cf_windows_created", "cf.announce",
-                                           "gui_loop_enter", "cf.start", "gui_loop_exit", "cf.stop",
+    seq = [x for x in env.events if x in ("gui_loop_enter", "cf.build", "mark:cf_windows_created", "cf.announce",
+                                           "cf.start", "gui_loop_exit", "cf.stop",
                                            "shutdown_after_loop", "spawn")]
-    assert seq == ["gui_loop_enter", "cf.fetch", "cf.build", "mark:cf_windows_created", "cf.announce",
+    assert seq == ["gui_loop_enter", "cf.build", "mark:cf_windows_created", "cf.announce",
                    "cf.start", "gui_loop_exit", "cf.stop", "shutdown_after_loop", "spawn"]
     controller = standalone.pywebview_api._cf_status_provider.__self__      # 168e-T13：provider 改由控制器轉接
     assert standalone.pywebview_api._cf_status_provider == controller.status

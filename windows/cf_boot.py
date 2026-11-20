@@ -53,10 +53,11 @@ def agent_retry_handler(agent):
 
 
 class CfShellController:
-    def __init__(self, logger, boot_kind, local_origin):
+    def __init__(self, logger, boot_kind, local_origin, prefetched_cf=None):
         self._logger = logger
         self._kind = boot_kind                       # 'client' | 'local' | 'offline'
         self._local_origin = local_origin
+        self._prefetched_cf = prefetched_cf
         self._cf_set = cf_windows.CfWindowSet()
         self._agent = None
         self._built = False                          # build_cf_windows 嘗試過即為真（set-once）
@@ -103,12 +104,12 @@ class CfShellController:
         if not cf_windows.cf_shell_supported():
             self._make_agent(server_origin, token, False, False)
             return
-        self._boot_cf(server_url, token, server_origin)
+        self._boot_cf(server_url, token, server_origin, self._prefetched_cf)
 
-    def _boot_cf(self, server_url, token, server_origin):
+    def _boot_cf(self, server_url, token, server_origin, prefetched=None):
         """抓設定→建窗→建 agent；回是否建了 agent。抓不到設定＝不建窗（fail-closed）。"""
-        ok, reason, eff_settings, local_direct, server_remote = cf_windows.fetch_client_cf(
-            server_url, token, server_origin)
+        fetched = prefetched if prefetched is not None else cf_windows.fetch_client_cf(server_url, token, server_origin)
+        ok, reason, eff_settings, local_direct, server_remote = fetched
         if not ok:
             self._static_reason = reason
             self._logger.warning("CF settings unavailable (%s), CF windows not built", reason)

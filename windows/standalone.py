@@ -53,6 +53,7 @@ STARTUP_PAGE = os.path.join(WINDOWS_DIR, "offline", "startup.html")
 STARTUP_PAGE_READY_TIMEOUT = 10
 STARTUP_EXIT_BACKSTOP_S = 3.0
 STARTUP_PAGE_WAIT_S = 3.0
+CLIENT_PREFETCH_WAIT_S = 30.0
 STARTUP_PAGE_POLL_S = 0.01
 WEBVIEW2_PROFILE_DIR = "webview2"
 WEBVIEW2_STARTED_MARKER = ".started"
@@ -864,6 +865,35 @@ def _local_boot_worker(window, boot_state, logger, debug_mode, cf_set, cf_suppor
         _fail_boot(boot_state, quit_startup, logger, "died")
 
 
+class _ClientBootPrefetch:
+    def __init__(self):
+        self._done = threading.Event()
+        self._boot = None
+        self._cf = None
+        self._failed = False
+
+    def start(self, local_origin, logger):
+        threading.Thread(target=self._run, args=(local_origin, logger),
+                         name="oa-client-prefetch", daemon=True).start()
+
+    def _run(self, local_origin, logger):
+        try:
+            self._boot = shell_boot.resolve_boot(local_origin, client_settings.shell_kind())
+            if self._boot.kind != "offline" and cf_windows.cf_shell_supported():
+                self._cf = cf_windows.fetch_client_cf(*client_settings.server_pair(),
+                                                       client_settings.server_origin(local_origin))
+        except Exception as exc:
+            self._failed = True
+            logger.warning("連線預取失敗 (%s)", type(exc).__name__)
+        finally:
+            self._done.set()
+
+    def result(self):
+        if self._done.wait(CLIENT_PREFETCH_WAIT_S) and not self._failed:
+            return self._boot, self._cf
+        return None
+
+
 def _run_client_mode(logger):
     """連線模式：只開殼，不起任何本機服務。"""
     import window_state
@@ -897,12 +927,18 @@ def _run_client_mode(logger):
         return None
 
     window.events.closing += _on_main_closing
+    prefetch = _ClientBootPrefetch()
+    prefetch.start(local_origin, logger)
 
     def boot_worker():
         try:
-            boot = shell_boot.resolve_boot(local_origin, client_settings.shell_kind())
+            result = prefetch.result()
+            if result is None:
+                logger.warning("連線預取逾時或失敗，改在這裡現場預檢")
+                result = shell_boot.resolve_boot(local_origin, client_settings.shell_kind()), None
+            boot, cf_fetched = result
             startup_trace.mark("client_preflight_done")
-            cf = cf_boot.CfShellController(logger, boot.kind, local_origin)
+            cf = cf_boot.CfShellController(logger, boot.kind, local_origin, prefetched_cf=cf_fetched)
             cf_box["cf"] = cf
             pywebview_api.set_cf_status_provider(cf.status)
             pywebview_api.set_cf_retry_handler(cf.retry)
