@@ -34,10 +34,11 @@ grep -v '^pywebview' "$PKG/app/requirements.txt" > "$WORK/req-nas.txt"
 CONSTRAINT=""
 for A in $ARCHS; do
   case "$A" in
-    aarch64) PLAT=(--platform manylinux2014_aarch64 --platform manylinux_2_27_aarch64 --platform manylinux_2_28_aarch64 --platform manylinux_2_34_aarch64) ;;
-    x86_64)  PLAT=(--platform manylinux2014_x86_64 --platform manylinux_2_27_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64) ;;
+    aarch64) STRIP_BIN="${STRIP_AARCH64:-aarch64-linux-gnu-strip}"; PLAT=(--platform manylinux2014_aarch64 --platform manylinux_2_27_aarch64 --platform manylinux_2_28_aarch64 --platform manylinux_2_34_aarch64) ;;
+    x86_64)  STRIP_BIN="${STRIP_X86_64:-strip}"; PLAT=(--platform manylinux2014_x86_64 --platform manylinux_2_27_x86_64 --platform manylinux_2_28_x86_64 --platform manylinux_2_34_x86_64) ;;
     *) echo "unknown arch $A"; exit 1 ;;
   esac
+  command -v "$STRIP_BIN" >/dev/null || { echo "[build] strip tool not found: $STRIP_BIN" >&2; exit 1; }
   cp -a "$CACHE/python-$A-base" "$PKG/python-$A"
   SP="$PKG/python-$A/lib/python3.12/site-packages"
   "$PIP_BIN" install -q --no-compile --target "$SP" --upgrade \
@@ -50,6 +51,11 @@ for A in $ARCHS; do
     echo "[build] resolved $(wc -l < "$CONSTRAINT") dists on $A"
   fi
   find "$PKG/python-$A" -name __pycache__ -prune -exec rm -rf {} +
+  rm -rf "$SP/rich" "$SP/pygments" "$SP/markdown_it" "$SP/mdurl" \
+    "$SP"/rich-[0-9]*.dist-info "$SP"/pygments-[0-9]*.dist-info \
+    "$SP"/Pygments-[0-9]*.dist-info "$SP"/markdown_it_py-[0-9]*.dist-info \
+    "$SP"/mdurl-[0-9]*.dist-info
+  bash "$REPO/scripts/slim_linux_python.sh" "$PKG/python-$A" "$STRIP_BIN"
 done
 
 ( cd "$PKG" && tar czf "$WORK/package.tgz" app python-* )

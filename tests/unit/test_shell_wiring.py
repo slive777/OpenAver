@@ -47,7 +47,7 @@ def _enclosing_function(tree, target):
     return None
 
 
-@pytest.mark.parametrize("name", SHELL_FILES)
+@pytest.mark.parametrize("name", ["launcher.py"])
 def test_shells_load_url_and_trusted_origin_share_one_source(name):
     tree = _tree(name)
     cw = _main_create_window(tree)

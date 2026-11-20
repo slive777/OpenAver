@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenAver</title>
+<style>
+:root { --fg: #303743; --muted: #667080; --accent: #4f7cff; --line: #aab3c2; }
+:root[data-theme="light"] { --bg: #fcfaf6; --fg: #303743; --muted: #667080; --accent: #345ed5; --line: #aab3c2; }
+:root[data-theme="dim"] { --bg: #2a303c; --fg: #edf0f6; --muted: #bbc3d0; --accent: #91aaff; --line: #778294; }
+:root[data-theme="system"] { --bg: #fcfaf6; --fg: #303743; --muted: #667080; --accent: #345ed5; --line: #aab3c2; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] { --bg: #2a303c; --fg: #edf0f6; --muted: #bbc3d0; --accent: #91aaff; --line: #778294; }
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; margin: 0; background: transparent; }
+:root[data-theme] body { background: var(--bg); }
+body { min-height: 100vh; display: flex; align-items: center; justify-content: center; color: var(--fg); font: 14px "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif; }
+main { width: min(100%, 460px); min-width: 0; padding: 20px; text-align: center; }
+svg { display: block; width: 64px; height: 64px; margin: 0 auto 10px; }
+h1 { margin: 0 0 10px; font-size: 20px; }
+#starting { min-height: 21px; margin: 0; color: var(--muted); }
+.spinner { display: block; width: 24px; height: 24px; margin: 18px auto 0; border: 2px solid rgba(128, 138, 153, .3); border-top-color: #4f7cff; border-radius: 50%; animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+#error { min-width: 0; margin-top: 14px; }
+#message { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+#hint, #detail, #log-label, #log-path { margin: 0 0 8px; overflow-wrap: anywhere; }
+#hint, #log-label { color: var(--muted); }
+#detail { white-space: pre-wrap; }
+#log-path { user-select: text; cursor: text; }
+.actions { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--fg); font: inherit; cursor: pointer; }
+button.primary { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: .55; cursor: default; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <svg viewBox="0 0 64 64" aria-hidden="true">
+    <defs><linearGradient id="startup-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4f7cff"/><stop offset="100%" stop-color="#6c5ce7"/></linearGradient></defs>
+    <circle cx="32" cy="32" r="30" fill="#1a1a2e"/>
+    <path d="M20 48 L32 16 L44 48 M24 38 L40 38" fill="none" stroke="url(#startup-gradient)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <h1>OpenAver</h1>
+  <p id="starting"></p>
+  <span class="spinner" id="spinner" aria-hidden="true"></span>
+  <section id="error" hidden>
+    <p id="message"></p><p id="hint"></p><p id="detail" hidden></p>
+    <p id="log-label"></p><p id="log-path"></p>
+    <div class="actions"><button id="open-log" class="primary" type="button"></button><button id="quit" type="button"></button></div>
+  </section>
+</main>
+<script>
+(function () {
+  var started = false;
+  var sawError = false;
+  var timer;
+  function el(id) { return document.getElementById(id); }
+  function api() { return window.pywebview && window.pywebview.api; }
+  el('open-log').addEventListener('click', function () {
+    try { Promise.resolve(api().startup_open_log_folder()).catch(function () {}); } catch (e) { /* path remains selectable */ }
+  });
+  el('quit').addEventListener('click', function () {
+    el('open-log').disabled = true;
+    el('quit').disabled = true;
+    try { Promise.resolve(api().startup_quit()).catch(function () {}); } catch (e) { /* ignore bridge failure */ }
+  });
+  function forwardOrStart() {
+    document.documentElement.hidden = true;
+    history.forward();
+    setTimeout(function () {
+      document.documentElement.hidden = false;
+      start();
+    }, 1500);
+  }
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) { forwardOrStart(); }
+  });
+  try {
+    var entries = typeof performance !== 'undefined' && performance.getEntriesByType && performance.getEntriesByType('navigation');
+    if (entries && entries[0] && entries[0].type === 'back_forward') {
+      forwardOrStart();
+      return;
+    }
+  } catch (e) { /* treat as a normal load */ }
+  function render(state) {
+    if (sawError || !state || typeof state !== 'object' || Array.isArray(state) || typeof state.phase !== 'string') { return; }
+    var texts = state.texts || {};
+    document.documentElement.dataset.theme = state.theme;
+    el('starting').textContent = texts.starting || '';
+    if (state.phase !== 'error') { return; }
+    sawError = true;
+    clearInterval(timer);
+    el('starting').hidden = true;
+    el('spinner').hidden = true;
+    el('message').textContent = texts['message_' + state.kind] || '';
+    el('hint').textContent = texts.hint || '';
+    el('detail').textContent = state.detail || '';
+    el('detail').hidden = !state.detail;
+    el('log-label').textContent = texts.log_label || '';
+    el('log-path').textContent = state.log_path || '';
+    el('open-log').textContent = texts.open_log || '';
+    el('quit').textContent = texts.close || '';
+    el('error').hidden = false;
+  }
+  function poll() {
+    try { Promise.resolve(api().startup_get_state()).then(render).catch(function () {}); } catch (e) { /* retry on the next interval */ }
+  }
+  function start() {
+    if (started || window.__oaBridgeKind !== 'startup' || !api()) { return; }
+    started = true;
+    timer = setInterval(poll, 500);
+    poll();
+  }
+  start();
+  window.addEventListener('oabridgeready', start);
+})();
+</script>
+</body>
+</html>

@@ -271,6 +271,9 @@ class DesktopLifecycle:
                 except Exception:
                     logger.warning("failed to destroy late CF window (site=%s) on app close", site, exc_info=True)
 
+    def quit_now(self) -> None:
+        self._begin_quit()
+
     def _begin_quit(self) -> None:
         if self.quitting:
             return

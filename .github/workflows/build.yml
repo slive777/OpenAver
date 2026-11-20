@@ -46,8 +46,8 @@ jobs:
 
       - name: Run artifact audit
         # --strict：T2 已移除 uvloop → uvloop/langdetect 由 WARN 翻 hard-fail（擋 release）
-        # --max-mb 48：T2 後 ZIP ~34.6MB（uvloop 16MB 已除）；收緊以擋未來 bloat 回歸
-        run: python scripts/audit_build_artifact.py "dist/*-Windows-*.zip" --platform win --max-mb 48 --strict
+        # 上限 46：本機實建 41,460,765 bytes（39.540 MiB）× 1.15 向上取整；尚未以 CI 實跑核對
+        run: python scripts/audit_build_artifact.py "dist/*-Windows-*.zip" --platform win --max-mb 46 --strict
 
       - name: Prepare artifact
         run: |
@@ -136,15 +136,53 @@ jobs:
       - name: Build macOS package
         run: python build_macos.py
 
-      # mac audit：v0.18.17 mac ZIP 53MB＋pymediainfo universal2 wheel 壓縮增量約 7MB
-      # （plan 預估，T6 以真成品實測）≈ 60MB，上限 68。dist-info 靜態檢查兩平台皆帶入（T3）。
+      # 上限 51：macmini 實建 45,681,297 bytes（43.565 MiB）× 1.15 向上取整；尚未以 CI 實跑核對。
+      # dist-info 靜態檢查兩平台皆帶入（T3）。
       - name: Run artifact audit
-        run: python scripts/audit_build_artifact.py "dist/*-macOS-*.zip" --platform mac --max-mb 68 --strict
+        run: python scripts/audit_build_artifact.py "dist/*-macOS-*.zip" --platform mac --max-mb 51 --strict
 
       - name: Prepare artifact
         run: |
           cd dist
           unzip *-macOS-*.zip -d artifact
+
+      - name: Verify Mach-O slices and signatures (shipped tree)
+        run: |
+          find dist/artifact/OpenAver -type f > "$RUNNER_TEMP/openaver-files.txt"
+          count=0
+          bad=0
+          while IFS= read -r f; do
+            if ! kind=$(file -b "$f"); then
+              echo "file failed: $f"
+              bad=1
+              continue
+            fi
+            if ! printf '%s\n' "$kind" | grep -q 'Mach-O'; then
+              continue
+            fi
+            count=$((count + 1))
+            if archs=$(lipo -archs "$f"); then
+              if [ "$archs" != arm64 ]; then
+                echo "Unexpected architectures ($archs): $f"
+                bad=1
+              fi
+            else
+              echo "lipo failed: $f"
+              bad=1
+            fi
+            if ! codesign --verify --strict "$f"; then
+              echo "Signature verification failed: $f"
+              bad=1
+            fi
+          done < "$RUNNER_TEMP/openaver-files.txt"
+          if [ "$count" -lt 50 ]; then
+            echo "Mach-O count insufficient: $count < 50"
+            bad=1
+          fi
+          echo "Mach-O files checked: $count"
+          if [ "$bad" -ne 0 ]; then
+            exit 1
+          fi
 
       # 產物 runtime import sweep：macos runner 原生執行產物自帶 python3（CD-97-2）。
       # 與 Upload to Release 同 job，step 順序即 gate（CD-97-3）。
@@ -204,11 +242,15 @@ jobs:
       - name: Fetch Synology Python interpreters
         run: bash scripts/fetch_synology_python.sh
 
+      - name: Install aarch64 strip tool
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq binutils-aarch64-linux-gnu
+
       - name: Build Synology package
         run: bash synology/build_spk.sh "${{ steps.ver.outputs.spk_version }}" "$GITHUB_SHA" "aarch64 x86_64"
 
       - name: Run artifact audit
-        run: python scripts/audit_spk_artifact.py synology/out/*.spk --strict
+        # 上限 93：本機實建 84,439,040 bytes（80.527 MiB）× 1.15 向上取整；尚未以 CI 實跑核對
+        run: python scripts/audit_spk_artifact.py synology/out/*.spk --strict --max-mb 93
 
       - name: Rename release asset
         run: |
@@ -258,13 +300,14 @@ jobs:
           spk=$(ls spk/OpenAver-v*-Synology-beta.spk)
           bash scripts/repack_linux.sh "$spk" dist
 
-      # --max-mb 85：x86_64 實測 73.1 MB × 1.15 向上取整；aarch64 本機量不到，沿用同值，
-      # 首次 CI 若紅在 SIZE 依 CI 數字調整。glob 各只能匹配一個檔。
+      # 上限 54：本機實建 48,619,025 bytes（46.367 MiB）× 1.15 向上取整；尚未以 CI 實跑核對。
+      # glob 各只能匹配一個檔。
       - name: Run artifact audit (x86_64)
-        run: python scripts/audit_build_artifact.py "dist/*-Linux-x86_64.tar.gz" --platform linux --max-mb 85 --strict
+        run: python scripts/audit_build_artifact.py "dist/*-Linux-x86_64.tar.gz" --platform linux --max-mb 54 --strict
 
       - name: Run artifact audit (aarch64)
-        run: python scripts/audit_build_artifact.py "dist/*-Linux-aarch64.tar.gz" --platform linux --max-mb 85 --strict
+        # 上限 49：本機實建 43,849,009 bytes（41.818 MiB）× 1.15 向上取整；尚未以 CI 實跑核對
+        run: python scripts/audit_build_artifact.py "dist/*-Linux-aarch64.tar.gz" --platform linux --max-mb 49 --strict
 
       # 解壓進乾淨 HOME：日誌固定寫 ~/OpenAver/logs，只設資料根隔離不到（BE-TEST-50）。
       - name: Expand x86_64 asset
@@ -326,3 +369,85 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  verify-linux-aarch64:
+    runs-on: ubuntu-24.04-arm
+    needs: build-linux
+
+    steps:
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: OpenAver-Linux
+          path: dist
+
+      - name: Expand aarch64 asset
+        run: |
+          smoke_home="$RUNNER_TEMP/smoke-home"
+          mkdir "$smoke_home"
+          tar xzf dist/*-Linux-aarch64.tar.gz -C "$smoke_home"
+          echo "SMOKE_HOME=$smoke_home" >> "$GITHUB_ENV"
+
+      - name: Runtime import sweep (shipped python3)
+        run: |
+          cd "$SMOKE_HOME/OpenAver"
+          python/bin/python3 app/scripts/verify_artifact_imports.py --strict
+          python/bin/python3 -c "import ssl, sqlite3, ctypes, curl_cffi.requests, uvloop, PIL, lxml.etree, pydantic_core, yaml"
+
+      - name: Dlopen every shipped .so
+        run: |
+          cd "$SMOKE_HOME/OpenAver"
+          python/bin/python3 - <<'PY'
+          import ctypes
+          import os
+          from pathlib import Path
+          import sys
+
+          root = Path.cwd()
+          ok = 0
+          failed = 0
+          for p in (root / "python/lib").rglob("*"):
+              if os.path.islink(p) or not p.is_file():
+                  continue
+              if not (p.name.endswith(".so") or ".so." in p.name):
+                  continue
+              try:
+                  ctypes.CDLL(str(p), mode=os.RTLD_NOW)
+                  ok += 1
+              except OSError as exc:
+                  failed += 1
+                  print(f"{p}: {exc}")
+          print(f"dlopen: {ok} succeeded, {failed} failed")
+          if ok < 30 or failed:
+              sys.exit(1)
+          PY
+
+      - name: Boot smoke (openaver run + /api/health)
+        run: |
+          export HOME="$SMOKE_HOME"
+          out="$RUNNER_TEMP/openaver-run.out"
+          dump() {
+            echo "--- openaver run output ---"; if ! cat "$out"; then :; fi
+            echo "--- debug.log (tail 50) ---"; if ! tail -n 50 "$HOME/OpenAver/logs/debug.log"; then :; fi
+          }
+          "$HOME/OpenAver/openaver" run > "$out" 2>&1 &
+          pid=$!
+          ok=0
+          for _ in $(seq 1 30); do
+            if body=$(curl -fsS http://127.0.0.1:49152/api/health 2>/dev/null) && echo "$body" | grep -q '"status":"ok"'; then
+              ok=1; break
+            fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+          if [ "$ok" != 1 ]; then
+            echo "health check failed"; if ! kill -KILL "$pid" 2>/dev/null; then :; fi; dump; exit 1
+          fi
+          echo "health: $body"
+          kill -TERM "$pid"
+          for _ in $(seq 1 25); do
+            kill -0 "$pid" 2>/dev/null || { echo "stopped after TERM"; exit 0; }
+            sleep 1
+          done
+          echo "process still alive 25s after TERM"; if ! kill -KILL "$pid" 2>/dev/null; then :; fi; dump; exit 1
+

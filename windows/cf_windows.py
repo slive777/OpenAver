@@ -143,7 +143,7 @@ def build_cf_windows(logger, settings, local_direct: bool = False) -> CfWindowSe
         # TASK-163b-T7a: Windows desktop + Proxy field "all sources" -> both windows run through
         # the proxy (blank-started, pending until the applier confirms). proxy is None => unchanged.
         proxy, holder, proxy_ok = _prepare_cf_window_proxy(logger, settings, titles)
-        jl_url = 'about:blank' if proxy is not None else JAVLIBRARY_ORIGIN
+        jl_url = None if proxy is not None else JAVLIBRARY_ORIGIN
         initial_urls = {} if proxy is not None else {'javlibrary': JAVLIBRARY_ORIGIN}
         pending = {'javlibrary', 'fc-javten'} if proxy is not None else set()
         # NOTE (P3-6, follow-up): the JL window loads JAVLIBRARY_ORIGIN at launch — so the
@@ -169,7 +169,7 @@ def build_cf_windows(logger, settings, local_direct: bool = False) -> CfWindowSe
             if proxy_ok:
                 javten_win = webview.create_window(
                     titles[1],
-                    'about:blank',
+                    None,
                     width=1200, height=820,
                     hidden=True,
                 )

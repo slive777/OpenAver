@@ -218,6 +218,21 @@ def join_all(env):
 # ---------------------------------------------------------------------------
 
 
+def test_initial_uses_prefetched_cf_result_without_fetching_and_retry_fetches_live(env):
+    write_client()
+    ctl = cf_boot.CfShellController(MagicMock(), "client", LOCAL,
+                                    prefetched_cf=(False, "unreachable", None, False, False))
+    ctl.initial()
+    assert env.fetches == []
+    assert ctl.status()["reason"] == "unreachable"
+    assert env.created == []
+    env.fetch_ok = True
+    bind(ctl)
+    ctl.retry()
+    assert len(env.fetches) == 1
+    assert len(env.created) == 2 and len(env.agents) == 1
+
+
 def test_retry_builds_at_most_one_window_set(env):
     write_client()
     env.fetch_ok = False

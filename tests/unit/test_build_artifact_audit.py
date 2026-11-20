@@ -283,3 +283,54 @@ def test_linux_unparseable_wheel_fails_closed(tmp_path, text):
     code, msgs = audit(zp, "linux", 55.0, True)
     assert code == 1, f"Expected exit 1 for unparseable WHEEL, got {code}\n" + "\n".join(msgs)
     assert any("GLIBC" in m and "FAIL" in m for m in msgs)
+
+
+# ── rich-group leftovers (TASK-203-T1) ────────────────────────────────────────
+
+
+_RICH_GROUP_TOP_DIRS = ["rich", "pygments", "markdown_it", "mdurl"]
+
+_RICH_GROUP_DIST_INFOS = [
+    "rich-14.0.0.dist-info",
+    "pygments-2.19.2.dist-info",
+    "markdown_it_py-4.0.0.dist-info",
+    "mdurl-0.1.2.dist-info",
+]
+
+
+@pytest.mark.parametrize("case", ["dir", "dist_info_only", "lookalike_pass"])
+def test_audit_rich_group_leftovers(tmp_path, case):
+    """dir: four top-level rich-group dirs -> exit 1 with all four names.
+
+    dist_info_only: only the four *.dist-info/METADATA (no top-level dirs)
+    -> exit 1 with all four names (top-dir scan alone would miss this).
+
+    lookalike_pass: markdown/ + rich_toolkit/ (+ its dist-info) -> exit 0.
+    """
+    if case == "dir":
+        entries = {_site(pkg): b"x" for pkg in _RICH_GROUP_TOP_DIRS}
+        expected = 1
+    elif case == "dist_info_only":
+        entries = {
+            f"OpenAver/python/Lib/site-packages/{dist}/METADATA": b"Metadata-Version: 2.4\n"
+            for dist in _RICH_GROUP_DIST_INFOS
+        }
+        expected = 1
+    else:
+        entries = {
+            _site("markdown"): b"x",
+            _site("rich_toolkit"): b"x",
+            "OpenAver/python/Lib/site-packages/rich_toolkit-1.0.dist-info/METADATA": (
+                b"Metadata-Version: 2.4\n"
+            ),
+        }
+        expected = 0
+    zp = _make_zip(tmp_path, entries)
+    code, msgs = audit(zp, "win", 55.0, False)
+    combined = "\n".join(msgs)
+    if expected == 1:
+        assert code == 1, f"case={case} must hard-fail, got {code}\n{combined}"
+        for name in _RICH_GROUP_TOP_DIRS:
+            assert name in combined, f"case={case}: {name!r} missing from output\n{combined}"
+    else:
+        assert code == 0, f"case={case} must pass, got {code}\n{combined}"

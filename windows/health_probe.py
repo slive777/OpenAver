@@ -21,9 +21,10 @@ STARTUP_TIMEOUT = 30  # 最多等待 30 秒
 PROBE_OK = "ok"
 PROBE_TIMEOUT = "timeout"
 PROBE_THREAD_DIED = "thread_died"
+PROBE_CANCELLED = "cancelled"
 
 
-def wait_for_server(port, server_thread, timeout=STARTUP_TIMEOUT) -> str:
+def wait_for_server(port, server_thread, timeout=STARTUP_TIMEOUT, cancelled=None) -> str:
     """等待伺服器啟動；回傳 PROBE_OK / PROBE_TIMEOUT / PROBE_THREAD_DIED。"""
     url = f"http://{CLIENT_HOST}:{port}/api/health"
     start_time = time.monotonic()
@@ -31,6 +32,8 @@ def wait_for_server(port, server_thread, timeout=STARTUP_TIMEOUT) -> str:
     last_exc = None
 
     while True:
+        if cancelled is not None and cancelled():
+            return PROBE_CANCELLED
         # 先查 thread 存活，再查逾時（死掉 × 已逾時 → thread_died）
         if not server_thread.is_alive():
             if last_exc is not None:
@@ -64,8 +67,7 @@ def _debug_log_hint() -> str:
     （`log_dir = Path.home() / "OpenAver" / "logs"`）、檔名在 core/logger.py:39
     （`log_file = log_dir / "debug.log"`）。那邊改了這邊要跟著改。
 
-    這裡刻意不 import core.logger 的私有 _log_dir：format_startup_message 是純函式，
-    而 _log_dir 只有 setup_logging() 跑過才有值，在「啟動失敗」這條路徑上不保證已經初始化。
+    這裡不依賴 core.logger 的私有狀態，因為日誌系統可能尚未初始化。
 
     ⚠️ 這是一組「靠兩處常數相等才成立」的機制。守住它的是
     tests/unit/test_health_probe_lifecycle.py::test_debug_log_hint_matches_core_logger_default
@@ -75,22 +77,6 @@ def _debug_log_hint() -> str:
         return str(Path.home() / "OpenAver" / "logs" / "debug.log")
     except RuntimeError:
         return "OpenAver 的 logs 資料夾"
-
-
-def format_startup_message(result, port) -> str:
-    """依探活結局產出啟動失敗文案（純函式；不含原始例外）。"""
-    if result == PROBE_OK:
-        return ""
-    if result == PROBE_THREAD_DIED:
-        return (
-            "伺服器程序在啟動過程中已中止。\n\n"
-            f"請查看以下檔案了解詳細原因：\n{_debug_log_hint()}"
-        )
-    # PROBE_TIMEOUT 與值域外 → 逾時文案（fail-safe）
-    return (
-        f"伺服器未能在 {STARTUP_TIMEOUT} 秒內於端口 {port} 啟動。\n\n"
-        f"請查看以下檔案了解詳細原因：\n{_debug_log_hint()}"
-    )
 
 
 def run_server(port, debug_mode=False):
