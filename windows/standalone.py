@@ -4,6 +4,7 @@ OpenAver Windows 單機版啟動器
 """
 import contextlib
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -26,6 +27,7 @@ if WINDOWS_DIR not in sys.path:
 
 from core import startup_trace   # 啟動計時基準：須早於所有重 import
 from core.data_layout import bootstrap_data_layout
+from core.data_root import get_data_root
 from core.logger import setup_logging, get_logger
 import webview
 from pywebview_api import api, bind_events
@@ -50,6 +52,10 @@ PORT = 49152  # 使用動態/私有端口範圍 (49152-65535)，避免權限問�
 STARTUP_PAGE = os.path.join(WINDOWS_DIR, "offline", "startup.html")
 STARTUP_PAGE_READY_TIMEOUT = 10
 STARTUP_EXIT_BACKSTOP_S = 3.0
+STARTUP_PAGE_WAIT_S = 3.0
+STARTUP_PAGE_POLL_S = 0.01
+WEBVIEW2_PROFILE_DIR = "webview2"
+WEBVIEW2_STARTED_MARKER = ".started"
 
 
 # ============ WebView2 檢查 ============
@@ -705,9 +711,68 @@ def _shutdown_and_maybe_restart(lifecycle):
     restart.spawn_if_requested(notify_error=_restart_failed_notice)
 
 
+def _prepare_webview2_profile(logger):
+    try:
+        profile = get_data_root() / WEBVIEW2_PROFILE_DIR
+        marker = profile / WEBVIEW2_STARTED_MARKER
+        if marker.exists():
+            shutil.rmtree(profile)
+            logger.info("WebView2 profile 上次未載入完成，已清除重建")
+        profile.mkdir(parents=True, exist_ok=True)
+        marker.write_text("1", encoding="utf-8")
+    except OSError as exc:
+        logger.warning("WebView2 profile 不可用，退回暫存資料夾 (%s)", type(exc).__name__)
+        return None
+    return profile
+
+
+def _dispose_keep_profile(self):
+    try:
+        edge = sys.modules["webview.platforms.edgechromium"]
+        if not edge._state["private_mode"]:
+            return
+        pid = edge.Convert.ToInt32(self.webview.CoreWebView2.BrowserProcessId)
+        proc = edge.Process.GetProcessById(pid)
+        self.webview.Dispose()
+        proc.WaitForExit(3000)
+    except Exception:
+        get_logger("standalone").warning("無法釋放 WebView2 瀏覽器程序", exc_info=True)
+
+
+def _keep_webview2_profile_on_close(logger):
+    try:
+        edge = sys.modules["webview.platforms.edgechromium"]
+        if not callable(getattr(edge.EdgeChrome, "clear_user_data", None)):
+            raise AttributeError("clear_user_data")
+        edge.EdgeChrome.clear_user_data = _dispose_keep_profile
+    except (KeyError, AttributeError) as exc:
+        logger.warning("無法保留 WebView2 profile，關閉時將照舊清除 (%s)", type(exc).__name__)
+
+
+def _start_gui_windows(startup, window):
+    logger = get_logger("standalone")
+    profile = _prepare_webview2_profile(logger)
+    callback = startup
+    if profile is not None:
+        def on_loaded():
+            with contextlib.suppress(OSError):
+                (profile / WEBVIEW2_STARTED_MARKER).unlink(missing_ok=True)
+        try:
+            window.events.loaded += on_loaded
+        except Exception:
+            logger.warning("無法訂閱 WebView2 載入事件", exc_info=True)
+        def callback(*args):
+            _keep_webview2_profile_on_close(logger)
+            startup(*args)
+    webview.start(callback, window, gui='edgechromium', private_mode=True,
+                  storage_path=None if profile is None else str(profile), icon=app_icon.icon_path(APP_DIR))
+
+
 def _start_gui(startup, window):
     if sys.platform == 'darwin':
         webview.start(startup, window, icon=app_icon.icon_path(APP_DIR))  # macOS 使用預設 (Cocoa/WebKit)
+    elif sys.platform == 'win32':
+        _start_gui_windows(startup, window)
     else:
         webview.start(startup, window, gui='edgechromium', icon=app_icon.icon_path(APP_DIR))  # Windows
 
@@ -749,6 +814,17 @@ def _shutdown_lan_listener_if_loaded():
         module.lan_listener.shutdown()
 
 
+def _wait_startup_page_shown(boot_state, logger):
+    deadline = time.monotonic() + STARTUP_PAGE_WAIT_S
+    while api._page_kind != "startup":
+        if boot_state.quitting or boot_state.phase != "starting":
+            return
+        if time.monotonic() >= deadline:
+            logger.warning("等待啟動畫面超過 %.1f 秒，直接導向首頁", STARTUP_PAGE_WAIT_S)
+            return
+        time.sleep(STARTUP_PAGE_POLL_S)
+
+
 def _local_boot_worker(window, boot_state, logger, debug_mode, cf_set, cf_supported, cf_agent_box, quit_startup):
     try:
         try:
@@ -779,6 +855,7 @@ def _local_boot_worker(window, boot_state, logger, debug_mode, cf_set, cf_suppor
         cf_agent.start()
         boot = shell_boot.resolve_boot(local_origin, client_settings.shell_kind())
         api._set_trusted_origin(client_settings.server_origin(local_origin))
+        _wait_startup_page_shown(boot_state, logger)
         if not boot_state.claim_navigation():
             return
         window.load_url(boot.url)
@@ -840,6 +917,7 @@ def _run_client_mode(logger):
             else:
                 window.set_title(boot.title)
                 api._set_trusted_origin(client_settings.server_origin(local_origin))
+            _wait_startup_page_shown(boot_state, logger)
             if not boot_state.claim_navigation():
                 return
             if boot.kind == "offline":

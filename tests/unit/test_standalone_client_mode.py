@@ -160,6 +160,7 @@ SAVED = {"width": 1000, "height": 700, "x": None, "y": None, "maximized": False}
 def env(monkeypatch, tmp_path):
     """共用假件：事件序列 events、窗口、lifecycle、api 接縫旗標；結束後還原全域狀態。"""
     monkeypatch.setenv("OPENAVER_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(standalone.api, "_page_kind", "startup")
     events = []
     win = _FakeWindow(events)
     lifecycle = _FakeLifecycle(events)
@@ -273,6 +274,25 @@ def _fake_start(env, in_loop=None):
 
 def _ok_preflight(monkeypatch):
     monkeypatch.setattr(client_connect, "preflight", lambda url, token: Preflight("ok", None, {}))
+
+
+def test_client_worker_holds_navigation_until_startup_page_is_up(monkeypatch, env):
+    _client_json()
+    _ok_preflight(monkeypatch)
+    monkeypatch.setattr(standalone.api, "_page_kind", "pending")
+    monkeypatch.setattr(standalone, "_start_boot_worker", REAL_START_BOOT_WORKER)
+    def in_loop():
+        worker = next(t for t in threading.enumerate() if t.name == "oa-boot-worker")
+        try:
+            worker.join(0.2)
+            assert not any(isinstance(e, tuple) and e[0] == "load_url" for e in env.events)
+        finally:
+            monkeypatch.setattr(standalone.api, "_page_kind", "startup")
+            worker.join(3)
+        assert not worker.is_alive()
+        assert sum(isinstance(e, tuple) and e[0] == "load_url" for e in env.events) == 1
+    monkeypatch.setattr(standalone.webview, "start", _fake_start(env, in_loop))
+    standalone._run_client_mode(env.logger)
 
 
 def test_client_gui_return_arms_exit_backstop_after_cleanup(monkeypatch, env):

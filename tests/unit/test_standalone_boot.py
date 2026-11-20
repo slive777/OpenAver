@@ -17,6 +17,7 @@ from windows import startup_boot  # noqa: E402
 
 @pytest.fixture
 def boot_env(monkeypatch):
+    monkeypatch.setattr(standalone.api, "_page_kind", "startup")
     events = []
     agent = MagicMock()
     agent.announce.side_effect = lambda: events.append("announce") or True
@@ -42,6 +43,37 @@ def boot_env(monkeypatch):
 
 def _args(e):
     return (e.window, e.state, e.logger, False, object(), True, e.box, e.quit)
+
+
+@pytest.mark.parametrize("case", ["shown", "timeout", "quit"])
+def test_local_worker_holds_navigation_until_startup_page_is_up(monkeypatch, boot_env, case):
+    e = boot_env
+    monkeypatch.setattr(standalone.api, "_page_kind", "pending")
+    if case == "timeout":
+        monkeypatch.setattr(standalone, "STARTUP_PAGE_WAIT_S", 0.05, raising=False)
+    claimed = threading.Event()
+    original = e.state.claim_navigation
+    def claim():
+        claimed.set()
+        return original()
+    monkeypatch.setattr(e.state, "claim_navigation", claim)
+    thread = threading.Thread(target=standalone._local_boot_worker, args=_args(e), daemon=True)
+    thread.start()
+    try:
+        if case != "timeout":
+            assert not claimed.wait(0.2)
+            if case == "quit":
+                e.state.request_quit()
+            else:
+                monkeypatch.setattr(standalone.api, "_page_kind", "startup")
+        assert claimed.wait(3)
+    finally:
+        monkeypatch.setattr(standalone.api, "_page_kind", "startup")
+        thread.join(3)
+    assert not thread.is_alive()
+    assert e.window.load_url.call_count == (0 if case == "quit" else 1)
+    assert e.state.error is None
+    assert e.logger.warning.called == (case == "timeout")
 
 
 @pytest.mark.parametrize("case,expected", [("timeout", ("timeout", "")), ("died", ("died", "")),
@@ -169,6 +201,7 @@ def test_page_loaded_marks_follow_kind_and_generation(monkeypatch, kind, gen, ke
 
 
 def _main_env(monkeypatch, tmp_path):
+    monkeypatch.setattr(standalone.api, "_page_kind", "startup")
     events = []
     for slot in ("_page_loaded_subscriber", "_loaded_hook", "_restart_handler",
                  "_offline_text_provider", "_startup_state_provider", "_startup_log_opener", "_startup_quit_handler"):
