@@ -87,23 +87,25 @@ def test_windows_gui_keeps_webview2_profile_and_mac_is_untouched(monkeypatch, tm
         assert (profile / "keep.bin").exists()
 
 
-@pytest.mark.parametrize("case", ["stale", "file"])
+@pytest.mark.parametrize("case", ["stale", "file", "invalid"])
 def test_stale_started_marker_wipes_profile_and_unusable_dir_falls_back(monkeypatch, tmp_path, gui, case):
     monkeypatch.setattr(standalone.sys, "platform", "win32")
     profile = tmp_path / "webview2"
     original = gui.edge.EdgeChrome.clear_user_data
-    if case == "stale":
+    if case in ("stale", "invalid"):
         profile.mkdir()
-        (profile / ".started").write_text("1")
+        (profile / ".started").write_text("" if case == "invalid" else "1")
         (profile / "junk.bin").write_text("junk")
     else:
         profile.write_text("file")
     standalone._start_gui(gui.startup, gui.window)
     func, _, kw, marker_at_start = gui.calls[0]
-    if case == "stale":
+    if case in ("stale", "invalid"):
         assert not (profile / "junk.bin").exists()
         assert profile.is_dir() and marker_at_start
         assert kw["storage_path"] == str(profile)
+        if case == "invalid":
+            assert (profile / ".started").read_text() == "2"
         gui.logger.info.assert_called()
     else:
         assert kw["storage_path"] is None and kw["private_mode"] is True
@@ -118,3 +120,31 @@ def test_missing_edge_class_logs_and_gui_still_starts(monkeypatch, gui):
     standalone._start_gui(gui.startup, gui.window)
     gui.startup.assert_called_once_with(gui.window)
     gui.logger.warning.assert_called()
+
+
+@pytest.mark.parametrize("case", ["unloaded", "loaded"])
+def test_two_unloaded_launches_fall_back_to_temp_folder_for_good(monkeypatch, tmp_path, gui, case):
+    monkeypatch.setattr(standalone.sys, "platform", "win32")
+    profile = tmp_path / "webview2"
+    marker = profile / ".started"
+    fallback = tmp_path / "webview2.fallback"
+    for attempt in range(1, 6 if case == "unloaded" else 4):
+        window = SimpleNamespace(events=SimpleNamespace(loaded=Event()))
+        gui.calls.clear()
+        standalone._start_gui(gui.startup, window)
+        func, _, kw, _ = gui.calls[-1]
+        if case == "loaded" or attempt <= 3:
+            assert kw["storage_path"] == str(profile)
+            assert marker.read_text() == str(attempt if case == "unloaded" else max(1, attempt - 1))
+            assert not fallback.exists()
+            if attempt > 1 and (case == "unloaded" or attempt > 2):
+                gui.logger.info.assert_called()
+        else:
+            assert kw["storage_path"] is None
+            assert func is gui.startup
+            assert not profile.exists()
+            assert fallback.exists()
+            assert not window.events.loaded.handlers
+            gui.logger.warning.assert_called()
+        if case == "loaded" and attempt == 1:
+            window.events.loaded.fire()

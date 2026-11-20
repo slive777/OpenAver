@@ -57,6 +57,7 @@ CLIENT_PREFETCH_WAIT_S = 30.0
 STARTUP_PAGE_POLL_S = 0.01
 WEBVIEW2_PROFILE_DIR = "webview2"
 WEBVIEW2_STARTED_MARKER = ".started"
+WEBVIEW2_FALLBACK_MARKER = "webview2.fallback"
 
 
 # ============ WebView2 檢查 ============
@@ -712,15 +713,37 @@ def _shutdown_and_maybe_restart(lifecycle):
     restart.spawn_if_requested(notify_error=_restart_failed_notice)
 
 
+def _read_started_count(marker):
+    try:
+        return max(1, int(marker.read_text(encoding="utf-8").strip()))
+    except ValueError:
+        return 1
+
+
+def _disable_webview2_profile(root, profile, logger):
+    (root / WEBVIEW2_FALLBACK_MARKER).write_text("1", encoding="utf-8")
+    shutil.rmtree(profile, ignore_errors=True)
+    logger.warning("WebView2 profile 連續三次未載入完成，已改用暫存資料夾（刪除 %s 可恢復保留）", WEBVIEW2_FALLBACK_MARKER)
+
+
 def _prepare_webview2_profile(logger):
     try:
-        profile = get_data_root() / WEBVIEW2_PROFILE_DIR
+        root = get_data_root()
+        profile = root / WEBVIEW2_PROFILE_DIR
         marker = profile / WEBVIEW2_STARTED_MARKER
+        if (root / WEBVIEW2_FALLBACK_MARKER).exists():
+            logger.info("WebView2 profile 已停用，沿用暫存資料夾")
+            return None
+        tries = 0
         if marker.exists():
+            tries = _read_started_count(marker)
+            if tries >= 3:
+                _disable_webview2_profile(root, profile, logger)
+                return None
             shutil.rmtree(profile)
             logger.info("WebView2 profile 上次未載入完成，已清除重建")
         profile.mkdir(parents=True, exist_ok=True)
-        marker.write_text("1", encoding="utf-8")
+        marker.write_text(str(tries + 1), encoding="utf-8")
     except OSError as exc:
         logger.warning("WebView2 profile 不可用，退回暫存資料夾 (%s)", type(exc).__name__)
         return None

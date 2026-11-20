@@ -59,6 +59,32 @@ button:disabled { opacity: .55; cursor: default; }
   var timer;
   function el(id) { return document.getElementById(id); }
   function api() { return window.pywebview && window.pywebview.api; }
+  el('open-log').addEventListener('click', function () {
+    try { Promise.resolve(api().startup_open_log_folder()).catch(function () {}); } catch (e) { /* path remains selectable */ }
+  });
+  el('quit').addEventListener('click', function () {
+    el('open-log').disabled = true;
+    el('quit').disabled = true;
+    try { Promise.resolve(api().startup_quit()).catch(function () {}); } catch (e) { /* ignore bridge failure */ }
+  });
+  function forwardOrStart() {
+    document.documentElement.hidden = true;
+    history.forward();
+    setTimeout(function () {
+      document.documentElement.hidden = false;
+      start();
+    }, 1500);
+  }
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) { forwardOrStart(); }
+  });
+  try {
+    var entries = typeof performance !== 'undefined' && performance.getEntriesByType && performance.getEntriesByType('navigation');
+    if (entries && entries[0] && entries[0].type === 'back_forward') {
+      forwardOrStart();
+      return;
+    }
+  } catch (e) { /* treat as a normal load */ }
   function render(state) {
     if (sawError || !state || typeof state !== 'object' || Array.isArray(state) || typeof state.phase !== 'string') { return; }
     var texts = state.texts || {};
@@ -88,14 +114,6 @@ button:disabled { opacity: .55; cursor: default; }
     timer = setInterval(poll, 500);
     poll();
   }
-  el('open-log').addEventListener('click', function () {
-    try { Promise.resolve(api().startup_open_log_folder()).catch(function () {}); } catch (e) { /* path remains selectable */ }
-  });
-  el('quit').addEventListener('click', function () {
-    el('open-log').disabled = true;
-    el('quit').disabled = true;
-    try { Promise.resolve(api().startup_quit()).catch(function () {}); } catch (e) { /* ignore bridge failure */ }
-  });
   start();
   window.addEventListener('oabridgeready', start);
 })();
