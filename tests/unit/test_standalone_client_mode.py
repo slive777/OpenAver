@@ -701,6 +701,7 @@ def test_main_waits_for_restart_parent_before_startup(monkeypatch, tmp_path):
 
 
 def test_token_filter_installed_before_resolve_boot(monkeypatch, tmp_path):
+    monkeypatch.setattr(standalone, "_arm_exit_backstop", MagicMock())
     monkeypatch.setattr(standalone.pywebview_api, "_startup_log_opener", None)
     monkeypatch.setattr(standalone.pywebview_api, "_startup_quit_handler", None)
     monkeypatch.setenv("OPENAVER_DATA_DIR", str(tmp_path))
