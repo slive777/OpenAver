@@ -7,6 +7,7 @@ Scraper 模組（向後相容層）
 import re
 import time  # noqa: F401  # 測試 patch 點（core.scraper.time.sleep）＋provider 延後取用
 
+from core import search_cancel
 from core.logger import get_logger
 from core.config import load_config
 
@@ -386,7 +387,7 @@ def search_jav(
         # metatube subset：bounded parallel
         if metatube_shims:
             with ThreadPoolExecutor(max_workers=min(len(metatube_shims), 5)) as ex:
-                futs = [(sid, ex.submit(shim.search, number)) for sid, shim in metatube_shims]
+                futs = [(sid, search_cancel.submit(ex, shim.search, number)) for sid, shim in metatube_shims]
                 for _sid, fut in futs:  # 按 user order 收（submit 順序 = user order；非 as_completed）
                     try:
                         v = fut.result()
