@@ -809,6 +809,7 @@ export function stateVideos() {
             if (!['grid', 'table', 'list'].includes(m)) return;
             if (m === this.mode) return;
             var oldMode = this.mode;
+            var restoreScrollY = m === 'grid' && (oldMode === 'table' || oldMode === 'list') ? window.scrollY : null;
             this.mode = m;
             // F2: 切到 grid 時若 perPage=0 則降級
             if (m === 'grid' && this.perPage == 0) {
@@ -818,6 +819,11 @@ export function stateVideos() {
             this.saveState();  // M2c: 持久化狀態
             this.$nextTick(() => {
                 window.ShowcaseAnimations?.playModeCrossfade?.(oldMode, m);
+                if (Number.isFinite(restoreScrollY)) {
+                    requestAnimationFrame(() => {
+                        if (this.mode === 'grid') window.scrollTo(window.scrollX, restoreScrollY);
+                    });
+                }
             });
         },
 

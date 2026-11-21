@@ -751,7 +751,8 @@
         </div>
 
         <!-- Detail Table (M3b) -->
-        <div class="showcase-table-wrapper" x-show="mode === 'table'" x-cloak>
+        <template x-if="mode === 'table'">
+        <div class="showcase-table-wrapper">
             <div class="table-scroll-container">
                 <table class="table table-zebra table-pin-rows">
                     <thead>
@@ -815,8 +816,11 @@
             </div>
         </div>
 
+        </template>
+
         <!-- Text List (M3c) -->
-        <div class="showcase-list-wrapper" x-show="mode === 'list'" x-cloak>
+        <template x-if="mode === 'list'">
+        <div class="showcase-list-wrapper">
             <ul class="showcase-list">
                 <template x-for="(video, index) in paginatedVideos" :key="video.path">
                     <li class="list-item" @click="openLightbox(getCurrentFilteredIndex(index))">
@@ -832,6 +836,8 @@
                 </template>
             </ul>
         </div>
+
+        </template>
 
         </div>
         </template><!-- end x-if="!showFavoriteActresses" -->
