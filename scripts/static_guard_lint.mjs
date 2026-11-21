@@ -5210,6 +5210,14 @@ const RULES = [
     note: '[122-T3] AC-7/AC-17 燈箱（199a-T2 搬到規格帶）：影片燈箱的分集標記必須掛在封面規格帶 .lbx-band 內（class="lbx-part"），消費 formatPartLabel(currentLightboxVideo.part_tokens)——漏掉時使用者開分集作品，封面上看不到 CD1-2 之類標記。window 2600：實測 anchor 到 class="lbx-part" 結尾 1962 字元（199a-T3 在版本膠囊加 7 個屬性後由 1285 增至 1962），加約 30% 餘裕',
   },
 
+  // 204-T5: table/list 按模式掛載，grid 常駐。
+  { file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: [/<template\s+(?<![\w:-])x-if="mode === 'table'">\s*<div\s+(?<![\w:-])class="showcase-table-wrapper"/, /<template\s+(?<![\w:-])x-if="mode === 'list'">\s*<div\s+(?<![\w:-])class="showcase-list-wrapper"/, /<div\s+(?<![\w:-])class="showcase-grid"[^>]*?(?<![\w:-])x-show="mode === 'grid'"[^>]*>/],
+    note: '[lint-guard:204-T5-view-mount] table/list 依模式掛載，grid 保留顯示條件。' },
+  { file: 'web/templates/showcase.html', kind: 'forbidden-string',
+    pattern: [/<template\s+[^>]*?(?<![\w:-])x-if=[^>]*>\s*<div\s+(?<![\w:-])class="showcase-grid"/, /<div\s+(?<![\w:-])class="showcase-(?:table|list)-wrapper"[^>]*?(?<![\w:-])x-show\s*=/],
+    note: '[lint-guard:204-T5-view-mount] grid 不得卸載，table/list 不得用 x-show。' },
+
   // 201-T5: 精選等級綁定。
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':data-pick-tier=', scope: { anchor: /<div class="av-card-preview"/, window: 390 }, note: '[lint-guard:201-T5-bind-card] 缺少等級綁定會讓使用者看不到對應的精選色彩。' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':data-pick-tier=', scope: { anchor: /class="table-row-clickable"/, window: 100 }, note: '[lint-guard:201-T5-bind-row] 缺少等級綁定會讓使用者看不到對應的精選色彩。' },

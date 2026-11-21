@@ -23,6 +23,7 @@ import time
 from typing import Any, Optional
 from urllib.parse import urlsplit
 
+from core import search_cancel
 from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
 from core.logger import get_logger
 from core.proxy_policy import (
@@ -182,6 +183,7 @@ class Broker:
 
     def submit(self, key, kind, args):
         """阻塞等結果；I-H1：claim＋exec 逾時內一定返回或拋例外。"""
+        search_cancel.checkpoint()  # gate: CF window job
         job = self._enqueue(key, kind, args)
         claim_timeout, exec_timeout = TIMEOUTS[kind]
         try:

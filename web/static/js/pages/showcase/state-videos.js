@@ -37,6 +37,8 @@ function _releaseFieldValue(rawText, isBad) {
 }
 
 export function stateVideos() {
+    let tableScrollLeft = null;
+    let tableRestorePending = false;
     return {
 
         // --- 99a-T2: 揭露 applyCellFocal 供 F1 grid template @load / $watch 呼叫（load-gated，
@@ -809,15 +811,33 @@ export function stateVideos() {
             if (!['grid', 'table', 'list'].includes(m)) return;
             if (m === this.mode) return;
             var oldMode = this.mode;
+            if (oldMode === 'table' && !tableRestorePending) {
+                tableScrollLeft = window.document?.querySelector('.table-scroll-container')?.scrollLeft ?? tableScrollLeft;
+            }
+            var restoreScrollY = m === 'grid' && (oldMode === 'table' || oldMode === 'list') ? window.scrollY : null;
             this.mode = m;
-            // F2: 切到 grid 時若 perPage=0 則降級
             if (m === 'grid' && this.perPage == 0) {
                 this.perPage = 120;
                 this.updatePagination();
             }
+            tableRestorePending = m === 'table' && Number.isFinite(tableScrollLeft);
             this.saveState();  // M2c: 持久化狀態
             this.$nextTick(() => {
                 window.ShowcaseAnimations?.playModeCrossfade?.(oldMode, m);
+                if (m === 'table' && Number.isFinite(tableScrollLeft)) {
+                    requestAnimationFrame(() => {
+                        const container = this.mode === 'table' && window.document?.querySelector('.table-scroll-container');
+                        if (container) {
+                            container.scrollLeft = tableScrollLeft;
+                            tableRestorePending = false;
+                        }
+                    });
+                }
+                if (Number.isFinite(restoreScrollY)) {
+                    requestAnimationFrame(() => {
+                        if (this.mode === 'grid') window.scrollTo(window.scrollX, restoreScrollY);
+                    });
+                }
             });
         },
 

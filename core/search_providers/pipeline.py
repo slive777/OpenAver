@@ -23,6 +23,7 @@ from collections import deque
 from dataclasses import dataclass, replace
 from typing import NamedTuple
 
+from core import search_cancel
 from core.logger import get_logger
 from core.scrapers.errors import SourceBlocked
 from core.search_providers.types import Enriched, Outcome, Page, Window, WindowResult, WorkItem
@@ -114,7 +115,7 @@ def _run_jobs(provider, jobs, ref, delay, on_done):
         while True:
             while keep_going and pending and inflight < MAX_WORKERS:
                 slot, item = pending.popleft()
-                fut = pool.submit(_enrich_one, provider, item, ref, delay)
+                fut = search_cancel.submit(pool, _enrich_one, provider, item, ref, delay)
                 fut.add_done_callback(lambda f, s=slot, i=item: done_q.put((s, i, f)))
                 inflight += 1
             if not inflight:
