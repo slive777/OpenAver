@@ -829,13 +829,17 @@ async def search_stream(
 
     maker_out = []
     meta: dict = {}
+    import threading
+    from core.search_cancel import bound as search_cancel_bound
+    cancel_event = threading.Event()
 
     def run_search():
         """在背景執行搜尋"""
-        if is_maker:
-            maker_out.append(_run_maker_search(maker_key, maker, spellings, offset, status_callback, result_callback, cursor, meta))
-            return maker_out[0].results
-        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode, result_callback=result_callback, resolve_makers=True, meta=meta, cursor=cursor)
+        with search_cancel_bound(cancel_event):
+            if is_maker:
+                maker_out.append(_run_maker_search(maker_key, maker, spellings, offset, status_callback, result_callback, cursor, meta))
+                return maker_out[0].results
+            return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode, result_callback=result_callback, resolve_makers=True, meta=meta, cursor=cursor)
 
     async def event_generator():
         nonlocal sent_seed
@@ -844,8 +848,8 @@ async def search_stream(
         yield f"data: {json.dumps({'type': 'mode', 'mode': mode})}\n\n"
 
         # 啟動搜尋線程
-        from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=1) as executor:
+        executor = ThreadPoolExecutor(max_workers=1)
+        try:
             future = executor.submit(run_search)
 
             # 持續讀取狀態更新
@@ -864,6 +868,10 @@ async def search_stream(
                     await asyncio.sleep(0.1)
                 except Exception:
                     break
+
+            if not future.done():
+                yield f"data: {json.dumps({'type': 'error', 'message': '搜尋失敗', 'actress_profile': None})}\n\n"
+                return
 
             # 讀取剩餘佇列（搜尋完成後可能還有 result-item）
             while not status_queue.empty():
@@ -934,6 +942,9 @@ async def search_stream(
             except Exception as e:
                 logger.error("串流搜尋失敗: %s", e)
                 yield f"data: {json.dumps({'type': 'error', 'message': '搜尋失敗', 'actress_profile': None})}\n\n"
+        finally:
+            cancel_event.set()
+            executor.shutdown(wait=False, cancel_futures=True)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
