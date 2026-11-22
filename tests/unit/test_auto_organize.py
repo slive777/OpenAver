@@ -298,6 +298,17 @@ class TestTranslationClauses:
 
         fake_service.translate_single.assert_not_called()
 
+    def test_auto_organize_pretranslate_uses_same_title_rule(self, tmp_path, isolated_db, mocker):
+        fav_dir = tmp_path / "fav"
+        fav_dir.mkdir()
+        config = make_config(fav_dir, translate_enabled=True)
+
+        result, fake_service, create_mock = self._run_with_translation_mock(
+            fav_dir, config, mocker, "STARS-701 中文片名 2025-01-02.mp4", "日本語タイトル"
+        )
+
+        fake_service.translate_single.assert_called_once_with("日本語タイトル")
+
     def test_translate_skipped_when_disabled(self, tmp_path, isolated_db, mocker):
         fav_dir = tmp_path / "fav"
         fav_dir.mkdir()
