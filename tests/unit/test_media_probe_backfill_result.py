@@ -186,3 +186,20 @@ def test_last_result_ready_before_lock_release(temp_db, monkeypatch):
     assert calls["n"] >= 1
     assert calls["seen"] is not None
     assert backfill.status()["job"]["last_result"] is not None
+
+
+def test_status_completion_snapshot_has_result(monkeypatch):
+    import core.media_probe_backfill as backfill
+
+    assert backfill._SHELL.job_lock.acquire(blocking=False)
+    original_is_running = backfill._SHELL.is_running
+
+    def finish_before_running_read():
+        monkeypatch.setattr(backfill._SHELL, "is_running", original_is_running)
+        backfill._record_last_result()
+        backfill._SHELL.release_locked()
+        return original_is_running()
+
+    monkeypatch.setattr(backfill._SHELL, "is_running", finish_before_running_read)
+    job = backfill.status()["job"]
+    assert job["running"] or job["last_result"] is not None

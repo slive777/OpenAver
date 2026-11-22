@@ -126,10 +126,10 @@ def status() -> dict:
         logger.exception("media_probe_backfill.status pending count failed")
         pending = 0
         readonly_pending = 0
+    running = _SHELL.is_running()
     with _job_lock:
         done, total = _job_done, _job_total
         last_result = _last_result
-    running = _SHELL.is_running()
     if running:
         elapsed_s = _now() - _started_at
         eta_s = _eta_s(done, total, elapsed_s)
