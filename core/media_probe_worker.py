@@ -57,6 +57,8 @@ class MediaProbeWorker:
         self._thread = None
         # path → list[callback]；每處理完一個 key（finally）通知，不綁在 job 上（I6）
         self._completion = {}
+        # path → ok｜failed｜not_written；只在該 key 有登記 callback 才保存
+        self._outcomes = {}
 
     def on_complete(self, path_uri, callback) -> None:
         """以 path 為 key 登錄完成通知（寫入／丟棄／例外皆算）。"""
@@ -67,6 +69,12 @@ class MediaProbeWorker:
         """測試／重開 job 時清掉殘留 callback。"""
         with self._lock:
             self._completion.pop(path_uri, None)
+            self._outcomes.pop(path_uri, None)
+
+    def pop_outcome(self, path_uri):
+        """取走該 key 的處理結果（登記制）；取走即刪、沒有回 None。"""
+        with self._lock:
+            return self._outcomes.pop(path_uri, None)
 
     def submit(self, path_uri, fs_path, expected_mtime, expected_size, db_path=None):
         # Known limitation (mirrored from focal/worker.py:104–121): `key` has no DB
@@ -100,10 +108,18 @@ class MediaProbeWorker:
         while True:
             self._process_one()
 
+    def _record_outcome(self, key, outcome) -> None:
+        with self._lock:
+            if key in self._completion:
+                self._outcomes[key] = outcome
+
     def _notify_complete(self, key) -> None:
         callbacks = []
         with self._lock:
+            has_callback = key in self._completion
             callbacks = list(self._completion.pop(key, []))
+            if has_callback:
+                self._outcomes.setdefault(key, "not_written")
         for cb in callbacks:
             try:
                 cb()
@@ -131,12 +147,14 @@ class MediaProbeWorker:
             if end_stat != start_stat:
                 return
             repo = VideoRepository(job.db_path)
-            repo.update_media_probe(
+            written = repo.update_media_probe(
                 job.path_uri,
                 result,
                 job.expected_mtime,
                 job.expected_size,
             )
+            if written:
+                self._record_outcome(key, "ok" if result.status == "ok" else "failed")
         except Exception:
             logger.exception("MediaProbeWorker job failed for path=%s", key)
         finally:

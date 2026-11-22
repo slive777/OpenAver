@@ -6,6 +6,7 @@ job 只活在記憶體；逐列 submit 給同一個單例 worker。
 from __future__ import annotations
 
 import threading
+import time
 
 from core import media_probe
 from core.ai_services.backfill_state import meta_delete, meta_get, meta_set
@@ -29,6 +30,34 @@ _job_lock = threading.Lock()
 _job_done = 0
 _job_total = 0
 _done_paths: set = set()
+_counts = {"read": 0, "failed": 0, "unreachable": 0}
+_started_at = 0.0
+_last_result = None
+_job_snapshot_size = 0
+
+ETA_MIN_DONE = 30
+
+
+def _now() -> float:
+    return time.monotonic()
+
+
+def _eta_s(done, total, elapsed):
+    if done < ETA_MIN_DONE or elapsed <= 0:
+        return None
+    return (total - done) / (done / elapsed)
+
+
+def _record_last_result() -> None:
+    global _last_result
+    with _job_lock:
+        _last_result = {
+            "read": _counts["read"],
+            "failed": _counts["failed"],
+            "unreachable": _counts["unreachable"],
+            "total": _job_snapshot_size,
+            "duration_s": _now() - _started_at,
+        }
 
 
 def get_dismissed() -> bool:
@@ -70,8 +99,10 @@ def _prefixes():
 def status() -> dict:
     """CD-198a-8：{available, dismissed, include_readonly, pending, readonly_pending, job:{running, done, total}}。"""
     include_ro = get_include_readonly()
+    has_readonly_source = False
     try:
         ro, wr, _mappings, configured = _prefixes()
+        has_readonly_source = len(ro) > 0
         pending = len(
             VideoRepository().list_media_probe_pending(
                 include_readonly=include_ro,
@@ -97,16 +128,28 @@ def status() -> dict:
         readonly_pending = 0
     with _job_lock:
         done, total = _job_done, _job_total
+        last_result = _last_result
+    running = _SHELL.is_running()
+    if running:
+        elapsed_s = _now() - _started_at
+        eta_s = _eta_s(done, total, elapsed_s)
+    else:
+        elapsed_s = None
+        eta_s = None
     return {
         "available": media_probe.is_available(),
         "dismissed": get_dismissed(),
         "include_readonly": include_ro,
         "pending": pending,
         "readonly_pending": readonly_pending,
+        "has_readonly_source": has_readonly_source,
         "job": {
-            "running": _SHELL.is_running(),
+            "running": running,
             "done": done,
             "total": total,
+            "elapsed_s": elapsed_s,
+            "eta_s": eta_s,
+            "last_result": last_result,
         },
     }
 
@@ -131,14 +174,22 @@ def start() -> dict:
                 _SHELL.abort_acquire()
                 return {"ok": False, "status": "nothing_to_do"}
             _SHELL.begin_locked()
-            global _job_done, _job_total, _done_paths
+            global _job_done, _job_total, _done_paths, _started_at, _last_result, _job_snapshot_size
             with _job_lock:
                 _job_done = 0
                 _job_total = len(snapshot)
                 _done_paths = set()
+                _counts["read"] = 0
+                _counts["failed"] = 0
+                _counts["unreachable"] = 0
+                _started_at = _now()
+                _last_result = None
+                _job_snapshot_size = len(snapshot)
+            include_ro_flag = include_ro
         except BaseException:
             _SHELL.abort_acquire()
             raise
+    logger.info("media_probe backfill started count=%s include_readonly=%s", len(snapshot), include_ro_flag)
     _SHELL.start_thread(
         _worker_main,
         (list(snapshot), mappings),
@@ -148,7 +199,7 @@ def start() -> dict:
     return {"ok": True, "status": "started"}
 
 
-def _mark_done(path: str) -> None:
+def _mark_done(path: str, outcome: str = "unreachable") -> None:
     global _job_done
     with _job_lock:
         if path in _done_paths:
@@ -157,6 +208,12 @@ def _mark_done(path: str) -> None:
             return
         _done_paths.add(path)
         _job_done += 1
+        if outcome == "ok":
+            _counts["read"] += 1
+        elif outcome == "failed":
+            _counts["failed"] += 1
+        else:
+            _counts["unreachable"] += 1
 
 
 def _worker_main(snapshot: list, mappings: dict) -> None:
@@ -167,7 +224,11 @@ def _worker_main(snapshot: list, mappings: dict) -> None:
 
     def _on_path_done(path=None):
         if path is not None and path in snapshot_paths:
-            _mark_done(path)
+            try:
+                outcome = worker.pop_outcome(path)
+            except Exception:
+                outcome = None
+            _mark_done(path, outcome if outcome in ("ok", "failed") else "unreachable")
         with _job_lock:
             finished = _job_done >= _job_total
         if finished:
@@ -193,17 +254,31 @@ def _worker_main(snapshot: list, mappings: dict) -> None:
     except Exception:
         logger.exception("media_probe_backfill worker_main failed")
     finally:
+        _record_last_result()
         with _SHELL.state_lock:
             if _SHELL.is_running():
                 _SHELL.release_locked()
+        with _job_lock:
+            read, failed, unreachable = _counts["read"], _counts["failed"], _counts["unreachable"]
+            duration_s = _now() - _started_at
+        logger.info(
+            "media_probe backfill finished read=%s failed=%s unreachable=%s duration_s=%.1f",
+            read, failed, unreachable, duration_s,
+        )
 
 
 def _reset_for_tests() -> None:
     """測試用：重置模組狀態（不放進公開 API）。"""
-    global _job_done, _job_total, _done_paths
+    global _job_done, _job_total, _done_paths, _started_at, _last_result, _job_snapshot_size
     _job_done = 0
     _job_total = 0
     _done_paths = set()
+    _counts["read"] = 0
+    _counts["failed"] = 0
+    _counts["unreachable"] = 0
+    _started_at = 0.0
+    _last_result = None
+    _job_snapshot_size = 0
     if _SHELL.is_running():
         with _SHELL.state_lock:
             if _SHELL.is_running():
