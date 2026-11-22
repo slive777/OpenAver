@@ -19,6 +19,19 @@ export function estimateEnrichMinutes(noNfoCount, coverOnlyCount) {
     return Math.ceil((noNfoCount * SEC_NO_NFO + coverOnlyCount * SEC_COVER_ONLY) / 60);
 }
 
+const ATTEMPTED_REASON_KEY = {
+    both: 'scanner.stats.reason.attempted_both',
+    nfo: 'scanner.stats.reason.attempted_nfo',
+    cover: 'scanner.stats.reason.attempted_cover',
+};
+
+export function formatAttemptedDate(epochSec) {
+    const date = new Date(epochSec * 1000);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export function stateBatch() {
     return {
         // ===== T10: Missing NFO/Cover Enrich =====
@@ -27,6 +40,10 @@ export function stateBatch() {
         missingNfoCount: 0,
         missingCoverCount: 0,
         missingItems: [],           // [{file_path, number}]
+        attemptedCount: 0,
+        attemptedItems: [],
+        probeFailedCount: 0,
+        probeFailedItems: [],
         missingEnrichOffset: 0,     // batch offset
         missingEnrichSuccess: 0,
         missingEnrichFailed: 0,
@@ -43,12 +60,33 @@ export function stateBatch() {
         _flushTimer: null,          // TASK-94 Codex P1：最後一片補足 dwell 的 setTimeout handle（cleanup/run-start 清）
 
         // ===== T10: Missing Pill Computed =====
+        get attemptedPillVisible() { return this.attemptedCount > 0; },
+        get probeFailedPillVisible() { return this.probeFailedCount > 0; },
+        get attemptedDrilldownItems() {
+            return this.attemptedItems.map(i => {
+                const reason = window.t(ATTEMPTED_REASON_KEY[i.category], { date: formatAttemptedDate(i.attempted_at) });
+                return { number: i.number, path: i.file_path, note: reason, reason };
+            });
+        },
+        get attemptedDrilldownPayload() {
+            return { title: window.t('scanner.stats.attempted_prefix'), items: this.attemptedDrilldownItems, footnote: '' };
+        },
+        get probeFailedDrilldownItems() {
+            return this.probeFailedItems.map(i => {
+                const reason = window.t('scanner.stats.reason.probe_failed');
+                return { number: i.number, path: i.file_path, note: reason, reason };
+            });
+        },
+        get probeFailedDrilldownPayload() {
+            return { title: window.t('scanner.stats.probe_failed_prefix'), items: this.probeFailedDrilldownItems, footnote: '' };
+        },
         // TASK-155b-T4: numberDrilldown items／payload（both→nfo→cover）
         get missingBothDrilldownItems() {
             return this.missingItems.filter(i => i.category === 'both').map(i => ({
                     number: i.number,
                     path: i.file_path,
                     note: window.t('scanner.stats.missing_both_tag'),
+                    reason: window.t('scanner.stats.reason.missing_both'),
                 }));
         },
         get missingNfoDrilldownItems() {
@@ -56,6 +94,7 @@ export function stateBatch() {
                     number: i.number,
                     path: i.file_path,
                     note: window.t('scanner.stats.missing_nfo_tag'),
+                    reason: window.t('scanner.stats.reason.missing_nfo'),
                 }));
         },
         get missingCoverDrilldownItems() {
@@ -63,7 +102,11 @@ export function stateBatch() {
                     number: i.number,
                     path: i.file_path,
                     note: window.t('scanner.stats.missing_cover_tag'),
+                    reason: window.t('scanner.stats.reason.missing_cover'),
                 }));
+        },
+        get missingAllDrilldownItems() {
+            return [...this.missingBothDrilldownItems, ...this.missingNfoDrilldownItems, ...this.missingCoverDrilldownItems];
         },
         get missingBothDrilldownPayload() {
             return { title: window.t('scanner.stats.missing_both_prefix'), items: this.missingBothDrilldownItems, footnote: window.t('scanner.stats.missing_list_footnote') };
@@ -90,6 +133,10 @@ export function stateBatch() {
                 const result = await resp.json();
                 if (!result.success) return;
                 const d = result.data;
+                this.attemptedCount = d.attempted_count || 0;
+                this.attemptedItems = Array.isArray(d.attempted_items) ? d.attempted_items : [];
+                this.probeFailedCount = d.probe_failed_count || 0;
+                this.probeFailedItems = Array.isArray(d.probe_failed_items) ? d.probe_failed_items : [];
                 if (d.total_missing > 0) {
                     // TASK-13: 後端永遠回傳完整 items 清單；前端於 runMissingEnrich 內做 > 500 confirm gate
                     this.missingBothCount = d.missing_both || 0;

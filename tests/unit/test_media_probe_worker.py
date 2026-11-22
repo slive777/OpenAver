@@ -283,14 +283,18 @@ def test_backfill_progress_converges(temp_db, monkeypatch):
     [
         "pending_default",
         "pending_include_ro",
-        "trigger_skips_ro",
         "pending_outside_configured",
         "pending_excludes_strm",
         "trigger_skips_strm",
     ],
 )
 def test_readonly_rows_never_read(temp_db, monkeypatch, case):
-    """I7：唯讀／設定外／.strm 不進 pending；trigger 永不 submit 唯讀與 .strm。"""
+    """I7：唯讀／設定外／.strm 不進 pending；trigger 不 submit .strm。
+
+    唯讀列的 trigger 行為由開關決定（見
+    tests/integration/test_media_probe_readonly_ingest.py 真值表）：開關 off 才
+    跳過，開關 on 照排。
+    """
     import core.media_probe_backfill as backfill
     import core.media_probe_trigger as trigger
     import core.media_probe_worker as worker_mod
@@ -367,19 +371,6 @@ def test_readonly_rows_never_read(temp_db, monkeypatch, case):
     elif case == "trigger_skips_strm":
         trigger.maybe_submit_media_probe(
             strm_path,
-            db_path=temp_db,
-            readonly_prefixes=ro_prefixes,
-            writable_prefixes=wr_prefixes,
-            path_mappings={},
-        )
-        assert submitted == []
-
-    else:
-        # trigger 在 include_readonly=True 設定下仍不 submit 唯讀
-        backfill.set_include_readonly(True)
-        assert backfill.get_include_readonly() is True
-        trigger.maybe_submit_media_probe(
-            ro_path,
             db_path=temp_db,
             readonly_prefixes=ro_prefixes,
             writable_prefixes=wr_prefixes,

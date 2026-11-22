@@ -94,6 +94,25 @@ const LIGHTBOX_SLICE_FILES = [
 // ---- RULES ----
 // note 一律標明來源 class（供 T6 對照表直接引用）。
 const RULES = [
+  { file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])@click="copyRowList\((?:nfoUpdateDrilldownItems|missingAllDrilldownItems|jellyfinDrilldownItems|attemptedDrilldownItems|probeFailedDrilldownItems)\)"/g, count: 5,
+    note: '[lint-guard:205a-T4-copy-rows] 五列複製接線（含 T5 兩列）' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: /(?<![\w:-])@copy-fail-dump\.window="\$event\.preventDefault\(\); openCopyFailModal\(\$event\.detail\.text\)"/,
+    note: '[lint-guard:205a-T4-copy-fail-listener] 浮層複製失敗時顯示全文' },
+  { file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])x-data="mediaProbeReminder"/g, count: 1,
+    note: '[lint-guard:205a-T6b-block-single] 影片資訊區塊恰有一份' },
+  { file: 'web/templates/scanner.html', kind: 'order', items: [
+    { pattern: /(?<![\w:-])id="btnGenerate"/ },
+    { pattern: /(?<![\w:-])x-data="mediaProbeReminder"/, occurrence: 'last' },
+    { pattern: /(?<![\w:-])id="progressSection"/, occurrence: 'first' },
+  ], note: '[lint-guard:205a-T6b-block-position] 影片資訊區塊位於更新按鈕與讀取紀錄之間' },
+  { file: 'web/static/js/pages/scanner/state-scan.js', kind: 'structure-count', pattern: /window\.dispatchEvent\(new CustomEvent\('media-probe-refresh'\)\)/g, count: 2, stripLineComments: true,
+    note: '[lint-guard:205a-T7-refresh-dispatch] 更新片庫或存檔後刷新影片資訊區塊' },
+  { file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])@media-probe-finished\.window="checkMissing\(\)"/g, count: 1,
+    scope: { anchor: /(?<![\w:-])x-data="scanner"/, window: 1200 },
+    note: '[lint-guard:205a-T7-finished-listener] 影片資訊讀完後刷新統計卡' },
+  { file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])@media-probe-refresh\.window="mpRefresh\(\)"/g, count: 1,
+    scope: { anchor: /(?<![\w:-])x-data="mediaProbeReminder"/, window: 400 },
+    note: '[lint-guard:205a-T7-block-refresh-listener] 影片資訊區塊接收刷新事件' },
   // ---- [TestShowcaseMetadataGuard] showcase.html：10 個 all-of required + 1 個 any-of ----
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'video.series', note: '[TestShowcaseMetadataGuard] metadata binding' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'video.duration', note: '[TestShowcaseMetadataGuard] metadata binding' },

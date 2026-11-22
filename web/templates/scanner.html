@@ -17,6 +17,8 @@
      data-shell-mode="{{ shell_mode or '' }}"
      @dragover.document.prevent="handleDragOver($event)"
      @drop.document.prevent="handleDrop($event)"
+     @copy-fail-dump.window="$event.preventDefault(); openCopyFailModal($event.detail.text)"
+     @media-probe-finished.window="checkMissing()"
      @keydown.escape.window="dirtyCheckModalOpen && dirtyCheckCancel(); missingConfirmModalOpen && cancelLargeMissingEnrich(); deleteAliasGroupModalOpen && cancelDeleteAliasGroupModal(); deleteTagAliasGroupModalOpen && cancelDeleteTagAliasGroupModal(); copyFailModalOpen && closeCopyFailModal(); readonlyConfirmModalOpen && readonlyConfirmCancel();">
     <!-- Drag Overlay (must be inside x-data scope) -->
     <div class="drag-overlay" id="dragOverlay" :class="{ active: showDragOverlay }">
@@ -136,6 +138,48 @@
         </div>
     </div>
 
+    <!-- 影片資訊讀取提醒（205a）：獨立元件 -->
+    <div class="stats-card" x-data="mediaProbeReminder" x-cloak role="status"
+         x-show="mpView().show"
+         @visibilitychange.document="mpOnVisibility()"
+         @media-probe-refresh.window="mpRefresh()">
+        <div x-show="mpView().line1 !== null">
+            <div class="stats-row flex-wrap gap-2">
+                <div class="stat-item">
+                    <i class="bi bi-film"></i>
+                    <span x-text="mpMessage()"></span>
+                    <span x-show="mpView().line1 === 'running' && mpEtaText()" x-text="mpEtaText()"></span>
+                </div>
+                <div class="stat-item" x-show="mpView().line1 !== 'running'">
+                    <button class="btn-nfo-update" @click="mpStart()"
+                            x-show="mpView().line1 === 'pending'" :disabled="mpBusy">
+                        {{ t('scanner.media_probe.start') }}
+                    </button>
+                    <button class="btn btn-ghost btn-xs" @click="mpLaterClick()"
+                            x-show="mpView().line1 === 'pending'" :disabled="mpBusy">
+                        {{ t('scanner.media_probe.later') }}
+                    </button>
+                    <button class="btn btn-ghost btn-xs" @click="mpDismiss()" :disabled="mpBusy">
+                        {{ t('scanner.media_probe.dismiss') }}
+                    </button>
+                </div>
+            </div>
+            <div class="progress-mini" x-show="mpView().line1 === 'running'">
+                <div class="bar" :style="{ width: mpView().percent + '%' }"></div>
+            </div>
+        </div>
+        <div class="stats-row" :class="{ 'nfo-update-row': mpView().line1 !== null }"
+             x-show="mpView().showToggle">
+            <label class="flex items-center gap-1">
+                <input type="checkbox" class="toggle toggle-primary toggle-sm"
+                       :checked="mpChecked()" :disabled="mpBusy"
+                       @change="mpToggleReadonly($event.target)">
+                <span>{{ t('scanner.media_probe.include_readonly') }}</span>
+            </label>
+            <small class="text-muted" x-show="mpView().readonlyHint !== null" x-text="mpReadonlyHint()"></small>
+        </div>
+    </div>
+
     <!-- Mini Terminal (hidden by default) -->
     <div class="mini-terminal" id="progressSection" x-show="progressSectionVisible">
         <div class="mini-terminal-header">
@@ -238,11 +282,16 @@
                 {{ t('scanner.stats.nfo_suffix') }}
                 {{ number_drilldown_panel() }}
             </span>
+            <span class="number-drilldown-action-group">
             <button class="btn-nfo-update" @click="runNfoUpdate()" id="btnUpdate"
                     x-bind:disabled="nfoUpdateButtonDisabled"
                     x-html="nfoUpdateButtonText"
                     title="{{ t('scanner.stats.nfo_update_title') }}">
             </button>
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(nfoUpdateDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
         </div>
         <!-- T10: Missing NFO/Cover Pill -->
         <div class="nfo-update-row" x-show="missingPillVisible">
@@ -288,10 +337,54 @@
                     {{ t('scanner.stats.missing_suffix') }}
                 </span>
             </span>
+            <span class="number-drilldown-action-group">
             <button class="btn-nfo-update" @click="runMissingEnrich()"
                     x-bind:disabled="isBusy || missingItems.length === 0"
                     x-html="missingEnrichButtonText">
             </button>
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(missingAllDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
+        </div>
+
+        <div class="nfo-update-row" x-show="attemptedPillVisible">
+            <span class="nfo-badge">
+                <i class="bi bi-search"></i>
+                {{ t('scanner.stats.attempted_prefix') }}
+                <span class="number-drilldown-anchor" x-data="numberDrilldown" @click.outside="close()">
+                    <button type="button" class="number-drilldown-number-btn"
+                            :aria-expanded="open"
+                            @click="toggle(attemptedDrilldownPayload)"
+                            x-text="attemptedCount"></button>
+                    {{ number_drilldown_panel() }}
+                </span>
+                {{ t('scanner.stats.missing_suffix') }}
+            </span>
+            <span class="number-drilldown-action-group">
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(attemptedDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
+        </div>
+        <div class="nfo-update-row" x-show="probeFailedPillVisible">
+            <span class="nfo-badge">
+                <i class="bi bi-exclamation-triangle"></i>
+                {{ t('scanner.stats.probe_failed_prefix') }}
+                <span class="number-drilldown-anchor" x-data="numberDrilldown" @click.outside="close()">
+                    <button type="button" class="number-drilldown-number-btn"
+                            :aria-expanded="open"
+                            @click="toggle(probeFailedDrilldownPayload)"
+                            x-text="probeFailedCount"></button>
+                    {{ number_drilldown_panel() }}
+                </span>
+                {{ t('scanner.stats.missing_suffix') }}
+            </span>
+            <span class="number-drilldown-action-group">
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(probeFailedDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
         </div>
 
         <!-- T10: Resume Pill (未完成提示) -->
@@ -369,11 +462,16 @@
                     </small>
                 </div>
             </span>
+            <span class="number-drilldown-action-group">
             <button class="btn-nfo-update" @click="runJellyfinImageUpdate()"
                     x-bind:disabled="isGenerating"
                     x-html="jellyfinImageButtonText"
                     title="{{ t('scanner.stats.jellyfin_update_title') }}">
             </button>
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(jellyfinDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
         </div>
     </div>
 
@@ -622,46 +720,6 @@
                     </div>
                 </template>
             </div>
-        </div>
-    </div>
-
-    <!-- 影片資訊讀取提醒（198a-T5）：獨立元件，key 全以 mp 為前綴，不依賴父層 scanner -->
-    <div class="stats-card" x-data="mediaProbeReminder" x-cloak role="status"
-         x-show="mpView().mode !== 'hidden'"
-         @visibilitychange.document="mpOnVisibility()">
-        <div class="stats-row">
-            <div class="stat-item">
-                <i class="bi bi-film"></i>
-                <span x-text="mpMessage()"></span>
-            </div>
-            <div class="stat-item" x-show="mpView().mode !== 'running'">
-                <button class="btn-nfo-update" @click="mpStart()"
-                        x-show="mpView().mode === 'pending'"
-                        :disabled="mpBusy">
-                    {{ t('scanner.media_probe.start') }}
-                </button>
-                <button class="btn btn-ghost btn-xs" @click="mpLaterClick()"
-                        x-show="mpView().mode === 'pending'">
-                    {{ t('scanner.media_probe.later') }}
-                </button>
-                <button class="btn btn-ghost btn-xs" @click="mpDismiss()"
-                        :disabled="mpBusy">
-                    {{ t('scanner.media_probe.dismiss') }}
-                </button>
-            </div>
-        </div>
-        <div class="progress-mini" x-show="mpView().mode === 'running'">
-            <div class="bar" :style="{ width: mpView().percent + '%' }"></div>
-        </div>
-        <div class="nfo-update-row"
-             x-show="mpView().mode === 'pending' || mpView().mode === 'readonly_only'">
-            <label class="flex items-center gap-1">
-                <input type="checkbox" class="toggle toggle-primary toggle-sm"
-                       :checked="mpChecked()"
-                       :disabled="mpBusy"
-                       @change="mpToggleReadonly($event.target)">
-                <span>{{ t('scanner.media_probe.include_readonly') }}</span>
-            </label>
         </div>
     </div>
 

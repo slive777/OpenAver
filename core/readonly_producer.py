@@ -1233,6 +1233,52 @@ def _emit(on_progress, result, source_uri, status, movie_dir="", number="", erro
         on_progress(outcome)
 
 
+def _readonly_probe_context(gallery, path_mappings, should_abort):
+    """算一次唯讀探針排程上下文（含 prefixes／mappings／開關；失敗回 None）。"""
+    if not (gallery or {}).get("directories"):
+        return None
+    try:
+        from core.media_probe_backfill import get_include_readonly
+        from core.readonly_source import (
+            readonly_source_prefixes,
+            writable_source_prefixes,
+        )
+
+        return {
+            "readonly_prefixes": readonly_source_prefixes(gallery, path_mappings or {}),
+            "writable_prefixes": writable_source_prefixes(gallery, path_mappings or {}),
+            "path_mappings": path_mappings or {},
+            "include_readonly": get_include_readonly(),
+            "should_abort": should_abort,
+        }
+    except Exception:
+        logger.warning("[readonly_producer] 唯讀探針上下文建構失敗（不影響生成結果）", exc_info=True)
+        return None
+
+
+def _submit_readonly_probe(repo, src_uri, probe_ctx):
+    """本輪新列排一次 media probe；任何失敗只記 log，不改結果、不中斷迴圈。"""
+    try:
+        if not probe_ctx:
+            return None
+        should_abort = probe_ctx.get("should_abort")
+        if should_abort is not None and should_abort():
+            return None
+        from core.media_probe_trigger import maybe_submit_media_probe
+
+        maybe_submit_media_probe(
+            src_uri,
+            db_path=repo.db_path,
+            readonly_prefixes=probe_ctx.get("readonly_prefixes"),
+            writable_prefixes=probe_ctx.get("writable_prefixes"),
+            path_mappings=probe_ctx.get("path_mappings"),
+            include_readonly=probe_ctx.get("include_readonly"),
+        )
+    except Exception:
+        logger.warning("[readonly_producer] 唯讀探針排程失敗（不影響生成結果）", exc_info=True)
+    return None
+
+
 def produce_source(source, config, repo, *, on_progress=None, should_abort=None, force: bool = False, reachable: bool = True, strm_mappings_getter=None) -> ProduceResult:
     """Orchestrate per-source readonly generation: guard → list → skip → scrape → write → upsert.
 
@@ -1280,6 +1326,7 @@ def produce_source(source, config, repo, *, on_progress=None, should_abort=None,
 
     attempted_index = repo.get_attempted_index()
     allocated_this_run: set = set()
+    probe_ctx = _readonly_probe_context(gallery, path_mappings, should_abort)
 
     files = _list_source_videos(
         source.path, get_video_extensions(config), _min_size_bytes(gallery),
@@ -1325,6 +1372,8 @@ def produce_source(source, config, repo, *, on_progress=None, should_abort=None,
             )
             result.no_scrape += 1
             _emit(on_progress, result, src_uri, "no_scrape")
+            if src_uri not in attempted_index:
+                _submit_readonly_probe(repo, src_uri, probe_ctx)
             continue
 
         try:
@@ -1338,6 +1387,8 @@ def produce_source(source, config, repo, *, on_progress=None, should_abort=None,
             )
             result.created += 1
             _emit(on_progress, result, src_uri, "created", str(movie_dir), number)
+            if src_uri not in attempted_index:
+                _submit_readonly_probe(repo, src_uri, probe_ctx)
         except Exception:
             result.failed += 1
             # Full detail + traceback to the log (error level, diagnosable);

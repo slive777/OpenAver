@@ -1,4 +1,5 @@
 import { copyText } from '@/shared/clipboard.js';
+import { copyItemList } from '@/shared/drilldown-copy.js';
 import { dirPath } from '@/shared/dir-path.js';
 
 let _dragTimeoutHandle = null;
@@ -159,16 +160,30 @@ export function stateScan() {
                     number: i.number,
                     path: i.path,
                     note: window.t('scanner.stats.nfo_field_note_prefix') + i.missing.map(f => window.t('scanner.stats.nfo_field_' + f)).join('、'),
+                    reason: window.t('scanner.stats.reason.nfo_fields', { fields: i.missing.map(f => window.t('scanner.stats.nfo_field_' + f)).join('、') }),
                 }));
         },
         get nfoUpdateDrilldownPayload() {
             return { title: window.t('scanner.stats.nfo_prefix'), items: this.nfoUpdateDrilldownItems, footnote: '' };
         },
         get jellyfinDrilldownItems() {
-            return this.jellyfinItems.map(i => ({ number: i.number, path: i.path }));
+            return this.jellyfinItems.map(i => ({
+                number: i.number, path: i.path,
+                reason: window.t('scanner.stats.reason.jellyfin_' + (i.missing?.length === 1 ? (i.missing[0] === 'poster' ? 'poster' : 'fanart') : 'both')),
+            }));
         },
         get jellyfinDrilldownPayload() {
             return { title: window.t('scanner.stats.jellyfin_prefix'), items: this.jellyfinDrilldownItems, footnote: '' };
+        },
+
+        async copyRowList(items) {
+            if (!items.length) return;
+            const result = await copyItemList(items);
+            if (result.ok) {
+                this.showToast(window.t('common.number_drilldown.copy_toast', { count: result.count }), 'success');
+            } else {
+                this.openCopyFailModal(result.text);
+            }
         },
 
         // ===== Lifecycle =====
@@ -333,6 +348,7 @@ export function stateScan() {
                     this.configDirty = false;
                     this.folderSnapshot = JSON.stringify(this.directories);
                     this.showToast(window.t('scanner.toast.config_saved'), 'success');
+                    window.dispatchEvent(new CustomEvent('media-probe-refresh'));
                     return true;
                 } else {
                     this.showToast(window.t('scanner.toast.save_failed', { error: result.error || window.t('common.unknown_error') }), 'error');
@@ -884,6 +900,7 @@ export function stateScan() {
 
                         // T10: 掃描完成後檢查缺失 NFO/封面
                         this.checkMissing();
+                        window.dispatchEvent(new CustomEvent('media-probe-refresh'));
 
                         // 更新資料夾快照（generate 成功視為儲存）
                         this.folderSnapshot = JSON.stringify(this.directories);

@@ -60,7 +60,10 @@
       "err_generic": "這個資料夾讀不到"
     },
     "number_drilldown": {
-      "copy_button": "複製清單",
+      "copy_button": "複製清單（番號、路徑、原因）",
+      "copy_col_number": "番號",
+      "copy_col_path": "路徑",
+      "copy_col_reason": "原因",
       "copy_toast": "已複製 {count} 部",
       "copy_failed": "複製失敗，請手動選取清單文字複製",
       "close": "關閉",
@@ -1066,8 +1069,8 @@
       "browse_dir_fallback": "瀏覽器無法直接讀取拖放檔案的路徑，已為您開啟資料夾選擇器"
     },
     "copy_fail_modal": {
-      "title": "複製日誌失敗",
-      "body": "clipboard 寫入失敗，請手動選取以下文字按 Ctrl+C 複製：",
+      "title": "複製失敗",
+      "body": "剪貼簿寫入失敗，請手動選取以下文字按 Ctrl+C 複製：",
       "close": "關閉"
     },
     "drag_overlay": {
@@ -1102,6 +1105,19 @@
       "clear_all_title": "清除全部（包含歷史）"
     },
     "stats": {
+      "reason": {
+        "attempted_both": "試過仍缺 NFO 與封面（{date}）",
+        "attempted_nfo": "試過仍缺 NFO（{date}）",
+        "attempted_cover": "試過仍缺封面（{date}）",
+        "probe_failed": "讀不出影片資訊",
+        "missing_nfo": "缺 NFO",
+        "missing_cover": "缺封面",
+        "missing_both": "NFO 與封面都缺",
+        "nfo_fields": "NFO 缺：{fields}",
+        "jellyfin_poster": "缺 Jellyfin 海報",
+        "jellyfin_fanart": "缺 Jellyfin 背景圖",
+        "jellyfin_both": "缺 Jellyfin 海報、背景圖"
+      },
       "cached_prefix": "已掃描:",
       "cached_suffix": "部",
       "clear_cache_title": "清除快取",
@@ -1129,6 +1145,8 @@
       "jellyfin_check_done_ok": "已檢查，全部正常",
       "btn_done": "已完成",
       "missing_both_prefix": "NFO 與封面都缺:",
+      "attempted_prefix": "試過但查不到:",
+      "probe_failed_prefix": "讀不出影片資訊:",
       "missing_nfo_prefix": "缺 NFO 檔案:",
       "missing_cover_prefix": "缺封面檔案:",
       "missing_both_tag": "都缺",
@@ -1187,7 +1205,12 @@
       "include_readonly": "也讀取唯讀來源的片（NAS、雲端硬碟會多一些讀取）",
       "progress": "已讀取 {done} / {total}",
       "unavailable": "這台機器無法讀取影片資訊",
-      "readonly_only": "唯讀來源有 {n} 部片還沒讀取影片資訊"
+      "readonly_hint": "有 {n} 部唯讀來源的片還沒讀取影片資訊",
+      "eta_minutes": "約剩 {n} 分鐘",
+      "eta_soon": "快好了",
+      "finished": "影片資訊讀取完成：讀了 {read} 部",
+      "finished_failed": "，{n} 部讀不出",
+      "finished_unreachable": "，{n} 部連不到"
     },
     "alias": {
       "section_title": "女優別名管理",

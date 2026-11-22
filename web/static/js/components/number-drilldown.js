@@ -5,7 +5,7 @@
  * 呼叫端把觸發鈕與本浮層包在同一個 wrapper，掛 x-data="numberDrilldown"。
  */
 import { pathToDisplay } from './path-utils.js';
-import { copyText } from '../shared/clipboard.js';
+import { buildCopyText, copyItemList } from '../shared/drilldown-copy.js';
 
 function showToast(msg, type = 'success', duration = 2500) {
     Alpine.store('toast').show(msg, type, duration);
@@ -54,18 +54,17 @@ export function numberDrilldown() {
         },
 
         copyText() {
-            return this._items.map((it) => this.rowId(it)).join('\n');
+            return buildCopyText(this._items);
         },
 
         async copy() {
-            const text = this.copyText();
-            const onSuccess = () => {
-                showToast(window.t('common.number_drilldown.copy_toast', { count: this.count }), 'success');
-            };
-            const onFailure = () => {
+            if (!this._items.length) return;
+            const result = await copyItemList(this._items);
+            if (result.ok) {
+                showToast(window.t('common.number_drilldown.copy_toast', { count: result.count }), 'success');
+            } else if (window.dispatchEvent(new CustomEvent('copy-fail-dump', { detail: { text: result.text }, cancelable: true }))) {
                 showToast(window.t('common.number_drilldown.copy_failed'), 'error');
-            };
-            return copyText(text).then((ok) => (ok ? onSuccess() : onFailure()));
+            }
         },
     };
 }

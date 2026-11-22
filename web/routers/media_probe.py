@@ -44,7 +44,10 @@ def post_settings(body: MediaProbeSettingsBody):
         if body.dismissed is not None:
             media_probe_backfill.set_dismissed(body.dismissed)
         if body.include_readonly is not None:
+            was_on = media_probe_backfill.get_include_readonly()
             media_probe_backfill.set_include_readonly(body.include_readonly)
+            if body.include_readonly and not was_on:
+                media_probe_backfill.set_dismissed(False)
         return media_probe_backfill.status()
     except Exception:
         return _internal_error("settings")

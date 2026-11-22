@@ -82,17 +82,31 @@ def test_pending_count_follows_readonly_opt_in(client, tmp_path, layout, writabl
     assert (s["pending"], s["readonly_pending"]) == (writable_n, readonly_n)
 
 
-def test_dismissed_roundtrip_keeps_other_key(client):
-    assert _status(client)["dismissed"] is False
-    assert _post_settings(client, {"dismissed": True})["dismissed"] is True
-    assert _status(client)["dismissed"] is True
+def test_enabling_readonly_clears_dismissed(client, tmp_path):
+    _seed(tmp_path, (1, 0, 0, 1, 0, 0))
+    s = _status(client)
+    assert s["has_readonly_source"] is True
+    assert s["dismissed"] is False
 
+    assert _post_settings(client, {"dismissed": True})["dismissed"] is True
+
+    s = _post_settings(client, {"include_readonly": True})
+    assert (s["dismissed"], s["include_readonly"]) == (False, True)
+
+    assert _post_settings(client, {"dismissed": True})["dismissed"] is True
     s = _post_settings(client, {"include_readonly": True})
     assert (s["dismissed"], s["include_readonly"]) == (True, True)
 
-    s = _post_settings(client, {"dismissed": False})
-    assert (s["dismissed"], s["include_readonly"]) == (False, True)
-    assert _status(client)["dismissed"] is False
+    s = _post_settings(client, {"include_readonly": False})
+    assert (s["dismissed"], s["include_readonly"]) == (True, False)
+
+    wr = tmp_path / "wr"
+    cfg = load_config()
+    cfg["gallery"]["directories"] = [
+        {"path": str(wr), "readonly": False, "output_path": ""},
+    ]
+    save_config(cfg)
+    assert _status(client)["has_readonly_source"] is False
 
 
 def test_unavailable_blocks_start(client, monkeypatch):
