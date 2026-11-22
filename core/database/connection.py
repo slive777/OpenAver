@@ -199,6 +199,16 @@ def _migrate_videos_db_only_columns(cursor, existing_cols: set) -> None:
     _migrate_pick_tiers(cursor, existing_cols)
 
 
+def _create_tag_blacklist_table(cursor) -> None:
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tag_blacklist (
+            key         TEXT PRIMARY KEY,
+            name        TEXT NOT NULL,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+
 def init_db(db_path: Path = None) -> None:
     """初始化資料庫 Schema"""
     conn = get_connection(db_path)
@@ -309,6 +319,8 @@ def init_db(db_path: Path = None) -> None:
             updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    _create_tag_blacklist_table(cursor)
 
     # 創建女優資料表
     cursor.execute("""

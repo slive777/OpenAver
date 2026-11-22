@@ -267,7 +267,7 @@ EXEMPTIONS: dict[tuple[str, str], tuple[int, str]] = {
         "理由一致）。",
     ),
     ("core/database/connection.py", "init_db"): (
-        271,
+        300,
         "資料庫 schema 初始化主流程，逐表 CREATE TABLE/CREATE INDEX 語句序列，schema 仍在"
         "演進中；拆成多個小函式不會降低本質複雜度，只會增加呼叫層次與跨函式的 cursor/conn "
         "傳遞。"
@@ -293,7 +293,8 @@ EXEMPTIONS: dict[tuple[str, str], tuple[int, str]] = {
         "**每加一張表就長一次是這個函式的固有成本**，抽 helper 只會讓「這個庫有哪些表」"
         "這件事散到函式外面去。"
         " ／ 262→266（feature/187b-lightbox-plot T2a）：videos 新增 has_plot 三態欄位的冪等 migration，與同函式既有 focal_model／user_rating 逐字同形；schema 演進固有成本。"
-        " ／ 266→271（feature/188b-ai-tags T1）：videos 新增 ai_tagged_at（AI 標過）欄位的冪等 migration＋CREATE 一行，與 has_plot 逐字同形；schema 演進固有成本。",
+        " ／ 266→271（feature/188b-ai-tags T1）：videos 新增 ai_tagged_at（AI 標過）欄位的冪等 migration＋CREATE 一行，與 has_plot 逐字同形；schema 演進固有成本。"
+        " ／ owner 2026-11-22 放寬到 300（205b-T1 加 tag_blacklist 建表）。",
     ),
 }
 

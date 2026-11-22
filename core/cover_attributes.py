@@ -129,6 +129,21 @@ _MANIFEST_KEYS = (
 )
 
 
+def protected_tag_words() -> frozenset[str]:
+    words: set[str] = set()
+    for rule in ATTRIBUTE_TABLE:
+        if rule.source == "media_probe":
+            continue
+        canonical = rule.canonical_tag.strip()
+        if canonical:
+            words.add(canonical.lower())
+        for alias in rule.match_aliases:
+            key = alias.strip()
+            if key:
+                words.add(key.lower())
+    return frozenset(words)
+
+
 def is_source_4k_tag(tag) -> bool:
     """顯示層述詞：來源標的 4K 等價詞（4K／UHD／8K…）。非字串回 False。"""
     if not isinstance(tag, str):
