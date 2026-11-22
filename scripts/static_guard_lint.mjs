@@ -94,8 +94,8 @@ const LIGHTBOX_SLICE_FILES = [
 // ---- RULES ----
 // note 一律標明來源 class（供 T6 對照表直接引用）。
 const RULES = [
-  { file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])@click="copyRowList\((?:nfoUpdateDrilldownItems|missingAllDrilldownItems|jellyfinDrilldownItems)\)"/g, count: 3,
-    note: '[lint-guard:205a-T4-copy-rows] 三列複製接線；T5 新增試過查不到／讀不出兩列時 +2' },
+  { file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])@click="copyRowList\((?:nfoUpdateDrilldownItems|missingAllDrilldownItems|jellyfinDrilldownItems|attemptedDrilldownItems|probeFailedDrilldownItems)\)"/g, count: 5,
+    note: '[lint-guard:205a-T4-copy-rows] 五列複製接線（含 T5 兩列）' },
   { file: 'web/templates/scanner.html', kind: 'required-string', pattern: /(?<![\w:-])@copy-fail-dump\.window="\$event\.preventDefault\(\); openCopyFailModal\(\$event\.detail\.text\)"/,
     note: '[lint-guard:205a-T4-copy-fail-listener] 浮層複製失敗時顯示全文' },
   // ---- [TestShowcaseMetadataGuard] showcase.html：10 個 all-of required + 1 個 any-of ----

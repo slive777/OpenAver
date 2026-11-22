@@ -1106,6 +1106,10 @@
     },
     "stats": {
       "reason": {
+        "attempted_both": "試過仍缺 NFO 與封面（{date}）",
+        "attempted_nfo": "試過仍缺 NFO（{date}）",
+        "attempted_cover": "試過仍缺封面（{date}）",
+        "probe_failed": "讀不出影片資訊",
         "missing_nfo": "缺 NFO",
         "missing_cover": "缺封面",
         "missing_both": "NFO 與封面都缺",
@@ -1141,6 +1145,8 @@
       "jellyfin_check_done_ok": "已檢查，全部正常",
       "btn_done": "已完成",
       "missing_both_prefix": "NFO 與封面都缺:",
+      "attempted_prefix": "試過但查不到:",
+      "probe_failed_prefix": "讀不出影片資訊:",
       "missing_nfo_prefix": "缺 NFO 檔案:",
       "missing_cover_prefix": "缺封面檔案:",
       "missing_both_tag": "都缺",

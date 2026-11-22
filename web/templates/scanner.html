@@ -305,6 +305,45 @@
             </span>
         </div>
 
+        <div class="nfo-update-row" x-show="attemptedPillVisible">
+            <span class="nfo-badge">
+                <i class="bi bi-search"></i>
+                {{ t('scanner.stats.attempted_prefix') }}
+                <span class="number-drilldown-anchor" x-data="numberDrilldown" @click.outside="close()">
+                    <button type="button" class="number-drilldown-number-btn"
+                            :aria-expanded="open"
+                            @click="toggle(attemptedDrilldownPayload)"
+                            x-text="attemptedCount"></button>
+                    {{ number_drilldown_panel() }}
+                </span>
+                {{ t('scanner.stats.missing_suffix') }}
+            </span>
+            <span class="number-drilldown-action-group">
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(attemptedDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
+        </div>
+        <div class="nfo-update-row" x-show="probeFailedPillVisible">
+            <span class="nfo-badge">
+                <i class="bi bi-exclamation-triangle"></i>
+                {{ t('scanner.stats.probe_failed_prefix') }}
+                <span class="number-drilldown-anchor" x-data="numberDrilldown" @click.outside="close()">
+                    <button type="button" class="number-drilldown-number-btn"
+                            :aria-expanded="open"
+                            @click="toggle(probeFailedDrilldownPayload)"
+                            x-text="probeFailedCount"></button>
+                    {{ number_drilldown_panel() }}
+                </span>
+                {{ t('scanner.stats.missing_suffix') }}
+            </span>
+            <span class="number-drilldown-action-group">
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(probeFailedDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
+        </div>
+
         <!-- T10: Resume Pill (未完成提示) -->
         <div class="nfo-update-row" x-show="resumePillVisible">
             <span class="nfo-badge">
