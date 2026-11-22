@@ -348,6 +348,7 @@ export function stateScan() {
                     this.configDirty = false;
                     this.folderSnapshot = JSON.stringify(this.directories);
                     this.showToast(window.t('scanner.toast.config_saved'), 'success');
+                    window.dispatchEvent(new CustomEvent('media-probe-refresh'));
                     return true;
                 } else {
                     this.showToast(window.t('scanner.toast.save_failed', { error: result.error || window.t('common.unknown_error') }), 'error');
@@ -899,6 +900,7 @@ export function stateScan() {
 
                         // T10: 掃描完成後檢查缺失 NFO/封面
                         this.checkMissing();
+                        window.dispatchEvent(new CustomEvent('media-probe-refresh'));
 
                         // 更新資料夾快照（generate 成功視為儲存）
                         this.folderSnapshot = JSON.stringify(this.directories);

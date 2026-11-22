@@ -18,6 +18,7 @@
      @dragover.document.prevent="handleDragOver($event)"
      @drop.document.prevent="handleDrop($event)"
      @copy-fail-dump.window="$event.preventDefault(); openCopyFailModal($event.detail.text)"
+     @media-probe-finished.window="checkMissing()"
      @keydown.escape.window="dirtyCheckModalOpen && dirtyCheckCancel(); missingConfirmModalOpen && cancelLargeMissingEnrich(); deleteAliasGroupModalOpen && cancelDeleteAliasGroupModal(); deleteTagAliasGroupModalOpen && cancelDeleteTagAliasGroupModal(); copyFailModalOpen && closeCopyFailModal(); readonlyConfirmModalOpen && readonlyConfirmCancel();">
     <!-- Drag Overlay (must be inside x-data scope) -->
     <div class="drag-overlay" id="dragOverlay" :class="{ active: showDragOverlay }">
