@@ -2,11 +2,13 @@
 
 公開介面：
 - ``run_after_ingest(video_uri, *, route, skip_faces=False, notify=False)``
+- ``run_translate_after_first_ingest(video_uri, *, route)``
 - ``begin_round()``（本張空殼）
 - ``decide``／``title_needs_translation``／``format_log``／``video_label``
 - ``Plan``／``Verdict``／``IngestContext``／``ITEMS``
 
 不變式（本張）：
+- 首次入庫入口只排翻譯，關閉時不讀 DB；排隊工作起跑時重讀開關（I-FI）。
 - 入口任何例外都不傳回入庫路（I-HOOK-NEVER-RAISES）。
 - 三開關全關且 ``skip_faces=True`` → 不讀 DB、不 log、不交棒（I-HOOK-OFF）。
 - 翻譯／相似／標籤各自一條 daemon lane（FIFO、並行度 1、惰性建立），入口只排工作不等結果；
@@ -234,7 +236,10 @@ def _row_stale(fresh, row) -> bool:
 
 
 def _job_translate(ctx: IngestContext) -> Optional[str]:
-    locale = (ctx.cfg.get("general") or {}).get("locale") or "zh-TW"
+    fresh_cfg = load_config()
+    if not _flag_on(fresh_cfg, "translate", "enabled"):
+        return "off"
+    locale = (fresh_cfg.get("general") or {}).get("locale") or "zh-TW"
     service = create_translate_service(ctx.cfg.get("translate") or {}, locale)
     translated = asyncio.run(service.translate_or_raise(
         ctx.row.title,
@@ -393,3 +398,30 @@ def _run_after_ingest(
             logger.exception(
                 "[post_ingest] item failed item=%s video=%s", name, video_uri,
             )
+
+
+def run_translate_after_first_ingest(video_uri: str, *, route: str) -> None:
+    try:
+        _run_translate_after_first_ingest(video_uri, route=route)
+    except Exception:
+        logger.exception("[post_ingest] run_translate_after_first_ingest failed video=%s", video_uri)
+
+
+def _run_translate_after_first_ingest(video_uri: str, *, route: str) -> None:
+    cfg = load_config()
+    if not _flag_on(cfg, "translate", "enabled"):
+        return
+    row = VideoRepository().get_by_path(video_uri)
+    if row is None:
+        logger.warning(
+            "[post_ingest] route=%s video=%s skip(row_missing)",
+            route,
+            os.path.basename(video_uri),
+        )
+        return
+    verdict = _decide_translate(cfg, row)
+    outcome = "run" if verdict.run else f"skip({verdict.reason})"
+    logger.info("[post_ingest] route=%s video=%s translate=%s", route, video_label(row), outcome)
+    if verdict.run:
+        ctx = IngestContext(video_uri=video_uri, route=route, notify=False, cfg=cfg, row=row)
+        _submit("translate", functools.partial(_run_item, "translate", ctx))

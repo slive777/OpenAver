@@ -271,3 +271,57 @@ def test_unreachable_notifies_once_per_round(monkeypatch):
         post_ingest.begin_round()
         burst(1)
     assert len(tag_keys) == 2 and len(sim_keys) == 2
+
+
+def test_first_ingest_entry_only_submits_translate(monkeypatch):
+    _setup(monkeypatch, _jp_row(), _cfg())
+    submitted, focal = [], []
+    monkeypatch.setattr(post_ingest, "_submit", lambda item, job: submitted.append(item))
+    monkeypatch.setattr(post_ingest, "maybe_submit_video_focal", lambda *a, **k: focal.append(1))
+    post_ingest.run_translate_after_first_ingest(URI, route="first")
+    assert submitted == ["translate"]
+    assert focal == []
+
+
+@pytest.mark.parametrize("enabled,expected", [(False, 0), (True, 1)])
+def test_translate_job_rechecks_switch_at_start(monkeypatch, enabled, expected):
+    row = _jp_row()
+    _setup(monkeypatch, row, _cfg())
+    jobs, services, writes = [], [], []
+    monkeypatch.setattr(post_ingest, "_submit", lambda item, job: jobs.append(job))
+
+    class Service:
+        async def translate_or_raise(self, *args):
+            return "中文翻譯標題"
+
+    monkeypatch.setattr(post_ingest, "create_translate_service", lambda *a: (services.append(1), Service())[1])
+    monkeypatch.setattr(post_ingest, "apply_title_writeback", lambda *a: (writes.append(1), {"success": True})[1])
+    post_ingest.run_translate_after_first_ingest(URI, route="first")
+    assert len(jobs) == 1
+    monkeypatch.setattr(post_ingest, "load_config", lambda: _cfg(translate=enabled))
+    jobs[0]()
+    assert len(services) == expected
+    assert len(writes) == expected
+
+
+def test_first_ingest_entry_does_not_block(monkeypatch):
+    _setup(monkeypatch, _jp_row(), _cfg())
+    gate, started = threading.Event(), threading.Event()
+
+    def slow_translate(_ctx):
+        started.set()
+        _wait(gate, "release translate", timeout=10)
+
+    monkeypatch.setattr(post_ingest, "_job_translate", slow_translate)
+    watchdog = threading.Thread(target=lambda: post_ingest.run_translate_after_first_ingest(URI, route="first"), daemon=True)
+    try:
+        watchdog.start()
+        watchdog.join(2)
+        assert not watchdog.is_alive(), "entry blocked on translation"
+        _wait(started, "translate started")
+    finally:
+        gate.set()
+        watchdog.join(5)
+        if watchdog.is_alive():
+            pytest.fail("entry thread did not stop")
+    _wait_idle()

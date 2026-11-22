@@ -217,6 +217,7 @@ def test_entry_never_raises_and_items_independent(monkeypatch, caplog):
     ("これはテスト", "這是テスト", False),
 ])
 def test_bad_translation_never_written_back(monkeypatch, source, translated, expect_bad):
+    monkeypatch.setattr(post_ingest, "load_config", lambda: {"translate": {"enabled": True}, "general": {"locale": "zh-TW"}})
     class _Svc:
         async def translate_or_raise(self, _title, _ctx=None):
             return translated
@@ -287,3 +288,34 @@ def test_decide_translate_follows_unified_rule(
     assert post_ingest.title_needs_translation(
         row, fresh_site_title=fresh,
     ) is (expect in ("run", "preserve_title"))
+
+
+@pytest.mark.parametrize("case", ["off", "skip", "run", "missing", "error"])
+def test_first_ingest_entry_off_skip_run_and_never_raises(monkeypatch, caplog, case):
+    row = _row(title="これはテスト", original_title="これはテスト") if case == "run" else _row()
+    repo = _FakeRepo(None if case == "missing" else row)
+    if case == "error":
+        def fail(_path):
+            repo.call_count += 1
+            raise RuntimeError("failure")
+        monkeypatch.setattr(repo, "get_by_path", fail)
+    monkeypatch.setattr(post_ingest, "VideoRepository", lambda: repo)
+    monkeypatch.setattr(post_ingest, "load_config", lambda: _cfg(translate_enabled=case != "off"))
+    submit = _Counter()
+    monkeypatch.setattr(post_ingest, "_submit", submit)
+    before = {t.name for t in threading.enumerate()}
+    with caplog.at_level(logging.INFO, logger=post_ingest.logger.name):
+        post_ingest.run_translate_after_first_ingest(row.path, route="first")
+    assert repo.call_count == (0 if case == "off" else 1)
+    assert len(submit.calls) == (1 if case == "run" else 0)
+    if case == "off":
+        assert before == {t.name for t in threading.enumerate()}
+        assert not caplog.records
+    else:
+        assert len(caplog.records) == 1
+        if case == "error":
+            assert caplog.records[0].exc_info
+        elif case == "missing":
+            assert "skip(row_missing)" in caplog.text
+        else:
+            assert ("translate=run" if case == "run" else "translate=skip(title_in_target_language)") in caplog.text
