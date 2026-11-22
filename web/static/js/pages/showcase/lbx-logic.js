@@ -126,7 +126,7 @@ export function workInfoFields(video, { releaseClickable = false } = {}) {
  */
 export function fitSig(video, adding, favKey = '') {
     if (!video) return '';
-    const parts = [video.path || '', video.actresses || '', video.tags || '', (video.user_tags || []).join('\u0001'), adding ? '1' : '0'];
+    const parts = [video.path || '', video.actresses || '', typeof video.tags_display === 'string' ? video.tags_display : (video.tags || ''), (video.user_tags || []).join('\u0001'), adding ? '1' : '0'];
     if (favKey) parts.push(favKey);
     return parts.join('\u0000');
 }

@@ -10422,6 +10422,14 @@ const RULES = [
     file: { dir: 'web/templates', ext: ['.html'], recursive: true }, kind: 'forbidden-string', pattern: '/api/image-search', id: '193-T12-image-search-endpoint-single-caller',
     note: '[193-T12-image-search-endpoint-single-caller] 模板裡另寫送圖呼叫 → 使用者沒按任何入口就可能送出圖片，或繞過 imgSearchStart 的撤銷／URL 回收／不落地規則',
   },
+  {
+    file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: /(?<![\w.])video\.tags\b(?:\s*\|\|\s*'')?\)?\.split\(/, id: '205b-T4-wall-table-display-tags',
+    note: '[lint-guard:205b-T4-wall-table-display-tags] 牆卡／表格直接拆原始 video.tags → 使用者加了黑名單，牆上與表格仍看得到被藏的字、也沒換成主名稱',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '_setHiddenTagKeys(data.hidden_tags || [])', id: '205b-T4-hidden-tags-wiring',
+    note: '[lint-guard:205b-T4-hidden-tags-wiring] fetchVideos 不再寫入 hidden_tags → 燈箱仍顯示被藏的你的標籤，且加入黑名單字不會被擋',
+  },
 ];
 
 // ---- helpers ----

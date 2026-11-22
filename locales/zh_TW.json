@@ -1694,6 +1694,7 @@
       "tag_api_failed": "標籤儲存失敗，請稍後再試",
       "tag_nfo_not_written": "標籤已存，但媒體伺服器讀的那份 NFO 沒有更新",
       "tag_nfo_write_blocked": "標籤已存，但沒有權限寫入 NFO",
+      "tag_blacklisted": "這個標籤在黑名單裡，加了也看不到；要顯示請先到片庫管理頁把它從黑名單移除",
       "ai_tags_tooltip": "AI 標籤",
       "ai_tags_added": "AI 加了 {n} 個標籤",
       "ai_tags_none": "AI 沒有看到詞表裡的東西",

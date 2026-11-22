@@ -6,7 +6,8 @@
  * 從 state-base.js import 共用大陣列（F1：移出 Alpine reactive scope）。
  */
 
-import { _videos, _allVideos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setAllVideos, _setFilteredVideos, _setVideosReady, _recomputeAllBadges, _recomputeCardActorAges } from '@/showcase/state-base.js';
+import { _videos, _allVideos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setAllVideos, _setFilteredVideos, _setVideosReady, _recomputeAllBadges, _recomputeCardActorAges, _setHiddenTagKeys } from '@/showcase/state-base.js';
+import { workTagsOf as _workTagsOf } from '@/shared/tag-display.js';
 import { applyCellFocal } from '@/shared/focal-cell.js';
 import { openLocal } from '@/shared/open-local.js';
 import { playVideo } from '@/shared/play-video.js';
@@ -45,6 +46,7 @@ export function stateVideos() {
         // aspect-aware object-position；取代舊 focalStyle 的 reactive :style binding，見 98b-T6 姊妹
         // gotcha：naturalWidth 在 decode 完成前恆為 0，reactive binding 不會因 load 事件重跑）---
         applyCellFocal,
+        workTagsOf(video) { return _workTagsOf(video); },
 
         // --- API 呼叫 ---
         async fetchVideos() {
@@ -89,6 +91,7 @@ export function stateVideos() {
                 // 198b-T6：_imgLoaded／_coverRequested 初值改由 normalizeWorkItem 對每個版本補。
                 // 195b-T4：全庫存 _allVideos；_videos ＝ 扣掉被「隱藏未連線硬碟」藏起來的片（同一物件 ref）。
                 // _recomputeVisible 不呼叫 applyFilterAndSort；下面 _setFilteredVideos 與其後 init/retry 的重篩接手。
+                _setHiddenTagKeys(data.hidden_tags || []);
                 _setAllVideos(vids);
                 _setVideosReady(true);   // 199b-T4b：成功路徑的女優片數刷新由 _recomputeVisible 負責
                 this._hsSources = Array.isArray(data.sources) ? data.sources : [];
