@@ -1372,7 +1372,8 @@ def produce_source(source, config, repo, *, on_progress=None, should_abort=None,
             )
             result.no_scrape += 1
             _emit(on_progress, result, src_uri, "no_scrape")
-            _submit_readonly_probe(repo, src_uri, probe_ctx)
+            if src_uri not in attempted_index:
+                _submit_readonly_probe(repo, src_uri, probe_ctx)
             continue
 
         try:
@@ -1386,7 +1387,8 @@ def produce_source(source, config, repo, *, on_progress=None, should_abort=None,
             )
             result.created += 1
             _emit(on_progress, result, src_uri, "created", str(movie_dir), number)
-            _submit_readonly_probe(repo, src_uri, probe_ctx)
+            if src_uri not in attempted_index:
+                _submit_readonly_probe(repo, src_uri, probe_ctx)
         except Exception:
             result.failed += 1
             # Full detail + traceback to the log (error level, diagnosable);

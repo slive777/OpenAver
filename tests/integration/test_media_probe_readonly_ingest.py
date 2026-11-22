@@ -198,6 +198,12 @@ def test_readonly_ingest_probes_only_new_rows(tmp_path, monkeypatch, isolated_db
     assert extract_number("ABC-123.mp4") == "ABC-123"
     nfo_uri = to_file_uri(str(nfo_clip))
 
+    existing_clip = ro_dir / "plain-clip-existing.mp4"
+    _write_clip(existing_clip)
+    assert extract_number(existing_clip.name) is None
+    existing_uri = to_file_uri(str(existing_clip), {})
+    repo.upsert(Video(path=existing_uri, title="existing", scrape_attempted_at=0))
+
     produce_source(source, _ro_config(ro_dir, out_dir), repo)
     assert {rec[0] for rec in submitted} == {new_uri, nfo_uri}
 
