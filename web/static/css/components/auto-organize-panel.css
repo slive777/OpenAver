@@ -6,8 +6,7 @@
     /* 向左展開，不是向右。這顆鈕是空狀態鈕列**最右邊**那一顆：
        用 `.help-popover` 的 `left: 0` 會讓面板從錨點往右長，780px 寬的視窗上實測
        右緣落在 875px、溢出 95px（`max-width: calc(100vw - 2rem)` 擋不住這種情況——
-       它只在錨點貼齊視窗左緣時才等價）。同檔 `.tag-alias-ai-hint-popover` 的窄螢幕
-       規則用的就是這個解法。 */
+       它只在錨點貼齊視窗左緣時才等價）。 */
     right: 0;
     left: auto;
     margin-top: 0.5rem;

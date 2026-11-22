@@ -5543,8 +5543,8 @@ const RULES = [
   },
   {
     file: 'web/templates/scanner.html', kind: 'structure-count',
-    pattern: 'x-data="helpPopover"', count: 2,
-    note: '[131b-T4] scanner 的 2 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應',
+    pattern: 'x-data="helpPopover"', count: 1,
+    note: '[131b-T4] scanner 的 1 個 ? 說明浮層（nfo 欄位）掛 helpPopover——少一顆＝那顆點下去沒反應。205b-T6 別名卡／黑名單卡兩顆 (?) 改用 tagHintPopover（x-teleport 到 body，不被卡片 overflow 裁掉）',
   },
 
   // ==== [131b-T3] Toast store 全站掛載 ====
@@ -10437,6 +10437,10 @@ const RULES = [
   {
     file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', pattern: "Alpine.data('tagBlacklist', tagBlacklist)", id: '205b-T5-component-registered',
     note: '[lint-guard:205b-T5-component-registered] 註冊被拿掉 → 區塊在頁面上出現但整張卡空白、按什麼都沒反應，而測試與其他 lint 全綠',
+  },
+  {
+    file: 'web/templates/scanner.html', kind: 'required-string', pattern: /(?<![\w:-])@click="copyTagAliasAiPrompt\(\)"/, id: '205b-T6-copy-prompt-wired',
+    note: '[lint-guard:205b-T6-copy-prompt-wired] 按鈕接線被拿掉或寫成不帶括號 → 使用者按了沒反應，而測試與其他 lint 全綠',
   },
 ];
 

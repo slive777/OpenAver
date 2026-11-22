@@ -4,6 +4,7 @@ import { stateAlias } from '@/scanner/state-alias.js';
 import { stateTagAlias } from '@/scanner/state-tag-alias.js';
 import { browseDirState } from '@/shared/state-browse-dir.js';
 import { toastState } from '@/shared/state-toast.js';
+import { tagHintPopover } from '@/components/help-popover.js';
 import { mergeState } from '@/shared/merge-state.js';
 import { mediaProbeReminder } from '@/scanner/media-probe-reminder.js';
 import { tagBlacklist } from '@/scanner/tag-blacklist.js';
@@ -35,6 +36,8 @@ document.addEventListener('alpine:init', () => {
     ));
     // 198a-T5: 影片資訊讀取提醒（獨立元件，不進 mergeState）
     Alpine.data('mediaProbeReminder', mediaProbeReminder);
+    // 205b-T6 owner F1: 別名卡／黑名單卡兩顆 (?)（x-teleport 到 body，不被卡片 overflow 裁掉）
+    Alpine.data('tagHintPopover', tagHintPopover);
     // 205b-T5: 標籤黑名單獨立元件
     Alpine.data('tagBlacklist', tagBlacklist);
 });

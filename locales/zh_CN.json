@@ -1217,10 +1217,6 @@
         "cancel": "取消",
         "confirm": "确认删除"
       },
-      "ai_hint": {
-        "icon_title": "AI 整理建议",
-        "tooltip": "💡 让 AI agent 透过 /api/capabilities 整理比较快"
-      },
       "toast": {
         "add_group_success": "已新增 Tag 别名组：{name}",
         "delete_success": "已删除：{name}"
@@ -1762,7 +1758,6 @@
       "intro": "中日英同义词集中管理，让搜索框、chip 筛选、模糊探索全部说同一种语言。",
       "h6_scanner": "在片库管理建立别名组",
       "scanner_chipwall": "chip 墙列出所有 Tag 别名组。点「+」新增 alias，主名（primary）以粉红色显示，别名以灰色显示。",
-      "scanner_ai_hint": "点「?」开启 AI 建议框：把你的 tag 需求描述给 AI，它会回传建议的别名组供你直接汇入。",
       "h6_showcase": "浏览页自动展开",
       "showcase_expand": "搜索框输入或 chip 点击时，自动展开同义词过滤，与女优别名行为对齐。",
       "showcase_click": "点任一 tag chip → 筛出所有同义 tag 的视频，不需要知道正确日文写法。",
