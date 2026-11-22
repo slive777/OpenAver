@@ -61,7 +61,7 @@ from core.platform_info import DSM_PERMISSION_HINT, LINUX_PERMISSION_HINT, is_he
 from core.proxy_policy import proxy_kwargs
 from web.routers.notifications import emit_notification as _emit_notif
 from core.wishlist_reconcile import reconcile_wishlist, format_wishlist_removed_message
-from core.ai_services import faces_state, similar_index, tags_backfill
+from core.ai_services import faces_state, post_ingest, similar_index, tags_backfill
 
 logger = get_logger(__name__)
 
@@ -202,6 +202,7 @@ def _run_readonly_source(src, config, repo, summary, reachable: bool = True, sho
                 should_abort=should_abort,
                 reachable=reachable,
                 strm_mappings_getter=strm_mappings_getter,
+                first_ingest=post_ingest.make_first_ingest(config.get('scraper', {}), route='readonly_scan'),
             )
         except Exception:
             logger.exception("唯讀生成來源失敗: %s", src.path)

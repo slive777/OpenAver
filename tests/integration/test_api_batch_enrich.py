@@ -838,3 +838,23 @@ class TestBatchEnrichThumbnailInvalidation:
         assert tc.thumb_file_for(uri_a) in {tc.thumb_file_for(k) for k in called}
 
 
+
+
+def test_batch_enrich_readonly_item_passes_first_ingest_policy(client, mocker):
+    from core.first_ingest import FirstIngest
+
+    mocker.patch('web.routers.scraper.load_config', return_value={
+        'gallery': {'directories': [{'path': '/tmp/ro_src', 'readonly': True}], 'path_mappings': {}},
+        'search': {}, 'scraper': {},
+    })
+    source = MagicMock(path='/tmp/ro_src')
+    mocker.patch('web.routers.scraper.resolve_owning_output_root',
+                 return_value=(source, '/out/ro_src', 'file:///out/ro_src'))
+    enrich = mocker.patch('web.routers.scraper.enrich_one_readonly', return_value=_ok_result())
+    response = client.post('/api/batch-enrich', json={
+        'items': [{'file_path': '/tmp/ro_src/RO-001.mp4', 'number': 'RO-001', 'category': 'nfo'}],
+        'mode': 'fill_missing',
+    })
+    assert response.status_code == 200
+    enrich.assert_called_once()
+    assert isinstance(enrich.call_args.kwargs['first_ingest'], FirstIngest)

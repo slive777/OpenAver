@@ -1254,7 +1254,7 @@ class TestGenerateReadonlyBridge:
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: cfg)
         mocker.patch("web.routers.scanner.get_db_path", return_value=tmp_path / "test.db")
 
-        def side_effect(source, config, repo, *, on_progress=None, should_abort=None, force=False, reachable=True, strm_mappings_getter=None):
+        def side_effect(source, config, repo, *, on_progress=None, should_abort=None, force=False, reachable=True, strm_mappings_getter=None, first_ingest=None):
             if source.path == str(tmp_path / "src0"):
                 raise ValueError("boom (迴圈前 normalize/列檔/DB 逃出)")
             return ProduceResult(source_path=source.path, output_path=source.output_path, created=3)

@@ -2005,3 +2005,26 @@ class TestApiEnrichPreserveTitle:
         assert row_after_scan.actresses == ["女優A"]
         assert row_after_scan.tags == ["標籤A"]
 
+
+
+@pytest.mark.parametrize('overwrite_existing', [False, True])
+def test_enrich_single_endpoint_first_ingest_policy(client, mocker, overwrite_existing):
+    from core.enrich_contract import EnrichResult
+    from core.first_ingest import FirstIngest
+
+    mocker.patch('web.routers.scraper.load_config', return_value=_readonly_gallery_config('/tmp/ro_src'))
+    mocker.patch('web.routers.scraper.resolve_nfo_cover_paths')
+    mocker.patch('web.routers.scraper.resolve_owning_output_root', return_value=_owning_stub())
+    enrich = mocker.patch('web.routers.scraper.enrich_one_readonly', return_value=EnrichResult(
+        success=True, nfo_written=True, cover_written=False,
+        extrafanart_written=0, fields_filled=[], source_used='test', error=None,
+    ))
+    response = client.post('/api/enrich-single', json={
+        'file_path': '/tmp/ro_src/ABC-001.mp4', 'number': 'ABC-001',
+        'mode': 'refresh_full' if overwrite_existing else 'fill_missing',
+        'overwrite_existing': overwrite_existing,
+    })
+    assert response.status_code == 200
+    enrich.assert_called_once()
+    policy = enrich.call_args.kwargs['first_ingest']
+    assert policy is None if overwrite_existing else isinstance(policy, FirstIngest)

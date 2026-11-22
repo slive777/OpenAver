@@ -728,6 +728,10 @@ def _reconcile_wishlist_after_write() -> None:
         )
 
 
+def _first_ingest_policy(config, *, rescrape=False):
+    return None if rescrape else post_ingest.make_first_ingest(config.get("scraper", {}), route="enrich_first_ingest")
+
+
 def _post_ingest_after_enrich(request, canonical, success, readonly_action=None) -> None:
     """單片重刮成功後排 AI 後處理（189a-T5）：只有重刮算；補完（fill_missing／不覆蓋）一律不叫。"""
     if not success:
@@ -872,6 +876,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 javbus_lang=request.javbus_lang, write_cover=resolved_write_cover,
                 overwrite_existing=request.overwrite_existing, preserve_title=request.preserve_title,
                 skip_format_check=request.skip_format_check,
+                first_ingest=_first_ingest_policy(config, rescrape=request.overwrite_existing is True),
                 after_produce=lambda: thumbnail_cache.invalidate(canonical),
             )
             if result.success:
@@ -1187,7 +1192,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                                 path_mappings=_ro_mappings, action='ingest',
                                 scraper_data=None, scrape_source=es, javbus_lang=el,
                                 write_cover=request.write_cover, overwrite_existing=request.overwrite_existing,
-                                focal_before_cover_recheck=True,
+                                focal_before_cover_recheck=True, first_ingest=_first_ingest_policy(config),
                             )
                         except ReadonlyProduceError:
                             logger.exception("batch_enrich readonly item %s 失敗", itm.number)

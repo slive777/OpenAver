@@ -27,6 +27,7 @@ import threading
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from core.first_ingest import FirstIngest
 from core.ai_services import similar_index, similar_state, tags_backfill_policy, tags_state
 from core.ai_services.tagging import TaggingFailure, tag_video_sync
 from core.config import load_config
@@ -425,3 +426,7 @@ def _run_translate_after_first_ingest(video_uri: str, *, route: str) -> None:
     if verdict.run:
         ctx = IngestContext(video_uri=video_uri, route=route, notify=False, cfg=cfg, row=row)
         _submit("translate", functools.partial(_run_item, "translate", ctx))
+
+
+def make_first_ingest(scraper_cfg: dict, route: str) -> FirstIngest:
+    return FirstIngest(scraper_cfg, functools.partial(run_translate_after_first_ingest, route=route))
