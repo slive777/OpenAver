@@ -44,7 +44,7 @@ from core.focal import requires_face_detection
 from core.focal_trigger import maybe_submit_video_focal
 from core.media_probe_trigger import maybe_submit_media_probe
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
-from core.config import load_config, iter_gallery_sources, get_gallery_source_paths, STEM_IMAGE_MODES
+from core.config import load_config, iter_gallery_sources, get_gallery_source_paths, get_configured_gallery_dirs, STEM_IMAGE_MODES
 from core.data_root import resolve_gallery_output_path
 from core.readonly_producer import produce_source
 from web.routers.gallery_media import safe_realpath
@@ -566,7 +566,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                         cache_misses += 1
                     except Exception:
                         logger.exception("掃描檔案失敗: %s", file_info.get('path', ''))
-                        yield _sse_event({"type": "log", "level": "warn", "message": f"  [{i}] 掃描發生錯誤，已跳過"})
+                        yield _sse_event({"type": "log", "level": "warn", "message": f"  [{i}] 掃描發生錯誤，已跳過：{video_name}"})
                         scan_error_count += 1
 
                 # 批次寫入
@@ -1077,6 +1077,30 @@ def check_update():
         return {"success": False, "error": "檢查更新數量失敗"}
 
 
+def _missing_category(has_nfo: bool, has_cover: bool):
+    """缺資料分類（與既有迴圈同一判準）。"""
+    if not has_nfo and not has_cover:
+        return "both"
+    if not has_nfo:
+        return "nfo"
+    return "cover"
+
+
+def _attempted_item(v, has_nfo: bool, has_cover: bool):
+    """試過但查不到的單列；不符合回 None。"""
+    if not v.number:
+        return None
+    category = _missing_category(has_nfo, has_cover)
+    if has_nfo and has_cover:
+        return None
+    return {
+        "file_path": v.path,
+        "number": v.number,
+        "category": category,
+        "attempted_at": v.scrape_attempted_at,
+    }
+
+
 @router.get("/missing-check")
 def check_missing():
     """T10: 檢查 DB 中缺少 NFO 或封面的影片數量與清單"""
@@ -1085,15 +1109,20 @@ def check_missing():
 
         if not db_path.exists():
             return {"success": True, "data": {"missing_both": 0, "missing_nfo": 0,
-                                               "missing_cover": 0, "total_missing": 0, "items": []}}
+                                               "missing_cover": 0, "total_missing": 0, "items": [],
+                                               "attempted_count": 0, "attempted_items": [],
+                                               "probe_failed_count": 0, "probe_failed_items": []}}
 
         repo = VideoRepository(db_path)
+        config = load_config()
+        configured_dir_uris, _ = get_configured_gallery_dirs(config)
         all_videos = repo.get_all()
 
         missing_both = 0
         missing_nfo = 0
         missing_cover = 0
         items = []
+        attempted_items = []
 
         for v in all_videos:
             has_nfo = (v.nfo_mtime or 0) > 0
@@ -1101,6 +1130,10 @@ def check_missing():
             produced = bool(v.output_dir)
             tried = (v.scrape_attempted_at or 0) > 0
             if produced or tried:
+                if tried and not produced:
+                    attempted = _attempted_item(v, has_nfo, has_cover)
+                    if attempted is not None:
+                        attempted_items.append(attempted)
                 continue
             if has_nfo and has_cover:
                 continue
@@ -1119,6 +1152,10 @@ def check_missing():
             items.append(item)
 
         total_missing = missing_both + missing_nfo + missing_cover
+        probe_failed_items = [
+            {"file_path": path, "number": number}
+            for path, number in repo.list_media_probe_failed_current(configured_dir_uris)
+        ]
 
         # 永遠回傳完整 items 清單；大批量的 confirm gate 由前端處理
         return {
@@ -1129,6 +1166,10 @@ def check_missing():
                 "missing_cover": missing_cover,
                 "total_missing": total_missing,
                 "items": items,
+                "attempted_count": len(attempted_items),
+                "attempted_items": attempted_items,
+                "probe_failed_count": len(probe_failed_items),
+                "probe_failed_items": probe_failed_items,
             }
         }
     except Exception as e:
@@ -1283,13 +1324,21 @@ def check_jellyfin_images_needed(repo: VideoRepository, path_mappings: dict = No
         base_stem = cover_base_stem(cover_fs)
         poster = base_stem + '-poster.jpg'
         fanart = base_stem + '-fanart.jpg'
-        if not os.path.exists(poster) or not os.path.exists(fanart):
+        poster_missing = not os.path.exists(poster)
+        fanart_missing = not os.path.exists(fanart)
+        if poster_missing or fanart_missing:
+            missing = []
+            if poster_missing:
+                missing.append('poster')
+            if fanart_missing:
+                missing.append('fanart')
             need_update.append({
                 'cover_path': cover_fs,
                 'base_stem': base_stem,
                 'number': v.number or '',
                 'maker': v.maker or '',
                 'path': v.path,
+                'missing': missing,
             })
     return {'need_update': len(need_update), 'items': need_update}
 

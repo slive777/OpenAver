@@ -2161,6 +2161,47 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def _iter_media_probe_scope(self, configured_dir_uris, *, key_matches: bool):
+        """現行資料夾＋非 .strm 範圍迭代，yield (view, number)。
+
+        key_matches 判斷在路徑判斷之前（維持 pending 現有短路順序）。
+        """
+        import os
+
+        from core.path_utils import is_path_under_dir, uri_to_fs_path
+        from core.video_extensions import ZERO_SIZE_EXTENSIONS
+
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                f"SELECT {_MEDIA_PROBE_SELECT_COLS}, number FROM videos"
+            ).fetchall()
+        finally:
+            conn.close()
+        for row in rows:
+            data = dict(zip(_MEDIA_PROBE_COLS + ("number",), row, strict=True))
+            view = MediaProbeView.from_row_dict(data)
+            if view.key_matches != key_matches:
+                continue
+            path = view.path
+            if not any(is_path_under_dir(path, uri) for uri in configured_dir_uris):
+                continue
+            if os.path.splitext(uri_to_fs_path(path))[1].lower() in ZERO_SIZE_EXTENSIONS:
+                continue
+            yield view, data["number"]
+
+    def list_media_probe_failed_current(self, configured_dir_uris) -> list:
+        """failed 且 key 相符、在現行資料夾、非 .strm 的列；回 (path, number) list。
+
+        不看唯讀旗標；number 為 NULL 回空字串。
+        """
+        out = []
+        for view, number in self._iter_media_probe_scope(configured_dir_uris, key_matches=True):
+            if view.media_probe_status != 'failed':
+                continue
+            out.append((view.path, number if number is not None else ''))
+        return out
+
     def list_media_probe_pending(
         self,
         *,
@@ -2174,31 +2215,11 @@ class VideoRepository:
         回 (path, mtime, size_bytes) list。含從未讀過的列（與 get_media_probe_map 範圍不同）。
         已移除來源仍留在 DB 的列、以及 ZERO_SIZE_EXTENSIONS（.strm 等）不入 pending。
         """
-        import os
-
-        from core.path_utils import is_path_under_dir, uri_to_fs_path
         from core.readonly_source import is_path_readonly
-        from core.video_extensions import ZERO_SIZE_EXTENSIONS
 
-        conn = self._get_connection()
-        try:
-            rows = conn.execute(
-                f"SELECT {_MEDIA_PROBE_SELECT_COLS} FROM videos"
-            ).fetchall()
-        finally:
-            conn.close()
         out = []
-        for row in rows:
-            view = MediaProbeView.from_row_dict(
-                dict(zip(_MEDIA_PROBE_COLS, row, strict=True))
-            )
-            if view.key_matches:
-                continue
+        for view, _number in self._iter_media_probe_scope(configured_dir_uris, key_matches=False):
             path = view.path
-            if not any(is_path_under_dir(path, uri) for uri in configured_dir_uris):
-                continue
-            if os.path.splitext(uri_to_fs_path(path))[1].lower() in ZERO_SIZE_EXTENSIONS:
-                continue
             if not include_readonly and is_path_readonly(path, readonly_prefixes, writable_prefixes):
                 continue
             out.append((view.path, view.mtime, view.size_bytes))
