@@ -285,6 +285,9 @@ def _schedule_ai_incremental() -> None:
 def _schedule_media_probes(videos, db_path, ro_prefixes, wr_prefixes, path_mappings) -> None:
     """掃描入庫後排 media probe（198a-T2b）。失敗只記 log，不得影響掃描。"""
     try:
+        from core.media_probe_backfill import get_include_readonly
+
+        include_readonly = get_include_readonly()
         for video in videos:
             maybe_submit_media_probe(
                 video.path,
@@ -292,6 +295,7 @@ def _schedule_media_probes(videos, db_path, ro_prefixes, wr_prefixes, path_mappi
                 readonly_prefixes=ro_prefixes,
                 writable_prefixes=wr_prefixes,
                 path_mappings=path_mappings,
+                include_readonly=include_readonly,
             )
     except Exception:
         logger.warning("media probe 排程失敗（掃描完成收尾）", exc_info=True)

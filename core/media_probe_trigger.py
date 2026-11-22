@@ -25,11 +25,14 @@ def maybe_submit_media_probe(
     readonly_prefixes=None,
     writable_prefixes=None,
     path_mappings=None,
+    include_readonly=None,
 ):
     """可用性閘 → 讀列 → 唯讀判定 → I4 key 比對 → submit。
 
     prefix／path_mappings 為 None 時自己 load_config()。
-    入庫時唯讀列一律不讀（不看 include_readonly）。
+    include_readonly 為 None 時自己以 get_include_readonly() 讀開關。唯讀且
+    開關關時不排探針；其餘排除條件（.strm、key_matches、view is None、可用性閘）
+    順序與行為不變。
     ZERO_SIZE_EXTENSIONS（.strm 等）不排探針。
     """
     try:
@@ -52,12 +55,16 @@ def maybe_submit_media_probe(
                 readonly_prefixes = readonly_source_prefixes(gallery, path_mappings)
             if writable_prefixes is None:
                 writable_prefixes = writable_source_prefixes(gallery, path_mappings)
+        if include_readonly is None:
+            from core.media_probe_backfill import get_include_readonly
+
+            include_readonly = get_include_readonly()
 
         repo = VideoRepository(db_path)
         view = repo.get_media_probe_view(video_uri)
         if view is None:
             return
-        if is_path_readonly(video_uri, readonly_prefixes or [], writable_prefixes or []):
+        if is_path_readonly(video_uri, readonly_prefixes or [], writable_prefixes or []) and not include_readonly:
             return
         if view.key_matches:
             return

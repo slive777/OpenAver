@@ -278,7 +278,9 @@ def test_nfo_only_change_does_not_reprobe(tmp_path, monkeypatch):
 
 
 def test_readonly_source_is_not_probed(tmp_path, monkeypatch, mocker):
-    """唯讀來源零 submit；可寫來源（正向對照）恰收到那一支。"""
+    """開關 off（預設）版：唯讀來源零 submit；可寫來源（正向對照）恰收到那一支。
+
+    開關 on 版見 tests/integration/test_media_probe_readonly_ingest.py。"""
     from core.readonly_producer import ProduceResult
 
     ro_dir = tmp_path / "ro"
