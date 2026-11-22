@@ -22,6 +22,7 @@ from core.scraper import smart_search, search_jav, is_number_format
 from core.scrapers.utils import extract_number, has_japanese
 from core.source_settings import is_uncensored_mode_effective
 from core.translate_service import create_translate_service
+from core.translation_judge import is_bad_translation
 from core.wishlist_reconcile import reconcile_wishlist
 
 logger = get_logger(__name__)
@@ -229,7 +230,7 @@ def run_one_round(
                     "[auto_organize] 翻譯失敗，%s 沿用原標題", number, exc_info=True,
                 )
                 translated = ""
-            if translated:
+            if translated and not is_bad_translation(metadata['title'], translated):
                 metadata['translated_title'] = translated
 
         organize_result = organize_file(path, metadata, scraper_config)

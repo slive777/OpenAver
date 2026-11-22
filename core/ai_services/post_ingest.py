@@ -36,6 +36,7 @@ from core.path_utils import uri_to_local_fs_path
 from core.scrapers.utils import has_japanese
 from core.title_writeback import apply_title_writeback
 from core.translate_service import create_translate_service
+from core.translation_judge import is_bad_translation
 from core.user_tags_write import hold_nfo_write
 
 logger = get_logger(__name__)
@@ -220,20 +221,6 @@ def _path_mappings(ctx: IngestContext) -> dict:
     return (ctx.cfg.get("gallery") or {}).get("path_mappings") or {}
 
 
-_REFUSAL_MARKERS = ("無法翻譯", "無法提供", "抱歉", "i can't", "i cannot", "i'm sorry", "sorry")
-
-
-def _bad_translation(source: str, translated: str) -> bool:
-    s, t = source.strip(), translated.strip()
-    if not t: return True
-    t = t.replace("’", "'")
-    if t == s or has_japanese(t) or "\n" in t:
-        return True
-    if len(t) > max(2 * len(s), len(s) + 40):
-        return True
-    return any(m in t.lower() for m in _REFUSAL_MARKERS)
-
-
 def _row_stale(fresh, row) -> bool:
     """入隊後這列被改過（或不見了）→ 不能拿舊譯文蓋回去。"""
     if fresh is None:
@@ -250,7 +237,7 @@ def _job_translate(ctx: IngestContext) -> Optional[str]:
         ctx.row.title,
         {"actors": ctx.row.actresses or [], "number": ctx.row.number or ""},
     ))
-    if _bad_translation(ctx.row.title, translated):
+    if is_bad_translation(ctx.row.title, translated):
         return "bad_translation"
     mappings = _path_mappings(ctx)
     with hold_nfo_write():

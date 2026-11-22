@@ -324,6 +324,26 @@ class TestTranslationClauses:
         assert result["failed"] == []
         assert "JP-005" in result["added"]
 
+    @pytest.mark.parametrize(
+        ("judge_bad", "expect_key"),
+        [(True, False), (False, True)],
+        ids=["bad_no_translated_title", "good_has_translated_title"],
+    )
+    def test_auto_organize_applies_translation_judge(
+        self, tmp_path, isolated_db, mocker, judge_bad, expect_key
+    ):
+        import core.auto_organize as ao
+
+        mocker.patch("core.auto_organize.is_bad_translation", return_value=judge_bad)
+        fav_dir = tmp_path / "fav"
+        fav_dir.mkdir()
+        config = make_config(fav_dir, translate_enabled=True)
+        self._run_with_translation_mock(
+            fav_dir, config, mocker, "JP-010.mp4", "日本語タイトル"
+        )
+        metadata = ao.organize_file.call_args[0][1]
+        assert ("translated_title" in metadata) is expect_key
+
 
 # ===========================================================================
 # DoD-9：記憶命中不算事件（含 M7）
