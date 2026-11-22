@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from core.cover_attributes import protected_tag_words
+from core.cover_attributes import is_source_4k_tag, protected_tag_words
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -113,6 +113,8 @@ def display_tags(tags: Iterable[str], ctx: TagDisplayContext) -> list[str]:
         if key in ctx.hidden:
             continue
         shown = ctx.primary_of.get(key, tag)
+        if is_source_4k_tag(shown):
+            continue
         if shown in seen:
             continue
         seen.add(shown)

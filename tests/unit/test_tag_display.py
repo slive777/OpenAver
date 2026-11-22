@@ -77,6 +77,7 @@ def test_protected_words_never_hidden(
         ),
         pytest.param(["AA", "BB"], [], [], ["AA", "BB"], id="both-empty-identity"),
         pytest.param(["   ", "口交"], [], [], ["口交"], id="blank-dropped"),
+        pytest.param(["高畫質", "中出"], [], [["4K", "高畫質"]], ["中出"], id="4K-primary-dropped"),
     ],
 )
 def test_display_tags_table(tags, blacklist, alias_groups, expected):
