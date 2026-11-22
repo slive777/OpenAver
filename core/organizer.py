@@ -167,8 +167,8 @@ def extract_chinese_title(filename: str, number: str, actors: List[str] = None) 
 
     name = name.strip()
 
-    # 只有包含中文才返回
-    if name and has_chinese(name):
+    # 只有包含中文且不含假名才返回
+    if name and has_chinese(name) and not re.search(r'[\u3040-\u309F\u30A0-\u30FF]', name):
         return name
 
     return None

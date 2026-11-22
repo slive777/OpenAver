@@ -1,0 +1,131 @@
+{
+ "_comment": "extract_chinese_title（Python）與 extractChineseTitle（JS）共用向量。預期值由 node 實跑 file.js 產出；前端為權威。pytest 與 node --test 各讀一次。",
+ "vectors": [
+  {
+   "filename": "ABF-343 中文字幕 我沉迷於的最棒女人-以男性為中心的無避孕內射性行為 八掛海 - Hayav AV Streaming.mp4",
+   "number": "ABF-343",
+   "actors": [
+    "八掛海"
+   ],
+   "expected": "我沉迷於的最棒女人-以男性為中心的無避孕內射性行為"
+  },
+  {
+   "filename": "FJIN-169 洗脳啓発まいんどふぁっかー元風俗嬢の義嫁.mp4",
+   "number": "FJIN-169",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "ABC-123 洗脳ひとりで - Hayav AV Streaming.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "ABC-123 美少女ハンター 中文片名.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "あきら - 美好中文長片名測試一下.mp4",
+   "number": "",
+   "actors": [
+    "あきら"
+   ],
+   "expected": "美好中文長片名測試一下"
+  },
+  {
+   "filename": "美好中文長片名測試一下 あきら.mp4",
+   "number": "",
+   "actors": [
+    "あきら"
+   ],
+   "expected": "美好中文長片名測試一下"
+  },
+  {
+   "filename": "ABC-123 美好中文長片名測試 佐々木あき.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "ABC-123 あ中字美好中文長片名測試一下.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "ABC-123 美好中文長片名測試一下 字幕ひ.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "",
+   "number": "",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "美好中文長片名測試一下.mp4",
+   "number": "",
+   "actors": [],
+   "expected": "美好中文長片名測試一下"
+  },
+  {
+   "filename": "[ABC-123] 美好中文長片名測試一下.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": "美好中文長片名測試一下"
+  },
+  {
+   "filename": "ABC-123 美好中文長片名測試一下 - Jable TV.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": "美好中文長片名測試一下"
+  },
+  {
+   "filename": "ABC-123 中文長片名\u3040保留測試.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "ABC-123 中文長片名\u309f保留測試.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "ABC-123 中文長片名\u30a0保留測試.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "ABC-123 中文長片名\u30ff保留測試.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": null
+  },
+  {
+   "filename": "ABC-123 中文長片名㄀保留測試.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": "中文長片名㄀保留測試"
+  },
+  {
+   "filename": "ABC-123 中文長片名〿保留測試.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": "中文長片名〿保留測試"
+  },
+  {
+   "filename": "ABC-123 半形片假名保留測試長片名ｱｲｳ.mp4",
+   "number": "ABC-123",
+   "actors": [],
+   "expected": "半形片假名保留測試長片名ｱｲｳ"
+  }
+ ]
+}
