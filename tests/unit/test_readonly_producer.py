@@ -4902,3 +4902,31 @@ class TestFirstIngestReadonly:
     @pytest.mark.parametrize('entry', ['produce_source', 'enrich_one_readonly'])
     def test_no_scrape_stub_never_calls_on_done(self, entry, tmp_path, monkeypatch):
         self._run(entry, tmp_path, monkeypatch, source_nfo=False)
+
+
+def test_enrich_first_ingest_uses_local_filename(tmp_path, monkeypatch):
+    from urllib.parse import quote
+
+    from core.first_ingest import FirstIngest
+    from core.readonly_producer import enrich_one_readonly
+
+    video = tmp_path / 'ABC-123 中文標題.mp4'
+    video.write_bytes(b'video')
+    uri = quote(to_file_uri(str(video)), safe='/:')
+    repo = MagicMock()
+    repo.get_by_path.return_value = None
+    picker = MagicMock(return_value=('t', ''))
+    monkeypatch.setattr('core.readonly_producer.pick_title', picker)
+    monkeypatch.setattr('core.readonly_producer.resolve_ingest_plan', lambda *args, **kwargs: (
+        {'title': '站台標題', 'number': 'ABC-123', 'source': 'javbus'}, ('none',)
+    ))
+    monkeypatch.setattr('core.readonly_producer._produce_one', lambda *args, **kwargs: (
+        tmp_path, {'cover_fs': '', 'sample_fs': []}
+    ))
+    enrich_one_readonly(
+        repo_factory=lambda: repo, ro_source=SimpleNamespace(name='source'),
+        output_root=str(tmp_path), output_uri=to_file_uri(str(tmp_path)),
+        canonical=uri, file_path=uri, number='ABC-123', scraper_cfg={}, path_mappings={},
+        write_cover=False, overwrite_existing=False, first_ingest=FirstIngest({}, MagicMock()),
+    )
+    assert picker.call_args.args[1] == os.path.basename(str(video))

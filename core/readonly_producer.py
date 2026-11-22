@@ -1122,7 +1122,7 @@ def enrich_one_readonly(
     repo = repo_factory()
     existing = repo.get_by_path(canonical)
     meta['title'] = effective_title(meta, existing, preserve_title, number, preserved_body_override=_preserved_body_override_from_old_nfo(existing, fs_path, scraper_cfg, path_mappings, preserve_title))
-    first_ingested = action == 'ingest' and first_ingest is not None and _apply_first_ingest_title(first_ingest, meta, existing, file_path, number)
+    first_ingested = action == 'ingest' and first_ingest is not None and _apply_first_ingest_title(first_ingest, meta, existing, fs_path, number)
     # Codex PR#113 P2#3（round 2，owner-confirmed 全面對齊；round 6 修正）：
     # readonly enrich 對齊非唯讀 core.enricher._write_cover 的 skip 語意
     # （os.path.exists(cover) and not overwrite_existing）——fill_missing
