@@ -5543,8 +5543,8 @@ const RULES = [
   },
   {
     file: 'web/templates/scanner.html', kind: 'structure-count',
-    pattern: 'x-data="helpPopover"', count: 2,
-    note: '[131b-T4] scanner 的 2 個 ? 說明浮層各自掛一份 helpPopover——少一顆＝那顆點下去沒反應',
+    pattern: 'x-data="helpPopover"', count: 1,
+    note: '[131b-T4] scanner 的 1 個 ? 說明浮層（nfo 欄位）掛 helpPopover——少一顆＝那顆點下去沒反應。205b-T6 別名卡／黑名單卡兩顆 (?) 改用 tagHintPopover（x-teleport 到 body，不被卡片 overflow 裁掉）',
   },
 
   // ==== [131b-T3] Toast store 全站掛載 ====
@@ -10421,6 +10421,34 @@ const RULES = [
   {
     file: { dir: 'web/templates', ext: ['.html'], recursive: true }, kind: 'forbidden-string', pattern: '/api/image-search', id: '193-T12-image-search-endpoint-single-caller',
     note: '[193-T12-image-search-endpoint-single-caller] 模板裡另寫送圖呼叫 → 使用者沒按任何入口就可能送出圖片，或繞過 imgSearchStart 的撤銷／URL 回收／不落地規則',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: /(?<![\w.])video\.tags\b(?:\s*\|\|\s*'')?\)?\.split\(/, id: '205b-T4-wall-table-display-tags',
+    note: '[lint-guard:205b-T4-wall-table-display-tags] 牆卡／表格直接拆原始 video.tags → 使用者加了黑名單，牆上與表格仍看得到被藏的字、也沒換成主名稱',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '_setHiddenTagKeys(data.hidden_tags || [])', id: '205b-T4-hidden-tags-wiring',
+    note: '[lint-guard:205b-T4-hidden-tags-wiring] fetchVideos 不再寫入 hidden_tags → 燈箱仍顯示被藏的你的標籤，且加入黑名單字不會被擋',
+  },
+  {
+    file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])x-data="tagBlacklist"/g, count: 1, id: '205b-T5-block-single',
+    note: '[lint-guard:205b-T5-block-single] 黑名單區塊被拿掉或多出一份 → 使用者在片庫管理頁找不到黑名單，或兩份各存一份清單互相對不上',
+  },
+  {
+    file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', pattern: "Alpine.data('tagBlacklist', tagBlacklist)", id: '205b-T5-component-registered',
+    note: '[lint-guard:205b-T5-component-registered] 註冊被拿掉 → 區塊在頁面上出現但整張卡空白、按什麼都沒反應，而測試與其他 lint 全綠',
+  },
+  {
+    file: 'web/templates/scanner.html', kind: 'required-string', pattern: /(?<![\w:-])@click="copyTagAliasAiPrompt\(\)"/, id: '205b-T6-copy-prompt-wired',
+    note: '[lint-guard:205b-T6-copy-prompt-wired] 按鈕接線被拿掉或寫成不帶括號 → 使用者按了沒反應，而測試與其他 lint 全綠',
+  },
+  {
+    file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])x-data="tagHintPopover"/g, count: 2, id: '205b-R1-hint-popover-count',
+    note: '[lint-guard:205b-R1-hint-popover-count] 掛載被誤刪或多出 → 使用者按別名卡／黑名單卡的「?」沒反應，而測試與其他 lint 全綠',
+  },
+  {
+    file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', pattern: "Alpine.data('tagHintPopover', tagHintPopover)", id: '205b-R1-hint-popover-registered',
+    note: '[lint-guard:205b-R1-hint-popover-registered] 註冊被拿掉 → 使用者按別名卡／黑名單卡的「?」沒反應，而測試與其他 lint 全綠',
   },
 ];
 

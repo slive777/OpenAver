@@ -1266,13 +1266,25 @@
         "cancel": "取消",
         "confirm": "確認刪除"
       },
-      "ai_hint": {
-        "icon_title": "AI 整理建議",
-        "tooltip": "💡 讓 AI agent 透過 /api/capabilities 整理比較快"
+      "primary_note_1": "每組的第一顆（粉紅色）是主名稱，就是瀏覽頁燈箱、篩選、分析頁顯示的字。",
+      "primary_note_2": "想換主名稱：刪掉這組重建，或把下面的指令交給 AI 助理。",
+      "copy_prompt_button": "複製給 AI 助理的指令",
+      "help_icon_title": "說明",
+      "ai_prompt": {
+        "body": "請連到 OpenAver，先讀它的能力清單：{url}\n把我片庫裡每一組標籤別名的主名稱換成{lang}；還沒有別名的常見標籤，也替它們建好別名組，主名稱用{lang}。\n改之前先列出你打算改哪些，等我確認再動手。\n換主名稱只能「刪掉這組、用新主名稱重建」，請照下面五點做，避免弄丟我設好的別名：\n1. 動手前，先把那一組完整存下來（主名稱加全部別名）。\n2. 一次只換一組，這組成功了再換下一組。\n3. 新主名稱如果已經是別組在用的字（例如兩組都翻成同一個字），那組先不要動，列出來讓我決定要不要合併。\n4. 重建失敗的話，用存下來的資料把原本那一組原樣建回去。\n5. 重建成功的組要包含原組全部的字：舊主名稱改當別名，新主名稱原本就是別名的只留一次；否則標著舊名的片會退回原文，點新主名稱也篩不到。",
+        "lang": {
+          "zh-TW": "繁體中文",
+          "zh-CN": "简体中文",
+          "ja": "日本語",
+          "en": "English",
+          "ko": "한국어"
+        }
       },
       "toast": {
         "add_group_success": "已新增 Tag 別名組：{name}",
-        "delete_success": "已刪除：{name}"
+        "delete_success": "已刪除：{name}",
+        "prompt_copied": "已複製，貼給你的 AI 助理就可以了",
+        "prompt_copy_failed": "複製失敗，請稍後再試"
       },
       "error": {
         "unknown": "未知錯誤",
@@ -1281,6 +1293,31 @@
         "delete_failed": "刪除失敗: {error}",
         "add_alias_failed": "新增別名失敗: {error}",
         "remove_failed": "移除失敗: {error}"
+      }
+    },
+    "tag_blacklist": {
+      "section_title": "Tag 黑名單",
+      "collapse_title": "展開/收起",
+      "help_icon_title": "說明",
+      "hint": "加進來的標籤，在瀏覽頁、分析頁、相似片比對和給 AI 助理讀的標籤清單都看不到，NFO 檔案不會被改；刪掉就回來。同一組別名的字會一起藏。離線瀏覽頁要等下次更新片庫才會反映。",
+      "placeholder": "輸入要隱藏的標籤，例：ハイビジョン",
+      "add": "加入",
+      "loading": "載入中...",
+      "empty": "黑名單是空的，所有標籤都照常顯示",
+      "remove_title": "從黑名單移除",
+      "suggestions_title": "常見的（點一下加入）",
+      "toast": {
+        "add_success": "已加入黑名單：{name}",
+        "remove_success": "已從黑名單移除：{name}"
+      },
+      "error": {
+        "empty": "請先輸入要加入黑名單的標籤",
+        "invalid": "標籤不能含逗號，也不能超過 40 個字",
+        "duplicate": "「{name}」已經在黑名單裡了",
+        "cover_badge": "「{name}」是封面標章（例如中字）的依據，不能加入黑名單；不想看到標章，可以到設定頁關掉",
+        "generic": "加入黑名單失敗，請稍後再試",
+        "load_failed": "黑名單載入失敗，請重新整理頁面",
+        "remove_failed": "移除失敗，請稍後再試"
       }
     },
     "dirty_modal": {
@@ -1694,6 +1731,7 @@
       "tag_api_failed": "標籤儲存失敗，請稍後再試",
       "tag_nfo_not_written": "標籤已存，但媒體伺服器讀的那份 NFO 沒有更新",
       "tag_nfo_write_blocked": "標籤已存，但沒有權限寫入 NFO",
+      "tag_blacklisted": "這個標籤在黑名單裡，加了也看不到；要顯示請先到片庫管理頁把它從黑名單移除",
       "ai_tags_tooltip": "AI 標籤",
       "ai_tags_added": "AI 加了 {n} 個標籤",
       "ai_tags_none": "AI 沒有看到詞表裡的東西",
@@ -1970,7 +2008,7 @@
       "intro": "中日英同義詞集中管理，讓搜尋框、chip 篩選、模糊探索全部說同一種語言。",
       "h6_scanner": "在片庫管理建立別名組",
       "scanner_chipwall": "chip 牆列出所有 Tag 別名組。點「+」新增 alias，主名（primary）以粉紅色顯示，別名以灰色顯示。",
-      "scanner_ai_hint": "點「?」開啟 AI 建議框：把你的 tag 需求描述給 AI，它會回傳建議的別名組供你直接匯入。",
+      "scanner_copy_prompt": "點「複製給 AI 助理的指令」，貼給你的 AI 助理：指令會請它把每組別名的主名稱換成你的介面語言、替還沒建組的常見標籤建好別名組，並先列出要改哪些、等你確認才動手。",
       "h6_showcase": "瀏覽頁自動展開",
       "showcase_expand": "搜尋框輸入或 chip 點擊時，自動展開同義詞過濾，與女優別名行為對齊。",
       "showcase_click": "點任一 tag chip → 篩出所有同義 tag 的影片，不需要知道正確日文寫法。",

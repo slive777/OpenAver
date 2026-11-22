@@ -84,9 +84,14 @@
     font-size: 0.75rem;
 }
 
-/* ── Tag Alias AI Hint Popover ─────────────────────────────────────────────── */
+/* ── Tag Hint Popover（205b-T6 owner F1）──────────────────────────────────────
+   scanner 別名卡／黑名單卡兩顆 (?) 專用：經 x-teleport="body" 逃出
+   `.actress-alias-card { overflow: hidden }`（收合卡只有標題列高，卡內絕對定位
+   必被裁；dim 主題 backdrop-filter 又會成為 fixed 的 containing block）。
+   position: fixed，由 tagHintPopover.place() 寫行內 left/top/width；
+   寬度 min(22rem, 100vw-2rem)，左右至少留 1rem（JS 同步 clamp）。 */
 
-/* 錨點容器：相對定位 + inline-flex 不撐滿整行
+/* 錨點容器：inline-flex 不撐滿整行
    margin-right: auto 把後續 chevron 推到最右，(?) 保持貼著 title */
 .tag-alias-ai-hint-wrap {
     position: relative;
@@ -96,26 +101,15 @@
     margin-right: auto;
 }
 
-/* 右側定位：從 icon 右方延伸，垂直置中對齊 icon */
-.tag-alias-ai-hint-popover {
-    top: 50%;
-    left: calc(100% + 0.5rem);
-    right: auto;
-    margin-top: 0;
-    transform: translateY(-50%);
-    width: max-content;
-    max-width: 22rem;    /* 避免單行太寬 */
-    white-space: normal; /* 仍可自動換行 */
-}
-
-/* 窄螢幕（< Tailwind md 768px）改向下展開，對齊 icon 右邊往左 */
-@media (max-width: 768px) {
-    .tag-alias-ai-hint-popover {
-        top: 100%;
-        left: auto;
-        right: 0;                       /* 對齊 icon 右邊，往左展開 */
-        margin-top: 0.5rem;
-        transform: none;
-        max-width: calc(100vw - 2rem);  /* viewport-aware clamp，防止溢出 */
-    }
+/* teleport 到 body 的浮窗本體：fixed＋既有 token（底色／邊框／陰影／圓角／字級同 .help-popover） */
+.tag-hint-popover {
+    position: fixed;
+    z-index: 100;
+    width: 22rem;
+    max-width: calc(100vw - 2rem);  /* 左右至少留 1rem */
+    padding: 0.75rem;
+    background: var(--color-base-200);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow: var(--fluent-shadow-4);
+    border: 1px solid var(--stroke-default);
 }

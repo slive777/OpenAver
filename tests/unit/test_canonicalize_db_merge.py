@@ -33,7 +33,8 @@ def test_db_alias_applied(caplog):
     mock_repo = MagicMock()
     mock_repo.get_all.return_value = [mock_record]
 
-    with patch("core.database.TagAliasRepository", return_value=mock_repo):
+    with patch("core.database.TagAliasRepository", return_value=mock_repo), \
+         patch("core.database.TagBlacklistRepository", return_value=MagicMock(**{"get_all.return_value": []})):
         result = canonicalize(["女僕"])
 
     assert result == ["メイド"]

@@ -107,6 +107,8 @@ export async function _loadAliasMap() {
 
 export var _tagToGroup = {};  // { "女僕": ["メイド", "女僕", "女傭"], ... } 雙向 tag alias map
 export var _tagAliasMapLoaded = false;
+export var _hiddenTagKeys = [];
+export function _setHiddenTagKeys(v) { _hiddenTagKeys = Array.isArray(v) ? v.slice() : []; }
 
 /**
  * A3-4: 獨立載入 tag alias map，init() 時無條件呼叫（在 _loadAliasMap 之後）。

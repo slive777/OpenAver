@@ -259,7 +259,8 @@ def _isolate_canonicalize_cache():
     mock_repo = MagicMock()
     mock_repo.get_all.return_value = []
     canonicalize._invalidate_cache()
-    with patch("core.database.TagAliasRepository", return_value=mock_repo):
+    with patch("core.database.TagAliasRepository", return_value=mock_repo), \
+         patch("core.database.TagBlacklistRepository", return_value=MagicMock(**{"get_all.return_value": []})):
         yield
     canonicalize._invalidate_cache()
 
@@ -421,7 +422,8 @@ def test_scraped_alias_group_not_rewritten_and_stopword_custom_tag_still_written
     alias_repo = MagicMock()
     alias_repo.get_all.return_value = aliases
     canonicalize._invalidate_cache()
-    with patch("core.database.TagAliasRepository", return_value=alias_repo):
+    with patch("core.database.TagAliasRepository", return_value=alias_repo), \
+         patch("core.database.TagBlacklistRepository", return_value=MagicMock(**{"get_all.return_value": []})):
         outcome = asyncio.run(tag_video(file_uri, config=config, vision_fn=stub))
     canonicalize._invalidate_cache()
 

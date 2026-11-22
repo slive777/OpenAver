@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from core.cover_attributes import is_source_4k_tag
 from core.database import get_connection, get_db_path, init_db
 from core.logger import get_logger
+from core.tag_display import is_hidden_tag, load_context
 
 logger = get_logger(__name__)
 
@@ -29,6 +30,7 @@ def get_top_tags(
         # 此時 DB 檔尚未建立 → sqlite3.connect 會新建空檔但 videos 表不存在 → OperationalError。
         # init_db() idempotent，已存在 schema 時為 no-op。
         init_db(db_path)
+        tag_ctx = load_context(db_path)
         with get_connection(db_path) as conn:
             cur = conn.cursor()
 
@@ -48,6 +50,7 @@ def get_top_tags(
                 {"tag": row[0], "count": row[1]}
                 for row in cur.fetchall()
                 if not is_source_4k_tag(row[0])
+                if not is_hidden_tag(row[0], tag_ctx)
             ][:limit]
 
             # total unique（不套 min_count；同樣剔除來源 4K）
@@ -58,7 +61,7 @@ def get_top_tags(
                 WHERE je.value IS NOT NULL AND je.value != ''
                 """
             )
-            total = sum(1 for row in cur.fetchall() if not is_source_4k_tag(row[0]))
+            total = sum(1 for row in cur.fetchall() if not is_source_4k_tag(row[0]) and not is_hidden_tag(row[0], tag_ctx))
 
         return {
             "success": True,

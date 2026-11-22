@@ -50,6 +50,7 @@ from core.readonly_producer import produce_source
 from web.routers.gallery_media import safe_realpath
 from core.readonly_source import is_path_readonly, readonly_source_prefixes, writable_source_prefixes
 from core.cover_attributes import is_source_4k_tag
+from core.tag_display import display_tags, load_context
 from core.generate_state import try_mark_generate_active, mark_generate_done
 from core import thumbnail_cache
 from core.scraper import smart_search
@@ -640,7 +641,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                          if any(is_path_under_dir(v.path, uri) for uri in configured_dir_uris)]
 
         # 轉換為 VideoInfo 格式供 HTMLGenerator 使用
-        all_videos = []
+        all_videos, tag_ctx = [], load_context(db_path)
         for v in all_db_videos:
             info = VideoInfo(
                 path=v.path,
@@ -650,7 +651,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                 num=v.number or '',
                 maker=v.maker,
                 date=v.release_date,
-                genre=','.join(t for t in (v.tags or []) if not is_source_4k_tag(t)),
+                genre=','.join(display_tags([t for t in (v.tags or []) if not is_source_4k_tag(t)], tag_ctx)),
                 size=v.size_bytes,
                 mtime=int(v.mtime * 10000000 + 116444736000000000) if v.mtime else 0,
                 img=v.cover_path
@@ -1628,6 +1629,7 @@ def generate_from_ids(body: GenerateFromIdsRequest):
         logger.error('generate_from_ids: DB 查詢失敗: %s', e)
         return JSONResponse(status_code=500, content={"success": False, "error": "資料庫查詢失敗"})
 
+    tag_ctx = load_context(db_path)
     all_videos: List[VideoInfo] = []
     missing: List[str] = []
 
@@ -1643,7 +1645,7 @@ def generate_from_ids(body: GenerateFromIdsRequest):
                 num=v.number or num,
                 maker=v.maker or '',
                 date=v.release_date or '',
-                genre=','.join(t for t in (v.tags or []) if not is_source_4k_tag(t)),
+                genre=','.join(display_tags([t for t in (v.tags or []) if not is_source_4k_tag(t)], tag_ctx)),
                 size=v.size_bytes or 0,
                 mtime=int(v.mtime * 10000000 + 116444736000000000) if v.mtime else 0,
                 img=v.cover_path or ''
@@ -1667,7 +1669,7 @@ def generate_from_ids(body: GenerateFromIdsRequest):
                     num=r.get('number', num),
                     maker=r.get('maker', ''),
                     date=r.get('date', ''),
-                    genre=','.join(r.get('tags', [])) if isinstance(r.get('tags'), list) else '',
+                    genre=','.join(display_tags(r.get('tags', []), tag_ctx)) if isinstance(r.get('tags'), list) else '',
                     size=0,
                     mtime=0,
                     img=r.get('cover', '') or r.get('cover_url', '')

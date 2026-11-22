@@ -5,9 +5,9 @@
  * 從 state-lightbox.js 拆出，逐字搬移，見 plan-149a.md CD-149a-1／CD-149a-2。
  */
 
-import { _recomputeVideoBadges } from '@/showcase/state-base.js';
+import { _recomputeVideoBadges, _hiddenTagKeys } from '@/showcase/state-base.js';
+import { visibleUserTags, lightboxWorkTags, isTagHidden } from '@/shared/tag-display.js';
 import { versionsOf, writeWorkFields } from './work-versions.js';
-import { parseWorkTags } from './lbx-logic.js';
 
 export function stateLightboxTags() {
     return {
@@ -16,8 +16,8 @@ export function stateLightboxTags() {
         newLbTagValue: '',
 
         // 199a-T7 第 5 列：作品標籤／你的標籤清單與露出數（lbxFit 量測寫入；非整數＝全露）
-        lbxWorkTags() { return parseWorkTags(this.currentLightboxVideo); },
-        lbxUserTags() { return this.currentLightboxVideo?.user_tags || []; },
+        lbxWorkTags() { return lightboxWorkTags(this.currentLightboxVideo, _hiddenTagKeys); },
+        lbxUserTags() { return visibleUserTags(this.currentLightboxVideo, _hiddenTagKeys); },
         lbxTagShown(kind) {
             const v = kind === 'user' ? this.lbxFit?.userTagShown : this.lbxFit?.workTagShown;
             return Number.isInteger(v) ? v : Infinity;
@@ -45,6 +45,12 @@ export function stateLightboxTags() {
             }
             if (!video?.path) {
                 this.addingLbTag = false;
+                return;
+            }
+            if (isTagHidden(tag, _hiddenTagKeys)) {
+                this.showToast(window.t('showcase.lightbox.tag_blacklisted'), 'info');
+                this.addingLbTag = false;
+                this.newLbTagValue = '';
                 return;
             }
             const existingTags = video.user_tags || [];

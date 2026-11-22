@@ -1,3 +1,6 @@
+import { copyText } from '@/shared/clipboard.js';
+import { buildAiAliasPrompt } from './tag-alias-ai-prompt.js';
+
 export function stateTagAlias() {
     return {
         // ===== Tag Alias State (A3-3) =====
@@ -195,6 +198,17 @@ export function stateTagAlias() {
                 }
             } catch (e) {
                 this.showToast(window.t('scanner.tag_alias.error.remove_failed', { error: e.message }), 'error');
+            }
+        },
+
+        // ===== Tag Alias: Copy AI Prompt =====
+        async copyTagAliasAiPrompt(copy) {
+            const fn = typeof copy === 'function' ? copy : copyText;
+            const text = buildAiAliasPrompt(window.__locale, window.location.origin);
+            if (await fn(text)) {
+                this.showToast(window.t('scanner.tag_alias.toast.prompt_copied'), 'success');
+            } else if (window.dispatchEvent(new CustomEvent('copy-fail-dump', { detail: { text }, cancelable: true }))) {
+                this.showToast(window.t('scanner.tag_alias.toast.prompt_copy_failed'), 'error');
             }
         },
     };

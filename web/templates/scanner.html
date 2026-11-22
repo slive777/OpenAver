@@ -618,25 +618,33 @@
             <div class="title">
                 <i class="bi bi-tags"></i> <span>{{ t('scanner.tag_alias.section_title') }}</span>
             </div>
-            <!-- (?) AI hint icon + popover — @click.stop 避免觸發 collapse -->
-            <div class="tag-alias-ai-hint-wrap" @click.stop x-data="helpPopover">
+            <!-- (?) AI hint icon + popover — @click.stop 避免觸發 collapse；浮窗 x-teleport 到 body（owner F1：卡片 overflow:hidden 會裁掉卡內浮窗） -->
+            <div class="tag-alias-ai-hint-wrap" @click.stop x-data="tagHintPopover">
                 <button type="button"
                         class="help-popover-btn"
-                        :title="window.t('scanner.tag_alias.ai_hint.icon_title')"
-                        :aria-label="window.t('scanner.tag_alias.ai_hint.icon_title')"
-                        @click.stop.prevent="toggle()"
+                        :title="window.t('scanner.tag_alias.help_icon_title')"
+                        :aria-label="window.t('scanner.tag_alias.help_icon_title')"
+                        :aria-expanded="open.toString()"
+                        @click.stop.prevent="toggle($event)"
                         @keydown.enter.stop
                         @keydown.space.stop>
                     <i class="bi bi-question-circle"></i>
                 </button>
-                <div class="help-popover tag-alias-ai-hint-popover"
-                     x-show="open"
-                     x-transition.opacity
-                     @click.outside="close()"
-                     x-cloak>
-                    <p class="help-popover__body"
-                       x-text="window.t('scanner.tag_alias.ai_hint.tooltip')"></p>
-                </div>
+                <template x-teleport="body">
+                    <div class="help-popover__body tag-hint-popover"
+                         x-ref="pop"
+                         x-show="open"
+                         x-transition.opacity
+                         @click.outside="close()"
+                         @keydown.escape.window="close()"
+                         @resize.window="open && place()"
+                         @scroll.window.capture="close()"
+                         x-cloak
+                         :style="{ left: pos.left + 'px', top: pos.top + 'px', width: pos.width + 'px' }">
+                        <p class="help-popover__body">{{ t('scanner.tag_alias.primary_note_1') }}</p>
+                        <p class="help-popover__body">{{ t('scanner.tag_alias.primary_note_2') }}</p>
+                    </div>
+                </template>
             </div>
             <span class="btn-collapse" aria-hidden="true">
                 <i class="bi" :class="tagAliasCardCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
@@ -644,6 +652,7 @@
         </div>
 
         <div class="actress-alias-body" x-show="!tagAliasCardCollapsed" x-collapse>
+            <button type="button" class="btn btn-sm btn-ghost" @click="copyTagAliasAiPrompt()"><i class="bi bi-clipboard"></i> {{ t('scanner.tag_alias.copy_prompt_button') }}</button>
             <!-- 新增 group 輸入 -->
             <div class="alias-toolbar">
                 <div class="alias-input-wrap">
@@ -718,6 +727,75 @@
                             <i class="bi bi-trash3"></i>
                         </button>
                     </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <div class="actress-alias-card" id="tagBlacklistCard"
+         x-data="tagBlacklist"
+         x-cloak>
+        <div class="actress-alias-header" role="button" tabindex="0"
+             :aria-expanded="(!tbCollapsed).toString()"
+             title="{{ t('scanner.tag_blacklist.collapse_title') }}"
+             @click="tbToggle()" @keydown.enter.prevent="tbToggle()" @keydown.space.prevent="tbToggle()">
+            <div class="title"><i class="bi bi-eye-slash"></i> <span>{{ t('scanner.tag_blacklist.section_title') }}</span></div>
+            <div class="tag-alias-ai-hint-wrap" @click.stop x-data="tagHintPopover">
+                <button type="button"
+                        class="help-popover-btn"
+                        :title="window.t('scanner.tag_blacklist.help_icon_title')"
+                        :aria-label="window.t('scanner.tag_blacklist.help_icon_title')"
+                        :aria-expanded="open.toString()"
+                        @click.stop.prevent="toggle($event)"
+                        @keydown.enter.stop
+                        @keydown.space.stop>
+                    <i class="bi bi-question-circle"></i>
+                </button>
+                <template x-teleport="body">
+                    <div class="help-popover__body tag-hint-popover"
+                         x-ref="pop"
+                         x-show="open"
+                         x-transition.opacity
+                         @click.outside="close()"
+                         @keydown.escape.window="close()"
+                         @resize.window="open && place()"
+                         @scroll.window.capture="close()"
+                         x-cloak
+                         :style="{ left: pos.left + 'px', top: pos.top + 'px', width: pos.width + 'px' }">
+                        <p class="help-popover__body">{{ t('scanner.tag_blacklist.hint') }}</p>
+                    </div>
+                </template>
+            </div>
+            <span class="btn-collapse" aria-hidden="true"><i class="bi" :class="tbCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i></span>
+        </div>
+        <div class="actress-alias-body" x-show="!tbCollapsed" x-collapse>
+            <div class="alias-toolbar">
+                <div class="alias-input-wrap">
+                    <input type="text" class="input input-bordered input-sm" x-model="tbInput"
+                           :placeholder="window.t('scanner.tag_blacklist.placeholder')"
+                           @input="tbError = ''" @keydown.enter.prevent="tbAddFromInput()" :disabled="tbBusy">
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" @click="tbAddFromInput()" :disabled="tbBusy">{{ t('scanner.tag_blacklist.add') }}</button>
+            </div>
+            <div class="alias-list-error" x-show="tbError" x-text="tbError"></div>
+            <div class="alias-list-loading" x-show="tbLoading">{{ t('scanner.tag_blacklist.loading') }}</div>
+            <div class="alias-list-empty" x-show="!tbLoading && !tbError && tbItems.length === 0">{{ t('scanner.tag_blacklist.empty') }}</div>
+            <div class="tag-alias-group" x-show="!tbLoading">
+                <template x-for="item in tbItems" :key="item.key">
+                    <span class="alias-pill alias-pill-alias">
+                        <span x-text="item.name"></span>
+                        <button type="button" class="alias-pill-remove" @click="tbRemove(item)" :disabled="tbBusy"
+                                :title="window.t('scanner.tag_blacklist.remove_title')">✕</button>
+                    </span>
+                </template>
+            </div>
+            <div class="alias-filter-hint visible">{{ t('scanner.tag_blacklist.suggestions_title') }}</div>
+            <div class="tag-alias-group">
+                <template x-for="chip in tbChips()" :key="chip.name">
+                    <span>
+                        <button type="button" class="alias-add-btn" x-show="!chip.added" :disabled="tbBusy" @click="tbAddSuggestion(chip.name)"><i class="bi bi-plus"></i> <span x-text="chip.name"></span></button>
+                        <span class="alias-pill alias-pill-alias" x-show="chip.added"><i class="bi bi-check2"></i> <span x-text="chip.name"></span></span>
+                    </span>
                 </template>
             </div>
         </div>

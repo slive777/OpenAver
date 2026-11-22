@@ -43,6 +43,8 @@ _STOPWORDS: frozenset[str] = frozenset({
 
 # module-level cache — None = not loaded yet
 _merged_alias_map: dict[str, str] | None = None
+# 205b-T3b：有效隱藏集（正規化鍵），與別名合併表同一份模組層快取
+_hidden_keys: frozenset[str] = frozenset()
 
 
 def _load_merged_map() -> dict[str, str]:
@@ -52,7 +54,7 @@ def _load_merged_map() -> dict[str, str]:
     Falls back to hardcoded-only on any DB error.
     Result is cached in _merged_alias_map until _invalidate_cache() is called.
     """
-    global _merged_alias_map
+    global _merged_alias_map, _hidden_keys
     if _merged_alias_map is not None:
         return _merged_alias_map
 
@@ -60,6 +62,7 @@ def _load_merged_map() -> dict[str, str]:
     # and to avoid triggering DB connection at module import time
     from core.database import TagAliasRepository
 
+    hidden: frozenset[str] = frozenset()
     try:
         repo = TagAliasRepository()
         records = repo.get_all()
@@ -71,18 +74,27 @@ def _load_merged_map() -> dict[str, str]:
                     db_flat[alias] = record.primary_name
         # DB 後 merge → DB 優先
         merged = {**_HARDCODED_ALIAS_MAP, **db_flat}
+        # 205b-T3b：同一次讀到的別名 records＋黑名單算有效隱藏集（黑名單讀失敗不連累別名合併）
+        try:
+            from core.database import TagBlacklistRepository
+            from core.tag_display import build_context
+            hidden = build_context([row["name"] for row in TagBlacklistRepository().get_all()], [[record.primary_name, *record.aliases] for record in records]).hidden
+        except Exception:
+            logger.warning("[canonicalize] 黑名單 load 失敗，視為沒有隱藏字")
     except Exception:
         logger.warning("[canonicalize] DB load 失敗，fallback hardcoded-only")
         merged = dict(_HARDCODED_ALIAS_MAP)
 
     _merged_alias_map = merged
+    _hidden_keys = hidden
     return _merged_alias_map
 
 
 def _invalidate_cache() -> None:
     """清 module-level alias map cache，下次 canonicalize() 重新從 DB 讀取。"""
-    global _merged_alias_map
+    global _merged_alias_map, _hidden_keys
     _merged_alias_map = None
+    _hidden_keys = frozenset()
 
 
 def canonicalize(tags: Iterable[str]) -> list[str]:
@@ -93,6 +105,9 @@ def canonicalize(tags: Iterable[str]) -> list[str]:
         if not tag:
             continue
         canonical = alias_map.get(tag, tag)
+        # 205b-T3b：黑名單字（原字與換名後都比）與停用詞是聯集，任一命中就略過
+        if tag.strip().lower() in _hidden_keys or canonical.strip().lower() in _hidden_keys:
+            continue
         if canonical in _STOPWORDS or is_source_4k_tag(canonical):
             continue
         if canonical in seen:

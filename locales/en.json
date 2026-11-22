@@ -1217,10 +1217,6 @@
         "cancel": "Cancel",
         "confirm": "Delete"
       },
-      "ai_hint": {
-        "icon_title": "AI organization suggestion",
-        "tooltip": "💡 Let an AI agent organize via /api/capabilities for faster results"
-      },
       "toast": {
         "add_group_success": "Tag alias group added: {name}",
         "delete_success": "Deleted: {name}"
@@ -1762,7 +1758,6 @@
       "intro": "Manage Chinese/Japanese/English synonyms in one place so the search box, chip filters, and fuzzy exploration all speak the same language.",
       "h6_scanner": "Create alias groups in Library Manager",
       "scanner_chipwall": "The chip wall lists all tag alias groups. Click \"+\" to add an alias; the primary name is shown in pink, aliases in grey.",
-      "scanner_ai_hint": "Click \"?\" to open the AI suggestion panel: describe your tag needs to the AI and it returns suggested alias groups for direct import.",
       "h6_showcase": "Auto-expand in Showcase",
       "showcase_expand": "When you type in the search box or click a chip, synonyms are automatically expanded for filtering — consistent with actress alias behavior.",
       "showcase_click": "Click any tag chip → filter all videos sharing any synonym tag, no need to know the exact Japanese spelling.",

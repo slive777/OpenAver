@@ -44,7 +44,8 @@ def _isolate_ranker_and_alias_cache():
     _invalidate_cache()
     mock_alias_repo = MagicMock()
     mock_alias_repo.get_all.return_value = []
-    with patch("core.database.TagAliasRepository", return_value=mock_alias_repo):
+    with patch("core.database.TagAliasRepository", return_value=mock_alias_repo), \
+         patch("core.database.TagBlacklistRepository", return_value=MagicMock(**{"get_all.return_value": []})):
         yield
     SimilarRankerCache._instance = None
     _invalidate_cache()

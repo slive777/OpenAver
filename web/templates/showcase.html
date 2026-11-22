@@ -738,11 +738,11 @@
                         <div class="info-row" x-show="video.duration">
                             <b>{{ t('showcase.label.duration') }}：</b><span x-text="video.duration ? video.duration + ' ' + t('showcase.unit.minutes') : ''"></span>
                         </div>
-                        <div class="info-tags" x-show="video.tags">
-                            <template x-for="tag in (video.tags || '').split(',').filter(t => t.trim())" :key="tag">
+                        <div class="info-tags" x-show="workTagsOf(video).length > 0">
+                            <template x-for="tag in workTagsOf(video)" :key="tag">
                                 <a class="tag info-link" href="#"
-                                   @click.prevent.stop="searchFromMetadata(tag.trim(), 'tag')"
-                                   x-text="tag.trim()"></a>
+                                   @click.prevent.stop="searchFromMetadata(tag, 'tag')"
+                                   x-text="tag"></a>
                             </template>
                         </div>
                     </div>
@@ -792,17 +792,17 @@
                                 <td class="table-cell-duration" x-text="video.duration ? video.duration + ' ' + t('showcase.unit.minutes_abbr') : '-'"></td>
                                 <td class="table-cell-date" x-text="video.release_date || '-'"></td>
                                 <td class="table-cell-tags">
-                                    <template x-if="video.tags">
+                                    <template x-if="workTagsOf(video).length > 0">
                                         <div class="table-tags-wrapper">
-                                            <template x-for="tag in video.tags.split(',').slice(0, 3).filter(t => t.trim())" :key="tag">
-                                                <span class="table-tag" x-text="tag.trim()"></span>
+                                            <template x-for="tag in workTagsOf(video).slice(0, 3)" :key="tag">
+                                                <span class="table-tag" x-text="tag"></span>
                                             </template>
-                                            <template x-if="video.tags.split(',').length > 3">
-                                                <span class="table-tag-more" x-text="`+${video.tags.split(',').length - 3}`"></span>
+                                            <template x-if="workTagsOf(video).length > 3">
+                                                <span class="table-tag-more" x-text="`+${workTagsOf(video).length - 3}`"></span>
                                             </template>
                                         </div>
                                     </template>
-                                    <template x-if="!video.tags">
+                                    <template x-if="workTagsOf(video).length === 0">
                                         <span class="text-muted">-</span>
                                     </template>
                                 </td>

@@ -23,7 +23,8 @@ def _isolate_canonicalize_cache():
     mock_alias_repo = MagicMock()
     mock_alias_repo.get_all.return_value = []
     _invalidate_cache()
-    with patch("core.database.TagAliasRepository", return_value=mock_alias_repo):
+    with patch("core.database.TagAliasRepository", return_value=mock_alias_repo), \
+         patch("core.database.TagBlacklistRepository", return_value=MagicMock(**{"get_all.return_value": []})):
         yield
     _invalidate_cache()
 

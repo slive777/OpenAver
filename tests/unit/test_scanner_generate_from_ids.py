@@ -44,6 +44,7 @@ class TestScannerGenerateFromIdsTags:
             'tags': ['巨乳', 'OL', '單體作品'],
         }
 
+        monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: tmp_path / "isolated.db")
         with patch('web.routers.scanner.VideoRepository', return_value=mock_repo), \
              patch('web.routers.scanner.HTMLGenerator', return_value=mock_generator), \
              patch('web.routers.scanner.smart_search', return_value=[scraper_result]):
@@ -147,6 +148,7 @@ class TestScannerGenerateUsesResolveGalleryOutputPath:
             'tags': [],
         }
 
+        monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: tmp_path / "isolated.db")
         with patch('web.routers.scanner.VideoRepository', return_value=mock_repo), \
              patch('web.routers.scanner.HTMLGenerator', return_value=mock_generator), \
              patch('web.routers.scanner.smart_search', return_value=[scraper_result]):
