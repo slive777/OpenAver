@@ -8,7 +8,7 @@
  * 對外名單（模板照名單綁）：
  *   狀態：mpStatus／mpLater／mpBusy
  *   方法：mpView()、mpMessage()、mpProgressText()、mpChecked()、mpStart()、mpToggleReadonly(el)、
- *         mpDismiss()、mpLaterClick()、mpOnVisibility()
+ *         mpDismiss()、mpLaterClick()、mpOnVisibility()、mpReadonlyHint()、mpEtaText()
  * 數字一律用後端 GET /api/media-probe/status 給的值，前端不自算 N。
  */
 
@@ -51,10 +51,7 @@ export function mediaProbeReminder() {
         },
 
         mpView() {
-            const view = probeBlockView(this.mpStatus, { later: this.mpLater });
-            // 過渡相容：現行模板仍綁 .mode；T6b 移除 mode 並改綁 .show／.line1／.showToggle。
-            const mode = view.line1 ?? (view.show ? 'readonly_only' : 'hidden');
-            return { ...view, mode };
+            return probeBlockView(this.mpStatus, { later: this.mpLater });
         },
 
         mpChecked() {
@@ -66,9 +63,7 @@ export function mediaProbeReminder() {
             if (v.line1 === 'unavailable') return window.t('scanner.media_probe.unavailable');
             if (v.line1 === 'running') return this.mpProgressText();
             if (v.line1 === 'pending') return window.t('scanner.media_probe.reminder', { n: v.pending.toLocaleString() });
-            // 過渡分支（T6b 移除）：模板仍綁 mode === 'readonly_only'
-            if (v.mode === 'readonly_only') return this.mpReadonlyHint();
-            return this.mpReadonlyHint();
+            return '';
         },
 
         mpReadonlyHint() {

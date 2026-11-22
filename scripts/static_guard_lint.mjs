@@ -98,6 +98,13 @@ const RULES = [
     note: '[lint-guard:205a-T4-copy-rows] 五列複製接線（含 T5 兩列）' },
   { file: 'web/templates/scanner.html', kind: 'required-string', pattern: /(?<![\w:-])@copy-fail-dump\.window="\$event\.preventDefault\(\); openCopyFailModal\(\$event\.detail\.text\)"/,
     note: '[lint-guard:205a-T4-copy-fail-listener] 浮層複製失敗時顯示全文' },
+  { file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])x-data="mediaProbeReminder"/g, count: 1,
+    note: '[lint-guard:205a-T6b-block-single] 影片資訊區塊恰有一份' },
+  { file: 'web/templates/scanner.html', kind: 'order', items: [
+    { pattern: /(?<![\w:-])id="btnGenerate"/ },
+    { pattern: /(?<![\w:-])x-data="mediaProbeReminder"/, occurrence: 'last' },
+    { pattern: /(?<![\w:-])id="progressSection"/, occurrence: 'first' },
+  ], note: '[lint-guard:205a-T6b-block-position] 影片資訊區塊位於更新按鈕與讀取紀錄之間' },
   // ---- [TestShowcaseMetadataGuard] showcase.html：10 個 all-of required + 1 個 any-of ----
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'video.series', note: '[TestShowcaseMetadataGuard] metadata binding' },
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'video.duration', note: '[TestShowcaseMetadataGuard] metadata binding' },
