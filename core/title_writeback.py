@@ -120,9 +120,16 @@ def rewrite_nfo_titles(
 
 def needs_translate(title, original_title, nfo_mtime, number='') -> bool:
     """標題含假名、已有 NFO，且原文欄空或與標題相同（忽略前後空白與開頭番號）才算待翻譯。"""
-    t = _strip_num_prefixes((title or '').strip(), number).strip()
-    o = _strip_num_prefixes((original_title or '').strip(), number).strip()
-    return bool(has_japanese(title or '') and (nfo_mtime or 0) > 0 and (not o or t == o))
+    title = title or ''
+    if not (nfo_mtime or 0) > 0 or not has_japanese(title):
+        return False
+    t_raw = title.strip()
+    o_raw = (original_title or '').strip()
+    if not o_raw or t_raw == o_raw:
+        return True
+    t = _strip_num_prefixes(t_raw, number).strip()
+    o = _strip_num_prefixes(o_raw, number).strip()
+    return not o or t == o
 
 
 def _new_original_title(original_title: Optional[str], video) -> str:
