@@ -1205,7 +1205,12 @@
       "include_readonly": "也讀取唯讀來源的片（NAS、雲端硬碟會多一些讀取）",
       "progress": "已讀取 {done} / {total}",
       "unavailable": "這台機器無法讀取影片資訊",
-      "readonly_only": "唯讀來源有 {n} 部片還沒讀取影片資訊"
+      "readonly_hint": "有 {n} 部唯讀來源的片還沒讀取影片資訊",
+      "eta_minutes": "約剩 {n} 分鐘",
+      "eta_soon": "快好了",
+      "finished": "影片資訊讀取完成：讀了 {read} 部",
+      "finished_failed": "，{n} 部讀不出",
+      "finished_unreachable": "，{n} 部連不到"
     },
     "alias": {
       "section_title": "女優別名管理",

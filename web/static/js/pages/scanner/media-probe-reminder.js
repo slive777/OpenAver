@@ -1,5 +1,5 @@
 /**
- * media-probe-reminder.js — 掃描頁「影片資訊讀取」提醒獨立元件（TASK-198a-T5）
+ * media-probe-reminder.js — 掃描頁「影片資訊讀取」提醒獨立元件（TASK-a205-T6a）
  *
  * Alpine.data('mediaProbeReminder')；不進 mergeState；外求 0（不讀父層 key、不呼叫父層 showToast）。
  * 所有 key（含方法）一律 mp 前綴：巢狀 x-data 漏定義的 key 會靜默讀到父層 scanner 的同名值，
@@ -12,7 +12,7 @@
  * 數字一律用後端 GET /api/media-probe/status 給的值，前端不自算 N。
  */
 
-import { reminderView, keepPollingAfterFailure } from './media-probe-reminder-logic.js';
+import { probeBlockView, shouldToastFinish, keepPollingAfterFailure } from './media-probe-reminder-logic.js';
 
 const BASE = '/api/media-probe';
 const POLL_MS = 2000;
@@ -38,6 +38,7 @@ export function mediaProbeReminder() {
         mpPollTimer: null,
         mpGen: 0,
         mpDestroyed: false,
+        mpStartedHere: false,
 
         init() {
             this.mpRefresh();
@@ -50,7 +51,10 @@ export function mediaProbeReminder() {
         },
 
         mpView() {
-            return reminderView(this.mpStatus, { later: this.mpLater });
+            const view = probeBlockView(this.mpStatus, { later: this.mpLater });
+            // 過渡相容：現行模板仍綁 .mode；T6b 移除 mode 並改綁 .show／.line1／.showToggle。
+            const mode = view.line1 ?? (view.show ? 'readonly_only' : 'hidden');
+            return { ...view, mode };
         },
 
         mpChecked() {
@@ -59,12 +63,24 @@ export function mediaProbeReminder() {
 
         mpMessage() {
             const v = this.mpView();
-            if (v.mode === 'unavailable') return window.t('scanner.media_probe.unavailable');
-            if (v.mode === 'readonly_only') {
-                return window.t('scanner.media_probe.readonly_only', { n: v.readonlyPending.toLocaleString() });
-            }
-            if (v.mode === 'running') return this.mpProgressText();
-            return window.t('scanner.media_probe.reminder', { n: v.pending.toLocaleString() });
+            if (v.line1 === 'unavailable') return window.t('scanner.media_probe.unavailable');
+            if (v.line1 === 'running') return this.mpProgressText();
+            if (v.line1 === 'pending') return window.t('scanner.media_probe.reminder', { n: v.pending.toLocaleString() });
+            // 過渡分支（T6b 移除）：模板仍綁 mode === 'readonly_only'
+            if (v.mode === 'readonly_only') return this.mpReadonlyHint();
+            return this.mpReadonlyHint();
+        },
+
+        mpReadonlyHint() {
+            const v = this.mpView();
+            return window.t('scanner.media_probe.readonly_hint', { n: (v.readonlyHint ?? 0).toLocaleString() });
+        },
+
+        mpEtaText() {
+            const etaS = this.mpView().etaS;
+            if (!Number.isFinite(etaS)) return '';
+            if (etaS < 60) return window.t('scanner.media_probe.eta_soon');
+            return window.t('scanner.media_probe.eta_minutes', { n: Math.ceil(etaS / 60).toLocaleString() });
         },
 
         mpProgressText() {
@@ -102,11 +118,21 @@ export function mediaProbeReminder() {
         },
 
         mpApply(data) {
+            const finish = shouldToastFinish(this.mpStatus, data, { startedHere: this.mpStartedHere });
             this.mpStatus = data;
             if (data?.job?.running) {
                 this.mpSchedulePoll();
             } else {
                 this.mpStopPoll();
+            }
+            if (finish) {
+                this.mpStartedHere = false;
+                const r = data.job.last_result;
+                const msg = window.t('scanner.media_probe.finished', { read: Number(r.read).toLocaleString() })
+                    + (Number(r.failed) > 0 ? window.t('scanner.media_probe.finished_failed', { n: Number(r.failed).toLocaleString() }) : '')
+                    + (Number(r.unreachable) > 0 ? window.t('scanner.media_probe.finished_unreachable', { n: Number(r.unreachable).toLocaleString() }) : '');
+                Alpine.store('toast').show(msg, 'success');
+                window.dispatchEvent(new CustomEvent('media-probe-finished'));
             }
         },
 
@@ -145,9 +171,11 @@ export function mediaProbeReminder() {
 
         async mpStart() {
             if (this.mpBusy) return;
-            // 回 started／already_running／nothing_to_do／unavailable 都一律立刻重讀真值：
-            // job 在跑 → mpApply 接上輪詢；其餘 → 畫面回到後端給的狀態
-            await this.mpPost(BASE + '/start', {});
+            this.mpLater = false;
+            const data = await this.mpPost(BASE + '/start', {});
+            if (data?.status === 'started' && !this.mpDestroyed) {
+                this.mpStartedHere = true;
+            }
             await this.mpRefresh();
         },
 
@@ -158,6 +186,7 @@ export function mediaProbeReminder() {
                 await this.mpRefresh();
             } else {
                 this.mpGen++;
+                if (data.include_readonly === true) this.mpLater = false;
                 this.mpApply(data);
             }
             el.checked = this.mpChecked();
