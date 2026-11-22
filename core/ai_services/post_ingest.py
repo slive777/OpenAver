@@ -108,13 +108,18 @@ def _flag_on(cfg: dict, *keys) -> bool:
     return bool(cur)
 
 
+def _locale_is_source_language(locale: str) -> bool:
+    """介面是日文時原文已是目標語言，不翻譯。"""
+    return locale == "ja"
+
+
 def _decide_translate(cfg: dict, row, skip_translate: bool = False, *, fresh_site_title: bool = False) -> Verdict:
     if not _flag_on(cfg, "translate", "enabled"):
         return Verdict(False, "off")
     if skip_translate:
         return Verdict(False, "preserve_title")
     locale = (cfg.get("general") or {}).get("locale") or "zh-TW"
-    if locale == "ja" or not title_needs_translation(row, fresh_site_title=fresh_site_title):
+    if _locale_is_source_language(locale) or not title_needs_translation(row, fresh_site_title=fresh_site_title):
         return Verdict(False, "title_in_target_language")
     return Verdict(True)
 
@@ -241,6 +246,8 @@ def _job_translate(ctx: IngestContext) -> Optional[str]:
     if not _flag_on(fresh_cfg, "translate", "enabled"):
         return "off"
     locale = (fresh_cfg.get("general") or {}).get("locale") or "zh-TW"
+    if _locale_is_source_language(locale):
+        return "title_in_target_language"
     service = create_translate_service(ctx.cfg.get("translate") or {}, locale)
     translated = asyncio.run(service.translate_or_raise(
         ctx.row.title,

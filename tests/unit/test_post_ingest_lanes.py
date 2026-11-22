@@ -283,8 +283,8 @@ def test_first_ingest_entry_only_submits_translate(monkeypatch):
     assert focal == []
 
 
-@pytest.mark.parametrize("enabled,expected", [(False, 0), (True, 1)])
-def test_translate_job_rechecks_switch_at_start(monkeypatch, enabled, expected):
+@pytest.mark.parametrize("enabled,locale,expected", [(False, "zh-TW", 0), (True, "zh-TW", 1), (True, "ja", 0)])
+def test_translate_job_rechecks_switch_at_start(monkeypatch, enabled, locale, expected):
     row = _jp_row()
     _setup(monkeypatch, row, _cfg())
     jobs, services, writes = [], [], []
@@ -298,7 +298,7 @@ def test_translate_job_rechecks_switch_at_start(monkeypatch, enabled, expected):
     monkeypatch.setattr(post_ingest, "apply_title_writeback", lambda *a: (writes.append(1), {"success": True})[1])
     post_ingest.run_translate_after_first_ingest(URI, route="first")
     assert len(jobs) == 1
-    monkeypatch.setattr(post_ingest, "load_config", lambda: _cfg(translate=enabled))
+    monkeypatch.setattr(post_ingest, "load_config", lambda: {**_cfg(translate=enabled), "general": {"locale": locale}})
     jobs[0]()
     assert len(services) == expected
     assert len(writes) == expected
