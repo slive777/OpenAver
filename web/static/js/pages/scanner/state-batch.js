@@ -49,6 +49,7 @@ export function stateBatch() {
                     number: i.number,
                     path: i.file_path,
                     note: window.t('scanner.stats.missing_both_tag'),
+                    reason: window.t('scanner.stats.reason.missing_both'),
                 }));
         },
         get missingNfoDrilldownItems() {
@@ -56,6 +57,7 @@ export function stateBatch() {
                     number: i.number,
                     path: i.file_path,
                     note: window.t('scanner.stats.missing_nfo_tag'),
+                    reason: window.t('scanner.stats.reason.missing_nfo'),
                 }));
         },
         get missingCoverDrilldownItems() {
@@ -63,7 +65,11 @@ export function stateBatch() {
                     number: i.number,
                     path: i.file_path,
                     note: window.t('scanner.stats.missing_cover_tag'),
+                    reason: window.t('scanner.stats.reason.missing_cover'),
                 }));
+        },
+        get missingAllDrilldownItems() {
+            return [...this.missingBothDrilldownItems, ...this.missingNfoDrilldownItems, ...this.missingCoverDrilldownItems];
         },
         get missingBothDrilldownPayload() {
             return { title: window.t('scanner.stats.missing_both_prefix'), items: this.missingBothDrilldownItems, footnote: window.t('scanner.stats.missing_list_footnote') };

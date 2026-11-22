@@ -17,6 +17,7 @@
      data-shell-mode="{{ shell_mode or '' }}"
      @dragover.document.prevent="handleDragOver($event)"
      @drop.document.prevent="handleDrop($event)"
+     @copy-fail-dump.window="$event.preventDefault(); openCopyFailModal($event.detail.text)"
      @keydown.escape.window="dirtyCheckModalOpen && dirtyCheckCancel(); missingConfirmModalOpen && cancelLargeMissingEnrich(); deleteAliasGroupModalOpen && cancelDeleteAliasGroupModal(); deleteTagAliasGroupModalOpen && cancelDeleteTagAliasGroupModal(); copyFailModalOpen && closeCopyFailModal(); readonlyConfirmModalOpen && readonlyConfirmCancel();">
     <!-- Drag Overlay (must be inside x-data scope) -->
     <div class="drag-overlay" id="dragOverlay" :class="{ active: showDragOverlay }">
@@ -238,11 +239,16 @@
                 {{ t('scanner.stats.nfo_suffix') }}
                 {{ number_drilldown_panel() }}
             </span>
+            <span class="number-drilldown-action-group">
             <button class="btn-nfo-update" @click="runNfoUpdate()" id="btnUpdate"
                     x-bind:disabled="nfoUpdateButtonDisabled"
                     x-html="nfoUpdateButtonText"
                     title="{{ t('scanner.stats.nfo_update_title') }}">
             </button>
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(nfoUpdateDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
         </div>
         <!-- T10: Missing NFO/Cover Pill -->
         <div class="nfo-update-row" x-show="missingPillVisible">
@@ -288,10 +294,15 @@
                     {{ t('scanner.stats.missing_suffix') }}
                 </span>
             </span>
+            <span class="number-drilldown-action-group">
             <button class="btn-nfo-update" @click="runMissingEnrich()"
                     x-bind:disabled="isBusy || missingItems.length === 0"
                     x-html="missingEnrichButtonText">
             </button>
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(missingAllDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
         </div>
 
         <!-- T10: Resume Pill (未完成提示) -->
@@ -369,11 +380,16 @@
                     </small>
                 </div>
             </span>
+            <span class="number-drilldown-action-group">
             <button class="btn-nfo-update" @click="runJellyfinImageUpdate()"
                     x-bind:disabled="isGenerating"
                     x-html="jellyfinImageButtonText"
                     title="{{ t('scanner.stats.jellyfin_update_title') }}">
             </button>
+            <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')"
+                            @click="copyRowList(jellyfinDrilldownItems)"
+            ><i class="bi bi-clipboard" aria-hidden="true"></i></button>
+            </span>
         </div>
     </div>
 

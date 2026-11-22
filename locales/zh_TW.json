@@ -60,7 +60,10 @@
       "err_generic": "這個資料夾讀不到"
     },
     "number_drilldown": {
-      "copy_button": "複製清單",
+      "copy_button": "複製清單（番號、路徑、原因）",
+      "copy_col_number": "番號",
+      "copy_col_path": "路徑",
+      "copy_col_reason": "原因",
       "copy_toast": "已複製 {count} 部",
       "copy_failed": "複製失敗，請手動選取清單文字複製",
       "close": "關閉",
@@ -1102,6 +1105,15 @@
       "clear_all_title": "清除全部（包含歷史）"
     },
     "stats": {
+      "reason": {
+        "missing_nfo": "缺 NFO",
+        "missing_cover": "缺封面",
+        "missing_both": "NFO 與封面都缺",
+        "nfo_fields": "NFO 缺：{fields}",
+        "jellyfin_poster": "缺 Jellyfin 海報",
+        "jellyfin_fanart": "缺 Jellyfin 背景圖",
+        "jellyfin_both": "缺 Jellyfin 海報、背景圖"
+      },
       "cached_prefix": "已掃描:",
       "cached_suffix": "部",
       "clear_cache_title": "清除快取",

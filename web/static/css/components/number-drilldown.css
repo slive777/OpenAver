@@ -47,10 +47,12 @@
     color: var(--color-primary);
     cursor: pointer;
     border-radius: var(--fluent-radius-sm);
+    text-decoration: underline dashed color-mix(in oklch, currentColor 45%, transparent);
+    text-underline-offset: 3px;
 }
 
 .number-drilldown-number-btn:hover {
-    text-decoration: underline;
+    text-decoration-style: solid;
 }
 
 .number-drilldown-number-btn:focus-visible {
@@ -95,6 +97,12 @@
     color: var(--text-muted);
     font-size: 0.8rem;
     margin-right: auto;
+}
+
+.number-drilldown-action-group {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing);
 }
 
 .number-drilldown-copy-btn {

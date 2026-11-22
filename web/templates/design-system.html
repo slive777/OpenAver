@@ -2725,6 +2725,7 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
                                     @click="toggle({ title: '缺封面', items: ndDemo('cover'), footnote: t('scanner.stats.missing_list_footnote') })">[73]</button>
                             {{ number_drilldown_panel() }}
                         </span>
+                        <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')" @click="ndCopy([...ndDemo('both'), ...ndDemo('nfo'), ...ndDemo('cover')])"><i class="bi bi-clipboard" aria-hidden="true"></i></button>
                     </div>
                     <div class="number-drilldown-stat-line"
                          x-data="numberDrilldown"
@@ -2734,6 +2735,7 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
                                 :aria-expanded="open"
                                 @click="toggle({ title: 'NFO 欄位不全', items: ndDemo('nfoIncomplete') })">[6]</button> 部
                         {{ number_drilldown_panel() }}
+                        <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')" @click="ndCopy(ndDemo('nfoIncomplete'))"><i class="bi bi-clipboard" aria-hidden="true"></i></button>
                     </div>
                     <div class="number-drilldown-stat-line"
                          x-data="numberDrilldown"
@@ -2743,6 +2745,7 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
                                 :aria-expanded="open"
                                 @click="toggle({ title: '外部媒體管理器封面缺失', items: ndDemo('jellyfin') })">[4]</button> 部
                         {{ number_drilldown_panel() }}
+                        <button type="button" class="number-drilldown-copy-btn" :title="t('common.number_drilldown.copy_button')" :aria-label="t('common.number_drilldown.copy_button')" @click="ndCopy(ndDemo('jellyfin'))"><i class="bi bi-clipboard" aria-hidden="true"></i></button>
                     </div>
                 </div>
             </div>
@@ -4294,21 +4297,22 @@ this.showToast('已翻譯', 'success', 6000, { label: '復原', onClick() {} }) 
 <script>
 // ── Number Drilldown 定案版假資料（TASK-155b-T2）──────────────────────────
 // 只供 /design-system 展示；正式元件是 web/static/js/components/number-drilldown.js。
-function ndBuildItems(count, prefix, startAt) {
+function ndBuildItems(count, prefix, startAt, reason) {
     return Array.from({ length: count }, (_, i) => {
         const n = String(startAt + i).padStart(3, '0');
         return {
             number: `${prefix}-${n}`,
             path: `file:///C:/AVtest/${prefix}-${n}.mp4`,
             note: '',
+            reason,
         };
     });
 }
 
 const ND_DEMO = (() => {
-    const both = ndBuildItems(12, 'ABP', 1);
-    const nfo = ndBuildItems(48, 'SSIS', 100);
-    const cover = ndBuildItems(73, 'MIDE', 500);
+    const both = ndBuildItems(12, 'ABP', 1, 'NFO 與封面都缺');
+    const nfo = ndBuildItems(48, 'SSIS', 100, '缺 NFO');
+    const cover = ndBuildItems(73, 'MIDE', 500, '缺封面');
     cover[0] = { ...cover[0], path: 'file:///D:/影片收藏/MIDE-500.mp4' };
     return {
         both,
@@ -4321,18 +4325,28 @@ const ND_DEMO = (() => {
             { number: 'STARS-402', path: 'file:///C:/AVtest/STARS-402.mp4', note: '缺：類別、標籤' },
             { number: 'IPX-777', path: 'file:///C:/AVtest/IPX-777.mp4', note: '缺：片長' },
             { number: 'PRED-333', path: 'file:///C:/AVtest/PRED-333.mp4', note: '缺：導演、類別' },
-        ],
+        ].map(item => ({ ...item, reason: 'NFO ' + item.note })),
         jellyfin: [
             { number: 'WAAA-158', path: 'file:///C:/AVtest/WAAA-158.mp4', note: '' },
             { number: 'JUL-888', path: 'file:///C:/AVtest/JUL-888.mp4', note: '' },
             { number: 'CAWD-500', path: 'file:///C:/AVtest/CAWD-500.mp4', note: '' },
             { number: '', path: 'file:///C:/AVtest/無番號片.mp4', note: '' },
-        ],
+        ].map(item => ({ ...item, reason: '缺 Jellyfin 海報、背景圖' })),
     };
 })();
 
 function ndDemo(key) {
     return ND_DEMO[key] || [];
+}
+
+async function ndCopy(items) {
+    const { copyItemList } = await import('/static/js/shared/drilldown-copy.js');
+    const result = await copyItemList(items);
+    if (result.ok) {
+        Alpine.store('toast').show(window.t('common.number_drilldown.copy_toast', { count: result.count }), 'success');
+    } else {
+        Alpine.store('toast').show(window.t('common.number_drilldown.copy_failed'), 'error');
+    }
 }
 
 
