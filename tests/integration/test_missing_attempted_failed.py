@@ -1,6 +1,6 @@
 """TASK-a205-T3：試過但查不到／讀不出／Jellyfin 缺哪張（後端資料）。
 
-測試預算 4 支（卡片命名照用），全部只用自種 DB 列與 tmp 檔。
+測試預算 3 支（原 4 支，R6 補判刪 1 支），全部只用自種 DB 列與 tmp 檔。
 """
 import pytest
 
@@ -40,36 +40,6 @@ def _get_missing(client, db_path):
     data = resp.json()
     assert data["success"] is True
     return data["data"]
-
-
-def test_missing_check_existing_fields_unchanged(client, tmp_path):
-    videos = [
-        Video(path=to_file_uri(str(tmp_path / "a.mp4")), number="AAA-001",
-              cover_path="", nfo_mtime=0.0),
-        Video(path=to_file_uri(str(tmp_path / "b.mp4")), number="BBB-002",
-              cover_path="/covers/b.jpg", nfo_mtime=0.0),
-        Video(path=to_file_uri(str(tmp_path / "c.mp4")), number="CCC-003",
-              cover_path="", nfo_mtime=100.0),
-        Video(path=to_file_uri(str(tmp_path / "d.mp4")), number="DDD-004",
-              cover_path="/covers/d.jpg", nfo_mtime=100.0),
-        Video(path=to_file_uri(str(tmp_path / "e.mp4")), number="EEE-005",
-              cover_path="", nfo_mtime=0.0, scrape_attempted_at=111.0),
-        Video(path=to_file_uri(str(tmp_path / "f.mp4")), number="FFF-006",
-              cover_path="/covers/f.jpg", nfo_mtime=100.0, scrape_attempted_at=222.0),
-        Video(path=to_file_uri(str(tmp_path / "g.mp4")), number="GGG-007",
-              cover_path="", nfo_mtime=0.0,
-              output_dir=to_file_uri(str(tmp_path / "out")), scrape_attempted_at=333.0),
-        Video(path=to_file_uri(str(tmp_path / "h.mp4")), number="",
-              cover_path="", nfo_mtime=0.0, scrape_attempted_at=444.0),
-    ]
-    db_path = _make_db(tmp_path, videos)
-    data = _get_missing(client, db_path)
-    assert data["missing_both"] == 1
-    assert data["missing_nfo"] == 1
-    assert data["missing_cover"] == 1
-    assert data["total_missing"] == 3
-    by_num = {i["number"]: i["category"] for i in data["items"]}
-    assert by_num == {"AAA-001": "both", "BBB-002": "nfo", "CCC-003": "cover"}
 
 
 def test_attempted_items_membership(client, tmp_path):
