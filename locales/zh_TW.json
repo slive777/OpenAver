@@ -1069,8 +1069,8 @@
       "browse_dir_fallback": "瀏覽器無法直接讀取拖放檔案的路徑，已為您開啟資料夾選擇器"
     },
     "copy_fail_modal": {
-      "title": "複製日誌失敗",
-      "body": "clipboard 寫入失敗，請手動選取以下文字按 Ctrl+C 複製：",
+      "title": "複製失敗",
+      "body": "剪貼簿寫入失敗，請手動選取以下文字按 Ctrl+C 複製：",
       "close": "關閉"
     },
     "drag_overlay": {
