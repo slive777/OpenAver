@@ -37,6 +37,7 @@ from core.config import (
     get_configured_gallery_dirs,
 )
 from core.cover_attributes import is_source_4k_tag, manifest_payload
+from core.tag_display import is_hidden_tag, load_context
 
 logger = get_logger(__name__)
 
@@ -150,7 +151,7 @@ def _canonical_list(values, lookup: dict[str, tuple[str, list[str]]]) -> list[st
     return result
 
 
-def _serialize_record(v, actress_lookup, tag_lookup) -> dict:
+def _serialize_record(v, actress_lookup, tag_lookup, tag_ctx) -> dict:
     year, month, date = _release_parts(v.release_date)
     return {
         "year": year,
@@ -162,7 +163,7 @@ def _serialize_record(v, actress_lookup, tag_lookup) -> dict:
         "director": (str(v.director).strip() or None) if v.director else None,
         "series": (str(v.series).strip() or None) if v.series else None,
         "tags": _canonical_list(
-            [t for t in (v.tags or []) if not is_source_4k_tag(t)],
+            [t for t in (v.tags or []) if not is_source_4k_tag(t) and not is_hidden_tag(t, tag_ctx)],
             tag_lookup,
         ),
     }
@@ -211,9 +212,10 @@ def get_insights_snapshot(request: Request):
         actress_lookup = _build_alias_lookup(AliasRepository(db_path).get_all())
         tag_lookup = _build_alias_lookup(TagAliasRepository(db_path).get_all())
         tag_lookup = _merge_badge_alias_manifest(tag_lookup)
+        tag_ctx = load_context(db_path)
 
         records = [
-            _serialize_record(v, actress_lookup, tag_lookup)
+            _serialize_record(v, actress_lookup, tag_lookup, tag_ctx)
             for v in firsts
         ]
         years = sorted({r["year"] for r in records if r["year"] is not None})

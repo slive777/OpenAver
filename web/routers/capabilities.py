@@ -2086,6 +2086,7 @@ _TOOLS: list[dict] = [
             " min_count=2（預設）過濾噪音單次 tag；total_unique_tags 不受 min_count 影響。"
             " 不含 user_tags（user_tags 為獨立欄位）。"
             " 不含來源標的 4K 類標籤（4K 改以實際解析度判斷）。"
+            " 不含使用者黑名單裡的標籤，以及與它們同別名組的字（使用者看不到的字，不必替它們建別名）。"
         ),
         "method": "GET",
         "path": "/api/tags/top",

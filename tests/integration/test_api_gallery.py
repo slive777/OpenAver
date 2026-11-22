@@ -232,12 +232,12 @@ class TestGenerateFromIds:
             side_effect=_fake_generate,
         )
 
-    def _mock_db_miss(self, mocker):
+    def _mock_db_miss(self, mocker, tmp_path):
         """Mock VideoRepository.get_by_numbers → 空 dict（全 DB miss）。"""
         mock_repo = MagicMock()
         mock_repo.get_by_numbers.return_value = {}
         mocker.patch('web.routers.scanner.VideoRepository', return_value=mock_repo)
-        mocker.patch('web.routers.scanner.get_db_path', return_value=Path('/fake/db.db'))
+        mocker.patch('web.routers.scanner.get_db_path', return_value=tmp_path / 'isolated.db')
 
     def _mock_db_hit(self, mocker, number: str, cover_path: str):
         """Mock VideoRepository.get_by_numbers → DB hit，含指定 cover_path。"""
@@ -268,7 +268,7 @@ class TestGenerateFromIds:
         cover_url = 'https://www.javbus.com/pics/cover/SONE-205.jpg'
         fake_bytes = b'\xff\xd8\xff\xe0' + b'\x00' * 200000
 
-        self._mock_db_miss(mocker)
+        self._mock_db_miss(mocker, tmp_path)
         mocker.patch('web.routers.scanner.smart_search', return_value=[{
             'title': 'Test', 'original_title': '', 'actors': ['A'],
             'number': number, 'maker': 'S1', 'date': '2024-01-01',
@@ -311,7 +311,7 @@ class TestGenerateFromIds:
         number = 'ABC-002'
         cover_url = 'https://example.com/cover2.jpg'
 
-        self._mock_db_miss(mocker)
+        self._mock_db_miss(mocker, tmp_path)
         mocker.patch('web.routers.scanner.smart_search', return_value=[{
             'title': 'Test',
             'original_title': '',

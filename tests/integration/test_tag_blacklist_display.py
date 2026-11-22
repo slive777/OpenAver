@@ -218,3 +218,156 @@ def test_single_video_refresh_keeps_tags_display(client, tmp_path, mocker, branc
         resp = client.get("/api/showcase/video", params={"path": setup["uri"]})
         assert resp.status_code == 200
         assert resp.json()["video"]["tags_display"] == "中出,巨乳"
+
+
+# ================= TASK-205b-T3b：其餘後端出口（只用字面字串／tmp 庫／真 repo）=================
+
+def test_tags_top_omits_blacklisted_group_before_limit(client, tmp_path, mocker):
+    db_path = tmp_path / "tags_top.db"
+    init_db(db_path)
+    VideoRepository(db_path).upsert_batch([
+        Video(path=to_file_uri(str(tmp_path / f"TT-{i:03d}.mp4"), {}), number=f"TT-{i:03d}", title=f"TT-{i:03d}", tags=tags)
+        for i, tags in [
+            (0, ["ハイビジョン", "高畫質", "巨乳"]),
+            (1, ["ハイビジョン", "高畫質", "巨乳"]),
+            (2, ["ハイビジョン", "高畫質"]),
+        ]
+    ])
+    mocker.patch("web.routers.tags.get_db_path", return_value=db_path)
+
+    before = client.get("/api/tags/top", params={"limit": 1})
+    assert before.status_code == 200
+    assert [item["tag"] for item in before.json()["items"]] == ["ハイビジョン"]
+    assert before.json()["total_unique_tags"] == 3
+
+    _apply_setting_s(db_path)
+
+    after = client.get("/api/tags/top", params={"limit": 1})
+    assert after.status_code == 200
+    assert after.json()["items"] == [{"tag": "巨乳", "count": 2}]
+    assert after.json()["total_unique_tags"] == 1
+
+
+def test_insights_snapshot_records_omit_blacklisted_tags(client, tmp_path, mocker):
+    setup = _setup_seed_a(tmp_path)
+    _apply_setting_s(setup["db_path"])
+    mocker.patch("web.routers.insights.get_db_path", return_value=setup["db_path"])
+    mocker.patch("web.routers.insights.load_config", return_value=setup["config"])
+
+    resp = client.get("/api/insights/snapshot")
+    assert resp.status_code == 200
+    records = resp.json()["records"]
+    assert len(records) == 1
+    assert records[0]["tags"] == ["中出", "巨乳"]
+
+
+def test_similar_ranking_drops_blacklisted_tag_after_post(client, tmp_path, monkeypatch):
+    import core.similar.canonicalize as _canon_mod
+    from core.similar.canonicalize import canonical_video_tags
+    from core.similar.ranker_cache import SimilarRankerCache
+
+    video_dir = tmp_path / "videos"
+    video_dir.mkdir()
+    db_path = tmp_path / "similar.db"
+    init_db(db_path)
+    seed = [
+        ("T-001", ["拘束", "制服"], "M0"),
+        ("V-001", ["拘束", "f1"], "M1"),
+        ("V-002", ["制服", "f2"], "M2"),
+        ("F-003", ["fill3"], "M3"),
+        ("F-004", ["fill4"], "M4"),
+        ("F-005", ["fill5"], "M5"),
+        ("F-006", ["fill6"], "M6"),
+        ("F-007", ["fill7"], "M7"),
+        ("F-008", ["fill8"], "M8"),
+    ]
+    VideoRepository(db_path).upsert_batch([
+        Video(
+            path=to_file_uri(str(video_dir / f"{num}.mp4"), {}),
+            number=num,
+            title=num,
+            tags=tags,
+            maker=maker,
+        )
+        for num, tags, maker in seed
+    ])
+
+    _canon_mod._invalidate_cache()
+    SimilarRankerCache.invalidate()
+    monkeypatch.setattr("core.database.connection.get_db_path", lambda: db_path)
+    monkeypatch.setattr("core.similar.ranker_cache.VideoRepository", lambda: VideoRepository(db_path))
+    monkeypatch.setattr("web.routers.similar.VideoRepository", lambda *a, **k: VideoRepository(db_path))
+    try:
+        target = VideoRepository(db_path).get_by_number("T-001")
+        warm = client.get(f"/api/similar-covers/{target.id}")
+        assert warm.status_code == 200
+        results = warm.json()["results"]
+        assert {r["number"] for r in results[:2]} == {"V-001", "V-002"}
+        assert next(r for r in results if r["number"] == "V-001")["cosine_score"] > 0
+        assert "拘束" in canonical_video_tags(VideoRepository(db_path).get_by_number("V-001"))
+
+        post = client.post("/api/tag-blacklist", json={"name": "拘束"})
+        assert post.status_code == 200
+
+        cold = client.get(f"/api/similar-covers/{target.id}")
+        assert cold.status_code == 200
+        results2 = cold.json()["results"]
+        assert next(r for r in results2 if r["number"] == "V-001")["cosine_score"] == 0.0
+        assert results2[0]["number"] == "V-002"
+        assert "拘束" not in canonical_video_tags(VideoRepository(db_path).get_by_number("V-001"))
+    finally:
+        _canon_mod._invalidate_cache()
+        SimilarRankerCache.invalidate()
+
+
+def test_offline_page_genre_masks_and_renames_db_hit(client, tmp_path, mocker):
+    from unittest.mock import MagicMock
+
+    setup = _setup_seed_a(tmp_path)
+    _apply_setting_s(setup["db_path"])
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    mocker.patch("web.routers.scanner.get_db_path", return_value=setup["db_path"])
+    mocker.patch("web.routers.scanner.load_config", return_value={
+        "gallery": {"output_dir": str(out_dir), "path_mappings": {}},
+        "general": {"theme": "light"},
+    })
+    mock_generator = MagicMock()
+    mocker.patch("web.routers.scanner.HTMLGenerator", return_value=mock_generator)
+
+    resp = client.post("/api/gallery/generate-from-ids", json={"numbers": ["SEED-A"]})
+    assert resp.status_code == 200
+    videos = mock_generator.generate.call_args.args[0]
+    assert len(videos) == 1
+    assert videos[0].genre == "中出,巨乳"
+
+
+@pytest.mark.parametrize("url", ["/api/showcase/videos", "/api/insights/snapshot"])
+def test_old_etag_misses_after_blacklist_post(client, tmp_path, mocker, monkeypatch, url):
+    setup = _setup_seed_a(tmp_path)
+    db_path = setup["db_path"]
+    if url == "/api/showcase/videos":
+        mocker.patch("web.routers.showcase.get_db_path", return_value=db_path)
+        mocker.patch("web.routers.showcase.load_config", return_value=setup["config"])
+    else:
+        mocker.patch("web.routers.insights.get_db_path", return_value=db_path)
+        mocker.patch("web.routers.insights.load_config", return_value=setup["config"])
+    monkeypatch.setattr("core.database.connection.get_db_path", lambda: db_path)
+
+    first = client.get(url)
+    assert first.status_code == 200
+    etag = first.headers["etag"]
+    assert client.get(url, headers={"If-None-Match": etag}).status_code == 304
+
+    post = client.post("/api/tag-blacklist", json={"name": "高畫質"})
+    assert post.status_code == 200
+
+    third = client.get(url, headers={"If-None-Match": etag})
+    assert third.status_code == 200
+    if url == "/api/showcase/videos":
+        body = third.json()
+        assert body["hidden_tags"] == ["高畫質"]
+        item = next(v for v in body["videos"] if v["path"] == setup["uri"])
+        assert "高畫質" not in item["tags_display"].split(",")
+    else:
+        assert "高畫質" not in third.json()["records"][0]["tags"]

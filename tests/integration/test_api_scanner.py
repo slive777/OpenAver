@@ -349,6 +349,7 @@ class TestGenerateFromIds:
             "general": {"theme": "light"}
         })
 
+        monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: tmp_path / "isolated.db")
         with patch('web.routers.scanner.VideoRepository', return_value=mock_repo), \
              patch('web.routers.scanner.HTMLGenerator', return_value=mock_generator), \
              patch('web.routers.scanner.smart_search', return_value=[]):
