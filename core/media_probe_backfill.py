@@ -98,6 +98,7 @@ def _prefixes():
 
 def status() -> dict:
     """CD-198a-8：{available, dismissed, include_readonly, pending, readonly_pending, job:{running, done, total}}。"""
+    running = _SHELL.is_running()
     include_ro = get_include_readonly()
     has_readonly_source = False
     try:
@@ -126,7 +127,6 @@ def status() -> dict:
         logger.exception("media_probe_backfill.status pending count failed")
         pending = 0
         readonly_pending = 0
-    running = _SHELL.is_running()
     with _job_lock:
         done, total = _job_done, _job_total
         last_result = _last_result

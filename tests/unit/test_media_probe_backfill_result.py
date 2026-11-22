@@ -203,3 +203,20 @@ def test_status_completion_snapshot_has_result(monkeypatch):
     monkeypatch.setattr(backfill._SHELL, "is_running", finish_before_running_read)
     job = backfill.status()["job"]
     assert job["running"] or job["last_result"] is not None
+
+    backfill._reset_for_tests()
+    assert backfill._SHELL.job_lock.acquire(blocking=False)
+    calls = 0
+
+    def pending_during_completion(self, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            backfill._record_last_result()
+            backfill._SHELL.release_locked()
+            return [object()]
+        return []
+
+    monkeypatch.setattr(VideoRepository, "list_media_probe_pending", pending_during_completion)
+    st = backfill.status()
+    assert st["job"]["running"] or (st["pending"] == 0 and st["readonly_pending"] == 0)
