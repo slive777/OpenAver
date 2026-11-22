@@ -10442,6 +10442,14 @@ const RULES = [
     file: 'web/templates/scanner.html', kind: 'required-string', pattern: /(?<![\w:-])@click="copyTagAliasAiPrompt\(\)"/, id: '205b-T6-copy-prompt-wired',
     note: '[lint-guard:205b-T6-copy-prompt-wired] 按鈕接線被拿掉或寫成不帶括號 → 使用者按了沒反應，而測試與其他 lint 全綠',
   },
+  {
+    file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])x-data="tagHintPopover"/g, count: 2, id: '205b-R1-hint-popover-count',
+    note: '[lint-guard:205b-R1-hint-popover-count] 掛載被誤刪或多出 → 使用者按別名卡／黑名單卡的「?」沒反應，而測試與其他 lint 全綠',
+  },
+  {
+    file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', pattern: "Alpine.data('tagHintPopover', tagHintPopover)", id: '205b-R1-hint-popover-registered',
+    note: '[lint-guard:205b-R1-hint-popover-registered] 註冊被拿掉 → 使用者按別名卡／黑名單卡的「?」沒反應，而測試與其他 lint 全綠',
+  },
 ];
 
 // ---- helpers ----
