@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from core.cover_attributes import effective_tags, is_source_4k_tag, is_version_kind_tag, version_kinds
+from core.tag_display import display_tags, load_context
 from core.cover_signature import cover_version_suffix
 from core.database import VideoRepository, get_db_path, init_db
 from core.database.version_tracker import (
@@ -239,6 +240,11 @@ def _serialize_work(work, top_index, path_mappings, enabled, probe_of, prefixes=
     return top
 
 
+def attach_tags_display(item, ctx) -> None:
+    for target in [item, *(item.get("versions") or [])]:
+        target["tags_display"] = ",".join(display_tags(target["tags"].split(","), ctx))
+
+
 def _etag_matches(if_none_match: str, etag: str) -> bool:
     """比對 `If-None-Match` 語意（抄 Starlette `StaticFiles.is_not_modified()` 的比對方式，
     不 import 該函式本身——它綁定 `FileResponse` 用的 `Headers` 型別，這裡是手寫 JSON 端點）。
@@ -289,6 +295,7 @@ def get_videos(request: Request):
         if _etag_matches(request.headers.get("if-none-match"), etag):
             return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
 
+        ctx = load_context(db_path)
         repo = VideoRepository(db_path)
         all_videos = [v for v in repo.get_all()
                       if any(is_path_under_dir(v.path, uri) for uri in configured_dir_uris)]
@@ -308,6 +315,7 @@ def get_videos(request: Request):
         videos_json = []
         for work in group_works(all_videos, fs_path_of, tier_of):
             item = _serialize_work(work, 0, path_mappings, thumb_enabled, probe_of, prefixes=prefixes, sig_of=sig_of)
+            attach_tags_display(item, ctx)
             if len(work.versions) == 1:
                 idx = owning_source_index(item["path"], prefixes)
                 if idx is not None:
@@ -319,6 +327,7 @@ def get_videos(request: Request):
             "videos": videos_json,
             "total": len(videos_json),
             "sources": sources,
+            "hidden_tags": sorted(ctx.hidden),
         })
         resp.headers["ETag"] = etag
         resp.headers["Cache-Control"] = "no-cache"
@@ -357,6 +366,8 @@ def get_video(path: str = Query(..., description="file:/// URI")):
 
         thumb_enabled = config.get('thumbnail_cache_enabled', False)
 
+        tag_ctx = load_context(db_path)
+
         # feature/198b：以請求 path 所在版本為頂層（CD-198b-7）——先用列的
         # v.path 反解同資料夾候選列、resolve_work 找整部作品；找不到（極端狀況）
         # → fail-safe 退回單檔序列化，不 500（CD-122-6）。
@@ -380,14 +391,16 @@ def get_video(path: str = Query(..., description="file:/// URI")):
             item = _serialize_video(v, path_mappings, thumb_enabled, probe=probe, cover_sig=sig_of(v.path))
             item["versions"] = []
             item["borrowed_from"] = ""
+            attach_tags_display(item, tag_ctx)
             return JSONResponse({"success": True, "video": item})
 
         top_index = version_containing(work, path)
         _, prefixes = source_keys_and_prefixes(config.get("gallery", {}))
         if top_index is None:
             top_index = 0
-        return JSONResponse({"success": True,
-                             "video": _serialize_work(work, top_index, path_mappings, thumb_enabled, probe_of, prefixes=prefixes, sig_of=sig_of)})
+        item = _serialize_work(work, top_index, path_mappings, thumb_enabled, probe_of, prefixes=prefixes, sig_of=sig_of)
+        attach_tags_display(item, tag_ctx)
+        return JSONResponse({"success": True, "video": item})
 
     except Exception as e:
         logger.error("取得單筆影片失敗: %s", e)

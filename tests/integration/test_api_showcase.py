@@ -111,7 +111,7 @@ class TestShowcaseResponseShape:
             "sample_images", "user_tags", "user_rating", "has_cover", "has_nfo", "auto_focal", "crop_mode",
             "part_tokens", "needs_translate", "has_plot", "src",
             "resolution_tier", "media_width", "media_height", "media_codec",
-            "media_duration_min", "source_duration", "versions", "borrowed_from",
+            "media_duration_min", "source_duration", "versions", "borrowed_from", "tags_display",
         }
         video_dir = tmp_path / "videos"
         video_dir.mkdir()
