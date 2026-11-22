@@ -2028,3 +2028,25 @@ def test_enrich_single_endpoint_first_ingest_policy(client, mocker, overwrite_ex
     enrich.assert_called_once()
     policy = enrich.call_args.kwargs['first_ingest']
     assert policy is None if overwrite_existing else isinstance(policy, FirstIngest)
+
+
+@pytest.mark.parametrize('overwrite_existing', [False, True])
+def test_enrich_single_endpoint_general_first_ingest_policy(client, mocker, overwrite_existing):
+    from core.first_ingest import FirstIngest
+
+    mocker.patch('web.routers.scraper.load_config', return_value={'gallery': {}, 'scraper': {}, 'search': {}})
+    mocker.patch('web.routers.scraper.resolve_nfo_cover_paths', return_value=('/videos/ABC-001.nfo', '/videos/ABC-001.jpg'))
+    mocker.patch('web.routers.scraper.resolve_owning_output_root', return_value=None)
+    enrich = mocker.patch('web.routers.scraper.enrich_single', return_value=_ok_result())
+    response = client.post('/api/enrich-single', json={
+        'file_path': '/videos/ABC-001.mp4', 'number': 'ABC-001',
+        'mode': 'refresh_full' if overwrite_existing else 'fill_missing',
+        'overwrite_existing': overwrite_existing,
+    })
+    assert response.status_code == 200
+    enrich.assert_called_once()
+    policy = enrich.call_args.kwargs['first_ingest']
+    if overwrite_existing:
+        assert policy is None
+    else:
+        assert isinstance(policy, FirstIngest)

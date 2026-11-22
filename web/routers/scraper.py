@@ -943,6 +943,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             scraper_data=scraper_data,
             path_mappings=path_mappings, preserve_title=request.preserve_title,
             skip_format_check=request.skip_format_check,
+            first_ingest=_first_ingest_policy(config, rescrape=request.overwrite_existing is True),
         )
         # feature/71 T8: 換封面成功 → 失效舊縮圖（下次進畫面時重生，CD-9 / spec 2.A.7）。
         # request.file_path 已是 DB 的 file:/// URI（前端送 currentLightboxVideo.path /
@@ -1312,7 +1313,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         source=effective_source if effective_source != "auto" else None,
                         javbus_lang=effective_lang,
                         scraper_data=cached_data,
-                        path_mappings=_ro_mappings, first_hit=_first_hit,
+                        path_mappings=_ro_mappings, first_hit=_first_hit, first_ingest=_first_ingest_policy(config),
                     )
                     result = await loop.run_in_executor(None, _en_ctx.run, _enrich)
                     result_dict = asdict(result)

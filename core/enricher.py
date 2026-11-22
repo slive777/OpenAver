@@ -35,6 +35,7 @@ from core.nfo_read import (
 from core.nfo_stat import NFO_MTIME_FILL_MISSING, NFO_MTIME_REFRESH, nfo_mtime_or_none
 from core.nfo_title_format import resolve_preserved_title_for_write, resolve_title_body
 from core.nfo_updater import parse_nfo
+from core.first_ingest import FirstIngest, is_first_ingest_sidecar, pick_title
 from core.organizer import crop_to_poster, download_image, find_subtitle_files, generate_nfo, _strip_num_prefixes
 from core.path_utils import to_file_uri, uri_to_fs_path, uri_to_local_fs_path
 from core.plot_nfo import read_plot_flag
@@ -534,6 +535,19 @@ def _preserved_body_override_from_sidecar(fs_path, existing, preserve_title, nfo
     return None
 
 
+def _apply_first_ingest_sidecar(first_ingest, meta, scraper_data, fs_path, number, source_used) -> bool:
+    nfo_existed = os.path.exists(str(Path(fs_path).with_suffix(".nfo")))
+    site_title = meta.get('title') or ''
+    title_from_site = bool(site_title) and site_title == (scraper_data or {}).get('title')
+    if not is_first_ingest_sidecar(nfo_existed, source_used, title_from_site):
+        return False
+    title, original = pick_title(site_title, os.path.basename(fs_path), number, meta.get('actresses') or [], meta.get('maker') or '', first_ingest.scraper_cfg)
+    meta['title'] = title
+    if original:
+        meta['original_title'] = original
+    return True
+
+
 def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes go via _db_upsert → repo.upsert and via repo.update_tags_if_changed — both already invalidate)
     file_path: str,
     number: str,
@@ -547,7 +561,7 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
     javbus_lang: Optional[str] = None,
     scraper_data: Optional[dict] = None,
     path_mappings: dict = None,
-    preserve_title: bool = False, nfo_title_format: str = '[{num}]{title}', skip_format_check: bool = False, first_hit: bool = False,
+    preserve_title: bool = False, nfo_title_format: str = '[{num}]{title}', skip_format_check: bool = False, first_hit: bool = False, first_ingest: Optional[FirstIngest] = None,
 ) -> EnrichResult:
     _empty = EnrichResult(
         success=False,
@@ -688,6 +702,7 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
     # must NOT clobber the existing DB/NFO value (mirrors user_tags/cover preserve).
     meta['original_title'] = effective_original_title(meta, existing_record)
     meta['title'] = effective_title(meta, existing_record, preserve_title, number, preserved_body_override=_preserved_body_override_from_sidecar(fs_path, existing_record, preserve_title, nfo_title_format))
+    first_ingested = first_ingest is not None and _apply_first_ingest_sidecar(first_ingest, meta, scraper_data, fs_path, number, source_used)
 
     cover_url = meta.get("cover_url", "")
 
@@ -792,6 +807,8 @@ def enrich_single(  # ranker-invalidate-ok: (no literal SQL here; corpus writes 
     _sync_tags_to_db(repo, path_uri, meta.get('tags', []), number)
 
     _sync_nfo_mtime(repo, fs_path, fs_path_for_db, number)
+    if first_ingested and nfo_written:
+        first_ingest.on_done(path_uri)
 
     # reason=hit 的「/thumb 兩道 gate + 磁碟複驗 + false-negative 取捨」完整理由已
     # 遷入 core.enrich_contract.compute_has_servable_cover 的 docstring（feature/105，

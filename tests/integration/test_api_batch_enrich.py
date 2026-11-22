@@ -103,6 +103,25 @@ class TestBatchEnrich:
         assert captured_calls[0]["nfo_title_format"] == "{num}-{title}-{actor}"
 
 
+    def test_batch_enrich_general_item_passes_first_ingest_policy(self, client, mocker):
+        from core.first_ingest import FirstIngest
+
+        mocker.patch('web.routers.scraper.load_config', return_value={'gallery': {}, 'scraper': {}, 'search': {}})
+        mocker.patch('web.routers.scraper.resolve_owning_output_root', return_value=None)
+        captured = {}
+
+        def fake_enrich(**kwargs):
+            captured.update(kwargs)
+            return _ok_result()
+
+        mocker.patch('web.routers.scraper.enrich_single', side_effect=fake_enrich)
+        response = client.post('/api/batch-enrich', json={
+            'items': [{'file_path': '/video/ABC-001.mp4', 'number': 'ABC-001'}],
+            'mode': 'fill_missing',
+        })
+        assert response.status_code == 200
+        assert isinstance(captured['first_ingest'], FirstIngest)
+
     def test_batch_enrich_failure_continues(self, client, mocker):
         """第 1 筆 enrich_single 回傳 error → result-item success=False，第 2 筆仍正常處理"""
         mocker.patch(
