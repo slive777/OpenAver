@@ -17,7 +17,7 @@ from core.nfo_stat import nfo_mtime_or_none
 from core.nfo_title_format import build_display_title
 from core.nfo_updater import set_element_text
 from core.nfo_utils import sanitize_nfo_bytes
-from core.organizer import _strip_illegal_xml_chars
+from core.organizer import _strip_illegal_xml_chars, _strip_num_prefixes
 from core.scrapers.utils import has_japanese
 from core.video_nfo_locate import locate_video_nfo
 
@@ -118,9 +118,11 @@ def rewrite_nfo_titles(
     return out
 
 
-def needs_translate(title, original_title, nfo_mtime) -> bool:
-    """標題是假名、沒有原文、且有 NFO（nfo_mtime > 0）才算待翻譯（列表與寫回回應共用）。"""
-    return bool((not original_title) and has_japanese(title or '') and (nfo_mtime or 0) > 0)
+def needs_translate(title, original_title, nfo_mtime, number='') -> bool:
+    """標題含假名、已有 NFO，且原文欄空或與標題相同（忽略前後空白與開頭番號）才算待翻譯。"""
+    t = _strip_num_prefixes((title or '').strip(), number).strip()
+    o = _strip_num_prefixes((original_title or '').strip(), number).strip()
+    return bool(has_japanese(title or '') and (nfo_mtime or 0) > 0 and (not o or t == o))
 
 
 def _new_original_title(original_title: Optional[str], video) -> str:
@@ -182,5 +184,5 @@ def apply_title_writeback(repo, video, title, original_title, config: dict, path
     if not written:
         return {"success": False, "error": "not_found"}
     return {"success": True, "title": body, "original_title": new_original,
-            "needs_translate": needs_translate(body, new_original, new_mtime),
+            "needs_translate": needs_translate(body, new_original, new_mtime, video.number or ''),
             "nfo_updated": True}

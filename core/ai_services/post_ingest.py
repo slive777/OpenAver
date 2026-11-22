@@ -33,13 +33,14 @@ from core.focal import requires_face_detection
 from core.focal_trigger import maybe_submit_video_focal
 from core.logger import get_logger
 from core.path_utils import uri_to_local_fs_path
-from core.scrapers.utils import has_japanese
-from core.title_writeback import apply_title_writeback
+from core.title_writeback import apply_title_writeback, needs_translate
 from core.translate_service import create_translate_service
 from core.translation_judge import is_bad_translation
 from core.user_tags_write import hold_nfo_write
 
 logger = get_logger(__name__)
+
+_RESCRAPE_ROUTES = frozenset({"enrich_rescrape", "readonly_rescrape"})
 
 ITEMS = ("translate", "similar", "faces", "tags")
 _TAGS_NOTIFY_KEY = "notif.ai_tags_unreachable"
@@ -71,8 +72,9 @@ class IngestContext:
     row: object
 
 
-def title_needs_translation(row) -> bool:
-    return has_japanese(row.title or "") and (row.nfo_mtime or 0) > 0
+def title_needs_translation(row, *, fresh_site_title: bool = False) -> bool:
+    original = "" if fresh_site_title else row.original_title
+    return needs_translate(row.title, original, row.nfo_mtime, row.number or "")
 
 
 def video_label(row) -> str:
@@ -103,13 +105,13 @@ def _flag_on(cfg: dict, *keys) -> bool:
     return bool(cur)
 
 
-def _decide_translate(cfg: dict, row, skip_translate: bool = False) -> Verdict:
+def _decide_translate(cfg: dict, row, skip_translate: bool = False, *, fresh_site_title: bool = False) -> Verdict:
     if not _flag_on(cfg, "translate", "enabled"):
         return Verdict(False, "off")
     if skip_translate:
         return Verdict(False, "preserve_title")
     locale = (cfg.get("general") or {}).get("locale") or "zh-TW"
-    if locale == "ja" or not title_needs_translation(row):
+    if locale == "ja" or not title_needs_translation(row, fresh_site_title=fresh_site_title):
         return Verdict(False, "title_in_target_language")
     return Verdict(True)
 
@@ -150,9 +152,10 @@ def decide(
     index_ready: bool,
     cover_exists: bool,
     skip_translate: bool = False,
+    fresh_site_title: bool = False,
 ) -> Plan:
     return Plan(
-        translate=_decide_translate(cfg, row, skip_translate),
+        translate=_decide_translate(cfg, row, skip_translate, fresh_site_title=fresh_site_title),
         similar=_decide_similar(cfg, row, index_ready),
         faces=_decide_faces(row, skip_faces, cover_exists),
         tags=_decide_tags(cfg, row),
@@ -372,6 +375,7 @@ def _run_after_ingest(
         index_ready=index_ready,
         cover_exists=cover_exists,
         skip_translate=skip_translate,
+        fresh_site_title=route in _RESCRAPE_ROUTES,
     )
     logger.info("%s", format_log(route, row, plan))
     ctx = IngestContext(

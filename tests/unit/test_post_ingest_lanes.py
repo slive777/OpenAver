@@ -61,7 +61,7 @@ def _setup(monkeypatch, row, cfg):
 
 
 def _jp_row(number="FC2-PPV-1234567"):
-    return Video(path=URI, number=number, title="これはテスト", original_title="o",
+    return Video(path=URI, number=number, title="これはテスト", original_title="これはテスト",
                  cover_path="file:///c.jpg", nfo_mtime=1.0, maker="")
 
 
@@ -165,7 +165,7 @@ def test_translate_and_tags_never_overwrite_each_other(monkeypatch, tmp_path):
     nfo.write_text("<movie><title>あいう</title><num>AI-001</num></movie>", encoding="utf-8")
     uri = to_file_uri(str(mp4))
     repo = VideoRepository(db)
-    repo.upsert(Video(path=uri, number="AI-001", title="あいう", original_title="o", nfo_mtime=1.0))
+    repo.upsert(Video(path=uri, number="AI-001", title="あいう", original_title="あいう", nfo_mtime=1.0))
     cfg = {"translate": {"enabled": True}, "general": {"locale": "zh-TW"},
            "gallery": {}, "ai_services": {}}
     monkeypatch.setattr(post_ingest, "load_config", lambda: cfg)
@@ -207,7 +207,7 @@ def test_stale_row_is_not_overwritten_by_queued_translation(monkeypatch, tmp_pat
     nfo = mp4.with_suffix(".nfo")
     nfo.write_text("<movie><title>あいう</title><num>AI-001</num></movie>", encoding="utf-8")
     uri, repo = to_file_uri(str(mp4)), VideoRepository(db)
-    repo.upsert(Video(path=uri, number="AI-001", title="あいう", original_title="o", nfo_mtime=1.0))
+    repo.upsert(Video(path=uri, number="AI-001", title="あいう", original_title="あいう", nfo_mtime=1.0))
     cfg = {"translate": {"enabled": True}, "general": {"locale": "zh-TW"},
            "gallery": {}, "ai_services": {}}
     monkeypatch.setattr(post_ingest, "load_config", lambda: cfg)

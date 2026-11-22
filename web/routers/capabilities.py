@@ -866,7 +866,7 @@ _TOOLS: list[dict] = [
                         "array[string] — 分集段別字面（例 ['cd1', 'cd2']，依段號升冪）；"
                         "單檔片為空陣列。非空即代表本筆是多個實體檔案的合併呈現。"
                     ),
-                    "needs_translate": "boolean — 標題含日文假名、沒有 original_title、且已有 NFO（nfo_mtime>0）（可用來挑出尚未翻譯的片）",
+                    "needs_translate": "boolean — 標題含日文假名、已有 NFO（nfo_mtime>0），且 original_title 為空或與標題相同（比對時忽略前後空白與開頭番號）；可用來挑出尚未翻譯的片",
                     "resolution_tier": "string | null — 實際解析度等級（SD/HD/FHD/2K/4K/8K）；無有效探針時 null",
                     "media_width": "integer | null — 實際寬度（px）；無有效探針時 null",
                     "media_height": "integer | null — 實際高度（px）；無有效探針時 null",
@@ -910,7 +910,7 @@ _TOOLS: list[dict] = [
                 "（path/title/original_title/number/actresses[csv⚠️]/maker/release_date/tags[csv⚠️]/"
                 "size/cover_url/cover_full_url/mtime/director/duration/series/label/"
                 "sample_images[array]/user_tags[array]/user_rating[integer]/has_cover/has_nfo/auto_focal/crop_mode/"
-                "part_tokens[array]/needs_translate[boolean，標題含日文假名、沒有 original_title、且已有 NFO]/"
+                "part_tokens[array]/needs_translate[boolean，標題含日文假名、已有 NFO，且 original_title 為空或與標題相同]/"
                 "resolution_tier/media_width/media_height/media_codec/media_duration_min/source_duration/"
                 "versions[array]/borrowed_from）。"
                 "注意 actresses 和 tags"
@@ -948,7 +948,7 @@ _TOOLS: list[dict] = [
             "success": "boolean",
             "title": "string — 寫入後的標題",
             "original_title": "string — 寫入後的原標題",
-            "needs_translate": "boolean — 寫入後這部片是否仍被判定為尚未翻譯",
+            "needs_translate": "boolean — 寫入後這部片是否仍被判定為尚未翻譯（判準同 showcase_videos 的 needs_translate：標題仍含日文假名，且 original_title 為空或與標題相同）",
             "nfo_updated": "boolean — NFO 是否已更新",
             "failure": "失敗形狀（HTTP 200）：{success:false, error:<code>, message}；code 為 not_found／title_empty／no_nfo／nfo_ambiguous／nfo_unreadable／nfo_write_failed／db_write_failed／invalid_path",
         },
@@ -956,7 +956,7 @@ _TOOLS: list[dict] = [
         "confirmation_required": True,
         "idempotent": True,
         "retry_safe": True,
-        "also_see": "GET /api/showcase/videos — 用 needs_translate 挑出尚未翻譯的片",
+        "also_see": "GET /api/showcase/videos — 用 needs_translate 挑出尚未翻譯的片（標題仍是日文、且原文欄空白或與標題相同）",
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"file:///C:/AVtest/SONE-205/SONE-205.mp4\",\"title\":\"中文標題\"}}' {base}/api/showcase/video/title",
     },
     {

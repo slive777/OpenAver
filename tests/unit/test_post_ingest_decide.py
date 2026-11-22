@@ -53,10 +53,10 @@ _CASES = [
     ("tr_zh", _cfg(), _row(title="中文標題", nfo_mtime=2.0),
      False, True, True, "translate", "title_in_target_language"),
     ("tr_run", _cfg(),
-     _row(title="これはテスト", original_title="orig", nfo_mtime=3.0),
+     _row(title="これはテスト", original_title="これはテスト", nfo_mtime=3.0),
      False, True, True, "translate", "run"),
     ("tr_preserve", _cfg(),
-     _row(title="これはテスト", original_title="orig", nfo_mtime=3.0),
+     _row(title="これはテスト", original_title="これはテスト", nfo_mtime=3.0),
      False, True, True, "translate", "preserve_title"),
     ("tr_nfo0", _cfg(),
      _row(title="カタカナ", original_title="x", nfo_mtime=0),
@@ -110,7 +110,7 @@ def test_decide_table(case, cfg, row, skip_faces, index_ready, cover_exists, ite
     if case != "tr_run":
         return
     mixed_row = _row(
-        title="これはテスト", original_title="orig", nfo_mtime=3.0,
+        title="これはテスト", original_title="これはテスト", nfo_mtime=3.0,
         cover_path="", number="FC2-PPV-1234567",
     )
     mixed = post_ingest.decide(
@@ -167,7 +167,7 @@ def test_hook_off_reads_nothing(monkeypatch):
 def test_entry_never_raises_and_items_independent(monkeypatch, caplog):
     orig_decide = post_ingest.decide
     row = _row(
-        title="これはテスト", original_title="orig", nfo_mtime=5.0,
+        title="これはテスト", original_title="これはテスト", nfo_mtime=5.0,
         cover_path="file:///c.jpg", number="FC2-PPV-1234567",
     )
     repo = _FakeRepo(row)
@@ -233,3 +233,57 @@ def test_bad_translation_never_written_back(monkeypatch, source, translated, exp
     ctx = post_ingest.IngestContext(video_uri="file:///videos/SSIS-001.mp4", route="scrape", notify=False, cfg={"general": {"locale": "zh-TW"}, "translate": {}}, row=_row(title=source))
     assert post_ingest._job_translate(ctx) == ("bad_translation" if expect_bad else None)
     assert len(calls) == (0 if expect_bad else 1)
+
+
+def _decide_row(**kw):
+    base = dict(
+        path="file:///videos/STARS-701.mp4",
+        number="STARS-701",
+        title="タイトル",
+        original_title="STARS-701 タイトル",
+        nfo_mtime=1.0,
+    )
+    base.update(kw)
+    return _row(**base)
+
+
+@pytest.mark.parametrize(
+    "title,original,nfo_mtime,fresh,skip_translate,expect",
+    [
+        ("中文標題帶うみ人名", "日本語の原題うみ", 1.0, False, False, "title_in_target_language"),
+        ("これはテスト", "これはテスト", 1.0, False, False, "run"),
+        ("タイトル", "STARS-701 タイトル", 1.0, False, False, "run"),
+        ("新しいタイトル", "古いタイトル", 1.0, True, False, "run"),
+        ("新しいタイトル", "古いタイトル", 1.0, False, False, "title_in_target_language"),
+        ("新しいタイトル", "古いタイトル", 1.0, True, True, "preserve_title"),
+        ("中文標題", "古いタイトル", 1.0, True, False, "title_in_target_language"),
+        ("新しいタイトル", "古いタイトル", 0, True, False, "title_in_target_language"),
+    ],
+    ids=[
+        "translated_differs_skip",
+        "same_title_runs",
+        "original_with_number_runs",
+        "fresh_rerun_runs",
+        "same_row_stale_false_skips",
+        "fresh_preserve_still_skips",
+        "fresh_no_kana_skips",
+        "fresh_nfo_zero_skips",
+    ],
+)
+def test_decide_translate_follows_unified_rule(
+    title, original, nfo_mtime, fresh, skip_translate, expect,
+):
+    row = _decide_row(
+        title=title, original_title=original, nfo_mtime=nfo_mtime,
+    )
+    plan = post_ingest.decide(
+        _cfg(), row, skip_faces=True, index_ready=True, cover_exists=False,
+        skip_translate=skip_translate, fresh_site_title=fresh,
+    )
+    if expect == "run":
+        assert plan.translate == post_ingest.Verdict(True)
+    else:
+        assert plan.translate == post_ingest.Verdict(False, expect)
+    assert post_ingest.title_needs_translation(
+        row, fresh_site_title=fresh,
+    ) is (expect in ("run", "preserve_title"))
