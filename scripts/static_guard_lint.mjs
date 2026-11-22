@@ -10430,6 +10430,14 @@ const RULES = [
     file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '_setHiddenTagKeys(data.hidden_tags || [])', id: '205b-T4-hidden-tags-wiring',
     note: '[lint-guard:205b-T4-hidden-tags-wiring] fetchVideos 不再寫入 hidden_tags → 燈箱仍顯示被藏的你的標籤，且加入黑名單字不會被擋',
   },
+  {
+    file: 'web/templates/scanner.html', kind: 'structure-count', pattern: /(?<![\w:-])x-data="tagBlacklist"/g, count: 1, id: '205b-T5-block-single',
+    note: '[lint-guard:205b-T5-block-single] 黑名單區塊被拿掉或多出一份 → 使用者在片庫管理頁找不到黑名單，或兩份各存一份清單互相對不上',
+  },
+  {
+    file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', pattern: "Alpine.data('tagBlacklist', tagBlacklist)", id: '205b-T5-component-registered',
+    note: '[lint-guard:205b-T5-component-registered] 註冊被拿掉 → 區塊在頁面上出現但整張卡空白、按什麼都沒反應，而測試與其他 lint 全綠',
+  },
 ];
 
 // ---- helpers ----

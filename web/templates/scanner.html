@@ -723,6 +723,50 @@
         </div>
     </div>
 
+    <div class="actress-alias-card" id="tagBlacklistCard"
+         x-data="tagBlacklist"
+         x-cloak>
+        <div class="actress-alias-header" role="button" tabindex="0"
+             :aria-expanded="(!tbCollapsed).toString()"
+             title="{{ t('scanner.tag_blacklist.collapse_title') }}"
+             @click="tbToggle()" @keydown.enter.prevent="tbToggle()" @keydown.space.prevent="tbToggle()">
+            <div class="title"><i class="bi bi-eye-slash"></i> <span>{{ t('scanner.tag_blacklist.section_title') }}</span></div>
+            <span class="btn-collapse" aria-hidden="true"><i class="bi" :class="tbCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i></span>
+        </div>
+        <div class="actress-alias-body" x-show="!tbCollapsed" x-collapse>
+            <div class="alias-filter-hint visible">{{ t('scanner.tag_blacklist.hint') }}</div>
+            <div class="alias-toolbar">
+                <div class="alias-input-wrap">
+                    <input type="text" class="input input-bordered input-sm" x-model="tbInput"
+                           :placeholder="window.t('scanner.tag_blacklist.placeholder')"
+                           @input="tbError = ''" @keydown.enter.prevent="tbAddFromInput()" :disabled="tbBusy">
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" @click="tbAddFromInput()" :disabled="tbBusy">{{ t('scanner.tag_blacklist.add') }}</button>
+            </div>
+            <div class="alias-list-error" x-show="tbError" x-text="tbError"></div>
+            <div class="alias-list-loading" x-show="tbLoading">{{ t('scanner.tag_blacklist.loading') }}</div>
+            <div class="alias-list-empty" x-show="!tbLoading && !tbError && tbItems.length === 0">{{ t('scanner.tag_blacklist.empty') }}</div>
+            <div class="tag-alias-group" x-show="!tbLoading">
+                <template x-for="item in tbItems" :key="item.key">
+                    <span class="alias-pill alias-pill-alias">
+                        <span x-text="item.name"></span>
+                        <button type="button" class="alias-pill-remove" @click="tbRemove(item)" :disabled="tbBusy"
+                                :title="window.t('scanner.tag_blacklist.remove_title')">✕</button>
+                    </span>
+                </template>
+            </div>
+            <div class="alias-filter-hint visible">{{ t('scanner.tag_blacklist.suggestions_title') }}</div>
+            <div class="tag-alias-group">
+                <template x-for="chip in tbChips()" :key="chip.name">
+                    <span>
+                        <button type="button" class="alias-add-btn" x-show="!chip.added" :disabled="tbBusy" @click="tbAddSuggestion(chip.name)"><i class="bi bi-plus"></i> <span x-text="chip.name"></span></button>
+                        <span class="alias-pill alias-pill-alias" x-show="chip.added"><i class="bi bi-check2"></i> <span x-text="chip.name"></span></span>
+                    </span>
+                </template>
+            </div>
+        </div>
+    </div>
+
     <!-- Tag Alias Delete Group Modal (A3-3) -->
     <dialog class="modal fluent-modal"
             :class="{ 'modal-open': deleteTagAliasGroupModalOpen }"

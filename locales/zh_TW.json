@@ -1283,6 +1283,30 @@
         "remove_failed": "移除失敗: {error}"
       }
     },
+    "tag_blacklist": {
+      "section_title": "標籤黑名單",
+      "collapse_title": "展開/收起",
+      "hint": "加進來的標籤，在瀏覽頁、分析頁、相似片比對和給 AI 助理讀的標籤清單都看不到，NFO 檔案不會被改；刪掉就回來。同一組別名的字會一起藏。離線瀏覽頁要等下次更新片庫才會反映。",
+      "placeholder": "輸入要隱藏的標籤，例：ハイビジョン",
+      "add": "加入",
+      "loading": "載入中...",
+      "empty": "黑名單是空的，所有標籤都照常顯示",
+      "remove_title": "從黑名單移除",
+      "suggestions_title": "常見的（點一下加入）",
+      "toast": {
+        "add_success": "已加入黑名單：{name}",
+        "remove_success": "已從黑名單移除：{name}"
+      },
+      "error": {
+        "empty": "請先輸入要加入黑名單的標籤",
+        "invalid": "標籤不能含逗號，也不能超過 40 個字",
+        "duplicate": "「{name}」已經在黑名單裡了",
+        "cover_badge": "「{name}」是封面標章（例如中字）的依據，不能加入黑名單；不想看到標章，可以到設定頁關掉",
+        "generic": "加入黑名單失敗，請稍後再試",
+        "load_failed": "黑名單載入失敗，請重新整理頁面",
+        "remove_failed": "移除失敗，請稍後再試"
+      }
+    },
     "dirty_modal": {
       "title": "尚未儲存的變更",
       "body": "您有修改資料夾清單但還沒按「更新片庫」，要如何處理？",
