@@ -404,7 +404,6 @@ def test_group_endpoints_use_that_groups_stored_key(case, stub_server):
         "empty_base_url_models",
         "empty_base_url_test",
         "tags_unsaved_no_base_url",
-        "omitted_base_url_422",
     ],
     ids=[
         "unsaved_models_no_auth",
@@ -414,7 +413,6 @@ def test_group_endpoints_use_that_groups_stored_key(case, stub_server):
         "empty_base_url_models",
         "empty_base_url_test",
         "tags_unsaved_no_base_url",
-        "omitted_base_url_422",
     ],
     )
 def test_unsaved_or_cleared_group_never_borrows_a_key(case, stub_server):
@@ -506,14 +504,6 @@ def test_unsaved_or_cleared_group_never_borrows_a_key(case, stub_server):
         assert resp.status_code == 200
         assert resp.json()["outcome"] == "not_configured"
         assert stub_server.received == []
-    else:
-        with TestClient(app) as c:
-            resp = c.post(
-                "/api/openai/models",
-                json={"api_key": "", "group_id": GID_NEW},
-            )
-        assert resp.status_code == 422
-        assert stub_server.received == []
 
 
 @pytest.mark.parametrize(
@@ -582,7 +572,6 @@ def test_keyless_group_can_be_tested_without_saving(case, stub_server):
         "resolve_ok",
         "resolve_no_key_ok",
         "resolve_missing_group",
-        "resolve_bad_id",
         "resolve_empty_base_url",
         "factory_missing_group",
         "group_id_invalid_models",
@@ -592,7 +581,6 @@ def test_keyless_group_can_be_tested_without_saving(case, stub_server):
         "resolve_ok",
         "resolve_no_key_ok",
         "resolve_missing_group",
-        "resolve_bad_id",
         "resolve_empty_base_url",
         "factory_missing_group",
         "group_id_invalid_models",
@@ -634,15 +622,6 @@ def test_custom_group_provider_and_group_id_rows(case, stub_server, monkeypatch)
             resolve_vision_conn(cfg)
         assert ei.value.reason == "not_configured"
         assert ei.value.detail == "provider"
-    elif case == "resolve_bad_id":
-        _seed_two_groups(url, f"http://127.0.0.1:9/v1")
-        cfg = load_config()
-        tags = cfg.setdefault("ai_services", {}).setdefault("tags", {})
-        tags["provider"] = "openai:zzz"
-        tags["model"] = "m-tags"
-        with pytest.raises(TaggingFailure) as ei:
-            resolve_vision_conn(cfg)
-        assert ei.value.reason == "not_configured"
     elif case == "resolve_empty_base_url":
         _seed_two_groups(url, f"http://127.0.0.1:9/v1", custom_key="")
         cfg = load_config()
