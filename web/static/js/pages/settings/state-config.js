@@ -1698,7 +1698,7 @@ export function stateConfig() {
             if (this.metatubeConnecting) return;
             this.metatubeConnecting = true;
             try {
-                const body = { url: this.metatubeServerUrl.trim(), token: this.metatubeToken.trim(), allow_lan: this.metatubeLanMode };
+                const body = { url: this.metatubeServerUrl.trim(), token: this.secretWire('metatube'), allow_lan: this.metatubeLanMode };
                 const resp = await fetch('/api/settings/metatube/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
                 const result = await resp.json();
                 if (result.success) {

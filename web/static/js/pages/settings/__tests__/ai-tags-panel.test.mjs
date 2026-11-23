@@ -30,6 +30,7 @@ function makePanel(over = {}) {
         form: {},
         isDirty: false,
         showToast: (...a) => { toasts.push(a); },
+        secretWire: () => '',
         $watch(path, cb) { watchers[path] = cb; },
         aiTagsModelLists: () => lists,
         ensureProviderModels: async (p) => { ensureCalls.push(p); },
@@ -100,7 +101,8 @@ test('tags_runtest_body_and_result', async () => {
     globalThis.fetch = async (url, opts) => { calls.push({ url, opts }); return next; };
     try {
         const claude = makePanel({
-            form: { aiTagsProvider: 'claude', aiTagsModel: 'm-claude-1', claudeApiKey: '••••abcd', ollamaUrl: 'http://x' },
+            form: { aiTagsProvider: 'claude', aiTagsModel: 'm-claude-1', ollamaUrl: 'http://x' },
+            secretWire: () => '••••abcd',
         });
         next = resp({ ok: true, outcome: 'ok', tags: ['絲襪', 'OL'] });
         await claude.c.runTest();

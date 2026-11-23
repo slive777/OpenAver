@@ -18,6 +18,10 @@ register(`data:text/javascript,${encodeURIComponent(loader)}`, import.meta.url);
 const { stateConfig } = await import('../state-config.js');
 const { stateSecrets } = await import('../state-secrets.js');
 const { mergeState } = await import('@/shared/merge-state.js');
+const { stateProviders } = await import('../state-providers.js');
+const { aiTagsPanel } = await import('../ai-tags-panel.js');
+const { aiSimilarPanel } = await import('../ai-similar-panel.js');
+const { aiFacesPanel } = await import('../ai-faces-panel.js');
 
 function minimalConfig() {
     return {
@@ -136,4 +140,103 @@ test('dirty_covers_input_replace_and_clear', async () => {
     assert.equal(state.isDirty, true);
     state.secretClear('openai');
     assert.equal(state.isDirty, true);
+});
+
+test('buttons_send_wire_not_legacy_field', async () => {
+    const realFetch = globalThis.fetch;
+    const rows = [
+        ['testGeminiConnection', 'gemini', '/api/gemini/test', 'aaaa••••1111', false],
+        ['testGeminiTranslation', 'gemini', '/api/gemini/test-translate', 'aaaa••••1111', false],
+        ['fetchOpenAIModels', 'openai', '/api/openai/models', 'bbbb••••2222', true],
+        ['testOpenAITranslation', 'openai', '/api/openai/test', 'bbbb••••2222', true],
+        ['fetchClaudeModels', 'claude', '/api/claude/models', 'dddd••••4444', false],
+        ['testClaudeTranslation', 'claude', '/api/claude/test', 'dddd••••4444', false],
+        ['fetchOpenAIOfficialModels', 'openaiOfficial', '/api/openai/official/models', 'cccc••••3333', false],
+        ['testOpenAIOfficialTranslation', 'openaiOfficial', '/api/openai/official/test', 'cccc••••3333', false],
+        ['gemini', 'gemini', '/api/ai/tags/test', 'aaaa••••1111', true],
+        ['claude', 'claude', '/api/ai/tags/test', 'dddd••••4444', true],
+        ['openai_official', 'openaiOfficial', '/api/ai/tags/test', 'cccc••••3333', true],
+        ['openai', 'openai', '/api/ai/tags/test', 'bbbb••••2222', true],
+        ['similar', 'aiSimilar', '/api/ai/similar/test', 'eeee••••5555', true],
+        ['faces', 'aiFaces', '/api/ai/faces/test', 'ffff••••6666', true],
+    ];
+    try {
+        for (const [entry, id, url, mask, nullable] of rows) {
+            for (const mode of ['configured', 'new', 'clear']) {
+                const root = mergeState(stateConfig(), stateProviders(), stateSecrets());
+                root.secretsLoad(configured());
+                Object.assign(root.form, { geminiApiKey: 'STALE-LEGACY-gemini-123456', claudeApiKey: 'STALE-LEGACY-claude-123456',
+                    openaiApiKey: 'STALE-LEGACY-openai-123456', openaiOfficialApiKey: 'STALE-LEGACY-official-123456',
+                    aiSimilarApiKey: 'STALE-LEGACY-similar-123456', aiFacesApiKey: 'STALE-LEGACY-faces-123456',
+                    geminiModel: 'model', claudeModel: 'model', openaiModel: 'model', openaiOfficialModel: 'model',
+                    openaiBaseUrl: 'http://example.invalid', aiSimilarUrl: 'http://example.invalid', aiFacesUrl: 'http://example.invalid',
+                    aiTagsProvider: entry, aiTagsModel: 'model' });
+                root.showToast = () => {};
+                if (mode === 'new') { root.secretReplace(id); root.secretFields[id].input = '  sk-ant-api03-test1234567890abcd\n'; }
+                if (mode === 'clear') root.secretClear(id);
+                const calls = [];
+                globalThis.fetch = async (target, opts) => {
+                    if (target === url) calls.push(JSON.parse(opts.body));
+                    return { ok: false, json: async () => ({ success: false }) };
+                };
+                if (entry in root) await root[entry]();
+                else {
+                    const panel = entry === 'similar' ? aiSimilarPanel() : entry === 'faces' ? aiFacesPanel() : aiTagsPanel();
+                    Object.assign(panel, { form: root.form, showToast: () => {}, secretWire: (key) => root.secretWire(key) });
+                    await panel.runTest();
+                }
+                const label = `${entry} ${mode}`;
+                if (mode === 'clear' && !nullable) assert.ok(calls.length === 0, label);
+                else {
+                    assert.ok(calls.length === 1, label);
+                    const expected = mode === 'configured' ? mask : mode === 'new' ? 'sk-ant-api03-test1234567890abcd' : '';
+                    assert.ok(Object.hasOwn(calls[0], 'api_key') && calls[0].api_key === expected, label);
+                    assert.ok(!contains(calls[0], 'STALE-LEGACY-'), label);
+                }
+            }
+        }
+    } finally { globalThis.fetch = realFetch; }
+});
+
+test('fetch_models_gate_follows_secret_state', async () => {
+    const realFetch = globalThis.fetch;
+    try {
+        for (const [provider, id, field, url] of [
+            ['gemini', 'gemini', 'geminiApiKey', '/api/gemini/test'],
+            ['claude', 'claude', 'claudeApiKey', '/api/claude/models'],
+            ['openai_official', 'openaiOfficial', 'openaiOfficialApiKey', '/api/openai/official/models'],
+        ]) {
+            for (const configuredState of [true, false]) {
+                const root = mergeState(stateConfig(), stateProviders(), stateSecrets());
+                root.secretsLoad(configuredState ? configured() : minimalConfig());
+                root.form[field] = configuredState ? '' : 'STALE-LEGACY-gate-123456';
+                let count = 0;
+                globalThis.fetch = async (target) => { if (target === url) count++; return { ok: false, json: async () => ({ success: false }) }; };
+                await root.ensureProviderModels(provider);
+                assert.ok(count === (configuredState ? 1 : 0), `${id} ${configuredState}`);
+            }
+        }
+    } finally { globalThis.fetch = realFetch; }
+});
+
+test('metatube_connect_sends_wire_token', async () => {
+    const realFetch = globalThis.fetch;
+    try {
+        for (const mode of ['configured', 'new', 'clear']) {
+            const root = mergeState(stateConfig(), stateProviders(), stateSecrets());
+            root.secretsLoad(configured());
+            root.metatubeToken = 'STALE-LEGACY-metatube-123456';
+            root.metatubeServerUrl = ' http://example.invalid ';
+            root.metatubeLanMode = true;
+            root.showToast = () => {};
+            if (mode === 'new') { root.secretReplace('metatube'); root.secretFields.metatube.input = '  sk-ant-api03-test1234567890abcd\n'; }
+            if (mode === 'clear') root.secretClear('metatube');
+            let body;
+            globalThis.fetch = async (_url, opts) => { body = JSON.parse(opts.body); return { ok: false, json: async () => ({ success: false }) }; };
+            await root.metatubeConnect();
+            const expected = mode === 'configured' ? 'gggg••••7777' : mode === 'new' ? 'sk-ant-api03-test1234567890abcd' : '';
+            assert.ok(body?.token === expected && body.url === 'http://example.invalid' && body.allow_lan === true, mode);
+            assert.ok(!contains(body, 'STALE-LEGACY-'), mode);
+        }
+    } finally { globalThis.fetch = realFetch; }
 });

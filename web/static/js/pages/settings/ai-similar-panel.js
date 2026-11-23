@@ -2,7 +2,7 @@
  * ai-similar-panel.js — 圖片相似分頁獨立 Alpine 元件（TASK-186-T6；補跑邏輯 189a-T11b 起改走共用 mixin）
  *
  * Alpine.data('aiSimilarPanel')；面板獨有 key 一律 aiSim 前綴、補跑 key 一律 bf 前綴（展開自 ai-backfill-controls.js）；
- * 不進 mergeState。外求：form／isDirty／serverUrl()／showToast／aiTab（不複製父層 key）。
+ * 不進 mergeState。外求：form／isDirty／serverUrl()／showToast／aiTab／secretWire()（不複製父層 key）。
  */
 
 import { copyText } from '@/shared/clipboard.js';
@@ -118,7 +118,7 @@ export function aiSimilarPanel() {
             try {
                 const body = {
                     url: String(this.form.aiSimilarUrl || '').trim(),
-                    api_key: this.form.aiSimilarApiKey || '',
+                    api_key: this.secretWire('aiSimilar'),
                     model: this.form.aiSimilarModel || '',
                 };
                 const res = await fetch(TEST_URL, {
