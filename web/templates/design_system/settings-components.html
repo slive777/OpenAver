@@ -361,52 +361,33 @@
 &lt;button class="btn-add-layer" :disabled="form.folderLayerList.length >= 3"&gt;新增一層&lt;/button&gt;</code></pre>
 </div>
 
-<!-- D.9c: API Key 警告 Alert -->
+<!-- D.9c: API Key 欄位 -->
 <div class="ds-subsection">
-    <h3>7. API Key 警告 Alert</h3>
-    <p class="ds-desc">用於 Gemini API Key 輸入框下方的安全提示，強調敏感資料風險</p>
-
-    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
-        <!-- API Key 輸入框（上下文）-->
-        <div class="settings-form-row">
-            <label class="row-label">API Key</label>
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                <div style="display: flex; gap: 8px;">
-                    <input type="password" class="input input-bordered input-sm" placeholder="AIza..." style="flex: 1;">
-                    <button class="btn btn-outline btn-sm" type="button">
-                        <i class="bi bi-plug"></i> 測試
-                    </button>
-                </div>
-                <small class="settings-hint">
-                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>
-                    可免費申請
-                </small>
-            </div>
-        </div>
-
-        <!-- 安全警告 Alert -->
-        <div class="alert alert-warning api-key-alert">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            <div class="alert-content">
-                <strong>安全提示：</strong>
-                <ul class="alert-list">
-                    <li>API Key 將以明文存儲在 config.json</li>
-                    <li>請勿將 config.json 分享給他人</li>
-                    <li>如需撤銷，請前往 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" class="alert-link">Google AI Studio</a> 重新生成</li>
-                </ul>
-            </div>
+    <h3>7. API Key 欄位（兩態）</h3>
+    <p class="ds-desc">輸入、已設定與將清除的欄位示意。</p>
+    <div class="ds-card-demo">
+        <div class="secret-field">
+            <input type="password" class="input input-bordered input-sm w-full" value="fake-example-key">
+            <small class="settings-hint secret-field-preview">將儲存：fake••••-key</small>
         </div>
     </div>
-
-    <pre class="ds-code"><code>&lt;div class="alert alert-warning api-key-alert"&gt;
-  &lt;i class="bi bi-exclamation-triangle-fill"&gt;&lt;/i&gt;
-  &lt;div class="alert-content"&gt;
-    &lt;strong&gt;安全提示：&lt;/strong&gt;
-    &lt;ul class="alert-list"&gt;
-      &lt;li&gt;API Key 將以明文存儲在 config.json&lt;/li&gt;
-      &lt;li&gt;請勿將 config.json 分享給他人&lt;/li&gt;
-      &lt;li&gt;如需撤銷，請前往 &lt;a href="..." target="_blank" class="alert-link"&gt;Google AI Studio&lt;/a&gt; 重新生成&lt;/li&gt;
-    &lt;/ul&gt;
+    <div class="ds-card-demo">
+        <div class="secret-field"><div class="secret-field-row">
+            <span class="secret-field-value">已設定 fake••••-key</span>
+            <button type="button" class="btn btn-sm btn-outline">更換</button>
+            <button type="button" class="btn btn-sm btn-outline">清除</button>
+        </div></div>
+    </div>
+    <div class="ds-card-demo">
+        <div class="secret-field"><div class="secret-field-row">
+            <span class="secret-field-value">將清除（儲存後生效）</span>
+            <button type="button" class="btn btn-sm btn-outline">更換</button>
+        </div></div>
+    </div>
+    <pre class="ds-code"><code>&lt;div class="secret-field"&gt;
+  &lt;div class="secret-field-row"&gt;
+    &lt;span class="secret-field-value"&gt;已設定 …&lt;/span&gt;
+    &lt;button type="button" class="btn btn-sm btn-outline"&gt;更換&lt;/button&gt;
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
 </div>

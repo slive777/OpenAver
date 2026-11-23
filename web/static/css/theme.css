@@ -2078,51 +2078,29 @@ body {
    D.9c: Settings 特殊元件
    ======================================== */
 
-/* API Key 警告 Alert */
-:is(#settings-components, #ds-settings-components) .api-key-alert {
-    margin-top: 12px;
-    font-size: 0.8rem;
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 12px 16px;
-    border-radius: var(--radius-md);
-}
-
-:is(#settings-components, #ds-settings-components) .api-key-alert > i {
-    font-size: 1rem;
-    flex-shrink: 0;
-    margin-top: 2px;
-}
-
-:is(#settings-components, #ds-settings-components) .api-key-alert .alert-content {
+/* 金鑰欄位 */
+:is(#settings-components, #ds-settings-components) .secret-field {
     flex: 1;
+    min-width: 0;
 }
-
-:is(#settings-components, #ds-settings-components) .api-key-alert strong {
-    font-weight: 600;
-    color: inherit;
+:is(#settings-components, #ds-settings-components) .secret-field-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
 }
-
-:is(#settings-components, #ds-settings-components) .api-key-alert .alert-list {
-    margin: 8px 0 0 0;
-    padding-left: 1.25rem;
-    list-style: disc;
-}
-
-:is(#settings-components, #ds-settings-components) .api-key-alert .alert-list li {
-    margin-bottom: 4px;
-    line-height: 1.5;
-}
-
-:is(#settings-components, #ds-settings-components) .api-key-alert .alert-link {
-    color: inherit;
-    text-decoration: underline;
-    font-weight: 600;
-}
-
-:is(#settings-components, #ds-settings-components) .api-key-alert .alert-link:hover {
-    opacity: 0.8;
+:is(#settings-components, #ds-settings-components) .secret-field-value {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    min-height: 2rem;
+    padding: 0 0.75rem;
+    overflow-wrap: anywhere;
+    border: 1px solid var(--stroke-subtle);
+    border-radius: var(--fluent-radius-md);
+    background: var(--surface-2);
+    color: var(--text-secondary);
 }
 
 /* 版本文字 */

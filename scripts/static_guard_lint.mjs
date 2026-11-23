@@ -1822,8 +1822,8 @@ const RULES = [
   ...[
     'settingsForm', 'saveBtn',
     'translateEnabled', 'translateProvider', 'translateOptions',
-    'ollamaUrl', 'ollamaModel', 'geminiApiKey', 'geminiModel',
-    'claudeFields', 'claudeApiKey', 'claudeModel',
+    'ollamaUrl', 'ollamaModel', 'geminiModel',
+    'claudeFields', 'claudeModel',
     'ollamaFields', 'geminiFields', 'openaiFields',
     'searchFavoriteFolder', 'avlistOutputDir', 'avlistOutputFilename',
     'avlistMinSize', 'defaultPage', 'viewerPlayer',
@@ -10482,6 +10482,21 @@ const RULES = [
     file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: /^\s*api_key: this\.form\./m, id: '206a-T6-single-source',
     note: '[lint-guard:206a-T6-single-source] 使用者存檔時金鑰必須來自欄位狀態。',
   },
+  ...['web/templates/settings.html', 'web/templates/design_system/settings-components.html'].map(file => ({
+    file, kind: 'forbidden-string', pattern: 'api-key-alert', id: '206a-T8-no-warning-box',
+    note: '[lint-guard:206a-T8-no-warning-box] 不顯示舊警告。',
+  })),
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: /(?<![\w:-])type="password"/, id: '206a-T8-key-input-via-macro', note: '[lint-guard:206a-T8-key-input-via-macro] 金鑰欄須使用巨集。' },
+  { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /\{\{\s*secret_field\(/g, count: 7, id: '206a-T8-key-input-via-macro', note: '[lint-guard:206a-T8-key-input-via-macro] 七欄使用巨集；206b 搬移後須調整。' },
+  ...['x-model="secretFields.{{ field }}.input"', "secretReplace('{{ field }}')", "secretClear('{{ field }}')", "secretPreview('{{ field }}')", 'type="password"'].map(pattern => ({
+    file: 'web/templates/partials/secret_field.html', kind: 'required-string', pattern, id: '206a-T8-macro-wiring', note: '[lint-guard:206a-T8-macro-wiring] 金鑰欄接線。',
+  })),
+  ...['bi-eye', 'x-data', ':type='].map(pattern => ({
+    file: 'web/templates/partials/secret_field.html', kind: 'forbidden-string', pattern, id: '206a-T8-macro-wiring', note: '[lint-guard:206a-T8-macro-wiring] 金鑰欄禁止顯示明文或遮蔽狀態。',
+  })),
+  ...["gemini', 'geminiApiKey", "claude', 'claudeApiKey", "openaiOfficial', 'openaiOfficialApiKey", "openai', 'openaiApiKey", "aiSimilar', 'aiSimilarApiKey", "aiFaces', 'aiFacesApiKey", "metatube', 'metatubeBearerToken"].map(pair => ({
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: `secret_field('${pair}'`, id: '206a-T8-field-ids', note: '[lint-guard:206a-T8-field-ids] 保留七欄 id。',
+  })),
 ];
 
 // ---- helpers ----
