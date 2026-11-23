@@ -83,7 +83,7 @@ def _read_master() -> bytes | None:
 
 def _create_key_file(path) -> bytes:
     master = os.urandom(_KEY_LEN)
-    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
     try:
         remaining = memoryview(master)
         while remaining:

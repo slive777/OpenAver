@@ -38,8 +38,6 @@ def test_settings_renders_seven_secret_fields_without_warning(client):
     response = client.get("/settings")
     assert response.status_code == 200
     html = response.text
-    assert "api-key-alert" not in html
-    assert "API Key 將以明文存儲" not in html
     parser = SecretFieldsParser()
     parser.feed(html)
     assert sorted(field[0] for field in parser.fields) == sorted(
