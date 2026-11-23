@@ -58,6 +58,9 @@ BLOCKING_FUNC_NAMES = frozenset({
     # feature/183 T5a：core/cover_upload.py 的磁碟／PIL 呼叫（upload 端點一律 to_thread）
     "validate_and_normalize_cover", "store_cover", "resolve_cover_token",
     "discard_cover_token", "sweep_expired_covers",
+    # feature/206a-T1：secret_store 的磁碟寫入入口（apply_changes／clear_all）。
+    # snapshot 是記憶體快取讀取、prime 是啟動期一次性載入，都不加。
+    "apply_changes", "clear_all",
 })
 
 # Attribute-call 後綴（接在任意物件後 .exists() / .stat() / .iterdir() / .save()）
