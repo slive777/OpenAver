@@ -271,3 +271,87 @@ test('metatube_secret_edits_not_saved_by_global_save', async () => {
         }
     } finally { globalThis.fetch = realFetch; }
 });
+
+test('custom_group_field_roundtrip_load_apply_aftersave', async () => {
+    const key = 'sk-ant-api03-test1234567890abcd';
+    const config = minimalConfig();
+    config.translate.gemini.api_key = 'aaaa••••1111';
+    config.translate.openai_custom = {
+        oc0123abcd: { api_key: 'hhhh••••8888' },
+        oc89abcdef: { api_key: 'iiii••••9999' },
+    };
+    const state = stateSecrets();
+    state.secretsLoad(config);
+    assert.deepEqual(Object.keys(state.secretFields).sort(),
+        ['aiFaces', 'aiSimilar', 'claude', 'gemini', 'metatube', 'oc0123abcd', 'oc89abcdef', 'openai', 'openaiOfficial']);
+    assert.equal(state.secretFields.oc0123abcd.state, 'configured');
+    assert.equal(state.secretFields.oc0123abcd.mask, 'hhhh••••8888');
+    assert.equal(state.secretFields.oc0123abcd.input, '');
+    assert.equal(state.secretWire('oc0123abcd'), 'hhhh••••8888');
+    assert.equal(state.secretWire('oc89abcdef'), 'iiii••••9999');
+    assert.equal(state.secretWire('gemini'), 'aaaa••••1111');
+    state.secretClear('oc89abcdef');
+    state.secretFieldAdd('oc00000001');
+    state.secretFields.oc00000001.input = `  ${key}\n`;
+    const payload = minimalConfig();
+    state.secretsApplyToConfig(payload);
+    assert.equal(payload.translate.openai_custom.oc0123abcd.api_key, 'hhhh••••8888');
+    assert.equal(payload.translate.openai_custom.oc89abcdef.api_key, '');
+    assert.equal(payload.translate.openai_custom.oc00000001.api_key, key);
+    assert.equal(Object.hasOwn(payload.metatube, 'token'), false);
+    state.secretsAfterSave();
+    assert.equal(state.secretFields.oc0123abcd.state, 'configured');
+    assert.equal(state.secretFields.oc89abcdef.state, 'unset');
+    assert.equal(state.secretFields.oc00000001.state, 'configured');
+    assert.equal(state.secretFields.oc00000001.mask, 'sk-a••••abcd');
+    assert.equal(state.secretFields.oc00000001.input, '');
+    assert.equal(contains(state, key), false);
+    assert.equal(state.secretsDirty, false);
+});
+
+test('removed_group_field_never_rebuilt', async () => {
+    const config = minimalConfig();
+    config.translate.openai_custom = { oc0123abcd: { api_key: 'hhhh••••8888' } };
+    const state = stateSecrets();
+    state.secretsLoad(config);
+    assert.equal(state.secretFields.oc0123abcd.state, 'configured');
+    assert.equal(state.secretFields.oc0123abcd.mask, 'hhhh••••8888');
+    assert.equal(state.secretFields.oc0123abcd.input, '');
+    state.secretReplace('oc0123abcd');
+    state.secretFields.oc0123abcd.input = 'half-typed-value-123456789';
+    assert.equal(state.secretsDirty, true);
+    state.secretFieldRemove('oc0123abcd');
+    assert.equal(Object.hasOwn(state.secretFields, 'oc0123abcd'), false);
+    assert.equal(state.secretsDirty, false);
+    const empty = {};
+    state.secretsApplyToConfig(empty);
+    assert.equal(empty.translate.openai_custom, undefined);
+    const stale = { translate: { openai_custom: { oc0123abcd: { name: 'A' } } } };
+    state.secretsApplyToConfig(stale);
+    assert.equal(Object.hasOwn(stale.translate.openai_custom.oc0123abcd, 'api_key'), false);
+    assert.equal(contains(state, 'half-typed-value-123456789'), false);
+});
+
+test('unsafe_group_id_never_becomes_field', async () => {
+    const statics = ['aiFaces', 'aiSimilar', 'claude', 'gemini', 'metatube', 'openai', 'openaiOfficial'];
+    const unsafe = ['oc0123ab.cd', 'oc0123abcd\n', 'OC0123ABCD', 'oc0123abc', '', undefined];
+    for (const gid of unsafe) {
+        const state = stateSecrets();
+        state.secretFieldAdd(gid);
+        assert.deepEqual(Object.keys(state.secretFields).sort(), statics, `add:${String(gid)}`);
+        if (typeof gid !== 'string') continue;
+        const config = minimalConfig();
+        config.translate.openai_custom = { [gid]: { api_key: 'hhhh••••8888' } };
+        state.secretsLoad(config);
+        assert.deepEqual(Object.keys(state.secretFields).sort(), statics, `load:${gid}`);
+        assert.equal(state.secretFields[gid], undefined, `field:${gid}`);
+        const payload = minimalConfig();
+        state.secretsApplyToConfig(payload);
+        assert.equal(payload.translate.openai_custom, undefined, `apply:${gid}`);
+    }
+    const good = stateSecrets();
+    good.secretFieldAdd('oc00000001');
+    assert.equal(good.secretFields.oc00000001.state, 'unset');
+    assert.equal(good.secretFields.oc00000001.mask, '');
+    assert.equal(good.secretFields.oc00000001.input, '');
+});
