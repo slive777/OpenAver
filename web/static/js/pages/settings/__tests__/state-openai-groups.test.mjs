@@ -303,7 +303,10 @@ test('group_save_payload_and_dirty', async () => {
   assert.equal(f.isDirty, false, 'restore snapshot');
   f.openaiGroupById(A).baseUrl = ' https://a.invalid ';
   f.openaiGroupById(B).baseUrl = ' https://b.invalid ';
+  // 使用者貼上帶尾空白的模型名，存檔後翻譯仍用得了。
+  f.openaiGroupById(A).model = ' model-a ';
   let sent = await save(f, config);
+  assert.equal(sent.translate.openai_custom[A].model, 'model-a');
   assert.deepEqual(Object.keys(sent.translate.openai_custom), [A, B]);
   for (const id of [A, B]) {
     assert.deepEqual(Object.keys(sent.translate.openai_custom[id]), ['name', 'base_url', 'model', 'use_custom_model', 'api_key']);

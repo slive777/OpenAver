@@ -69,7 +69,7 @@ export function stateOpenaiGroups() {
         },
         openaiGroupsPayload() {
             return Object.fromEntries(this.form.openaiGroups.map(group => [group.id, {
-                name: group.name, base_url: group.baseUrl.trim(), model: group.model,
+                name: group.name, base_url: group.baseUrl.trim(), model: group.model.trim(),
                 use_custom_model: group.useCustomModel, api_key: '',
             }]));
         },
