@@ -10505,6 +10505,8 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_connections('translate') }}", scope: /(id="aiPanelTranslate"[\s\S]*?)id="aiPanelSimilar"/, id: '206b-T5-conn-in-translate', note: '[lint-guard:206b-T5-conn-in-translate] 連線區掉到別的分頁，使用者在翻譯分頁看不到金鑰欄。' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_connections('tags', id_prefix='tags-') }}", scope: /(id="aiPanelTags"[\s\S]*?)<\/section><!-- \/sec-ai -->/, id: '206b-T5-conn-in-tags', note: '[lint-guard:206b-T5-conn-in-tags] 連線區掉到別的分頁，使用者在標籤分頁看不到金鑰欄。' },
   { file: 'web/templates/partials/ai_connections.html', kind: 'required-string', pattern: /(?<![\w:-])id="\{\{ id_prefix \}\}ollamaUrl"/, id: '206b-T5-conn-ids', note: '[lint-guard:206b-T5-conn-ids] 兩份 Ollama 網址欄需要不同 id。' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):selected="m === form\.openaiModel"/, scope: /(<template x-for="m in openaiModels"[\s\S]*?<\/template>)/, id: '206b-T6-selected-translate', note: '[lint-guard:206b-T6-selected-translate] 翻譯模型選項缺少 selected，使用者重開設定頁可能看到自訂並以為模型被改掉。' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):selected="m === form\.aiTagsModel"/, scope: /(<template x-for="m in modelOptions\(\)"[\s\S]*?<\/template>)/, id: '206b-T6-selected-tags', note: '[lint-guard:206b-T6-selected-tags] 標籤模型選項缺少 selected，使用者重開設定頁可能看到空白或別的模型。' },
 
 ];
 

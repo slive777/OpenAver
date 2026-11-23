@@ -1505,7 +1505,7 @@
                                                     @change="if ($event.target.value === '__custom__') { openaiUseCustomModel = true; form.openaiModel = ''; }"
                                                     :disabled="!form.translateEnabled">
                                                     <template x-for="m in openaiModels" :key="m">
-                                                        <option :value="m" x-text="m"></option>
+                                                        <option :value="m" x-text="m" :selected="m === form.openaiModel"></option>
                                                     </template>
                                                     <option value="__custom__" x-text="window.t('settings.translate.openai_custom_model') || 'Custom...'"></option>
                                                 </select>
@@ -1729,7 +1729,7 @@
                                                 :disabled="form.aiTagsProvider === ''">
                                             <option value="" disabled x-show="modelOptions().length === 0"></option>
                                             <template x-for="m in modelOptions()" :key="m">
-                                                <option :value="m" x-text="m"></option>
+                                                <option :value="m" x-text="m" :selected="m === form.aiTagsModel"></option>
                                             </template>
                                         </select>
                                         <button class="btn btn-sm btn-outline" type="button"
