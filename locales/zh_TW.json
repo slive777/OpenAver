@@ -774,8 +774,10 @@
     },
     "secret": {
       "will_save": "將儲存：{mask}",
+      "will_save_connect": "按「連線」後儲存：{mask}",
       "configured": "已設定 {mask}",
       "will_clear": "將清除（儲存後生效）",
+      "will_clear_connect": "將清除（按「連線」後生效）",
       "replace": "更換",
       "clear": "清除"
     },

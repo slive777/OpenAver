@@ -524,7 +524,7 @@
                             </label>
                             <label class="settings-mt-field" for="metatubeBearerToken">
                                 <span>{{ t('settings.sources.mt_token_label') }}</span>
-                                {{ secret_field('metatube', 'metatubeBearerToken') }}
+                                {{ secret_field('metatube', 'metatubeBearerToken', apply_hint="connect") }}
                             </label>
                             <label class="settings-mt-field-checkbox">
                                 <input type="checkbox" class="toggle toggle-sm toggle-primary" x-model="metatubeLanMode">
