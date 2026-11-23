@@ -728,6 +728,10 @@ def _reconcile_wishlist_after_write() -> None:
         )
 
 
+def _first_ingest_policy(config, *, rescrape=False):
+    return None if rescrape else post_ingest.make_first_ingest(config.get("scraper", {}), route="enrich_first_ingest")
+
+
 def _post_ingest_after_enrich(request, canonical, success, readonly_action=None) -> None:
     """單片重刮成功後排 AI 後處理（189a-T5）：只有重刮算；補完（fill_missing／不覆蓋）一律不叫。"""
     if not success:
@@ -872,6 +876,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 javbus_lang=request.javbus_lang, write_cover=resolved_write_cover,
                 overwrite_existing=request.overwrite_existing, preserve_title=request.preserve_title,
                 skip_format_check=request.skip_format_check,
+                first_ingest=_first_ingest_policy(config, rescrape=request.overwrite_existing is True),
                 after_produce=lambda: thumbnail_cache.invalidate(canonical),
             )
             if result.success:
@@ -938,6 +943,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             scraper_data=scraper_data,
             path_mappings=path_mappings, preserve_title=request.preserve_title,
             skip_format_check=request.skip_format_check,
+            first_ingest=_first_ingest_policy(config, rescrape=request.overwrite_existing is True),
         )
         # feature/71 T8: 換封面成功 → 失效舊縮圖（下次進畫面時重生，CD-9 / spec 2.A.7）。
         # request.file_path 已是 DB 的 file:/// URI（前端送 currentLightboxVideo.path /
@@ -1187,7 +1193,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                                 path_mappings=_ro_mappings, action='ingest',
                                 scraper_data=None, scrape_source=es, javbus_lang=el,
                                 write_cover=request.write_cover, overwrite_existing=request.overwrite_existing,
-                                focal_before_cover_recheck=True,
+                                focal_before_cover_recheck=True, first_ingest=_first_ingest_policy(config),
                             )
                         except ReadonlyProduceError:
                             logger.exception("batch_enrich readonly item %s 失敗", itm.number)
@@ -1307,7 +1313,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         source=effective_source if effective_source != "auto" else None,
                         javbus_lang=effective_lang,
                         scraper_data=cached_data,
-                        path_mappings=_ro_mappings, first_hit=_first_hit,
+                        path_mappings=_ro_mappings, first_hit=_first_hit, first_ingest=_first_ingest_policy(config),
                     )
                     result = await loop.run_in_executor(None, _en_ctx.run, _enrich)
                     result_dict = asdict(result)

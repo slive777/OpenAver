@@ -4841,3 +4841,92 @@ class TestProduceOneReadonlyRename:
         assert v.number == 'TEST-001'
 
 
+
+
+class TestFirstIngestReadonly:
+    def _run(self, entry, tmp_path, monkeypatch, *, source_nfo):
+        from core.first_ingest import FirstIngest
+        from core.readonly_producer import enrich_one_readonly, produce_source
+
+        src = tmp_path / 'src'
+        src.mkdir()
+        out = tmp_path / 'out'
+        out.mkdir()
+        video = src / 'ABC-123 檔名中文標題.mp4'
+        video.write_bytes(b'video')
+        if source_nfo:
+            video.with_suffix('.nfo').write_text(
+                '<movie><num>ABC-123</num><title>來源標題</title><originaltitle>原文標題</originaltitle></movie>',
+                encoding='utf-8',
+            )
+        else:
+            monkeypatch.setattr('core.readonly_producer.resolve_ingest_plan', lambda *a, **kw: (None, ('none',)))
+        repo = MagicMock()
+        repo.get_attempted_index.return_value = {}
+        repo.get_by_path.return_value = None
+        repo.is_output_dir_taken.return_value = False
+        repo.get_all.return_value = []
+        done = MagicMock()
+        policy = FirstIngest({}, done)
+        source = _make_source(output_path=str(out), path=str(src))
+        uri = to_file_uri(str(video))
+        if entry == 'produce_source':
+            monkeypatch.setattr('core.readonly_producer._list_source_videos', lambda *a, **kw: [
+                {'path': str(video), 'size': 5, 'mtime': 1.0, 'nfo_mtime': 0.0}
+            ])
+            result = produce_source(source, _make_config(scraper_cfg={'external_manager': 'jellyfin'}), repo, first_ingest=policy)
+            assert result.created == int(source_nfo)
+        else:
+            result = enrich_one_readonly(
+                repo_factory=lambda: repo, ro_source=source, output_root=str(out),
+                output_uri=to_file_uri(str(out)), canonical=uri, file_path=uri,
+                number='ABC-123', scraper_cfg={}, path_mappings={}, action='ingest',
+                write_cover=True, overwrite_existing=False, first_ingest=policy,
+            )
+            assert result.success is source_nfo
+        done.assert_not_called()
+        nfos = list(out.rglob('*.nfo'))
+        if source_nfo:
+            from core.organizer import _strip_num_prefixes
+            assert len(nfos) == 1
+            root = ET.parse(nfos[0]).getroot()
+            assert _strip_num_prefixes(root.findtext('title'), 'ABC-123') == '來源標題'
+            assert root.findtext('originaltitle') == '原文標題'
+        else:
+            assert not nfos
+
+    @pytest.mark.parametrize('entry', ['produce_source', 'enrich_one_readonly'])
+    def test_first_ingest_skipped_when_source_has_nfo(self, entry, tmp_path, monkeypatch):
+        self._run(entry, tmp_path, monkeypatch, source_nfo=True)
+
+    @pytest.mark.parametrize('entry', ['produce_source', 'enrich_one_readonly'])
+    def test_no_scrape_stub_never_calls_on_done(self, entry, tmp_path, monkeypatch):
+        self._run(entry, tmp_path, monkeypatch, source_nfo=False)
+
+
+def test_enrich_first_ingest_uses_local_filename(tmp_path, monkeypatch):
+    from urllib.parse import quote
+
+    from core.first_ingest import FirstIngest
+    from core.readonly_producer import enrich_one_readonly
+
+    video = tmp_path / 'ABC-123 中文標題.mp4'
+    video.write_bytes(b'video')
+    uri = quote(to_file_uri(str(video)), safe='/:')
+    repo = MagicMock()
+    repo.get_by_path.return_value = None
+    picker = MagicMock(return_value=('t', ''))
+    monkeypatch.setattr('core.readonly_producer.pick_title', picker)
+    monkeypatch.setattr('core.readonly_producer.resolve_ingest_plan', lambda *args, **kwargs: (
+        {'title': '站台標題', 'number': 'ABC-123', 'source': 'javbus'}, ('none',)
+    ))
+    monkeypatch.setattr('core.readonly_producer._produce_one', lambda *args, **kwargs: (
+        tmp_path, {'cover_fs': '', 'sample_fs': []}
+    ))
+    enrich_one_readonly(
+        repo_factory=lambda: repo, ro_source=SimpleNamespace(name='source'),
+        output_root=str(tmp_path), output_uri=to_file_uri(str(tmp_path)),
+        canonical=uri, file_path=uri, number='ABC-123', scraper_cfg={}, path_mappings={},
+        write_cover=False, overwrite_existing=False, first_ingest=FirstIngest({}, MagicMock()),
+    )
+    assert picker.call_args.args[1] == os.path.basename(str(video))

@@ -140,7 +140,7 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False, probe=None, 
         "user_rating": v.user_rating or 0,            # 精選標記（spec-123）；無條件輸出，未精選為 0（FE-ALPINE-06）
         "has_cover": bool(v.cover_path),             # DB 初判（不做 IO）
         "has_nfo": (v.nfo_mtime or 0) > 0,          # 對齊 41a nfo_mtime 寫入契約，防禦 NULL
-        "needs_translate": _needs_translate(v.title, v.original_title, v.nfo_mtime),  # 無條件輸出（FE-ALPINE-06）
+        "needs_translate": _needs_translate(v.title, v.original_title, v.nfo_mtime, v.number or ''),  # 無條件輸出（FE-ALPINE-06）
         "auto_focal": v.auto_focal,                  # canonical "x,y" 4dp 字串或 ''（98b：前端 focalObjectPosition 消費）
         "crop_mode": v.crop_mode,                    # 'auto' | 'default'（98b：default 退 baseline 右裁）
         "has_plot": v.has_plot is True,              # 187b：後端不輸出三態（NULL→false；FE-ALPINE-06）

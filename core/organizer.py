@@ -167,11 +167,30 @@ def extract_chinese_title(filename: str, number: str, actors: List[str] = None) 
 
     name = name.strip()
 
-    # 只有包含中文才返回
-    if name and has_chinese(name):
+    # 只有包含中文且不含假名才返回
+    if name and has_chinese(name) and not re.search(r'[\u3040-\u309F\u30A0-\u30FF]', name):
         return name
 
     return None
+
+
+def pick_filename_title(original_filename: str, number: str, actors, metadata: dict, config: dict) -> Optional[str]:
+    vr_cluster = _detect_vr_cluster(original_filename)
+    extracted_title = extract_chinese_title(original_filename, number, actors)
+    # 剝除 extracted_title 尾端的 VR cluster（含可選 bracket/paren 包裝，Codex P2 二次修正）
+    # _detect_vr_cluster 把 []() 當分隔符 → cluster 不含 bracket，但 extracted_title 保留 bracket，
+    # 故需匹配可選的開/閉 bracket/paren 包裝；否則 _[180_LR] 不被剝 → 與尾端 vr_tail 雙寫。
+    if vr_cluster and extracted_title:
+        _vr_tail_re = re.compile(r'[\[(]?' + re.escape(vr_cluster) + r'[\])]?[\s_.\-]*$')
+        _m = _vr_tail_re.search(extracted_title)
+        if _m:
+            _trimmed = extracted_title[:_m.start()].rstrip('_-. ')
+            extracted_title = _trimmed or extracted_title
+    # FIX A：B2 junk-validation（CD-c5/c6）
+    # 若提取結果殘留 organize 模板 artifact（日期/maker/suffix），丟棄改用翻譯/刮削源
+    if extracted_title and _extracted_has_organize_junk(extracted_title, number, metadata, config):
+        extracted_title = None   # fall through 到翻譯/刮削源（CD-c6）
+    return extracted_title
 
 
 def _detect_suffixes(filename: str, keywords: list) -> str:
@@ -1354,8 +1373,7 @@ def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在�
     # 外部管理器模式（單一來源，早偵測層；CD-72b-T5）
     ext_mode = config.get('external_manager', 'off')
 
-    # 偵測 VR cluster（CD-68-5/6/7）：算一次，作用域涵蓋 title 剝除、組裝段與 nfo 呼叫（GA）
-    # 上移至 extract_chinese_title 之前，用於剝除 extracted_title 尾端的 VR token（Codex P2）
+    # 偵測 VR cluster：供檔名組裝段與 NFO 呼叫使用，標題三段規則見 pick_filename_title
     vr_cluster = _detect_vr_cluster(original_filename)
     vr_tail = f'_{vr_cluster}' if vr_cluster else ''
 
@@ -1369,22 +1387,7 @@ def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在�
     # 標題優先順序：翻譯 > 檔名提取 > 日文原始
     original_title = metadata.get('title', '')  # 日文原始標題
     translated_title = metadata.get('translated_title', '')  # LLM 翻譯/優化的標題
-    extracted_title = None if metadata.get('manual_entry') else extract_chinese_title(original_filename, number, actors)
-
-    # 剝除 extracted_title 尾端的 VR cluster（含可選 bracket/paren 包裝，Codex P2 二次修正）
-    # _detect_vr_cluster 把 []() 當分隔符 → cluster 不含 bracket，但 extracted_title 保留 bracket，
-    # 故需匹配可選的開/閉 bracket/paren 包裝；否則 _[180_LR] 不被剝 → 與尾端 vr_tail 雙寫。
-    if vr_cluster and extracted_title:
-        _vr_tail_re = re.compile(r'[\[(]?' + re.escape(vr_cluster) + r'[\])]?[\s_.\-]*$')
-        _m = _vr_tail_re.search(extracted_title)
-        if _m:
-            _trimmed = extracted_title[:_m.start()].rstrip('_-. ')
-            extracted_title = _trimmed or extracted_title
-
-    # FIX A：B2 junk-validation（CD-c5/c6）
-    # 若提取結果殘留 organize 模板 artifact（日期/maker/suffix），丟棄改用翻譯/刮削源
-    if extracted_title and _extracted_has_organize_junk(extracted_title, number, metadata, config):
-        extracted_title = None   # fall through 到翻譯/刮削源（CD-c6）
+    extracted_title = None if metadata.get('manual_entry') else pick_filename_title(original_filename, number, actors, metadata, config)
 
     # 決定最終使用的標題
     if translated_title:

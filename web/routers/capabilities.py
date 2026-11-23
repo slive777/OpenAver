@@ -184,7 +184,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "enrich_single",
-        "description": "舊片原地補完：補齊 NFO/封面/劇照，不搬移不改名。refresh_full 搭配 overwrite_existing=true 才覆蓋既有 NFO/封面；若只想更新 DB 不覆蓋檔案，用 overwrite_existing=false（預設）。overwrite_existing=true 時必須先讓用戶確認。劇照只補缺的：extrafanart 資料夾裡已經存在的圖一律不會被覆蓋，overwrite_existing 對劇照不適用。metadata 帶番號與 DB 既有值不符會被拒絕，除非帶 allow_number_change=true；分集片（-cd1/-cd2）要逐段各自呼叫本端點，一次只吃一個 file_path。重刮（refresh_full 搭配 overwrite_existing=true；唯讀來源的片則是重刮：readonly_action=rescrape，或省略 readonly_action 但帶 metadata 時的預設，都不看 mode 與 overwrite_existing）成功後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；一般來源的 fill_missing 與 overwrite_existing=false 不會。要改「已有 NFO 的片」的個別欄位（片名、女優、片商、系列、發行日、簡介、標籤），請改用 video_edit_field，不要帶整份 metadata 重產 NFO；本端點仍用於沒有 NFO 的片、補封面與整片重抓。",
+        "description": "舊片原地補完：補齊 NFO/封面/劇照，不搬移不改名。refresh_full 搭配 overwrite_existing=true 才覆蓋既有 NFO/封面；若只想更新 DB 不覆蓋檔案，用 overwrite_existing=false（預設）。overwrite_existing=true 時必須先讓用戶確認。劇照只補缺的：extrafanart 資料夾裡已經存在的圖一律不會被覆蓋，overwrite_existing 對劇照不適用。metadata 帶番號與 DB 既有值不符會被拒絕，除非帶 allow_number_change=true；分集片（-cd1/-cd2）要逐段各自呼叫本端點，一次只吃一個 file_path。重刮（refresh_full 搭配 overwrite_existing=true；唯讀來源的片則是重刮：readonly_action=rescrape，或省略 readonly_action 但帶 metadata 時的預設，都不看 mode 與 overwrite_existing）成功後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；補完碰到沒有 NFO、且資料來自這次刮削的片時，若翻譯開著而標題仍是日文，會在背景只發翻譯請求（不發圖片相似、AI 標籤）；已有 NFO 的片補完不會。要改「已有 NFO 的片」的個別欄位（片名、女優、片商、系列、發行日、簡介、標籤），請改用 video_edit_field，不要帶整份 metadata 重產 NFO；本端點仍用於沒有 NFO 的片、補封面與整片重抓。",
         "method": "POST",
         "path": "/api/enrich-single",
         "input_schema": {
@@ -276,7 +276,7 @@ _TOOLS: list[dict] = [
         "confirmation_required": False,
         "idempotent": True,
         "retry_safe": True,
-        "cost_hint": "fill_missing/refresh_full 會打外部網站；db_to_sidecar 純本地；重刮成功後依設定頁開關在背景請 AI 服務（可能產生費用）",
+        "cost_hint": "fill_missing/refresh_full 會打外部網站；db_to_sidecar 純本地；重刮成功後依設定頁開關在背景請 AI 服務（可能產生費用）；補完碰到沒有 NFO 的片且翻譯開著時，背景會再請翻譯服務（可能產生費用）",
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"/library/SONE-205/SONE-205.mp4\",\"number\":\"SONE-205\",\"mode\":\"fill_missing\"}}' {base}/api/enrich-single",
     },
     {
@@ -287,7 +287,7 @@ _TOOLS: list[dict] = [
             "重刮覆蓋請設 overwrite_existing=true（refresh_full 配 overwrite_existing=false "
             "在不會寫出任何 sidecar 的設定下後端會擋下，只更新 DB 會造成磁碟分裂）。"
             "source 可為停用來源或 metatube:{provider}。"
-            "重刮（refresh_full 搭配 overwrite_existing=true；唯讀來源的片則是重刮：readonly_action=rescrape，或省略 readonly_action 但帶 metadata 時的預設，都不看 mode 與 overwrite_existing）成功後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；一般來源的 fill_missing 與 overwrite_existing=false 不會。"
+            "重刮（refresh_full 搭配 overwrite_existing=true；唯讀來源的片則是重刮：readonly_action=rescrape，或省略 readonly_action 但帶 metadata 時的預設，都不看 mode 與 overwrite_existing）成功後，設定頁「AI 功能」卡開著的項目（翻譯、圖片相似、AI 標籤）會在背景自動替這部片向使用者選的 AI 服務發請求，可能產生費用；補完碰到沒有 NFO、且資料來自這次刮削的片時，若翻譯開著而標題仍是日文，會在背景只發翻譯請求（不發圖片相似、AI 標籤）；已有 NFO 的片補完不會。"
         ),
         "method": "POST",
         "path": "/api/enrich-single",
@@ -335,7 +335,7 @@ _TOOLS: list[dict] = [
         "confirmation_required": True,
         "idempotent": False,
         "retry_safe": False,
-        "cost_hint": "refresh_full 會打外部網站重抓；重刮成功後依設定頁開關在背景請 AI 服務（可能產生費用）",
+        "cost_hint": "refresh_full 會打外部網站重抓；重刮成功後依設定頁開關在背景請 AI 服務（可能產生費用）；補完（fill_missing）碰到沒有 NFO 的片且翻譯開著時，背景會再請翻譯服務（可能產生費用）",
         "_example_template": (
             "curl -X POST -H 'Content-Type: application/json' "
             "-d '{{\"file_path\":\"/library/SONE-205/SONE-205.mp4\",\"number\":\"SONE-205\","
@@ -375,7 +375,7 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "batch_enrich",
-        "description": "批次補完：一次提交最多 20 筆舊片，逐筆補齊 NFO/封面/DB。結果以 SSE streaming 逐筆回傳。注意：此操作會覆寫 NFO 和封面檔案，使用 overwrite_existing=true 時不可逆，必須先讓用戶確認。劇照不在此列：既有的 extrafanart 圖一律不會被覆蓋，overwrite_existing 對劇照不適用，只補缺的那幾張。",
+        "description": "批次補完：一次提交最多 20 筆舊片，逐筆補齊 NFO/封面/DB。結果以 SSE streaming 逐筆回傳。注意：此操作會覆寫 NFO 和封面檔案，使用 overwrite_existing=true 時不可逆，必須先讓用戶確認。劇照不在此列：既有的 extrafanart 圖一律不會被覆蓋，overwrite_existing 對劇照不適用，只補缺的那幾張。補完碰到沒有 NFO、且資料來自這次刮削的片時，若翻譯開著而標題仍是日文，會在背景只發翻譯請求（不發圖片相似、AI 標籤）；已有 NFO 的片補完不會。",
         "method": "POST",
         "path": "/api/batch-enrich",
         "input_schema": {
@@ -442,7 +442,7 @@ _TOOLS: list[dict] = [
         "confirmation_required": True,
         "idempotent": False,
         "retry_safe": False,
-        "cost_hint": "每筆 item 觸發外部網站搜尋",
+        "cost_hint": "每筆 item 觸發外部網站搜尋；補完碰到沒有 NFO 的片且翻譯開著時，每筆另在背景請翻譯服務（可能產生費用）",
         "_example_template": "curl -N -X POST -H 'Content-Type: application/json' -d '{{\"items\":[{{\"file_path\":\"/video/IPZ-154.mp4\",\"number\":\"IPZ-154\"}}],\"mode\":\"refresh_full\"}}' {base}/api/batch-enrich",
     },
     {
@@ -866,7 +866,7 @@ _TOOLS: list[dict] = [
                         "array[string] — 分集段別字面（例 ['cd1', 'cd2']，依段號升冪）；"
                         "單檔片為空陣列。非空即代表本筆是多個實體檔案的合併呈現。"
                     ),
-                    "needs_translate": "boolean — 標題含日文假名、沒有 original_title、且已有 NFO（nfo_mtime>0）（可用來挑出尚未翻譯的片）",
+                    "needs_translate": "boolean — 標題含日文假名、已有 NFO（nfo_mtime>0），且 original_title 為空或與標題相同（比對時忽略前後空白與開頭番號）；可用來挑出尚未翻譯的片",
                     "resolution_tier": "string | null — 實際解析度等級（SD/HD/FHD/2K/4K/8K）；無有效探針時 null",
                     "media_width": "integer | null — 實際寬度（px）；無有效探針時 null",
                     "media_height": "integer | null — 實際高度（px）；無有效探針時 null",
@@ -910,7 +910,7 @@ _TOOLS: list[dict] = [
                 "（path/title/original_title/number/actresses[csv⚠️]/maker/release_date/tags[csv⚠️]/"
                 "size/cover_url/cover_full_url/mtime/director/duration/series/label/"
                 "sample_images[array]/user_tags[array]/user_rating[integer]/has_cover/has_nfo/auto_focal/crop_mode/"
-                "part_tokens[array]/needs_translate[boolean，標題含日文假名、沒有 original_title、且已有 NFO]/"
+                "part_tokens[array]/needs_translate[boolean，標題含日文假名、已有 NFO，且 original_title 為空或與標題相同]/"
                 "resolution_tier/media_width/media_height/media_codec/media_duration_min/source_duration/"
                 "versions[array]/borrowed_from）。"
                 "注意 actresses 和 tags"
@@ -948,7 +948,7 @@ _TOOLS: list[dict] = [
             "success": "boolean",
             "title": "string — 寫入後的標題",
             "original_title": "string — 寫入後的原標題",
-            "needs_translate": "boolean — 寫入後這部片是否仍被判定為尚未翻譯",
+            "needs_translate": "boolean — 寫入後這部片是否仍被判定為尚未翻譯（判準同 showcase_videos 的 needs_translate：標題仍含日文假名，且 original_title 為空或與標題相同）",
             "nfo_updated": "boolean — NFO 是否已更新",
             "failure": "失敗形狀（HTTP 200）：{success:false, error:<code>, message}；code 為 not_found／title_empty／no_nfo／nfo_ambiguous／nfo_unreadable／nfo_write_failed／db_write_failed／invalid_path",
         },
@@ -956,7 +956,7 @@ _TOOLS: list[dict] = [
         "confirmation_required": True,
         "idempotent": True,
         "retry_safe": True,
-        "also_see": "GET /api/showcase/videos — 用 needs_translate 挑出尚未翻譯的片",
+        "also_see": "GET /api/showcase/videos — 用 needs_translate 挑出尚未翻譯的片（標題仍是日文、且原文欄空白或與標題相同）",
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"file:///C:/AVtest/SONE-205/SONE-205.mp4\",\"title\":\"中文標題\"}}' {base}/api/showcase/video/title",
     },
     {

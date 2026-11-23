@@ -55,6 +55,7 @@ from core.nfo_read import (
 )
 from core.nfo_title_format import resolve_preserved_title_for_write, resolve_title_body
 from core.nfo_updater import parse_nfo
+from core.first_ingest import is_first_ingest_readonly, pick_title
 from core.path_utils import (
     is_fs_path_under_dir,
     is_path_under_dir,
@@ -1018,6 +1019,17 @@ def _preserved_body_override_from_old_nfo(
     return None
 
 
+def _apply_first_ingest_title(first_ingest, meta, existing, file_path, number) -> bool:
+    existing_nfo_mtime = float(existing.nfo_mtime or 0) if existing else 0.0
+    if not is_first_ingest_readonly(meta.get('source'), existing_nfo_mtime):
+        return False
+    title, original = pick_title(meta.get('title') or '', os.path.basename(file_path), meta.get('number') or number or '', meta.get('actors'), meta.get('maker') or '', first_ingest.scraper_cfg)
+    meta['title'] = title
+    if original:
+        meta['original_title'] = original
+    return True
+
+
 def enrich_one_readonly(
     *,
     repo_factory,            # Callable[[], repo]；caller 傳入自己的 VideoRepository binding
@@ -1037,7 +1049,7 @@ def enrich_one_readonly(
     overwrite_existing: bool,
     after_produce: Optional[Callable[[], None]] = None,
     focal_before_cover_recheck: bool = False,
-    preserve_title: bool = False, skip_format_check: bool = False,
+    preserve_title: bool = False, skip_format_check: bool = False, first_ingest=None,
 ) -> EnrichResult:
     """單片/批次唯讀 enrich 共用的「產出核心」——薄搬移自
     `web/routers/scraper.py` 單片 enrich 端點（POST /enrich-single）的唯讀分支
@@ -1110,6 +1122,7 @@ def enrich_one_readonly(
     repo = repo_factory()
     existing = repo.get_by_path(canonical)
     meta['title'] = effective_title(meta, existing, preserve_title, number, preserved_body_override=_preserved_body_override_from_old_nfo(existing, fs_path, scraper_cfg, path_mappings, preserve_title))
+    first_ingested = action == 'ingest' and first_ingest is not None and _apply_first_ingest_title(first_ingest, meta, existing, fs_path, number)
     # Codex PR#113 P2#3（round 2，owner-confirmed 全面對齊；round 6 修正）：
     # readonly enrich 對齊非唯讀 core.enricher._write_cover 的 skip 語意
     # （os.path.exists(cover) and not overwrite_existing）——fill_missing
@@ -1148,6 +1161,8 @@ def enrich_one_readonly(
         )
     except Exception as exc:
         raise ReadonlyProduceError("readonly _produce_one 失敗") from exc
+    if first_ingested:
+        first_ingest.on_done(canonical)
     # Codex PR review P1：對應改前 scraper.py:528 invalidate 的位置——
     # _produce_one 剛成功寫出 NFO/封面、DB cover_path 已更新，此時觸發縮圖
     # 失效，即使後面 step 10 compute_has_servable_cover 拋錯也不漏做（改前
@@ -1279,7 +1294,7 @@ def _submit_readonly_probe(repo, src_uri, probe_ctx):
     return None
 
 
-def produce_source(source, config, repo, *, on_progress=None, should_abort=None, force: bool = False, reachable: bool = True, strm_mappings_getter=None) -> ProduceResult:
+def produce_source(source, config, repo, *, on_progress=None, should_abort=None, force: bool = False, reachable: bool = True, strm_mappings_getter=None, first_ingest=None) -> ProduceResult:
     """Orchestrate per-source readonly generation: guard → list → skip → scrape → write → upsert.
 
     Pure service layer. NO FastAPI, NO SSE, NO router. (CD-88b-8, §1.1)
@@ -1378,6 +1393,7 @@ def produce_source(source, config, repo, *, on_progress=None, should_abort=None,
 
         try:
             existing = repo.get_by_path(src_uri)  # T3: read once; T4 reuses title/actresses/maker/release_date
+            first_ingested = first_ingest is not None and _apply_first_ingest_title(first_ingest, meta, existing, fi["path"], number)
             movie_dir, _assets = _produce_one(  # _produce_one now returns (movie_dir, assets) — this loop only needs movie_dir
                 repo, source, scraper_cfg,
                 file_info=fi, meta=meta, cover_strategy=cover_strategy, assets_mode='full',
@@ -1385,6 +1401,8 @@ def produce_source(source, config, repo, *, on_progress=None, should_abort=None,
                 allocated_this_run=allocated_this_run, path_mappings=path_mappings,
                 strm_mappings_getter=strm_mappings_getter,
             )
+            if first_ingested:
+                first_ingest.on_done(src_uri)
             result.created += 1
             _emit(on_progress, result, src_uri, "created", str(movie_dir), number)
             if src_uri not in attempted_index:

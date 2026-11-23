@@ -161,6 +161,27 @@ def test_needs_translate_false_when_original_title_present(monkeypatch, tmp_db, 
     assert _list_videos(client)[u]["needs_translate"] is False
 
 
+def test_needs_translate_http_matches_decision_rule(monkeypatch, tmp_db, tmp_path):
+    from core.ai_services import post_ingest
+
+    from core.database import VideoRepository
+    client, (u_same, u_diff) = _list_env(
+        monkeypatch, tmp_db, tmp_path,
+        [
+            dict(title=JP_TITLE, original_title=JP_TITLE, nfo_mtime=5.0),
+            dict(title="翻譯後的中文標題うみ", original_title=JP_TITLE, nfo_mtime=5.0),
+        ],
+    )
+    videos = _list_videos(client)
+    assert videos[u_same]["needs_translate"] is True
+    assert videos[u_diff]["needs_translate"] is False
+    repo = VideoRepository(tmp_db)
+    for uri, expected in ((u_same, True), (u_diff, False)):
+        row = repo.get_by_path(uri)
+        assert videos[uri]["needs_translate"] is expected
+        assert post_ingest.title_needs_translation(row) is expected
+
+
 # ── T3c：成功路徑 ────────────────────────────────────────────────────────────
 
 def test_translate_writes_nfo_and_db_consistently(monkeypatch, tmp_db, tmp_path):

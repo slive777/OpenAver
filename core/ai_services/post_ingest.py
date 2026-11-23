@@ -2,11 +2,13 @@
 
 公開介面：
 - ``run_after_ingest(video_uri, *, route, skip_faces=False, notify=False)``
+- ``run_translate_after_first_ingest(video_uri, *, route)``
 - ``begin_round()``（本張空殼）
 - ``decide``／``title_needs_translation``／``format_log``／``video_label``
 - ``Plan``／``Verdict``／``IngestContext``／``ITEMS``
 
 不變式（本張）：
+- 首次入庫入口只排翻譯，關閉時不讀 DB；排隊工作起跑時重讀開關（I-FI）。
 - 入口任何例外都不傳回入庫路（I-HOOK-NEVER-RAISES）。
 - 三開關全關且 ``skip_faces=True`` → 不讀 DB、不 log、不交棒（I-HOOK-OFF）。
 - 翻譯／相似／標籤各自一條 daemon lane（FIFO、並行度 1、惰性建立），入口只排工作不等結果；
@@ -25,6 +27,7 @@ import threading
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from core.first_ingest import FirstIngest
 from core.ai_services import similar_index, similar_state, tags_backfill_policy, tags_state
 from core.ai_services.tagging import TaggingFailure, tag_video_sync
 from core.config import load_config
@@ -33,12 +36,14 @@ from core.focal import requires_face_detection
 from core.focal_trigger import maybe_submit_video_focal
 from core.logger import get_logger
 from core.path_utils import uri_to_local_fs_path
-from core.scrapers.utils import has_japanese
-from core.title_writeback import apply_title_writeback
+from core.title_writeback import apply_title_writeback, needs_translate
 from core.translate_service import create_translate_service
+from core.translation_judge import is_bad_translation
 from core.user_tags_write import hold_nfo_write
 
 logger = get_logger(__name__)
+
+_RESCRAPE_ROUTES = frozenset({"enrich_rescrape", "readonly_rescrape"})
 
 ITEMS = ("translate", "similar", "faces", "tags")
 _TAGS_NOTIFY_KEY = "notif.ai_tags_unreachable"
@@ -70,8 +75,9 @@ class IngestContext:
     row: object
 
 
-def title_needs_translation(row) -> bool:
-    return has_japanese(row.title or "") and (row.nfo_mtime or 0) > 0
+def title_needs_translation(row, *, fresh_site_title: bool = False) -> bool:
+    original = "" if fresh_site_title else row.original_title
+    return needs_translate(row.title, original, row.nfo_mtime, row.number or "")
 
 
 def video_label(row) -> str:
@@ -102,13 +108,18 @@ def _flag_on(cfg: dict, *keys) -> bool:
     return bool(cur)
 
 
-def _decide_translate(cfg: dict, row, skip_translate: bool = False) -> Verdict:
+def _locale_is_source_language(locale: str) -> bool:
+    """介面是日文時原文已是目標語言，不翻譯。"""
+    return locale == "ja"
+
+
+def _decide_translate(cfg: dict, row, skip_translate: bool = False, *, fresh_site_title: bool = False) -> Verdict:
     if not _flag_on(cfg, "translate", "enabled"):
         return Verdict(False, "off")
     if skip_translate:
         return Verdict(False, "preserve_title")
     locale = (cfg.get("general") or {}).get("locale") or "zh-TW"
-    if locale == "ja" or not title_needs_translation(row):
+    if _locale_is_source_language(locale) or not title_needs_translation(row, fresh_site_title=fresh_site_title):
         return Verdict(False, "title_in_target_language")
     return Verdict(True)
 
@@ -149,9 +160,10 @@ def decide(
     index_ready: bool,
     cover_exists: bool,
     skip_translate: bool = False,
+    fresh_site_title: bool = False,
 ) -> Plan:
     return Plan(
-        translate=_decide_translate(cfg, row, skip_translate),
+        translate=_decide_translate(cfg, row, skip_translate, fresh_site_title=fresh_site_title),
         similar=_decide_similar(cfg, row, index_ready),
         faces=_decide_faces(row, skip_faces, cover_exists),
         tags=_decide_tags(cfg, row),
@@ -220,20 +232,6 @@ def _path_mappings(ctx: IngestContext) -> dict:
     return (ctx.cfg.get("gallery") or {}).get("path_mappings") or {}
 
 
-_REFUSAL_MARKERS = ("無法翻譯", "無法提供", "抱歉", "i can't", "i cannot", "i'm sorry", "sorry")
-
-
-def _bad_translation(source: str, translated: str) -> bool:
-    s, t = source.strip(), translated.strip()
-    if not t: return True
-    t = t.replace("’", "'")
-    if t == s or has_japanese(t) or "\n" in t:
-        return True
-    if len(t) > max(2 * len(s), len(s) + 40):
-        return True
-    return any(m in t.lower() for m in _REFUSAL_MARKERS)
-
-
 def _row_stale(fresh, row) -> bool:
     """入隊後這列被改過（或不見了）→ 不能拿舊譯文蓋回去。"""
     if fresh is None:
@@ -244,13 +242,18 @@ def _row_stale(fresh, row) -> bool:
 
 
 def _job_translate(ctx: IngestContext) -> Optional[str]:
-    locale = (ctx.cfg.get("general") or {}).get("locale") or "zh-TW"
+    fresh_cfg = load_config()
+    if not _flag_on(fresh_cfg, "translate", "enabled"):
+        return "off"
+    locale = (fresh_cfg.get("general") or {}).get("locale") or "zh-TW"
+    if _locale_is_source_language(locale):
+        return "title_in_target_language"
     service = create_translate_service(ctx.cfg.get("translate") or {}, locale)
     translated = asyncio.run(service.translate_or_raise(
         ctx.row.title,
         {"actors": ctx.row.actresses or [], "number": ctx.row.number or ""},
     ))
-    if _bad_translation(ctx.row.title, translated):
+    if is_bad_translation(ctx.row.title, translated):
         return "bad_translation"
     mappings = _path_mappings(ctx)
     with hold_nfo_write():
@@ -385,6 +388,7 @@ def _run_after_ingest(
         index_ready=index_ready,
         cover_exists=cover_exists,
         skip_translate=skip_translate,
+        fresh_site_title=route in _RESCRAPE_ROUTES,
     )
     logger.info("%s", format_log(route, row, plan))
     ctx = IngestContext(
@@ -402,3 +406,34 @@ def _run_after_ingest(
             logger.exception(
                 "[post_ingest] item failed item=%s video=%s", name, video_uri,
             )
+
+
+def run_translate_after_first_ingest(video_uri: str, *, route: str) -> None:
+    try:
+        _run_translate_after_first_ingest(video_uri, route=route)
+    except Exception:
+        logger.exception("[post_ingest] run_translate_after_first_ingest failed video=%s", video_uri)
+
+
+def _run_translate_after_first_ingest(video_uri: str, *, route: str) -> None:
+    cfg = load_config()
+    if not _flag_on(cfg, "translate", "enabled"):
+        return
+    row = VideoRepository().get_by_path(video_uri)
+    if row is None:
+        logger.warning(
+            "[post_ingest] route=%s video=%s skip(row_missing)",
+            route,
+            os.path.basename(video_uri),
+        )
+        return
+    verdict = _decide_translate(cfg, row)
+    outcome = "run" if verdict.run else f"skip({verdict.reason})"
+    logger.info("[post_ingest] route=%s video=%s translate=%s", route, video_label(row), outcome)
+    if verdict.run:
+        ctx = IngestContext(video_uri=video_uri, route=route, notify=False, cfg=cfg, row=row)
+        _submit("translate", functools.partial(_run_item, "translate", ctx))
+
+
+def make_first_ingest(scraper_cfg: dict, route: str) -> FirstIngest:
+    return FirstIngest(scraper_cfg, functools.partial(run_translate_after_first_ingest, route=route))
