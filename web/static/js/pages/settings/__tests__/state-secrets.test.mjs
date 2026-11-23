@@ -240,3 +240,30 @@ test('metatube_connect_sends_wire_token', async () => {
         }
     } finally { globalThis.fetch = realFetch; }
 });
+
+test('metatube_secret_save_disconnects_runtime_only_on_successful_change', async () => {
+    const realFetch = globalThis.fetch;
+    try {
+        for (const [mode, success, expected] of [
+            ['clear', true, 1], ['replace', true, 1], ['unchanged', true, 0], ['clear', false, 0],
+        ]) {
+            const { state } = setup(configured(), success);
+            await state.loadConfig();
+            state.metatubeConnected = true;
+            state.metatubeEdit();
+            if (mode === 'clear') state.secretClear('metatube');
+            if (mode === 'replace') {
+                state.secretReplace('metatube');
+                state.secretFields.metatube.input = 'another-value-123456789';
+            }
+            const setupFetch = globalThis.fetch;
+            let disconnects = 0;
+            globalThis.fetch = async (url, options) => {
+                if (url === '/api/settings/metatube/disconnect') disconnects++;
+                return setupFetch(url, options);
+            };
+            await state._saveServerConfig();
+            assert.equal(disconnects, expected, `${mode} success=${success}`);
+        }
+    } finally { globalThis.fetch = realFetch; }
+});

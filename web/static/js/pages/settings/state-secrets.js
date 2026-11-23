@@ -35,6 +35,7 @@ export function stateSecrets() {
         secretWire(id) { return wireValue(this.secretFields[id]); },
         secretPreview(id) { return previewText(this.secretFields[id], maskSecret); },
         secretHasValue(id) { return wireValue(this.secretFields[id]) !== ''; },
+        secretDirty(id) { return isDirty(this.secretFields[id]); },
         secretReplace(id) { this.secretFields[id] = startReplace(this.secretFields[id]); },
         secretClear(id) { this.secretFields[id] = requestClear(this.secretFields[id]); },
         secretsApplyToConfig(config) {
