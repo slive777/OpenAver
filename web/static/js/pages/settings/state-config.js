@@ -36,26 +36,20 @@ export function stateConfig() {
             translateProvider: 'ollama',
             ollamaUrl: 'http://localhost:11434',
             ollamaModel: '',
-            geminiApiKey: '',
             geminiModel: '',
             openaiBaseUrl: '',
-            openaiApiKey: '',
             openaiModel: 'gpt-4o-mini',
-            openaiOfficialApiKey: '',
             openaiOfficialModel: '',
-            claudeApiKey: '',
             claudeModel: 'claude-haiku-5-5',
 
             // AI services — image similar（186-T6）
             aiSimilarEnabled: false,
             aiSimilarUrl: '',
-            aiSimilarApiKey: '',
             aiSimilarModel: '',
 
             // AI services — faces（187a-T5）
             aiFacesEnabled: false,
             aiFacesUrl: '',
-            aiFacesApiKey: '',
             aiFacesModel: '',
 
             // AI services — tags（188c-T8a）
@@ -185,7 +179,6 @@ export function stateConfig() {
         metatubeConnected: false,
         partsBinExpanded: false,   // §2.8 Parts Bin 連線後預設展開（見 hydrateMetatubeStatus）
         metatubeServerUrl: '',     // idle 連線表單 Server URL
-        metatubeToken: '',         // idle 連線表單 Bearer Token
         metatubeConnecting: false, // true while POST /connect is in-flight (CD-63b-3)
         metatubeLanMode: false,    // allow_lan checkbox (CD-63b-3)
         probeProgress: 0,          // number of providers probed so far
@@ -228,7 +221,8 @@ export function stateConfig() {
             if (this._configLoading) return false;
             if (!this.savedState) return false;
             return JSON.stringify(this.form) !== JSON.stringify(this.savedState)
-                || this.openaiUseCustomModel !== this.savedOpenaiUseCustomModel;
+                || this.openaiUseCustomModel !== this.savedOpenaiUseCustomModel
+                || this.secretsDirty;
         },
 
         // 命名預覽（依 data 套範例值）。誠實反映後端空值行為（U-A2）：空變數 → 空字串，
@@ -705,6 +699,7 @@ export function stateConfig() {
                 if (result.success) {
                     this.cfWindowProxyRestartNeeded = result.cf_window_proxy_restart_needed === true;
                     const config = result.data;
+                    this.secretsLoad(config);
 
                     // Search
                     // 61c-3: uncensoredMode 由 sources 段推導（computed getter），不再單獨讀 uncensored_mode_enabled。
@@ -720,7 +715,6 @@ export function stateConfig() {
                     this.form.translateProvider = config.translate.provider || 'ollama';
                     this.form.ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url || 'http://localhost:11434';
                     this.form.ollamaModel = config.translate.ollama?.model || config.translate.ollama_model || '';
-                    this.form.geminiApiKey = config.translate.gemini?.api_key || '';
 
                     // Gemini model 預設填入
                     if (config.translate.gemini?.model) {
@@ -730,17 +724,14 @@ export function stateConfig() {
 
                     // OpenAI Compatible
                     this.form.openaiBaseUrl = config.translate.openai?.base_url || '';
-                    this.form.openaiApiKey = config.translate.openai?.api_key || '';
                     this.form.openaiModel = config.translate.openai?.model || 'gpt-4o-mini';
                     this.openaiUseCustomModel = config.translate.openai?.use_custom_model || false;
 
                     // Claude
-                    this.form.claudeApiKey = config.translate.claude?.api_key || '';
                     this.form.claudeModel = config.translate.claude?.model || 'claude-haiku-5-5';
                     this.claudeModels = [this.form.claudeModel];
 
                     // OpenAI Official
-                    this.form.openaiOfficialApiKey = config.translate.openai_official?.api_key || '';
                     this.form.openaiOfficialModel = config.translate.openai_official?.model || '';
                     this.openaiOfficialModels = this.form.openaiOfficialModel
                         ? [this.form.openaiOfficialModel]
@@ -749,13 +740,11 @@ export function stateConfig() {
                     // AI services — image similar（186-T6）
                     this.form.aiSimilarEnabled = config.ai_services?.image_similar?.enabled || false;
                     this.form.aiSimilarUrl = config.ai_services?.image_similar?.url || '';
-                    this.form.aiSimilarApiKey = config.ai_services?.image_similar?.api_key || '';
                     this.form.aiSimilarModel = config.ai_services?.image_similar?.model || '';
 
                     // AI services — faces（187a-T5）
                     this.form.aiFacesEnabled = config.ai_services?.faces?.enabled || false;
                     this.form.aiFacesUrl = config.ai_services?.faces?.url || '';
-                    this.form.aiFacesApiKey = config.ai_services?.faces?.api_key || '';
                     this.form.aiFacesModel = config.ai_services?.faces?.model || '';
 
                     // AI services — tags（188c-T8a；必須在 savedState 快照之前）
@@ -948,7 +937,6 @@ export function stateConfig() {
                     // Hydrate metatube fields from config + /status (CD-63b-3)
                     this.metatubeEnabled = config.metatube?.enabled || false;
                     this.metatubeServerUrl = config.metatube?.url || '';
-                    this.metatubeToken = config.metatube?.token || '';
                     this.metatubeLanMode = !!config.metatube?.allow_lan;   // hydrate LAN opt-in so re-connect doesn't fail SSRF (Codex P2)
                     try { await this.hydrateMetatubeStatus(); } catch (_e) { this.metatubeConnected = false; }
 
@@ -1159,21 +1147,17 @@ export function stateConfig() {
                         model: this.form.ollamaModel
                     },
                     gemini: {
-                        api_key: this.form.geminiApiKey,
                         model: this.form.geminiModel || 'gemini-flash-lite-latest'
                     },
                     openai: {
                         base_url: this.form.openaiBaseUrl.trim(),
-                        api_key: this.form.openaiApiKey,
                         model: this.form.openaiModel.trim() || 'gpt-4o-mini',
                         use_custom_model: this.openaiUseCustomModel
                     },
                     claude: {
-                        api_key: this.form.claudeApiKey,
                         model: this.form.claudeModel || 'claude-haiku-5-5'
                     },
                     openai_official: {
-                        api_key: this.form.openaiOfficialApiKey,
                         model: this.form.openaiOfficialModel
                     }
                 };
@@ -1185,14 +1169,12 @@ export function stateConfig() {
                         ...config.ai_services?.image_similar,
                         enabled: this.form.aiSimilarEnabled,
                         url: this.form.aiSimilarUrl,
-                        api_key: this.form.aiSimilarApiKey,
                         model: this.form.aiSimilarModel,
                     },
                     faces: {
                         ...config.ai_services?.faces,
                         enabled: this.form.aiFacesEnabled,
                         url: this.form.aiFacesUrl,
-                        api_key: this.form.aiFacesApiKey,
                         model: this.form.aiFacesModel,
                     },
                     tags: {
@@ -1250,6 +1232,7 @@ export function stateConfig() {
                     manual_only: s.manual_only,
                 }));
 
+                this.secretsApplyToConfig(config);
                 const resp = await fetch('/api/config', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -1263,6 +1246,7 @@ export function stateConfig() {
                     // 更新快照（避免儲存後仍為 dirty）
                     this.savedState = JSON.parse(JSON.stringify(this.form));
                     this.savedOpenaiUseCustomModel = this.openaiUseCustomModel;
+                    this.secretsAfterSave();
                     // 71b-T2: 縮圖快取「剛被關閉」(persisted true → 現在 false) 才清空 output/thumb/。
                     // 必在 PUT 成功之後——先存才清（config.json 已寫 false）。confirmThumbCacheDisable
                     // 自身不 POST clear，統一收斂於此。
@@ -1700,7 +1684,7 @@ export function stateConfig() {
             if (this.metatubeConnecting) return;
             this.metatubeConnecting = true;
             try {
-                const body = { url: this.metatubeServerUrl.trim(), token: this.metatubeToken.trim(), allow_lan: this.metatubeLanMode };
+                const body = { url: this.metatubeServerUrl.trim(), token: this.secretWire('metatube'), allow_lan: this.metatubeLanMode };
                 const resp = await fetch('/api/settings/metatube/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
                 const result = await resp.json();
                 if (result.success) {

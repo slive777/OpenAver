@@ -111,8 +111,8 @@ export function formatUsd(v) {
     return Number(v).toFixed(2);
 }
 
-/** Test-button body: secrets as-is; omit absent fields. */
-export function buildTagsTestBody(form) {
+/** Test-button body: provider secrets use their wire values. */
+export function buildTagsTestBody(form, secretWire) {
     const body = {
         provider: form.aiTagsProvider,
         model: form.aiTagsModel,
@@ -121,16 +121,16 @@ export function buildTagsTestBody(form) {
     if (p === 'ollama') {
         body.base_url = form.ollamaUrl;
     } else if (p === 'gemini') {
-        body.api_key = form.geminiApiKey;
+        body.api_key = secretWire('gemini');
     } else if (p === 'claude') {
-        body.api_key = form.claudeApiKey;
+        body.api_key = secretWire('claude');
     } else if (p === 'openai_official') {
-        body.api_key = form.openaiOfficialApiKey;
+        body.api_key = secretWire('openaiOfficial');
     } else if (p === 'openai') {
         body.base_url = typeof form.openaiBaseUrl === 'string'
             ? form.openaiBaseUrl.trim()
             : form.openaiBaseUrl;
-        body.api_key = form.openaiApiKey;
+        body.api_key = secretWire('openai');
     }
     return body;
 }

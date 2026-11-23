@@ -10,7 +10,6 @@ from core.ai_services.tagging_vocab import load_builtin
 from core.cloud_translate import build_error
 from core.config import load_config, save_config
 from core.secret_fields import mask_secret
-from tests.unit._custom_source_fake import finalize_root  # noqa: PLC2701
 from web.app import app
 
 STORED_KEY = "sk-ant-stored-key-aaaa"
@@ -18,13 +17,9 @@ NEW_KEY = "sk-ant-new-key-zzzz"
 
 
 @pytest.fixture(autouse=True)
-def env(tmp_path, monkeypatch):
-    root = tmp_path / "root"
-    root.mkdir()
-    monkeypatch.setenv("OPENAVER_DATA_DIR", str(root))
+def env(isolate_secret_store):
     save_config(load_config())
-    finalize_root(root)
-    return root
+    return isolate_secret_store
 
 
 def _seed_claude_tags(*, api_key: str = STORED_KEY, provider: str = "claude", model: str = "claude-haiku-4"):
@@ -165,6 +160,43 @@ def test_outcomes_name_what_the_user_should_fix(monkeypatch, case):
         assert item.name != item.model_name  # 顯示名與 model_name 可區分
         assert body == {"ok": True, "outcome": "ok", "tags": [item.name]}
         assert calls[0]["poster_uri"] == sample
+
+
+def test_cleared_key_is_not_refilled_for_ai_tags_test(monkeypatch):
+    """使用者按「清除」後送空字串 → 不補回舊 Key；不帶欄位才用已存 Key。"""
+    vaulted = "openai-tags-vault-key-6666ffff"
+    cfg = load_config()
+    tags = cfg.setdefault("ai_services", {}).setdefault("tags", {})
+    tags["provider"] = "openai"
+    tags["model"] = "gpt-4o-mini"
+    openai_cfg = cfg.setdefault("translate", {}).setdefault("openai", {})
+    openai_cfg["base_url"] = "http://local-vision.local:9999/v1"
+    openai_cfg["api_key"] = vaulted
+    save_config(cfg)
+
+    assert core_config.CONFIG_PATH.exists()
+    raw = core_config.CONFIG_PATH.read_text(encoding="utf-8")
+    assert vaulted not in raw
+
+    seen: list = []
+
+    async def fake_cloud_request(tag, method, url, *, headers, timeout, json=None, params=None):
+        seen.append(dict(headers))
+        raise build_error("X", "auth_failed", 401, "", "")
+
+    monkeypatch.setattr("core.openai_client.cloud_request", fake_cloud_request)
+
+    with TestClient(app) as c:
+        cleared = c.post("/api/ai/tags/test", json={"api_key": ""})
+        assert cleared.status_code == 200
+        assert cleared.json()["ok"] is False
+        assert len(seen) == 1
+        assert "Authorization" not in seen[0]
+
+        absent = c.post("/api/ai/tags/test", json={})
+        assert absent.status_code == 200
+        assert len(seen) == 2
+        assert seen[1]["Authorization"] == f"Bearer {vaulted}"
 
 
 def test_test_button_has_no_side_effects(monkeypatch):

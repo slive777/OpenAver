@@ -37,7 +37,8 @@ setup_logging()
 
 logger = get_logger(__name__)
 
-from core.config import load_config, mutate_config
+from core.config import load_config, mutate_config, migrate_config_secrets
+from core.secret_store import prime as prime_secret_store
 from core.data_layout import bootstrap_data_layout, consume_pending_bootstrap_result, consume_reset_access_auth_marker
 from core.focal import device_state
 from core.ai_services import faces_state, similar_index, tags_state
@@ -190,6 +191,14 @@ async def lifespan(app: FastAPI):
     # 移除 legacy clip_embedding / clip_model_id），確保 Video.from_row cls(**data)
     # 不會因 legacy schema 欄位收到未知 keyword 而 500。CD-57b-8 contract。
     init_db()
+    try:
+        prime_secret_store()
+    except Exception as exc:
+        logger.warning("lifespan: prime_secret_store failed type=%s", type(exc).__name__)
+    try:
+        migrate_config_secrets()
+    except Exception as exc:
+        logger.warning("lifespan: migrate_config_secrets failed type=%s", type(exc).__name__)
     try:
         seed_builtin_aliases()
     except Exception:

@@ -383,6 +383,26 @@
 
 /* Small Mobile: 480px 以下 */
 @media (max-width: 480px) {
+    #settings-components .variable-input-group:has(> .secret-field) {
+        flex-wrap: wrap;
+    }
+
+    #settings-components .variable-input-group > .secret-field {
+        flex-basis: 100%;
+    }
+
+    #settings-components .secret-field-row {
+        gap: 0.375rem;
+    }
+
+    #settings-components .secret-field-value {
+        padding-inline: 0.5rem;
+    }
+
+    #settings-components .secret-field-row > .btn {
+        padding-inline: 0.375rem;
+    }
+
     /* 5. Input Group Inline - 縮小 number input */
     #settings-components .input-group-inline .input {
         width: 80px;
@@ -391,16 +411,6 @@
     /* Settings Hint - 減少左縮排（toggle 區塊） */
     #settings-components .settings-form-group .settings-hint {
         margin-left: 0; /* 移除 48px 縮排，節省空間 */
-    }
-
-    /* API Key Alert - 縮小 padding */
-    #settings-components .api-key-alert {
-        padding: 8px 16px; /* §4 layout 8pt grid */
-        font-size: 0.75rem;
-    }
-
-    #settings-components .api-key-alert > i {
-        font-size: 0.9rem;
     }
 
     /* Collapsible Trigger - 縮小文字 */

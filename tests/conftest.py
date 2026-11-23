@@ -738,3 +738,48 @@ def pytest_configure(config):
     from core.data_layout import bootstrap_data_layout
 
     bootstrap_data_layout()
+
+
+# ============ TASK-206a-T1：secret_store 的 DB 隔離（named fixture，非 autouse）====
+#
+# 用法：`def test_x(self, isolate_secret_store):` —— 參數即回傳的 tmp 資料根。
+# 不做 autouse（同 isolate_reconcile_db 的理由）；只隔離 secret_store，不碰 core.config。
+@pytest.fixture
+def isolate_secret_store(tmp_path, monkeypatch):
+    """opt-in（非 autouse）：tmp 資料根＋已定版 marker，secret_store 快取已 prime。"""
+    from core import secret_store as _secret_store
+    from core.data_root import LAYOUT_MARKER_NAME
+
+    root = tmp_path / "secret_store_root"
+    root.mkdir(exist_ok=True)
+    monkeypatch.setenv("OPENAVER_DATA_DIR", str(root))
+    (root / LAYOUT_MARKER_NAME).write_text(
+        json.dumps({"version": 1, "complete": True}),
+        encoding="utf-8",
+    )
+    _secret_store.reset_state_for_tests()
+    _secret_store.prime()
+    yield root
+    _secret_store.reset_state_for_tests()
+
+
+# ============ TASK-206a-T3：lifespan 啟動接線的測試隔離（autouse）====
+#
+# 形狀照 `_no_startup_update_network`：sys.modules 有 web.app 才 patch，
+# 不主動 import；smoke／e2e 不動；帶 isolate_secret_store 的測試放行。
+@pytest.fixture(autouse=True)
+def _no_startup_secret_wiring(request, monkeypatch):
+    if request.node.get_closest_marker("smoke") or request.node.get_closest_marker("e2e"):
+        yield
+        return
+    if "isolate_secret_store" in request.fixturenames:
+        yield
+        return
+    import sys as _sys
+    _web_app = _sys.modules.get("web.app")
+    if _web_app is None:
+        yield
+        return
+    monkeypatch.setattr(_web_app, "prime_secret_store", lambda *a, **kw: None, raising=False)
+    monkeypatch.setattr(_web_app, "migrate_config_secrets", lambda *a, **kw: None, raising=False)
+    yield

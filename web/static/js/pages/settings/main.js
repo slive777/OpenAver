@@ -1,5 +1,6 @@
 import { stateConfig }       from '@/settings/state-config.js';
 import { stateProviders }    from '@/settings/state-providers.js';
+import { stateSecrets } from '@/settings/state-secrets.js';
 import { stateUI }           from '@/settings/state-ui.js';
 import { stateSourceProbe }  from '@/settings/state-source-probe.js';
 import { customSources }     from '@/settings/state-custom-sources.js';
@@ -17,6 +18,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('settings', () => mergeState(
         stateConfig(),
         stateProviders(),
+        stateSecrets(),
         stateUI(),
         stateSourceProbe(),
         browseDirState(),

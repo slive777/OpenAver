@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from 'partials/ai_backfill_controls.html' import ai_backfill_controls %}
+{% from 'partials/secret_field.html' import secret_field %}
 
 {% block title %}{{ t('settings.page_title') }} - OpenAver{% endblock %}
 
@@ -521,11 +522,9 @@
                                        x-model="metatubeServerUrl"
                                        placeholder="http://192.168.1.50:8900">
                             </label>
-                            <label class="settings-mt-field">
+                            <label class="settings-mt-field" for="metatubeBearerToken">
                                 <span>{{ t('settings.sources.mt_token_label') }}</span>
-                                <input type="password"
-                                       x-model="metatubeToken"
-                                       autocomplete="off">
+                                {{ secret_field('metatube', 'metatubeBearerToken', apply_hint="connect") }}
                             </label>
                             <label class="settings-mt-field-checkbox">
                                 <input type="checkbox" class="toggle toggle-sm toggle-primary" x-model="metatubeLanMode">
@@ -1570,10 +1569,7 @@
                             <div class="settings-form-row">
                                 <label class="row-label" for="aiSimilarApiKey">{{ t('settings.ai.similar.api_key_label') }}</label>
                                 <div class="flex-1">
-                                    <input type="password" class="input input-bordered input-sm w-full"
-                                           id="aiSimilarApiKey"
-                                           x-model="form.aiSimilarApiKey"
-                                           :placeholder="window.t('settings.ai.similar.api_key_placeholder')">
+                                    {{ secret_field('aiSimilar', 'aiSimilarApiKey', placeholder_expr="window.t('settings.ai.similar.api_key_placeholder')") }}
                                 </div>
                             </div>
                             <div class="settings-form-row">
@@ -1644,10 +1640,7 @@
                             <div class="settings-form-row">
                                 <label class="row-label" for="aiFacesApiKey">{{ t('settings.ai.faces.api_key_label') }}</label>
                                 <div class="flex-1">
-                                    <input type="password" class="input input-bordered input-sm w-full"
-                                           id="aiFacesApiKey"
-                                           x-model="form.aiFacesApiKey"
-                                           :placeholder="window.t('settings.ai.faces.api_key_placeholder')">
+                                    {{ secret_field('aiFaces', 'aiFacesApiKey', placeholder_expr="window.t('settings.ai.faces.api_key_placeholder')") }}
                                 </div>
                             </div>
                             <div class="settings-form-row">
@@ -1788,8 +1781,7 @@
                                 <label class="row-label">Gemini API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
-                                        <input type="password" class="input input-bordered input-sm flex-1" id="geminiApiKey"
-                                            x-model="form.geminiApiKey" placeholder="AIza..." :disabled="!aiConnEnabled('gemini')">
+                                        {{ secret_field('gemini', 'geminiApiKey', placeholder_expr="'AIza...'", disabled_expr="!aiConnEnabled('gemini')") }}
                                         <button class="btn btn-sm btn-outline" type="button" id="testGeminiBtn"
                                             @click="testGeminiConnection()"
                                             :disabled="!aiConnEnabled('gemini') || testGeminiLoading">
@@ -1805,18 +1797,6 @@
                                         <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>
                                         {{ t('settings.translate.gemini_free_hint') }}
                                     </small>
-                                    <div class="alert alert-warning api-key-alert" role="alert">
-                                        <i class="bi bi-exclamation-triangle-fill"></i>
-                                        <div class="alert-content">
-                                            <strong>{{ t('settings.translate.security_title') }}</strong>
-                                            <ul class="alert-list">
-                                                <li>{{ t('settings.translate.security_item1') }}</li>
-                                                <li>{{ t('settings.translate.security_item2') }}</li>
-                                                <li>{{ t('settings.translate.security_item3_prefix') }} <a href="https://aistudio.google.com/apikey" target="_blank" class="alert-link">Google
-                                                        AI Studio</a> {{ t('settings.translate.security_item3_suffix') }}</li>
-                                            </ul>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1826,10 +1806,7 @@
                                 <label class="row-label">Claude API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
-                                        <input type="password" class="input input-bordered input-sm flex-1" id="claudeApiKey"
-                                            x-model="form.claudeApiKey"
-                                            :placeholder="window.t('settings.translate.claude_api_key_placeholder')"
-                                            :disabled="!aiConnEnabled('claude')">
+                                        {{ secret_field('claude', 'claudeApiKey', placeholder_expr="window.t('settings.translate.claude_api_key_placeholder')", disabled_expr="!aiConnEnabled('claude')") }}
                                         <button class="btn btn-sm btn-outline" type="button" id="testClaudeBtn"
                                             @click="fetchClaudeModels()"
                                             :disabled="!aiConnEnabled('claude') || fetchingClaudeModels">
@@ -1842,16 +1819,6 @@
                                     </div>
                                     <small class="settings-hint" x-html="claudeStatus"></small>
                                     <small class="settings-hint" x-text="window.t('settings.translate.claude_api_key_hint')"></small>
-                                    <div class="alert alert-warning api-key-alert" role="alert">
-                                        <i class="bi bi-exclamation-triangle-fill"></i>
-                                        <div class="alert-content">
-                                            <strong>{{ t('settings.translate.security_title') }}</strong>
-                                            <ul class="alert-list">
-                                                <li>{{ t('settings.translate.security_item1') }}</li>
-                                                <li>{{ t('settings.translate.security_item2') }}</li>
-                                            </ul>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1861,9 +1828,7 @@
                                 <label class="row-label">OpenAI API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
                                     <div class="variable-input-group">
-                                        <input type="password" class="input input-bordered input-sm flex-1" id="openaiOfficialApiKey"
-                                            x-model="form.openaiOfficialApiKey"
-                                            placeholder="sk-..." :disabled="!aiConnEnabled('openai_official')">
+                                        {{ secret_field('openaiOfficial', 'openaiOfficialApiKey', placeholder_expr="'sk-...'", disabled_expr="!aiConnEnabled('openai_official')") }}
                                         <button class="btn btn-sm btn-outline" type="button" id="testOpenaiOfficialBtn"
                                             @click="fetchOpenAIOfficialModels()"
                                             :disabled="!aiConnEnabled('openai_official') || fetchingOpenaiOfficialModels">
@@ -1875,16 +1840,6 @@
                                         </button>
                                     </div>
                                     <small class="settings-hint" id="openaiOfficialStatus" x-html="openaiOfficialStatus"></small>
-                                    <div class="alert alert-warning api-key-alert" role="alert">
-                                        <i class="bi bi-exclamation-triangle-fill"></i>
-                                        <div class="alert-content">
-                                            <strong>{{ t('settings.translate.security_title') }}</strong>
-                                            <ul class="alert-list">
-                                                <li>{{ t('settings.translate.security_item1') }}</li>
-                                                <li>{{ t('settings.translate.security_item2') }}</li>
-                                            </ul>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1914,10 +1869,7 @@
                             <div class="settings-form-row">
                                 <label class="row-label">API Key</label>
                                 <div class="flex-1 flex flex-col gap-1">
-                                    <input type="password" class="input input-bordered input-sm"
-                                        x-model="form.openaiApiKey"
-                                        :placeholder="window.t('settings.translate.openai_api_key_placeholder')"
-                                        :disabled="!aiConnEnabled('openai')">
+                                    {{ secret_field('openai', 'openaiApiKey', placeholder_expr="window.t('settings.translate.openai_api_key_placeholder')", disabled_expr="!aiConnEnabled('openai')") }}
                                     <small class="settings-hint" x-text="window.t('settings.translate.openai_api_key_hint')"></small>
                                 </div>
                             </div>

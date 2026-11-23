@@ -66,6 +66,7 @@ export async function resolve(specifier, context, nextResolve) {
 register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.url);
 
 const { stateConfig } = await import('../state-config.js');
+const { stateSecrets } = await import('../state-secrets.js');
 const { stateProviders } = await import('../state-providers.js');
 const { mergeState } = await import('@/shared/merge-state.js');
 
@@ -84,7 +85,7 @@ const FORMAT_VARS = [
 
 function makeFakeThis() {
   const toasts = [];
-  const fake = mergeState(stateConfig(), stateProviders());
+  const fake = mergeState(stateConfig(), stateProviders(), stateSecrets());
   fake.formatVariables = FORMAT_VARS.map((v) => ({ ...v }));
   fake.showToast = (msg, type) => toasts.push({ msg, type });
   fake._toasts = toasts;

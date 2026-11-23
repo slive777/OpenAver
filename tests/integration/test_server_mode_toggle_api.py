@@ -244,6 +244,7 @@ class TestServerModeToggleAPI:
         assert data["success"] is False
         assert data["reason"] == reason
 
+    @pytest.mark.usefixtures("isolate_secret_store")
     @pytest.mark.parametrize("env_name", ["OPENAVER_SYNOLOGY", "OPENAVER_SERVER_ONLY"])
     def test_synology_reset_keeps_server_mode_and_listener(self, client, mock_config_path, monkeypatch, env_name):
         """Synology／Linux 伺服器版重設後仍允許 LAN 存取，且不停止既有 listener。"""

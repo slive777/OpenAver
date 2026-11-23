@@ -2,7 +2,7 @@
  * ai-faces-panel.js — 人臉分頁獨立 Alpine 元件（TASK-187a-T5；補跑邏輯 189a-T11b 起改走共用 mixin）
  *
  * Alpine.data('aiFacesPanel')；面板獨有 key 一律 aiFaces 前綴、補跑 key 一律 bf 前綴（展開自 ai-backfill-controls.js）；
- * 不進 mergeState。外求：form／isDirty／serverUrl()／showToast／aiTab（不複製父層 key）。
+ * 不進 mergeState。外求：form／isDirty／serverUrl()／showToast／aiTab／secretWire()（不複製父層 key）。
  * 存檔後補查留在面板；輪詢由 mixin 負責。兩個 $watch('aiTab') 並存是對的。
  */
 
@@ -173,7 +173,7 @@ export function aiFacesPanel() {
             try {
                 const body = {
                     url: String(this.form.aiFacesUrl || '').trim(),
-                    api_key: this.form.aiFacesApiKey || '',
+                    api_key: this.secretWire('aiFaces'),
                     model: this.form.aiFacesModel || '',
                 };
                 const res = await fetch(TEST_URL, {

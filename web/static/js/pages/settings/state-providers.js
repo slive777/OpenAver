@@ -141,7 +141,7 @@ export function stateProviders() {
         },
 
         async testGeminiConnection() {
-            const apiKey = this.form.geminiApiKey;
+            const apiKey = this.secretWire('gemini');
 
             if (!apiKey) {
                 this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_api_key')}</span>`;
@@ -184,7 +184,7 @@ export function stateProviders() {
         },
 
         async testGeminiTranslation() {
-            const apiKey = this.form.geminiApiKey;
+            const apiKey = this.secretWire('gemini');
             const model = this.form.geminiModel;
 
             if (!apiKey) {
@@ -251,7 +251,7 @@ export function stateProviders() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         base_url: baseUrl,
-                        api_key: this.form.openaiApiKey
+                        api_key: this.secretWire('openai')
                     })
                 });
 
@@ -311,7 +311,7 @@ export function stateProviders() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         base_url: baseUrl,
-                        api_key: this.form.openaiApiKey,
+                        api_key: this.secretWire('openai'),
                         model: model
                     })
                 });
@@ -341,7 +341,7 @@ export function stateProviders() {
         },
 
         async fetchClaudeModels({ source = 'manual' } = {}) {
-            const apiKey = this.form.claudeApiKey;
+            const apiKey = this.secretWire('claude');
 
             if (!apiKey) {
                 this.claudeStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_api_key')}</span>`;
@@ -391,7 +391,7 @@ export function stateProviders() {
         },
 
         async testClaudeTranslation() {
-            const apiKey = this.form.claudeApiKey;
+            const apiKey = this.secretWire('claude');
             const model = this.form.claudeModel;
 
             if (!apiKey) {
@@ -442,7 +442,7 @@ export function stateProviders() {
         },
 
         async fetchOpenAIOfficialModels({ source = 'manual' } = {}) {
-            const apiKey = this.form.openaiOfficialApiKey;
+            const apiKey = this.secretWire('openaiOfficial');
 
             if (!apiKey) {
                 this.openaiOfficialStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_api_key')}</span>`;
@@ -492,7 +492,7 @@ export function stateProviders() {
         },
 
         async testOpenAIOfficialTranslation() {
-            const apiKey = this.form.openaiOfficialApiKey;
+            const apiKey = this.secretWire('openaiOfficial');
             const model = this.form.openaiOfficialModel;
 
             if (!apiKey) {
@@ -567,11 +567,11 @@ export function stateProviders() {
             const n = (arr) => (Array.isArray(arr) ? arr.length : 0);
             if (provider === 'ollama' && n(this.ollamaModels) <= 1 && this.form.ollamaUrl) {
                 await this.loadOllamaModels(this.form.ollamaUrl, '', { keepModel: true });
-            } else if (provider === 'gemini' && n(this.geminiModels) <= 1 && this.form.geminiApiKey) {
+            } else if (provider === 'gemini' && n(this.geminiModels) <= 1 && this.secretHasValue('gemini')) {
                 await this.testGeminiConnection();
-            } else if (provider === 'claude' && n(this.claudeModels) <= 1 && this.form.claudeApiKey) {
+            } else if (provider === 'claude' && n(this.claudeModels) <= 1 && this.secretHasValue('claude')) {
                 await this.fetchClaudeModels({ source: 'auto' });
-            } else if (provider === 'openai_official' && n(this.openaiOfficialModels) <= 1 && this.form.openaiOfficialApiKey) {
+            } else if (provider === 'openai_official' && n(this.openaiOfficialModels) <= 1 && this.secretHasValue('openaiOfficial')) {
                 await this.fetchOpenAIOfficialModels({ source: 'auto' });
             } else if (provider === 'openai' && n(this.openaiModels) <= 1 && this.form.openaiBaseUrl) {
                 await this.fetchOpenAIModels({ source: 'auto' });

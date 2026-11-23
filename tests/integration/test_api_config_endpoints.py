@@ -27,6 +27,7 @@ class TestConfigAPI:
         
         return config_path
 
+    @pytest.mark.usefixtures("isolate_secret_store")
     def test_delete_config_success(self, client, mock_config_path):
         """測試成功刪除 config.json (恢復原廠設定)"""
         # 手動建立 config_path
@@ -364,6 +365,7 @@ class TestDeleteConfigStopsLanListener:
 
         return config_path
 
+    @pytest.mark.usefixtures("isolate_secret_store")
     def test_delete_config_calls_lan_listener_stop(self, client, mock_config_path, monkeypatch):
         """DELETE /api/config → lan_listener.stop() は必ず 1 回呼ばれる
 

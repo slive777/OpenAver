@@ -124,6 +124,9 @@ def test_tags_conn_area_shows_only_tags_provider_editable(page: Page, base_url: 
     expect(vis).to_have_attribute("data-ai-conn", "gemini")
     for el in page.locator('[data-ai-conn="gemini"] input, [data-ai-conn="gemini"] button').all():
         expect(el).to_be_enabled()
+    field = page.locator('[data-secret-field="gemini"]')
+    if field.locator("button").count():
+        field.locator("button").first.click()
     page.locator("#geminiApiKey").fill("e2e-gemini-key")
     expect(page.locator("#geminiApiKey")).to_have_value("e2e-gemini-key")
     expect(page.locator('[data-ai-conn="ollama"]')).to_be_hidden()

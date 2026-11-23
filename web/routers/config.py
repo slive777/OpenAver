@@ -39,10 +39,10 @@ from core.config import (
 from core.nfo_title_format import validate_nfo_title_format
 from core.focal import device_state
 from core.secret_fields import (
-    SECRET_FIELDS,
     read_secret,
     render_config_secrets,
     resolve_secret,
+    secret_paths,
 )
 from core.database import VideoRepository, get_db_path, init_db
 from core import thumbnail_cache
@@ -101,6 +101,32 @@ def get_config() -> dict:
         },
         "cf_window_proxy_restart_needed": cf_window_proxy_restart_needed() or cf_handoff.restart_needed_here(current_settings()),
     }
+
+
+# 前端把遮罩原樣送回時，任何含連續四個 U+2022 的值都是哨兵（CD-206-9）。
+_MASK_RUN = "•" * 4
+
+
+def _restore_secret_wire_values(payload: dict, cfg: dict) -> None:
+    """把 payload 內的金鑰欄位從三態（遮罩／新值／空字串）還原成要落盤的內容。
+
+    ``cfg`` 是已注入庫內現值的磁碟現況（T3）。含哨兵一律採用現值，即使現值為空
+    也不入庫；葉鍵不存在於 payload 就跳過，不憑空建鍵。清除／新值／保留的庫動作
+    全由落盤閘依快取比對決定，這裡不碰庫。
+    """
+    for dotted in dict.fromkeys((*secret_paths(payload), *secret_paths(cfg))):
+        *parents, leaf = dotted.split(".")
+        node = payload
+        for part in parents:
+            node = node.get(part) if isinstance(node, dict) else None
+        if not isinstance(node, dict) or leaf not in node:
+            continue
+        incoming = read_secret(payload, dotted)
+        stored = read_secret(cfg, dotted)
+        if _MASK_RUN in incoming:
+            node[leaf] = stored
+        else:
+            node[leaf] = resolve_secret(incoming, stored)
 
 
 @router.put("/config")
@@ -186,15 +212,7 @@ def update_config(config: AppConfig) -> dict:
                 # Mask sentinels must be restored against disk under the same
                 # _config_write_lock critical section as server_mode preserve —
                 # handler-side load would be TOCTOU against concurrent writers.
-                for dotted in SECRET_FIELDS:
-                    *parents, leaf = dotted.split(".")
-                    node = payload
-                    for part in parents:
-                        node = node.get(part) if isinstance(node, dict) else None
-                    if isinstance(node, dict) and leaf in node:
-                        node[leaf] = resolve_secret(
-                            read_secret(payload, dotted), read_secret(cfg, dotted)
-                        )
+                _restore_secret_wire_values(payload, cfg)
                 faces_before.update(copy.deepcopy((cfg.get("ai_services") or {}).get("faces") or {}))
                 faces_after.update(copy.deepcopy((payload.get("ai_services") or {}).get("faces") or {}))
                 cfg.update(payload)
@@ -206,7 +224,7 @@ def update_config(config: AppConfig) -> dict:
             EmbeddingMatrixCache.invalidate()
             return {"success": True, "message": "設定已儲存", "cf_window_proxy_restart_needed": cf_window_proxy_restart_needed() or cf_handoff.restart_needed_here(current_settings())}
         except Exception as e:
-            logger.error("儲存設定失敗: %s", e)
+            logger.error("儲存設定失敗: %s", type(e).__name__)
             return {"success": False, "error": "儲存設定失敗"}
     finally:
         end_config_save(save_token)
@@ -255,7 +273,7 @@ def reset_config() -> dict:
         _reset_translate_service()  # 清除舊服務實例（與 server_mode 無關，鎖外）
         return {"success": True, "message": "已恢復預設設定"}
     except Exception as e:
-        logger.error("恢復預設設定失敗: %s", e)
+        logger.error("恢復預設設定失敗: %s", type(e).__name__)
         return {"success": False, "error": "恢復預設設定失敗"}
 
 
