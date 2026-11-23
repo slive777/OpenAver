@@ -26,6 +26,7 @@ import httpx
 import re
 
 from core import gemini_client, openai_client
+from core.openai_groups import parse_openai_provider
 from core.anthropic_client import (
     DEFAULT_CLAUDE_MODEL,
     request_translation,
@@ -467,7 +468,7 @@ def create_translate_service(config: Dict, target_language: str = "zh-TW") -> Tr
     Args:
         config: translate 配置字典
             {
-                "provider": "ollama" | "gemini" | "openai" | "claude" | "openai_official",
+                "provider": "ollama" | "gemini" | "openai" | "claude" | "openai_official" | "openai:<id>",
                 "ollama": {...},
                 "gemini": {...},
                 "claude": {...},
@@ -483,6 +484,13 @@ def create_translate_service(config: Dict, target_language: str = "zh-TW") -> Tr
         ValueError: 未知的 provider 或配置錯誤
     """
     provider = config.get("provider", "ollama")
+    gid = parse_openai_provider(provider)
+    if gid is not None:
+        groups = config.get("openai_custom")
+        group = groups.get(gid) if isinstance(groups, dict) else None
+        if not isinstance(group, dict):
+            raise ValueError(f"Unknown translate provider: {provider}")
+        return OpenAICompatibleTranslateService(group, target_language)
 
     if provider == "ollama":
         ollama_config = config.get("ollama", {})
