@@ -8,6 +8,7 @@ core/config.py — 設定載入 / 儲存 / 遷移邏輯
 - save_config()                    — 儲存設定至 config.json
 """
 
+import copy
 import json
 import shutil
 import threading
@@ -15,10 +16,12 @@ from typing import Callable, Dict, Literal, Optional, List
 
 from pydantic import BaseModel, Field, field_validator
 
+from core import secret_store
 from core.atomic_write import atomic_write
 from core.data_root import get_data_root, get_project_root, is_layout_finalized
 from core.logger import get_logger
 from core.path_utils import is_fs_path_under_dir, coerce_to_file_uri
+from core.secret_fields import inject_secrets, secret_paths
 from core.source_config import SourceConfig, get_builtin_sources, get_manual_only_sources
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS
 
@@ -372,6 +375,66 @@ def _ensure_ai_services(raw_config: dict) -> bool:
     return changed
 
 
+def _leaf_parent(config: dict, parts: list) -> tuple:
+    node = config
+    for part in parts[:-1]:
+        child = node.get(part) if isinstance(node, dict) else None
+        if not isinstance(child, dict):
+            return None, parts[-1]
+        node = child
+    return node, parts[-1]
+
+
+def _read_secret_leaf(config: dict, parts: list):
+    parent, leaf = _leaf_parent(config, parts)
+    if not isinstance(parent, dict) or leaf not in parent:
+        return None, False
+    value = parent[leaf]
+    if not isinstance(value, str):
+        return None, False
+    return value, True
+
+
+def _plan_secret_changes(config: dict) -> tuple:
+    cached = secret_store.snapshot()
+    upserts = {}
+    deletes = []
+    for path in secret_paths(config):
+        parts = path.split(".")
+        value, present = _read_secret_leaf(config, parts)
+        if not present:
+            continue
+        value = value.strip()
+        if value == cached.get(path, ""):
+            continue
+        if value:
+            upserts[path] = value
+        else:
+            deletes.append(path)
+    custom = config.get("translate") if isinstance(config, dict) else None
+    custom = custom.get("openai_custom") if isinstance(custom, dict) else None
+    if isinstance(custom, dict):
+        known = set(secret_paths(config))
+        for name in cached:
+            if name.startswith("translate.openai_custom.") and name not in known:
+                deletes.append(name)
+    return upserts, deletes
+
+
+def _strip_secrets(config: dict) -> dict:
+    out = copy.deepcopy(config)
+    for path in secret_paths(config):
+        parts = path.split(".")
+        parent, leaf = _leaf_parent(out, parts)
+        if (
+            isinstance(parent, dict)
+            and leaf in parent
+            and isinstance(parent[leaf], str)
+        ):
+            parent[leaf] = ""
+    return out
+
+
 def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；每加一個設定欄位的向後相容 migration 就得在此多開一支分支，這是它存在的理由而非缺陷；收斂設計已列 backlog（見 OpenAver架構評估-回應.md §七）
     """載入設定（含 migration / first-init），**不取鎖** —— caller 須已持有 _config_write_lock。
 
@@ -717,7 +780,7 @@ def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；
         # Save migrated config（已持鎖 → 用 unlocked 版避免自我死鎖）
         # _defer_disk_seed：記憶體遷移可跑，但一個字都不准寫回資料根（BE-DATA-13）。
         if need_save and not _defer_disk_seed:
-            _save_config_unlocked(raw_config)
+            _save_config_unlocked(raw_config, touch_secrets=False)
 
         return raw_config
     # 返回預設設定（沒有 default 檔案時）
@@ -727,10 +790,66 @@ def _load_config_unlocked() -> dict:  # noqa: C901 — config 遷移主流程；
 def load_config() -> dict:
     """載入設定，包含自動遷移邏輯和首次啟動初始化（process-wide 序列化）"""
     with _config_write_lock:
-        return _load_config_unlocked()
+        cfg = _load_config_unlocked()
+        return inject_secrets(cfg, secret_store.snapshot())
 
 
-def _save_config_unlocked(config: dict) -> None:
+def migrate_config_secrets() -> None:
+    try:
+        _migrate_config_secrets_locked()
+    except Exception as exc:
+        logger.warning("migrate_config_secrets failed type=%s", type(exc).__name__)
+        return
+
+
+def _migrate_config_secrets_locked() -> None:
+    with _config_write_lock:
+        if not CONFIG_PATH.exists():
+            return
+        if not is_layout_finalized(get_data_root()):
+            return
+        try:
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+        except Exception as exc:
+            logger.warning(
+                "migrate_config_secrets read failed path=%s type=%s",
+                "config.json",
+                type(exc).__name__,
+            )
+            return
+        if not isinstance(raw, dict):
+            logger.warning("migrate_config_secrets invalid shape path=%s", "config.json")
+            return
+        present = {}
+        for path in secret_paths(raw):
+            value, ok = _read_secret_leaf(raw, path.split("."))
+            if not ok:
+                continue
+            text = value.strip()
+            if text:
+                present[path] = text
+        if not present:
+            return
+        cached = secret_store.snapshot()
+        changed = {k: v for k, v in present.items() if v != cached.get(k, "")}
+        if not changed:
+            _save_config_unlocked(_strip_secrets(raw), touch_secrets=False)
+            return
+        try:
+            secret_store.apply_changes(changed, [], publish=False)
+        except Exception as exc:
+            logger.warning("migrate_config_secrets apply failed type=%s", type(exc).__name__)
+            return
+        expected = {**secret_store.snapshot(), **changed}
+        if not secret_store.verify_from_disk(expected):
+            logger.warning("migrate_config_secrets readback mismatch path=%s", "config.json")
+            return
+        secret_store.publish(changed, [])
+        _save_config_unlocked(_strip_secrets(raw), touch_secrets=False)
+
+
+def _save_config_unlocked(config: dict, *, touch_secrets: bool = True) -> None:
     """原子寫 config.json，**不取鎖** —— caller 須已持有 _config_write_lock。
 
     原子寫本體委派 core.atomic_write.atomic_write()（TASK-113d-T1 起的單一
@@ -745,6 +864,12 @@ def _save_config_unlocked(config: dict) -> None:
         raise ConfigRootNotFinalizedError(
             f"資料根尚未定版，禁止寫入設定檔（BE-DATA-13）：{CONFIG_PATH}"
         )
+
+    if touch_secrets:
+        upserts, deletes = _plan_secret_changes(config)
+        if upserts or deletes:
+            secret_store.apply_changes(upserts, deletes)
+        config = _strip_secrets(config)
 
     with atomic_write(CONFIG_PATH, mode='w', encoding='utf-8') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
@@ -768,6 +893,7 @@ def mutate_config(mutator: Callable[[dict], None]) -> None:
     """
     with _config_write_lock:
         cfg = _load_config_unlocked()
+        inject_secrets(cfg, secret_store.snapshot())
         mutator(cfg)
         _save_config_unlocked(cfg)
 
@@ -777,6 +903,8 @@ def reset_config_file() -> None:
     with _config_write_lock:
         if CONFIG_PATH.exists():
             CONFIG_PATH.unlink()
+        if is_layout_finalized(get_data_root()):
+            secret_store.clear_all()
 
 
 # ============ Gallery source helpers（feature/88, plan §3）============

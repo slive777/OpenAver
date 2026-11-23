@@ -185,3 +185,53 @@ def test_startup_reconnect_success_reflected_in_status(base_env, monkeypatch):
     assert sorted(p["id"] for p in data["providers"]) == sorted(f"metatube:{n}" for n in providers)
 
 
+@pytest.mark.asyncio
+async def test_lifespan_primes_and_migrates_before_any_background_work(
+    base_env, monkeypatch
+):
+    """TASK-206a-T3 (f)：prime／migrate 先於 writer 與各背景協程入口。"""
+    import web.app as web_app
+
+    order = []
+    monkeypatch.setattr("web.app.init_db", lambda *a, **kw: None)
+    monkeypatch.setattr("web.app.seed_builtin_aliases", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        "web.app.media_probe.log_unavailable_once", lambda *a, **kw: None
+    )
+    monkeypatch.setattr(
+        web_app, "prime_secret_store", lambda *a, **kw: order.append("prime"), raising=False
+    )
+    monkeypatch.setattr(
+        web_app, "migrate_config_secrets", lambda *a, **kw: order.append("migrate"), raising=False
+    )
+    monkeypatch.setattr(
+        web_app,
+        "start_notification_persistence",
+        lambda *a, **kw: order.append("writer"),
+    )
+    monkeypatch.setattr(
+        "web.app.source_reachability.schedule_reprobe_if_stale", AsyncMock()
+    )
+
+    real_create_task = asyncio.create_task
+
+    def _spy_create_task(coro, **kwargs):
+        name = getattr(coro, "__name__", type(coro).__name__)
+        order.append(f"task:{name}")
+        coro.close()
+        fut = real_create_task(asyncio.sleep(0))
+        return fut
+
+    monkeypatch.setattr(asyncio, "create_task", _spy_create_task)
+    cm = lifespan(app)
+    try:
+        await asyncio.wait_for(cm.__aenter__(), timeout=5)
+    finally:
+        with contextlib.suppress(BaseException):
+            await cm.__aexit__(None, None, None)
+    assert order.index("prime") < order.index("migrate")
+    background = [e for e in order if e == "writer" or e.startswith("task:")]
+    assert background, "no background work observed"
+    assert order.index("migrate") < min(order.index(e) for e in background)
+
+
