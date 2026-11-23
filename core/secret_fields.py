@@ -26,17 +26,17 @@ _MASK4 = _BULLET * 4
 
 
 def mask_secret(value: str) -> str:
-    """Project a secret for GET responses.
+    """Project a secret for GET responses and input previews (CD-206-7).
 
     - empty → empty (UI must distinguish unset vs set)
-    - len ≤ 4 → full mask (no length leak)
-    - else → mask + last 4 chars (user can recognise which key)
+    - shorter than 16 code points → full mask (short tokens never leak a tail)
+    - 16+ code points → first 4 + mask + last 4 (user can recognise which key)
     """
     if not value:
         return ""
-    if len(value) <= 4:
+    if len(value) < 16:
         return _MASK4
-    return _MASK4 + value[-4:]
+    return value[:4] + _MASK4 + value[-4:]
 
 
 def resolve_secret(incoming: str, stored: str) -> str:
@@ -66,13 +66,60 @@ def read_secret(cfg: dict, dotted: str) -> str:
     return node
 
 
+def secret_paths(cfg: dict) -> tuple[str, ...]:
+    """Static secret paths plus one path per custom OpenAI-compatible group.
+
+    Custom groups live under ``translate.openai_custom.<id>.api_key`` and keep
+    dict order after the seven static fields. Missing nests or non-dict values
+    fall back to the static fields only.
+    """
+    paths = list(SECRET_FIELDS)
+    translate = cfg.get("translate") if isinstance(cfg, dict) else None
+    custom = translate.get("openai_custom") if isinstance(translate, dict) else None
+    if isinstance(custom, dict):
+        for group_id in custom:
+            if isinstance(group_id, str):
+                paths.append(f"translate.openai_custom.{group_id}.api_key")
+    return tuple(paths)
+
+
+def inject_secrets(cfg: dict, snapshot: dict) -> dict:
+    """Merge cached vault values into cfg in place and return the same dict.
+
+    Only paths from secret_paths(cfg) are visited, so snapshot entries for
+    removed custom groups are ignored. A truthy snapshot value overwrites the
+    leaf (creating the leaf key when its parent dict exists); a missing or
+    falsy value keeps whatever cfg already holds, including on-disk plaintext.
+    Missing parent dicts are never created.
+    """
+    for path in secret_paths(cfg):
+        cached = snapshot.get(path)
+        if not cached:
+            continue
+        parts = path.split(".")
+        node: Any = cfg
+        for part in parts[:-1]:
+            if not isinstance(node, dict):
+                node = None
+                break
+            child = node.get(part)
+            if not isinstance(child, dict):
+                node = None
+                break
+            node = child
+        if not isinstance(node, dict):
+            continue
+        node[parts[-1]] = cached
+    return cfg
+
+
 def render_config_secrets(cfg: dict) -> dict:
-    """Deep-copy cfg and mask every path in SECRET_FIELDS.
+    """Deep-copy cfg and mask every path in secret_paths(cfg).
 
     Does not mutate the input. Missing paths are skipped (no empty nests created).
     """
     out = copy.deepcopy(cfg)
-    for dotted in SECRET_FIELDS:
+    for dotted in secret_paths(cfg):
         parts = dotted.split(".")
         node: Any = out
         for part in parts[:-1]:
