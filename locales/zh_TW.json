@@ -782,7 +782,7 @@
       "clear": "清除"
     },
     "translate": {
-      "enabled_label": "啟用標題翻譯",
+      "enabled_label": "啟用標題／簡介翻譯",
       "provider_label": "翻譯服務",
       "ollama_local": "（本地）",
       "gemini_cloud": "（Google 雲端）",
@@ -800,7 +800,7 @@
       "openai_api_key_hint": "本地 LLM 可留空，雲端服務需填入 API Key",
       "openai_model_placeholder": "e.g. gpt-4o-mini",
       "openai_custom_model": "自訂...",
-      "openai_official": "OpenAI（官方）"
+      "openai_official": "GPT（OpenAI 雲端）"
     },
     "scraper": {
       "suffix_keywords_label": "版本標記",

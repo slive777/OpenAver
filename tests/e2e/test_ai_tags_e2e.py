@@ -122,15 +122,15 @@ def test_tags_conn_area_shows_only_tags_provider_editable(page: Page, base_url: 
     vis = page.locator("[data-ai-conn]:visible")
     expect(vis).to_have_count(1)
     expect(vis).to_have_attribute("data-ai-conn", "gemini")
-    for el in page.locator('[data-ai-conn="gemini"] input, [data-ai-conn="gemini"] button').all():
+    for el in page.locator('#aiPanelTags [data-ai-conn="gemini"] input, #aiPanelTags [data-ai-conn="gemini"] button').all():
         expect(el).to_be_enabled()
-    field = page.locator('[data-secret-field="gemini"]')
+    field = page.locator('#aiPanelTags [data-secret-field="gemini"]')
     if field.locator("button").count():
         field.locator("button").first.click()
-    page.locator("#geminiApiKey").fill("e2e-gemini-key")
-    expect(page.locator("#geminiApiKey")).to_have_value("e2e-gemini-key")
-    expect(page.locator('[data-ai-conn="ollama"]')).to_be_hidden()
-    expect(page.locator("#aiConnections")).not_to_have_class(re.compile(r"\bopacity-50\b"))
+    page.locator("#tags-geminiApiKey").fill("e2e-gemini-key")
+    expect(page.locator("#tags-geminiApiKey")).to_have_value("e2e-gemini-key")
+    expect(page.locator('#aiPanelTags [data-ai-conn="ollama"]')).to_be_hidden()
+    expect(page.locator("#tags-aiConnections")).not_to_have_class(re.compile(r"\bopacity-50\b"))
     assert bad == []
 def test_tags_settings_loaded_not_dirty(page: Page, base_url: str) -> None:
     """已開 AI 標籤載入後 isDirty 乾淨、補完全庫可按、無「先儲存」。"""

@@ -1,3 +1,4 @@
+{% from 'partials/ai_connections.html' import ai_connections %}
 {% extends "base.html" %}
 {% from 'partials/ai_backfill_controls.html' import ai_backfill_controls %}
 {% from 'partials/secret_field.html' import secret_field %}
@@ -1374,6 +1375,12 @@
                                 </select>
                             </div>
 
+                        </div>
+
+                        {{ ai_connections('translate') }}
+
+                        <div id="translateModelFields"
+                             :class="{ 'opacity-50': !form.translateEnabled }">
                             <!-- Ollama：只留模型列 -->
                             <div id="ollamaFields" x-show="form.translateProvider === 'ollama'">
                                 <div class="settings-form-row">
@@ -1712,6 +1719,7 @@
                                     </select>
                                 </div>
                             </div>
+                            {{ ai_connections('tags', id_prefix='tags-') }}
                             <div class="settings-form-row">
                                 <label class="row-label" for="aiTagsModel">{{ t('settings.ai.tags.model_label') }}</label>
                                 <div class="flex-1 flex flex-col gap-1">
@@ -1750,131 +1758,7 @@
                         </div>
                     </div>
 
-                    <!-- 連線區（跟著分頁走：翻譯分頁只列翻譯選的那家、AI 標籤分頁只列標籤選的那家，其餘分頁整區隱藏；未啟用任一家時變淡並鎖住） -->
-                    <div id="aiConnections" class="ai-connections" :class="{ 'opacity-50': !aiConnEnabled('ollama') && !aiConnEnabled('gemini') && !aiConnEnabled('claude') && !aiConnEnabled('openai_official') && !aiConnEnabled('openai') }" x-show="['ollama','gemini','claude','openai_official','openai'].some(p => aiConnShown(p, aiTab))" x-cloak>
-                        <p class="settings-tier-label">{{ t('settings.ai.connections_title') }}</p>
 
-                        <div data-ai-conn="ollama" x-show="aiConnShown('ollama', aiTab)">
-                            <div class="settings-form-row">
-                                <label class="row-label">Ollama URL</label>
-                                <div class="flex-1 flex flex-col gap-1">
-                                    <div class="variable-input-group">
-                                        <input type="text" class="input input-bordered input-sm flex-1" id="ollamaUrl"
-                                            x-model="form.ollamaUrl" :disabled="!aiConnEnabled('ollama')">
-                                        <button class="btn btn-sm btn-outline" type="button" id="testOllamaBtn"
-                                            @click="testOllamaConnection()"
-                                            :disabled="!aiConnEnabled('ollama') || testOllamaLoading">
-                                            <span x-show="testOllamaLoading" class="loading loading-spinner loading-sm"></span>
-                                            <template x-if="!testOllamaLoading">
-                                                <i class="bi bi-plug"></i>
-                                            </template>
-                                            <span x-text="testOllamaLoading ? '' : ' ' + window.t('settings.action.test')"></span>
-                                        </button>
-                                    </div>
-                                    <small class="settings-hint" x-html="ollamaStatus"></small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div data-ai-conn="gemini" x-show="aiConnShown('gemini', aiTab)">
-                            <div class="settings-form-row">
-                                <label class="row-label">Gemini API Key</label>
-                                <div class="flex-1 flex flex-col gap-1">
-                                    <div class="variable-input-group">
-                                        {{ secret_field('gemini', 'geminiApiKey', placeholder_expr="'AIza...'", disabled_expr="!aiConnEnabled('gemini')") }}
-                                        <button class="btn btn-sm btn-outline" type="button" id="testGeminiBtn"
-                                            @click="testGeminiConnection()"
-                                            :disabled="!aiConnEnabled('gemini') || testGeminiLoading">
-                                            <span x-show="testGeminiLoading" class="loading loading-spinner loading-sm"></span>
-                                            <template x-if="!testGeminiLoading">
-                                                <i class="bi bi-plug"></i>
-                                            </template>
-                                            <span x-text="testGeminiLoading ? '' : ' ' + window.t('settings.action.test')"></span>
-                                        </button>
-                                    </div>
-                                    <small class="settings-hint" x-html="geminiStatus"></small>
-                                    <small class="settings-hint">
-                                        <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>
-                                        {{ t('settings.translate.gemini_free_hint') }}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div data-ai-conn="claude" x-show="aiConnShown('claude', aiTab)" x-cloak>
-                            <div class="settings-form-row">
-                                <label class="row-label">Claude API Key</label>
-                                <div class="flex-1 flex flex-col gap-1">
-                                    <div class="variable-input-group">
-                                        {{ secret_field('claude', 'claudeApiKey', placeholder_expr="window.t('settings.translate.claude_api_key_placeholder')", disabled_expr="!aiConnEnabled('claude')") }}
-                                        <button class="btn btn-sm btn-outline" type="button" id="testClaudeBtn"
-                                            @click="fetchClaudeModels()"
-                                            :disabled="!aiConnEnabled('claude') || fetchingClaudeModels">
-                                            <span x-show="fetchingClaudeModels" class="loading loading-spinner loading-sm"></span>
-                                            <template x-if="!fetchingClaudeModels">
-                                                <i class="bi bi-plug"></i>
-                                            </template>
-                                            <span x-text="fetchingClaudeModels ? '' : ' ' + window.t('settings.action.test')"></span>
-                                        </button>
-                                    </div>
-                                    <small class="settings-hint" x-html="claudeStatus"></small>
-                                    <small class="settings-hint" x-text="window.t('settings.translate.claude_api_key_hint')"></small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div data-ai-conn="openai_official" x-show="aiConnShown('openai_official', aiTab)">
-                            <div class="settings-form-row">
-                                <label class="row-label">OpenAI API Key</label>
-                                <div class="flex-1 flex flex-col gap-1">
-                                    <div class="variable-input-group">
-                                        {{ secret_field('openaiOfficial', 'openaiOfficialApiKey', placeholder_expr="'sk-...'", disabled_expr="!aiConnEnabled('openai_official')") }}
-                                        <button class="btn btn-sm btn-outline" type="button" id="testOpenaiOfficialBtn"
-                                            @click="fetchOpenAIOfficialModels()"
-                                            :disabled="!aiConnEnabled('openai_official') || fetchingOpenaiOfficialModels">
-                                            <span x-show="fetchingOpenaiOfficialModels" class="loading loading-spinner loading-sm"></span>
-                                            <template x-if="!fetchingOpenaiOfficialModels">
-                                                <i class="bi bi-plug"></i>
-                                            </template>
-                                            <span x-text="fetchingOpenaiOfficialModels ? '' : ' ' + window.t('settings.action.test')"></span>
-                                        </button>
-                                    </div>
-                                    <small class="settings-hint" id="openaiOfficialStatus" x-html="openaiOfficialStatus"></small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div data-ai-conn="openai" x-show="aiConnShown('openai', aiTab)" x-cloak>
-                            <div class="settings-form-row">
-                                <label class="row-label" x-text="'Base URL'"></label>
-                                <div class="flex-1 flex flex-col gap-1">
-                                    <div class="variable-input-group">
-                                        <input type="text" class="input input-bordered input-sm flex-1"
-                                            x-model="form.openaiBaseUrl"
-                                            placeholder="https://api.openai.com/v1"
-                                            :disabled="!aiConnEnabled('openai')">
-                                        <button class="btn btn-sm btn-outline" type="button"
-                                            @click="fetchOpenAIModels()"
-                                            :disabled="!aiConnEnabled('openai') || fetchingOpenaiModels">
-                                            <span x-show="fetchingOpenaiModels" class="loading loading-spinner loading-sm"></span>
-                                            <template x-if="!fetchingOpenaiModels">
-                                                <i class="bi bi-plug"></i>
-                                            </template>
-                                            <span x-text="fetchingOpenaiModels ? '' : ' ' + window.t('settings.action.test')"></span>
-                                        </button>
-                                    </div>
-                                    <small class="settings-hint" x-html="openaiStatus"></small>
-                                </div>
-                            </div>
-                            <div class="settings-form-row">
-                                <label class="row-label">API Key</label>
-                                <div class="flex-1 flex flex-col gap-1">
-                                    {{ secret_field('openai', 'openaiApiKey', placeholder_expr="window.t('settings.translate.openai_api_key_placeholder')", disabled_expr="!aiConnEnabled('openai')") }}
-                                    <small class="settings-hint" x-text="window.t('settings.translate.openai_api_key_hint')"></small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
             </div>
           </div>

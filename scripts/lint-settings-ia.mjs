@@ -68,6 +68,15 @@ const ANCHOR = {
   'data-focal-auto-pill': /(?<![\w:-])data-focal-auto-pill(?![\w-])/g,
   namingPreview: /(?<![\w:-])x-text="folderPreviewText"/g,
   externalManager: /(?<![\w:-])settings-form-row--external-manager/g,
+  translateEnabled: /(?<![\w:-])id="translateEnabled"/g,
+  translateProvider: /(?<![\w:-])id="translateProvider"/g,
+  connTranslate: /\{\{\s*ai_connections\('translate'/g,
+  ollamaFields: /(?<![\w:-])id="ollamaFields"/g,
+  aiTagsEnabled: /(?<![\w:-])id="aiTagsEnabled"/g,
+  aiTagsProvider: /(?<![\w:-])id="aiTagsProvider"/g,
+  connTags: /\{\{\s*ai_connections\('tags'/g,
+  aiTagsModel: /(?<![\w:-])id="aiTagsModel"/g,
+  aiTagsBackfill: /\{\{\s*ai_backfill_controls\('aiTags'/g,
 };
 
 // 分頁歸屬表：分頁卡 → 其內必有的控件
@@ -86,6 +95,8 @@ const PANEL_NAMES = ['sources', 'scraping', 'gallery', 'ai', 'system'];
 const ORDER_GROUPS = [
   ['externalManager', 'searchFavoriteFolder', 'createFolder', 'namingPreview', 'filenameFormat'],
   ['avlistSort', 'coverBadgesEnabled', 'thumbnailCacheEnabled', 'data-focal-auto-pill', 'avlistMinSize', 'videoExtensions', '@galleryExport'],
+  ['translateEnabled', 'translateProvider', 'connTranslate', 'ollamaFields'],
+  ['aiTagsEnabled', 'aiTagsProvider', 'connTags', 'aiTagsModel', 'aiTagsBackfill'],
 ];
 
 function fail(msg) {

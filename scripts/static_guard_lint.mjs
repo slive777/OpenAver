@@ -1740,7 +1740,7 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'id="sec-system"', note: '[TestSettingsPanelStructureGuard] test_form_wraps_all_three_sections — section id' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="selectAiTab\('translate'\)"/, note: '[186-T2] 翻譯分頁鈕必須呼叫 selectAiTab' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="selectAiTab\('similar'\)"/, note: '[186-T2] 圖片相似分頁鈕必須呼叫 selectAiTab' },
-  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'fetchOpenAIOfficialModels()', note: '[186-T2] 官方 OpenAI 連線測試必須接線' },
+  { file: 'web/templates/partials/ai_connections.html', kind: 'required-string', pattern: 'fetchOpenAIOfficialModels()', note: '[186-T2] 官方 OpenAI 連線測試必須接線' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'testOpenAIOfficialTranslation()', note: '[186-T2] 官方 OpenAI 翻譯測試必須接線' },
   { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('aiServicesCard'", note: '[186-T2] aiServicesCard 必須具名註冊於 main.js' },
   // ---- [190a-T1] 設定頁五分頁接線釘 ----
@@ -1786,15 +1786,15 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="selectAiTab\('tags'\)"/, note: '[lint-guard 188c-T9-tab-click] 使用者點「AI 標籤」沒反應，其餘 lint 與單元測試照樣全綠' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-data="aiTagsPanel"/, note: '[lint-guard 188c-T9-mount] 使用者點「AI 標籤」分頁卻沒掛上面板，開關與按鈕全部沒反應' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-model="form\.aiTagsEnabled"/, note: '[lint-guard 188c-T9-toggle-model] 開關綁錯變數存不進去，AI 標籤永遠開不起來' },
-  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="runTest\(\)"/, scope: /(id="aiPanelTags"[\s\S]*?)<div id="aiConnections"/, note: '[lint-guard 188c-T9-test-btn] AI 標籤測試鈕沒接上，使用者選好模型按測試沒反應' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="runTest\(\)"/, scope: /(id="aiPanelTags"[\s\S]*?)<\/section><!-- \/sec-ai -->/, note: '[lint-guard 188c-T9-test-btn] AI 標籤測試鈕沒接上，使用者選好模型按測試沒反應' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-text="firstRunHint\(\)"/, note: '[lint-guard 188c-T9-first-run] 「開啟後下一次更新片庫會處理 N 部」被刪掉，使用者不知道會掃進全庫' },
   { file: 'web/static/js/pages/settings/ai-tags-panel.js', kind: 'required-string', pattern: /\bpendingSuffix\b[\s\S]*\brebuildConfirm\b/, note: '[lint-guard 188c-T9-cost] 費用提示被刪掉（「還有 N 部沒跑」後的金額或全部重建確認視窗的金額），使用者在不知道會花多少錢的情況下開啟、一次掃進全庫' },
   { file: 'web/static/js/pages/settings/ai-backfill-controls.js', kind: 'required-string', pattern: /bfPendingText\(\) \{[^}]*callHook\(hooks, 'pendingSuffix', this/, note: '[lint-guard 188c-T9-cost-pending-hook] 補跑列的「還有 N 部沒跑」沒套用面板的費用尾巴，使用者在不知道會花多少錢的情況下按補完全庫' },
   { file: 'web/static/js/pages/settings/ai-backfill-controls.js', kind: 'required-string', pattern: /async bfRebuild\(\) \{[\s\S]*hooks\.rebuildConfirm\(this, view\)[\s\S]*adapter\.rebuildConfirm\(view\)/, note: '[lint-guard 188c-T9-cost-rebuild-hook] 「全部重建」確認視窗沒套用面板的金額，使用者在不知道會花多少錢的情況下確認重建' },
   { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('aiTagsPanel'", note: '[lint-guard 188c-T9-register] aiTagsPanel 未註冊，分頁掛了 x-data 也是空殼' },
-  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="\[[^"\]]*\]\.some\(p => aiConnShown\(p, aiTab\)\)"/, note: '[lint-guard 188c-T9-conn-visible] 切到翻譯／AI 標籤分頁時卡底連線區不出現（或在相似／人臉分頁也冒出來），金鑰欄根本沒有或放錯地方' },
-  { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /(?<![\w:-])x-show="aiConnShown\('[a-z_]+', aiTab\)"/, count: 5, note: '[lint-guard 188c-T9-conn-visible] 五家連線區塊有一塊沒傳 aiTab，使用者在翻譯分頁看到標籤那家的金鑰欄，把金鑰貼錯家' },
-  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: /form\.translate(?:Enabled|Provider)\b/, scope: /(<div id="aiConnections"[\s\S]*?)<\/section><!-- \/sec-ai -->/, note: '[lint-guard 188c-T9-conn-no-translate-only] 翻譯關著、只開 AI 標籤選 Gemini，卡底看得到金鑰欄卻打不了字，測試鈕永遠 disabled' },
+  { file: 'web/templates/partials/ai_connections.html', kind: 'required-string', pattern: /(?<![\w:-])x-show="\[[^"\]]*\]\.some\(p => aiConnShown\(p, '\{\{ tab \}\}'\)\)"/, note: '[lint-guard 188c-T9-conn-visible] 切到翻譯／AI 標籤分頁時卡底連線區不出現（或在相似／人臉分頁也冒出來），金鑰欄根本沒有或放錯地方' },
+  { file: 'web/templates/partials/ai_connections.html', kind: 'structure-count', pattern: /(?<![\w:-])x-show="aiConnShown\('[a-z_]+', '\{\{ tab \}\}'\)"/, count: 5, note: '[lint-guard 188c-T9-conn-visible] 五家連線區塊有一塊沒傳 tab，使用者在翻譯分頁看到標籤那家的金鑰欄，把金鑰貼錯家' },
+  { file: 'web/templates/partials/ai_connections.html', kind: 'forbidden-string', pattern: /form\.translate(?:Enabled|Provider)\b/, note: '[lint-guard 188c-T9-conn-no-translate-only] 翻譯關著、只開 AI 標籤選 Gemini，卡底看得到金鑰欄卻打不了字，測試鈕永遠 disabled' },
   // ---- [189a-T11a] 補跑 mixin 接線釘 ----
   { file: 'web/static/js/pages/settings/ai-tags-panel.js', kind: 'required-string', pattern: '...aiBackfillControls(', note: '[lint-guard 189a-T11a-tags-mixin] AI 標籤面板沒展開補跑 mixin，使用者按「補完全庫」「停止」「全部重建」全部沒反應' },
   { file: 'web/static/js/pages/settings/ai-backfill-controls.js', kind: 'forbidden-string', pattern: /^[ \t]+(?:async[ \t]+)?(?:init|destroy)[ \t]*\(/m, note: '[lint-guard 189a-T11a-mixin-no-lifecycle] 補跑 mixin 自己定義 init／destroy 會蓋掉面板的同名方法，使用者離開分頁或頁面後背景仍持續輪詢、後端被一直打' },
@@ -1804,7 +1804,7 @@ const RULES = [
   // ---- [189a-T12] 共用補跑列 partial 接線釘 ----
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_backfill_controls('aiSimilar', 'ai-similar', retry=true) }}", scope: /(id="aiPanelSimilar"[\s\S]*?)id="aiPanelFaces"/, note: '[lint-guard 189a-T12-include-similar] 圖片相似分頁的補跑列沒掛上，使用者在該分頁看不到「補完全庫／停止／全部重建」整排' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_backfill_controls('aiFaces', 'ai-similar') }}", scope: /(id="aiPanelFaces"[\s\S]*?)id="aiPanelTags"/, note: '[lint-guard 189a-T12-include-faces] 人臉分頁的補跑列沒掛上，使用者在該分頁看不到「繼續／停止／全部重建」整排，無法接續或停止重算' },
-  { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_backfill_controls('aiTags', 'ai-tags') }}", scope: /(id="aiPanelTags"[\s\S]*?)<div id="aiConnections"/, note: '[lint-guard 189a-T12-include-tags] AI 標籤分頁的補跑列沒掛上，使用者在該分頁看不到「補完全庫／停止／全部重建」整排' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_backfill_controls('aiTags', 'ai-tags') }}", scope: /(id="aiPanelTags"[\s\S]*?)<\/section><!-- \/sec-ai -->/, note: '[lint-guard 189a-T12-include-tags] AI 標籤分頁的補跑列沒掛上，使用者在該分頁看不到「補完全庫／停止／全部重建」整排' },
   { file: 'web/templates/partials/ai_backfill_controls.html', kind: 'required-string', pattern: /(?<![\w:-])@click="bfStop\(\)"/, note: '[lint-guard 189a-T12-stop-btn] 停止鈕沒接上 bfStop()，使用者按停止停不下 4 條並行的付費 AI 請求' },
   { file: 'web/templates/partials/ai_backfill_controls.html', kind: 'structure-count', pattern: /(?<![\w:-])@click="bfStart\(\)"/, count: 1, note: '[lint-guard 189a-T12-run-btn] 主鈕必須恰好一顆呼叫 bfStart()；沒有則按了沒反應，兩顆則同一動作雙送付費請求' },
   { file: 'web/templates/partials/ai_backfill_controls.html', kind: 'required-string', pattern: /(?<![\w:-])@click="bfRebuild\(\)"/, note: '[lint-guard 189a-T12-rebuild-btn] 「全部重建」鈕沒接上 bfRebuild()，使用者按了沒反應' },
@@ -1822,7 +1822,7 @@ const RULES = [
   ...[
     'settingsForm', 'saveBtn',
     'translateEnabled', 'translateProvider', 'translateOptions',
-    'ollamaUrl', 'ollamaModel', 'geminiModel',
+    'ollamaModel', 'geminiModel',
     'claudeFields', 'claudeModel',
     'ollamaFields', 'geminiFields', 'openaiFields',
     'searchFavoriteFolder', 'avlistOutputDir', 'avlistOutputFilename',
@@ -10487,16 +10487,25 @@ const RULES = [
     note: '[lint-guard:206a-T8-no-warning-box] 不顯示舊警告。',
   })),
   { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: /(?<![\w:-])type="password"/, id: '206a-T8-key-input-via-macro', note: '[lint-guard:206a-T8-key-input-via-macro] 金鑰欄須使用巨集。' },
-  { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /\{\{\s*secret_field\(/g, count: 7, id: '206a-T8-key-input-via-macro', note: '[lint-guard:206a-T8-key-input-via-macro] 七欄使用巨集；206b 搬移後須調整。' },
+  { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /\{\{\s*secret_field\(/g, count: 3, id: '206a-T8-key-input-via-macro', note: '[lint-guard:206a-T8-key-input-via-macro] 設定頁三欄使用巨集。' },
+  { file: 'web/templates/partials/ai_connections.html', kind: 'structure-count', pattern: /\{\{\s*secret_field\(/g, count: 8, id: '206a-T8-key-input-via-macro', note: '[lint-guard:206a-T8-key-input-via-macro] 渲染後 4 欄×2 份＝8，加 settings.html 3＝11。' },
   ...['x-model="secretFields.{{ field }}.input"', "secretReplace('{{ field }}')", "secretClear('{{ field }}')", "secretPreview('{{ field }}')", 'type="password"'].map(pattern => ({
     file: 'web/templates/partials/secret_field.html', kind: 'required-string', pattern, id: '206a-T8-macro-wiring', note: '[lint-guard:206a-T8-macro-wiring] 金鑰欄接線。',
   })),
   ...['bi-eye', 'x-data', ':type='].map(pattern => ({
     file: 'web/templates/partials/secret_field.html', kind: 'forbidden-string', pattern, id: '206a-T8-macro-wiring', note: '[lint-guard:206a-T8-macro-wiring] 金鑰欄禁止顯示明文或遮蔽狀態。',
   })),
-  ...["gemini', 'geminiApiKey", "claude', 'claudeApiKey", "openaiOfficial', 'openaiOfficialApiKey", "openai', 'openaiApiKey", "aiSimilar', 'aiSimilarApiKey", "aiFaces', 'aiFacesApiKey", "metatube', 'metatubeBearerToken"].map(pair => ({
+  ...["aiSimilar', 'aiSimilarApiKey", "aiFaces', 'aiFacesApiKey", "metatube', 'metatubeBearerToken"].map(pair => ({
     file: 'web/templates/settings.html', kind: 'required-string', pattern: `secret_field('${pair}'`, id: '206a-T8-field-ids', note: '[lint-guard:206a-T8-field-ids] 保留七欄 id。',
   })),
+
+  ...["gemini', 'geminiApiKey", "gemini', 'tags-geminiApiKey", "claude', 'claudeApiKey", "claude', 'tags-claudeApiKey", "openaiOfficial', 'openaiOfficialApiKey", "openaiOfficial', 'tags-openaiOfficialApiKey", "openai', 'openaiApiKey", "openai', 'tags-openaiApiKey"].map(pair => ({
+    file: 'web/templates/partials/ai_connections.html', kind: 'required-string', pattern: `secret_field('${pair}'`, id: '206a-T8-field-ids', note: '[lint-guard:206a-T8-field-ids] 保留兩份金鑰欄 id。',
+  })),
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_connections('translate') }}", scope: /(id="aiPanelTranslate"[\s\S]*?)id="aiPanelSimilar"/, id: '206b-T5-conn-in-translate', note: '[lint-guard:206b-T5-conn-in-translate] 連線區掉到別的分頁，使用者在翻譯分頁看不到金鑰欄。' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_connections('tags', id_prefix='tags-') }}", scope: /(id="aiPanelTags"[\s\S]*?)<\/section><!-- \/sec-ai -->/, id: '206b-T5-conn-in-tags', note: '[lint-guard:206b-T5-conn-in-tags] 連線區掉到別的分頁，使用者在標籤分頁看不到金鑰欄。' },
+  { file: 'web/templates/partials/ai_connections.html', kind: 'required-string', pattern: /(?<![\w:-])id="\{\{ id_prefix \}\}ollamaUrl"/, id: '206b-T5-conn-ids', note: '[lint-guard:206b-T5-conn-ids] 兩份 Ollama 網址欄需要不同 id。' },
+
 ];
 
 // ---- helpers ----
