@@ -1726,6 +1726,7 @@
                                     <div class="variable-input-group">
                                         <select class="select select-bordered select-sm flex-1" id="aiTagsModel"
                                                 x-model="form.aiTagsModel"
+                                                @change="setTagsModel(form.aiTagsProvider, $event.target.value)"
                                                 :disabled="form.aiTagsProvider === ''">
                                             <option value="" disabled x-show="modelOptions().length === 0"></option>
                                             <template x-for="m in modelOptions()" :key="m">

@@ -2,8 +2,8 @@
  * ai-tags-panel.js — 設定頁「AI 標籤」分頁獨立 Alpine 元件（TASK-188c-T8b；補跑邏輯 189a-T11a 起改走共用 mixin）
  *
  * Alpine.data('aiTagsPanel')；面板獨有 key 一律 aiTags 前綴、補跑 key 一律 bf 前綴（展開自 ai-backfill-controls.js）；
- * 不進 mergeState。外求恰 7（不複製父層 key）：form／isDirty／aiTab／showToast／
- *   aiTagsModelLists()／ensureProviderModels()／secretWire()。
+ * 不進 mergeState。外求恰 9（不複製父層 key）：form／isDirty／aiTab／showToast／
+ *   aiTagsModelLists()／ensureProviderModels()／secretWire()／setTagsModel()／tagsModelMemo。
  *
  * 對外名單（模板照名單綁）：
  *   面板獨有：aiTagsTestResult／aiTagsTestBusy；panelMode()、modelOptions()、onProviderChange()、
@@ -115,11 +115,11 @@ export function aiTagsPanel() {
         async onProviderChange() {
             const provider = this.form.aiTagsProvider;
             if (provider === '') {
-                this.form.aiTagsModel = '';
+                this.setTagsModel('', '');
             } else {
                 const lists = this.aiTagsModelLists();
                 // 換連線時 current 一律傳空字串，避免舊家模型名帶到新家
-                this.form.aiTagsModel = pickTagsModel(provider, '', lists[provider] || []);
+                this.setTagsModel(provider, this.tagsModelMemo[provider] ?? pickTagsModel(provider, '', lists[provider] || []));
             }
             await this.ensureProviderModels(provider);
         },

@@ -6,6 +6,8 @@
  * No DOM, no component bindings, no i18n lookup.
  */
 
+import { openaiGroupIdOf } from './openai-group-logic.js';
+
 const COST_FAMILIES = [
     { family: 'haiku', label: 'Haiku 5.5', per1000: 0.43 },
     { family: 'luna', label: 'GPT-6 Luna', per1000: 0.24 },
@@ -118,7 +120,11 @@ export function buildTagsTestBody(form, secretWire) {
         model: form.aiTagsModel,
     };
     const p = form.aiTagsProvider;
-    if (p === 'ollama') {
+    const gid = openaiGroupIdOf(p);
+    if (gid) {
+        body.base_url = (form.openaiGroups.find(group => group.id === gid)?.baseUrl || '').trim();
+        body.api_key = secretWire(gid);
+    } else if (p === 'ollama') {
         body.base_url = form.ollamaUrl;
     } else if (p === 'gemini') {
         body.api_key = secretWire('gemini');

@@ -38,6 +38,7 @@ export function stateConfig() {
             ollamaModel: '',
             geminiModel: '',
             openaiBaseUrl: '',
+            openaiGroups: [],
             openaiModel: 'gpt-4o-mini',
             openaiOfficialModel: '',
             claudeModel: 'claude-haiku-5-5',
@@ -712,7 +713,7 @@ export function stateConfig() {
 
                     // Translate
                     this.form.translateEnabled = config.translate.enabled;
-                    this.form.translateProvider = config.translate.provider || 'ollama';
+                    this.openaiGroupsLoad(config);
                     this.form.ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url || 'http://localhost:11434';
                     this.form.ollamaModel = config.translate.ollama?.model || config.translate.ollama_model || '';
 
@@ -749,8 +750,6 @@ export function stateConfig() {
 
                     // AI services — tags（188c-T8a；必須在 savedState 快照之前）
                     this.form.aiTagsEnabled = config.ai_services?.tags?.enabled || false;
-                    this.form.aiTagsProvider = config.ai_services?.tags?.provider || '';
-                    this.form.aiTagsModel = config.ai_services?.tags?.model || '';
                     const tagsProvider = config.ai_services?.tags?.provider || '';
 
                     // 自動測試 Gemini（翻譯選到該家；否則 tags 選到該家走 ensureProviderModels）
@@ -773,6 +772,7 @@ export function stateConfig() {
                     } else if (config.translate.openai?.base_url && tagsProvider === 'openai') {
                         setTimeout(() => this.ensureProviderModels('openai'), 100);
                     }
+                    setTimeout(() => this.openaiGroupsAutoFetch(), 100);
 
                     // 自動 fetch Claude models（翻譯選到該家；否則 tags 選到該家）
                     if (config.translate.claude?.api_key && config.translate.provider === 'claude') {
@@ -1159,7 +1159,8 @@ export function stateConfig() {
                     },
                     openai_official: {
                         model: this.form.openaiOfficialModel
-                    }
+                    },
+                    openai_custom: this.openaiGroupsPayload(),
                 };
 
                 // AI services — image similar＋faces（186-T6／187a-T5；spread 保留未知欄位）
@@ -1322,6 +1323,7 @@ export function stateConfig() {
                 const resp = await fetch('/api/config', { method: 'DELETE' });
                 const result = await resp.json();
                 if (result.success) {
+                    this.tagsMemoClear();
                     await this.loadConfig();
                     this.showToast(window.t('settings.toast.reset_done'), 'success');
                 } else {

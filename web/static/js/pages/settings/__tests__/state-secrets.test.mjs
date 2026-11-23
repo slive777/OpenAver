@@ -17,6 +17,7 @@ export async function resolve(specifier, context, nextResolve) {
 register(`data:text/javascript,${encodeURIComponent(loader)}`, import.meta.url);
 const { stateConfig } = await import('../state-config.js');
 const { stateSecrets } = await import('../state-secrets.js');
+const { stateOpenaiGroups } = await import('../state-openai-groups.js');
 const { mergeState } = await import('@/shared/merge-state.js');
 const { stateProviders } = await import('../state-providers.js');
 const { aiTagsPanel } = await import('../ai-tags-panel.js');
@@ -33,7 +34,7 @@ function minimalConfig() {
     };
 }
 function setup(config = minimalConfig(), success = true) {
-    const state = mergeState(stateConfig(), stateSecrets());
+    const state = mergeState(stateConfig(), stateProviders(), stateSecrets(), stateOpenaiGroups());
     state._loadFormatVariables = async () => {};
     state._loadCoverBadgeRules = async () => {};
     state._loadVideoCount = () => {};
@@ -163,7 +164,7 @@ test('buttons_send_wire_not_legacy_field', async () => {
     try {
         for (const [entry, id, url, mask, nullable] of rows) {
             for (const mode of ['configured', 'new', 'clear']) {
-                const root = mergeState(stateConfig(), stateProviders(), stateSecrets());
+                const root = mergeState(stateConfig(), stateProviders(), stateSecrets(), stateOpenaiGroups());
                 root.secretsLoad(configured());
                 Object.assign(root.form, { geminiApiKey: 'STALE-LEGACY-gemini-123456', claudeApiKey: 'STALE-LEGACY-claude-123456',
                     openaiApiKey: 'STALE-LEGACY-openai-123456', openaiOfficialApiKey: 'STALE-LEGACY-official-123456',
@@ -207,7 +208,7 @@ test('fetch_models_gate_follows_secret_state', async () => {
             ['openai_official', 'openaiOfficial', 'openaiOfficialApiKey', '/api/openai/official/models'],
         ]) {
             for (const configuredState of [true, false]) {
-                const root = mergeState(stateConfig(), stateProviders(), stateSecrets());
+                const root = mergeState(stateConfig(), stateProviders(), stateSecrets(), stateOpenaiGroups());
                 root.secretsLoad(configuredState ? configured() : minimalConfig());
                 root.form[field] = configuredState ? '' : 'STALE-LEGACY-gate-123456';
                 let count = 0;
@@ -223,7 +224,7 @@ test('metatube_connect_sends_wire_token', async () => {
     const realFetch = globalThis.fetch;
     try {
         for (const mode of ['configured', 'new', 'clear']) {
-            const root = mergeState(stateConfig(), stateProviders(), stateSecrets());
+            const root = mergeState(stateConfig(), stateProviders(), stateSecrets(), stateOpenaiGroups());
             root.secretsLoad(configured());
             root.metatubeToken = 'STALE-LEGACY-metatube-123456';
             root.metatubeServerUrl = ' http://example.invalid ';

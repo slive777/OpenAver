@@ -67,6 +67,7 @@ register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.u
 
 const { stateConfig } = await import('../state-config.js');
 const { stateSecrets } = await import('../state-secrets.js');
+const { stateOpenaiGroups } = await import('../state-openai-groups.js');
 const { stateProviders } = await import('../state-providers.js');
 const { mergeState } = await import('@/shared/merge-state.js');
 
@@ -85,7 +86,7 @@ const FORMAT_VARS = [
 
 function makeFakeThis() {
   const toasts = [];
-  const fake = mergeState(stateConfig(), stateProviders(), stateSecrets());
+  const fake = mergeState(stateConfig(), stateProviders(), stateSecrets(), stateOpenaiGroups());
   fake.formatVariables = FORMAT_VARS.map((v) => ({ ...v }));
   fake.showToast = (msg, type) => toasts.push({ msg, type });
   fake._toasts = toasts;

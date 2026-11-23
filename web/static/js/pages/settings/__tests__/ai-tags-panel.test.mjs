@@ -8,6 +8,7 @@ globalThis.window = globalThis;
 window.t = (k, p) => (p && Object.keys(p).length ? `${k}|${JSON.stringify(p)}` : k);
 
 const { aiTagsPanel } = await import('../ai-tags-panel.js');
+const { stateOpenaiGroups } = await import('../state-openai-groups.js');
 
 function deferred() {
     let resolve;
@@ -24,8 +25,10 @@ function makePanel(over = {}) {
     const lists = {
         gemini: [{ name: 'gemini-x' }], claude: [], ollama: [], openai_official: [], openai: [],
     };
+    const { setTagsModel, tagsModelMemo } = stateOpenaiGroups();
     const c = aiTagsPanel();
     Object.assign(c, {
+        setTagsModel, tagsModelMemo,
         aiTab: 'translate',
         form: {},
         isDirty: false,

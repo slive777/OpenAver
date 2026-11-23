@@ -38,11 +38,15 @@ register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.u
 
 const { stateConfig } = await import('../state-config.js');
 const { stateSecrets } = await import('../state-secrets.js');
+const { stateOpenaiGroups } = await import('../state-openai-groups.js');
+const { stateProviders } = await import('../state-providers.js');
 
 function makeFakeThis() {
     return {
         ...stateConfig(),
+        ...stateProviders(),
         ...stateSecrets(),
+        ...stateOpenaiGroups(),
         serverMode: true,
         accessAuthPin: '1234',
         accessAuthSaving: false,

@@ -2577,7 +2577,7 @@ const RULES = [
   },
   {
     file: 'web/static/js/pages/settings/state-providers.js', kind: 'required-string', pattern: 'settings.status.openai_',
-    scope: { anchor: /async\s+testOpenAITranslation\s*\(\s*\)\s*\{/, braceBalanced: true },
+    scope: { anchor: /async\s+testOpenAITranslation\s*\([^)]*\)\s*\{/, braceBalanced: true },
     note: '[TestOpenAIErrorI18nGuard] test_translate_error_uses_i18n — testOpenAITranslation() error 分支含 settings.status.openai_ 動態 errorKey 拼接',
   },
   {
@@ -10515,6 +10515,19 @@ const RULES = [
   { file: 'web/templates/partials/secret_field.html', kind: 'required-string', pattern: 'secretPreview({{ field_expr }})', id: '206b-T7a-dyn-macro-wiring', note: '[lint-guard:206b-T7a-dyn-macro-wiring] 自訂組缺少待存遮罩預覽，使用者按儲存前看不到要送出的 Key 對不對。' },
   { file: 'web/templates/partials/secret_field.html', kind: 'required-string', pattern: 'document.getElementById({{ input_id_expr }})', id: '206b-T7a-dyn-macro-wiring', note: '[lint-guard:206b-T7a-dyn-macro-wiring] 自訂組按更換後焦點沒回到該組輸入框，鍵盤使用者要自己點回去。' },
   { file: 'web/templates/partials/ai_connections.html', kind: 'forbidden-string', pattern: /(?<![\w:-])type="password"/, id: '206a-T8-key-input-via-macro', note: '[lint-guard:206a-T8-key-input-via-macro] 自訂組那份也不得手寫金鑰輸入框，金鑰欄只能經巨集，否則存檔走不到欄位狀態。' },
+
+  { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: /^import \{ stateOpenaiGroups \} from '@\/settings\/state-openai-groups\.js';$/m, id: '206b-T7-import', note: '[lint-guard:206b-T7-import] 使用者開啟設定頁須載入自訂組分片。' },
+  { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: /^\s{8}stateOpenaiGroups\(\),\s*$/m, id: '206b-T7-merge', note: '[lint-guard:206b-T7-merge] 使用者開啟設定頁須建立自訂組狀態。' },
+  { file: 'web/static/js/pages/settings/state-openai-groups.js', kind: 'forbidden-string', pattern: /(?:^|\n)\s*init\s*\(/, id: '206b-T7-no-init', note: '[lint-guard:206b-T7-no-init] 使用者開啟設定頁須保留既有初始化。' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s*this\.openaiGroupsLoad\(config\);\s*$/m, id: '206b-T7-load', note: '[lint-guard:206b-T7-load] 使用者重開設定頁時須載入自訂組。' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s*openai_custom: this\.openaiGroupsPayload\(\),\s*$/m, id: '206b-T7-payload', note: '[lint-guard:206b-T7-payload] 使用者儲存時須送出目前自訂組。' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /this\.openaiGroupsAutoFetch\(\)/, id: '206b-T7-autofetch', note: '[lint-guard:206b-T7-autofetch] 使用者重開設定頁時須自動抓取自訂組模型。' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s*this\.tagsMemoClear\(\);\s*\n\s*await this\.loadConfig\(\);/m, id: '206b-T7-memo-clear', note: '[lint-guard:206b-T7-memo-clear] 使用者恢復原廠設定時須清除模型記憶。' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@change="setTagsModel\(form\.aiTagsProvider, \$event\.target\.value\)"/, scope: /(<select[^>]*id="aiTagsModel"[^>]*>)/, id: '206b-T7-tags-model-change', note: '[lint-guard:206b-T7-tags-model-change] 使用者選擇標籤模型後切換服務須保留選擇。' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: /\bform\.aiTagsModel\s*=(?!=)/, stripLineComments: true, id: '206b-T7-no-raw-tags-model-write', note: '[lint-guard:206b-T7-no-raw-tags-model-write] 使用者切換服務時須保留標籤模型。' },
+  { file: 'web/static/js/pages/settings/state-providers.js', kind: 'forbidden-string', pattern: /\bform\.aiTagsModel\s*=(?!=)/, stripLineComments: true, id: '206b-T7-no-raw-tags-model-write', note: '[lint-guard:206b-T7-no-raw-tags-model-write] 使用者切換服務時須保留標籤模型。' },
+  { file: 'web/static/js/pages/settings/ai-tags-panel.js', kind: 'forbidden-string', pattern: /\bform\.aiTagsModel\s*=(?!=)/, stripLineComments: true, id: '206b-T7-no-raw-tags-model-write', note: '[lint-guard:206b-T7-no-raw-tags-model-write] 使用者切換服務時須保留標籤模型。' },
+  { file: 'web/static/js/pages/settings/ai-tags-logic.js', kind: 'forbidden-string', pattern: /\bform\.aiTagsModel\s*=(?!=)/, stripLineComments: true, id: '206b-T7-no-raw-tags-model-write', note: '[lint-guard:206b-T7-no-raw-tags-model-write] 使用者切換服務時須保留標籤模型。' },
 
 ];
 
