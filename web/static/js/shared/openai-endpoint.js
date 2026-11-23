@@ -4,6 +4,7 @@
  * Same rule as Python core.openai_client.normalize_openai_base_url: trim,
  * strip trailing slashes, strip a trailing /chat/completions or /models
  * segment (case-insensitive, on a slash boundary) in a loop until stable.
+ * Strip suffixes only after scheme://host, never from the hostname.
  * No import, no window / document. Pure functions.
  */
 
@@ -23,9 +24,10 @@ export function normalizeOpenaiBaseUrl(raw) {
   let url = String(raw ?? '').trim();
   for (;;) {
     url = url.replace(/\/+$/, '');
-    const stripped = stripOneSuffix(url);
+    const prefix = url.match(/^[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^/?#]*/)?.[0] ?? '';
+    const stripped = stripOneSuffix(url.slice(prefix.length));
     if (stripped === null) return url;
-    url = stripped;
+    url = prefix + stripped;
   }
 }
 

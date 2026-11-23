@@ -119,6 +119,48 @@
    "chat_completions_url": "https://x.test/chat/completions",
    "models_url": "https://x.test/models",
    "preview": "https://x.test/chat/completions"
+  },
+  {
+   "input": "http://models",
+   "normalized": "http://models",
+   "chat_completions_url": "http://models/chat/completions",
+   "models_url": "http://models/models",
+   "preview": "http://models/chat/completions"
+  },
+  {
+   "input": "http://models/",
+   "normalized": "http://models",
+   "chat_completions_url": "http://models/chat/completions",
+   "models_url": "http://models/models",
+   "preview": "http://models/chat/completions"
+  },
+  {
+   "input": "http://chat/completions",
+   "normalized": "http://chat/completions",
+   "chat_completions_url": "http://chat/completions/chat/completions",
+   "models_url": "http://chat/completions/models",
+   "preview": "http://chat/completions/chat/completions"
+  },
+  {
+   "input": "http://models/models",
+   "normalized": "http://models",
+   "chat_completions_url": "http://models/chat/completions",
+   "models_url": "http://models/models",
+   "preview": "http://models/chat/completions"
+  },
+  {
+   "input": "http://models/chat/completions",
+   "normalized": "http://models",
+   "chat_completions_url": "http://models/chat/completions",
+   "models_url": "http://models/models",
+   "preview": "http://models/chat/completions"
+  },
+  {
+   "input": "https://models:8080/v1/models",
+   "normalized": "https://models:8080/v1",
+   "chat_completions_url": "https://models:8080/v1/chat/completions",
+   "models_url": "https://models:8080/v1/models",
+   "preview": "https://models:8080/v1/chat/completions"
   }
  ]
 }

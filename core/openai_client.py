@@ -38,15 +38,20 @@ OPENAI_NON_CHAT_TOKENS = (
 _DATE_SUFFIX_RE = re.compile(r"-(?:\d{4}-\d{2}-\d{2}|\d{8})$")
 
 _ENDPOINT_SUFFIXES = ("/chat/completions", "/models")
+_URL_PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*://[^/?#]*")
 
 
 def normalize_openai_base_url(raw) -> str:
+    """移除尾斜線及端點後綴；後綴只作用於 scheme://host 之後，不剪主機名。"""
     url = (raw or "").strip()
     while True:
         url = url.rstrip("/")
+        match = _URL_PREFIX_RE.match(url)
+        prefix = match.group() if match else ""
+        rest = url[len(prefix):]
         for suffix in _ENDPOINT_SUFFIXES:
-            if url[len(url) - len(suffix):].lower() == suffix:
-                url = url[: len(url) - len(suffix)]
+            if rest[len(rest) - len(suffix):].lower() == suffix:
+                url = prefix + rest[: len(rest) - len(suffix)]
                 break
         else:
             return url
