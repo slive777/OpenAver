@@ -1533,7 +1533,7 @@
                                                         :disabled="!form.translateEnabled">
                                                     <button x-show="openaiUseCustomModel && openaiModels.length > 0"
                                                         class="btn btn-xs btn-ghost"
-                                                        type="button"
+                                                        type="button" :disabled="!form.translateEnabled"
                                                         @click="openaiUseCustomModel = false; form.openaiModel = openaiModels[0] || '';">
                                                         <i class="bi bi-list-ul"></i>
                                                     </button>
@@ -1575,7 +1575,7 @@
                                                         <input type="text" class="input input-bordered input-sm flex-1" x-model="g.model"
                                                             :placeholder="window.t('settings.translate.openai_model_placeholder')" :disabled="!form.translateEnabled">
                                                         <button x-show="g.useCustomModel && openaiGroupModelsOf(g.id).length > 0"
-                                                            class="btn btn-xs btn-ghost" type="button"
+                                                            class="btn btn-xs btn-ghost" type="button" :disabled="!form.translateEnabled"
                                                             @click="g.useCustomModel = false; g.model = openaiGroupModelsOf(g.id)[0] || '';">
                                                             <i class="bi bi-list-ul"></i>
                                                         </button>
