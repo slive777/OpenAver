@@ -14,6 +14,7 @@ from core.cloud_translate import CLOUD_TRANSLATE_TIMEOUT, TranslateError, settin
 from core.openai_client import (
     OPENAI_OFFICIAL_BASE_URL,
     default_official_model,
+    models_url,
     pick_official_models,
     request_translation,
 )
@@ -100,14 +101,13 @@ async def fetch_openai_models(request: ModelsRequest):
     key = resolve_secret(request.api_key, read_secret(config, "translate.openai.api_key"))
     key = (key or "").strip()
 
-    base_url = request.base_url.rstrip("/")
     headers = {}
     if key:
         headers["Authorization"] = f"Bearer {key}"
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{base_url}/models", headers=headers)
+            response = await client.get(models_url(request.base_url), headers=headers)
             response.raise_for_status()
 
         data = response.json()

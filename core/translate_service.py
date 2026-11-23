@@ -332,7 +332,7 @@ class OpenAICompatibleTranslateService(TranslateService):
                 }
             target_language: 目標語言代碼（zh-TW / zh-CN / en / ja / ko）
         """
-        self.base_url = (config.get("base_url") or "").rstrip("/")
+        self.base_url = openai_client.normalize_openai_base_url(config.get("base_url"))
         self.api_key = config.get("api_key", "")
         self.model = config.get("model") or "gpt-4o-mini"
         self.target_language = target_language
