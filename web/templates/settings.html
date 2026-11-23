@@ -1364,15 +1364,30 @@
                              :class="{ 'opacity-50': !form.translateEnabled }">
                             <div class="settings-form-row">
                                 <label class="row-label">{{ t('settings.translate.provider_label') }}</label>
-                                <select class="select select-bordered select-sm" id="translateProvider"
+                                <div class="variable-input-group">
+                                <select class="select select-bordered select-sm flex-1" id="translateProvider"
                                     x-model="form.translateProvider"
                                     :disabled="!form.translateEnabled">
                                     <option value="ollama">Ollama{{ t('settings.translate.ollama_local') }}</option>
                                     <option value="gemini">Gemini{{ t('settings.translate.gemini_cloud') }}</option>
                                     <option value="claude">Claude{{ t('settings.translate.claude_cloud') }}</option>
                                     <option value="openai_official" x-text="t('settings.translate.openai_official')">OpenAI Official</option>
-                                    <option value="openai" x-text="t('settings.translate.openai_compatible')">OpenAI Compatible</option>
+                                    <option value="openai" x-text="openaiProviderLabel('openai')">{{ t('settings.translate.openai_compatible') }}</option>
+                                    <template x-for="o in openaiGroupOptions()" :key="o.value"><option :value="o.value" x-text="o.label" :selected="o.value === form.translateProvider"></option></template>
                                 </select>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline"
+                                        id="translateGroupTrash"
+                                        x-show="openaiGroupShowTrash('translate')"
+                                        x-cloak
+                                        :disabled="!form.translateEnabled"
+                                        @click="openaiDeleteAsk('translate')"
+                                        :aria-label="window.t('settings.ai.openai_group.delete_btn_title')"
+                                        :title="window.t('settings.ai.openai_group.delete_btn_title')">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </div>
                             </div>
 
                         </div>
@@ -1538,6 +1553,47 @@
                                     </div>
                                 </div>
                             </div>
+                            <template x-for="g in form.openaiGroups" :key="g.id">
+                                <div :id="'openaiGroupFields-' + g.id" x-show="form.translateProvider === 'openai:' + g.id" x-cloak>
+                                    <div class="settings-form-row">
+                                        <label class="row-label" x-text="window.t('settings.translate.model_label')"></label>
+                                        <div class="flex-1 flex flex-col gap-1">
+                                            <div class="variable-input-group">
+                                                <template x-if="openaiGroupModelsOf(g.id).length > 0 && !g.useCustomModel">
+                                                    <select class="select select-bordered select-sm flex-1" :id="'openaiGroupModel-' + g.id"
+                                                        x-model="g.model"
+                                                        @change="if ($event.target.value === '__custom__') { g.useCustomModel = true; g.model = ''; }"
+                                                        :disabled="!form.translateEnabled">
+                                                        <template x-for="m in openaiGroupModelsOf(g.id)" :key="m">
+                                                            <option :value="m" x-text="m" :selected="m === g.model"></option>
+                                                        </template>
+                                                        <option value="__custom__" x-text="window.t('settings.translate.openai_custom_model')"></option>
+                                                    </select>
+                                                </template>
+                                                <template x-if="openaiGroupModelsOf(g.id).length === 0 || g.useCustomModel">
+                                                    <div class="flex gap-1 items-center flex-1">
+                                                        <input type="text" class="input input-bordered input-sm flex-1" x-model="g.model"
+                                                            :placeholder="window.t('settings.translate.openai_model_placeholder')" :disabled="!form.translateEnabled">
+                                                        <button x-show="g.useCustomModel && openaiGroupModelsOf(g.id).length > 0"
+                                                            class="btn btn-xs btn-ghost" type="button"
+                                                            @click="g.useCustomModel = false; g.model = openaiGroupModelsOf(g.id)[0] || '';">
+                                                            <i class="bi bi-list-ul"></i>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                                <button class="btn btn-sm btn-outline" type="button"
+                                                    @click="testOpenAITranslation({ groupId: g.id })"
+                                                    :disabled="!form.translateEnabled || openaiGroupRt[g.id]?.testing || !g.baseUrl.trim() || !g.model.trim()">
+                                                    <span x-show="openaiGroupRt[g.id]?.testing" class="loading loading-spinner loading-sm"></span>
+                                                    <template x-if="!openaiGroupRt[g.id]?.testing"><i class="bi bi-chat-dots"></i></template>
+                                                    <span x-text="openaiGroupRt[g.id]?.testing ? '' : ' ' + window.t('settings.action.test')"></span>
+                                                </button>
+                                            </div>
+                                            <small class="settings-hint" x-html="openaiGroupRt[g.id]?.modelStatus"></small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
@@ -1707,7 +1763,8 @@
                             <div class="settings-form-row">
                                 <label class="row-label" for="aiTagsProvider">{{ t('settings.ai.tags.provider_label') }}</label>
                                 <div class="flex-1">
-                                    <select class="select select-bordered select-sm" id="aiTagsProvider"
+                                  <div class="variable-input-group">
+                                    <select class="select select-bordered select-sm flex-1" id="aiTagsProvider"
                                             x-model="form.aiTagsProvider"
                                             @change="onProviderChange()">
                                         <option value="">{{ t('settings.ai.tags.provider_placeholder') }}</option>
@@ -1715,8 +1772,21 @@
                                         <option value="gemini">Gemini{{ t('settings.translate.gemini_cloud') }}</option>
                                         <option value="claude">Claude{{ t('settings.translate.claude_cloud') }}</option>
                                         <option value="openai_official">{{ t('settings.translate.openai_official') }}</option>
-                                        <option value="openai">{{ t('settings.translate.openai_compatible') }}</option>
+                                        <option value="openai" x-text="openaiProviderLabel('openai')">{{ t('settings.translate.openai_compatible') }}</option>
+                                        <template x-for="o in openaiGroupOptions()" :key="o.value"><option :value="o.value" x-text="o.label" :selected="o.value === form.aiTagsProvider"></option></template>
                                     </select>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline"
+                                        id="aiTagsGroupTrash"
+                                        x-show="openaiGroupShowTrash('tags')"
+                                        x-cloak
+                                        @click="openaiDeleteAsk('tags')"
+                                        :aria-label="window.t('settings.ai.openai_group.delete_btn_title')"
+                                        :title="window.t('settings.ai.openai_group.delete_btn_title')">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                  </div>
                                 </div>
                             </div>
                             {{ ai_connections('tags', id_prefix='tags-') }}
@@ -1893,6 +1963,24 @@
                 <button type="button" class="btn btn-error" @click="confirmThumbCacheDisable()">
                     {{ t('settings.thumbnail_cache.disable_modal.confirm') }}
                 </button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog class="modal fluent-modal" id="openaiGroupDeleteDialog"
+            :class="{ 'modal-open': openaiDeleteGid !== '' }"
+            @click.self="openaiDeleteCancel()"
+            @keydown.escape.window="openaiDeleteGid !== '' && openaiDeleteCancel()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle text-warning"></i>
+                {{ t('settings.ai.openai_group.delete_title') }}
+            </h3>
+            <p class="fluent-modal-body" x-text="openaiDeleteBodyText()"></p>
+            <p class="fluent-modal-body" x-show="openaiDeleteNoteText() !== ''" x-text="openaiDeleteNoteText()"></p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="openaiDeleteCancel()">{{ t('common.action.cancel') }}</button>
+                <button type="button" class="btn btn-error" id="openaiGroupDeleteOk" @click="openaiDeleteConfirm()">{{ t('settings.ai.openai_group.delete_confirm_btn') }}</button>
             </div>
         </div>
     </dialog>

@@ -16,8 +16,8 @@ class SecretFieldsParser(HTMLParser):
         if tag == "div":
             if self.current is not None:
                 self.depth += 1
-            elif "data-secret-field" in attrs:
-                self.current = [attrs["data-secret-field"], 0, False, []]
+            elif attrs.get("data-secret-field") or attrs.get(":data-secret-field"):
+                self.current = [attrs.get("data-secret-field") or attrs.get(":data-secret-field"), 0, False, []]
                 self.depth = 1
                 self.fields.append(self.current)
         if self.current is not None:
@@ -43,9 +43,9 @@ def test_settings_renders_seven_secret_fields_without_warning(client):
     parser.feed(html)
     assert sorted(field[0] for field in parser.fields) == sorted(
         ["gemini", "claude", "openaiOfficial", "openai"] * 2
-        + ["aiSimilar", "aiFaces", "metatube"]
+        + ["aiSimilar", "aiFaces", "metatube", "g.id", "g.id"]
     )
-    assert len(re.findall(r'(?<![\w:-])type="password"', html)) == 11
+    assert len(re.findall(r'(?<![\w:-])type="password"', html)) == 13
     assert all(count == 1 and not eye for _, count, eye, _ in parser.fields)
     for field, _, _, texts in parser.fields:
         text = " ".join(texts)

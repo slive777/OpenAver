@@ -15,6 +15,7 @@ const PROVIDER_NAMES = {
 
 /** @param {string} provider */
 export function aiTagsProviderName(provider) {
+    if (typeof provider === 'string' && provider.startsWith('openai:')) return PROVIDER_NAMES.openai;
     if (Object.prototype.hasOwnProperty.call(PROVIDER_NAMES, provider)) {
         return PROVIDER_NAMES[provider];
     }
