@@ -37,10 +37,12 @@ export async function resolve(specifier, context, nextResolve) {
 register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.url);
 
 const { stateConfig } = await import('../state-config.js');
+const { stateSecrets } = await import('../state-secrets.js');
 
 function makeFakeThis() {
     return {
         ...stateConfig(),
+        ...stateSecrets(),
         serverMode: true,
         accessAuthPin: '1234',
         accessAuthSaving: false,

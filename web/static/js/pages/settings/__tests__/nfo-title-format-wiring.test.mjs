@@ -70,6 +70,7 @@ export async function resolve(specifier, context, nextResolve) {
 register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.url);
 
 const { stateConfig } = await import('../state-config.js');
+const { stateSecrets } = await import('../state-secrets.js');
 
 const FORMAT_VARS = [
   { name: '{num}', folder_ok: true },
@@ -86,7 +87,7 @@ const FORMAT_VARS = [
 
 function makeFakeThis() {
   const toasts = [];
-  const base = stateConfig();
+  const base = { ...stateConfig(), ...stateSecrets() };
   return {
     ...base,
     formatVariables: FORMAT_VARS.map((v) => ({ ...v })),

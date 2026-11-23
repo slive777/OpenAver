@@ -10450,6 +10450,38 @@ const RULES = [
     file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', pattern: "Alpine.data('tagHintPopover', tagHintPopover)", id: '205b-R1-hint-popover-registered',
     note: '[lint-guard:205b-R1-hint-popover-registered] 註冊被拿掉 → 使用者按別名卡／黑名單卡的「?」沒反應，而測試與其他 lint 全綠',
   },
+  {
+    file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: /^import \{ stateSecrets \}\s+from '@\/settings\/state-secrets\.js';\s*$/m, id: '206a-T6-import',
+    note: '[lint-guard:206a-T6-import] 使用者開啟設定頁時需要載入金鑰分片。',
+  },
+  {
+    file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: /^\s{8}stateSecrets\(\),\s*$/m, id: '206a-T6-merge',
+    note: '[lint-guard:206a-T6-merge] 使用者開啟設定頁時需要建立金鑰狀態。',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s+this\.secretsLoad\(config\);\s*$/m, id: '206a-T6-load',
+    note: '[lint-guard:206a-T6-load] 使用者載入設定時需要看到金鑰狀態。',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s+this\.secretsApplyToConfig\(config\);\s*$/m, id: '206a-T6-apply',
+    note: '[lint-guard:206a-T6-apply] 使用者儲存設定時需要送出金鑰變更。',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s+this\.secretsAfterSave\(\);\s*$/m, id: '206a-T6-after-save',
+    note: '[lint-guard:206a-T6-after-save] 使用者存檔成功後需要清除輸入的明文。',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s+\|\| this\.secretsDirty;\s*$/m, id: '206a-T6-dirty',
+    note: '[lint-guard:206a-T6-dirty] 使用者修改金鑰後離頁需要收到未儲存提示。',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-secrets.js', kind: 'forbidden-string', pattern: /(?:^|\n)\s*init\s*\(/, id: '206a-T6-no-init',
+    note: '[lint-guard:206a-T6-no-init] 使用者開啟設定頁時既有初始化流程必須執行。',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: /^\s*api_key: this\.form\./m, id: '206a-T6-single-source',
+    note: '[lint-guard:206a-T6-single-source] 使用者存檔時金鑰必須來自欄位狀態。',
+  },
 ];
 
 // ---- helpers ----

@@ -228,7 +228,8 @@ export function stateConfig() {
             if (this._configLoading) return false;
             if (!this.savedState) return false;
             return JSON.stringify(this.form) !== JSON.stringify(this.savedState)
-                || this.openaiUseCustomModel !== this.savedOpenaiUseCustomModel;
+                || this.openaiUseCustomModel !== this.savedOpenaiUseCustomModel
+                || this.secretsDirty;
         },
 
         // 命名預覽（依 data 套範例值）。誠實反映後端空值行為（U-A2）：空變數 → 空字串，
@@ -705,6 +706,7 @@ export function stateConfig() {
                 if (result.success) {
                     this.cfWindowProxyRestartNeeded = result.cf_window_proxy_restart_needed === true;
                     const config = result.data;
+                    this.secretsLoad(config);
 
                     // Search
                     // 61c-3: uncensoredMode 由 sources 段推導（computed getter），不再單獨讀 uncensored_mode_enabled。
@@ -1159,21 +1161,17 @@ export function stateConfig() {
                         model: this.form.ollamaModel
                     },
                     gemini: {
-                        api_key: this.form.geminiApiKey,
                         model: this.form.geminiModel || 'gemini-flash-lite-latest'
                     },
                     openai: {
                         base_url: this.form.openaiBaseUrl.trim(),
-                        api_key: this.form.openaiApiKey,
                         model: this.form.openaiModel.trim() || 'gpt-4o-mini',
                         use_custom_model: this.openaiUseCustomModel
                     },
                     claude: {
-                        api_key: this.form.claudeApiKey,
                         model: this.form.claudeModel || 'claude-haiku-5-5'
                     },
                     openai_official: {
-                        api_key: this.form.openaiOfficialApiKey,
                         model: this.form.openaiOfficialModel
                     }
                 };
@@ -1185,14 +1183,12 @@ export function stateConfig() {
                         ...config.ai_services?.image_similar,
                         enabled: this.form.aiSimilarEnabled,
                         url: this.form.aiSimilarUrl,
-                        api_key: this.form.aiSimilarApiKey,
                         model: this.form.aiSimilarModel,
                     },
                     faces: {
                         ...config.ai_services?.faces,
                         enabled: this.form.aiFacesEnabled,
                         url: this.form.aiFacesUrl,
-                        api_key: this.form.aiFacesApiKey,
                         model: this.form.aiFacesModel,
                     },
                     tags: {
@@ -1250,6 +1246,7 @@ export function stateConfig() {
                     manual_only: s.manual_only,
                 }));
 
+                this.secretsApplyToConfig(config);
                 const resp = await fetch('/api/config', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -1263,6 +1260,7 @@ export function stateConfig() {
                     // 更新快照（避免儲存後仍為 dirty）
                     this.savedState = JSON.parse(JSON.stringify(this.form));
                     this.savedOpenaiUseCustomModel = this.openaiUseCustomModel;
+                    this.secretsAfterSave();
                     // 71b-T2: 縮圖快取「剛被關閉」(persisted true → 現在 false) 才清空 output/thumb/。
                     // 必在 PUT 成功之後——先存才清（config.json 已寫 false）。confirmThumbCacheDisable
                     // 自身不 POST clear，統一收斂於此。
