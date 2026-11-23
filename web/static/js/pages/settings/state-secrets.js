@@ -11,6 +11,9 @@ export const SECRET_PATHS = {
     metatube: 'metatube.token',
 };
 
+// MetaTube token is persisted by /api/settings/metatube/connect, not global save.
+const CONNECT_ONLY = new Set(['metatube']);
+
 function getPath(obj, dotted) {
     const value = dotted.split('.').reduce((current, key) => current?.[key], obj);
     return typeof value === 'string' ? value : '';
@@ -35,18 +38,20 @@ export function stateSecrets() {
         secretWire(id) { return wireValue(this.secretFields[id]); },
         secretPreview(id) { return previewText(this.secretFields[id], maskSecret); },
         secretHasValue(id) { return wireValue(this.secretFields[id]) !== ''; },
-        secretDirty(id) { return isDirty(this.secretFields[id]); },
         secretReplace(id) { this.secretFields[id] = startReplace(this.secretFields[id]); },
         secretClear(id) { this.secretFields[id] = requestClear(this.secretFields[id]); },
         secretsApplyToConfig(config) {
             for (const id of Object.keys(SECRET_PATHS)) {
+                if (CONNECT_ONLY.has(id)) continue;
                 setPath(config, SECRET_PATHS[id], wireValue(this.secretFields[id]));
             }
             return config;
         },
-        get secretsDirty() { return Object.values(this.secretFields).some(field => isDirty(field)); },
+        get secretsDirty() { return Object.entries(this.secretFields).some(([id, field]) => !CONNECT_ONLY.has(id) && isDirty(field)); },
         secretsAfterSave() {
-            for (const id of Object.keys(SECRET_PATHS)) this.secretFields[id] = afterSave(this.secretFields[id], maskSecret);
+            for (const id of Object.keys(SECRET_PATHS)) {
+                if (!CONNECT_ONLY.has(id)) this.secretFields[id] = afterSave(this.secretFields[id], maskSecret);
+            }
         },
     };
 }

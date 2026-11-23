@@ -241,29 +241,33 @@ test('metatube_connect_sends_wire_token', async () => {
     } finally { globalThis.fetch = realFetch; }
 });
 
-test('metatube_secret_save_disconnects_runtime_only_on_successful_change', async () => {
+test('metatube_secret_edits_not_saved_by_global_save', async () => {
     const realFetch = globalThis.fetch;
     try {
-        for (const [mode, success, expected] of [
-            ['clear', true, 1], ['replace', true, 1], ['unchanged', true, 0], ['clear', false, 0],
-        ]) {
-            const { state } = setup(configured(), success);
+        for (const mode of ['clear', 'replace']) {
+            const fixture = setup(configured());
+            const { state } = fixture;
             await state.loadConfig();
-            state.metatubeConnected = true;
-            state.metatubeEdit();
             if (mode === 'clear') state.secretClear('metatube');
-            if (mode === 'replace') {
+            else {
                 state.secretReplace('metatube');
                 state.secretFields.metatube.input = 'another-value-123456789';
             }
+            assert.equal(state.isDirty, false, mode);
             const setupFetch = globalThis.fetch;
             let disconnects = 0;
             globalThis.fetch = async (url, options) => {
                 if (url === '/api/settings/metatube/disconnect') disconnects++;
                 return setupFetch(url, options);
             };
+            state.secretReplace('openai');
+            state.secretFields.openai.input = 'invented-value-123456789';
             await state._saveServerConfig();
-            assert.equal(disconnects, expected, `${mode} success=${success}`);
+            assert.ok(fixture.body().metatube.token === 'gggg••••7777', `${mode}: metatube token preserved`);
+            assert.ok(fixture.body().translate.openai.api_key === 'invented-value-123456789', `${mode}: openai sent`);
+            assert.equal(disconnects, 0, mode);
+            assert.equal(state.isDirty, false, mode);
+            assert.equal(state.secretFields.metatube.state, mode === 'clear' ? 'clearing' : 'replacing', mode);
         }
     } finally { globalThis.fetch = realFetch; }
 });

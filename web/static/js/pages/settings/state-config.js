@@ -1232,7 +1232,6 @@ export function stateConfig() {
                     manual_only: s.manual_only,
                 }));
 
-                const metatubeSecretChanged = this.secretDirty('metatube');
                 this.secretsApplyToConfig(config);
                 const resp = await fetch('/api/config', {
                     method: 'PUT',
@@ -1248,7 +1247,6 @@ export function stateConfig() {
                     this.savedState = JSON.parse(JSON.stringify(this.form));
                     this.savedOpenaiUseCustomModel = this.openaiUseCustomModel;
                     this.secretsAfterSave();
-                    if (metatubeSecretChanged) await this.metatubeDisconnect();
                     // 71b-T2: 縮圖快取「剛被關閉」(persisted true → 現在 false) 才清空 output/thumb/。
                     // 必在 PUT 成功之後——先存才清（config.json 已寫 false）。confirmThumbCacheDisable
                     // 自身不 POST clear，統一收斂於此。
