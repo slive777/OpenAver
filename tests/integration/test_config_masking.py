@@ -9,8 +9,12 @@ test_copies_default_when_default_exists).
 import copy
 import json
 
+import pytest
+
 from core.config import load_config, save_config
 from core.secret_fields import mask_secret
+
+pytestmark = pytest.mark.usefixtures("isolate_secret_store")
 
 
 SECRET_PLAIN = "sk-test-roundtrip"

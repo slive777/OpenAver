@@ -6,14 +6,21 @@ and four test endpoints × mask/plaintext (CD-114c-6).
 
 from __future__ import annotations
 
+import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
+from core import config as core_config
+from core import secret_store
 from core.config import load_config, save_config
 from core.metatube.state import metatube_state as state
 from core.secret_fields import mask_secret
+from web.routers import config as config_router
+
+pytestmark = pytest.mark.usefixtures("isolate_secret_store")
 
 # Canonical non-empty secrets (len > 4 so mask keeps last-4 sentinel).
 GEMINI_PLAIN = "gemini-secret-key-aaaa"
@@ -39,13 +46,38 @@ def _seed_three_secrets() -> None:
     save_config(cfg)
 
 
-def _disk_secrets() -> tuple[str, str, str]:
+def _effective_secrets() -> tuple[str, str, str]:
+    """金鑰的有效值（磁碟檔＋庫注入後的 load_config 結果）。"""
     cfg = load_config()
     return (
         cfg["translate"]["gemini"]["api_key"],
         cfg["translate"]["openai"]["api_key"],
         cfg["metatube"]["token"],
     )
+
+
+_SECRET_PARTS = (
+    "translate.gemini.api_key",
+    "translate.openai.api_key",
+    "translate.claude.api_key",
+    "translate.openai_official.api_key",
+    "metatube.token",
+    "ai_services.image_similar.api_key",
+    "ai_services.faces.api_key",
+)
+
+
+def _file_secrets() -> tuple[str, ...]:
+    """直接讀 CONFIG_PATH 原始 JSON（不經 load_config 注入），回七條靜態金鑰路徑的值。"""
+    with open(core_config.CONFIG_PATH, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+    out = []
+    for dotted in _SECRET_PARTS:
+        node = raw
+        for part in dotted.split("."):
+            node = node.get(part) if isinstance(node, dict) else None
+        out.append(node if isinstance(node, str) else "")
+    return tuple(out)
 
 
 @pytest.fixture(autouse=True)
@@ -95,7 +127,7 @@ class TestR1SettingsPageRoundTrip:
 
     def test_r1_put_masked_body_preserves_secrets(self, client):
         _seed_three_secrets()
-        before = _disk_secrets()
+        before = _effective_secrets()
 
         get_resp = client.get("/api/config")
         assert get_resp.status_code == 200
@@ -109,9 +141,15 @@ class TestR1SettingsPageRoundTrip:
         assert put_resp.status_code == 200
         assert put_resp.json()["success"] is True
 
-        after = _disk_secrets()
+        after = _effective_secrets()
         assert after == before
         assert after == (GEMINI_PLAIN, OPENAI_PLAIN, METATUBE_PLAIN)
+        # 檔內永遠不含明文：七條靜態路徑皆空。
+        assert _file_secrets() == ("",) * 7
+        # 庫裡真值仍在（保留態＝不變）。
+        assert secret_store.snapshot()["translate.gemini.api_key"] == GEMINI_PLAIN
+        assert secret_store.snapshot()["translate.openai.api_key"] == OPENAI_PLAIN
+        assert secret_store.snapshot()["metatube.token"] == METATUBE_PLAIN
 
     def test_upgrade_from_0186_config_preserves_translate_keys(self, client):
         """0.18.6 形狀（無 openai_official、無 ai_services）升級後 GET→PUT 金鑰保留。"""
@@ -153,6 +191,11 @@ class TestR1SettingsPageRoundTrip:
         assert disk["translate"]["openai"]["api_key"] == openai_key
         assert disk["translate"]["openai_official"]["api_key"] == ""
         assert disk["translate"]["provider"] == provider
+        # 檔內空、庫內有值。
+        assert _file_secrets() == ("",) * 7
+        assert secret_store.snapshot()["translate.gemini.api_key"] == gemini_key
+        assert secret_store.snapshot()["translate.claude.api_key"] == claude_key
+        assert secret_store.snapshot()["translate.openai.api_key"] == openai_key
 
 
 # ===========================================================================
@@ -249,6 +292,10 @@ class TestR4PositiveWrite:
         # Other secrets untouched (mask → stored)
         assert load_config()["translate"]["openai"]["api_key"] == OPENAI_PLAIN
         assert load_config()["metatube"]["token"] == METATUBE_PLAIN
+        # 檔內七條皆空；庫快取反映「新值」進來、「舊值」保留。
+        assert _file_secrets() == ("",) * 7
+        assert secret_store.snapshot()["translate.gemini.api_key"] == GEMINI_NEW
+        assert secret_store.snapshot()["translate.openai.api_key"] == OPENAI_PLAIN
 
 
 # ===========================================================================
@@ -272,6 +319,12 @@ class TestR5Clear:
         assert disk["translate"]["gemini"]["api_key"] == ""
         assert disk["translate"]["openai"]["api_key"] == ""
         assert disk["metatube"]["token"] == ""
+        # 檔內七條皆空；庫裡三個名稱都已消失。
+        assert _file_secrets() == ("",) * 7
+        snapshot = secret_store.snapshot()
+        assert "translate.gemini.api_key" not in snapshot
+        assert "translate.openai.api_key" not in snapshot
+        assert "metatube.token" not in snapshot
 
 
 # ===========================================================================
@@ -398,5 +451,137 @@ class TestR6ClaudeModels:
         mock_client.get.assert_called_once()
         headers = mock_client.get.call_args.kwargs["headers"]
         assert headers["x-api-key"] == CLAUDE_PLAIN
+
+
+# ===========================================================================
+# T4 — mask lookalike, face recompute hook, vaulted test buttons, DELETE
+# ===========================================================================
+
+FACES_SETTINGS_OLD = "faces-settings-old-3333cccc"
+FACES_SETTINGS_NEW = "faces-settings-new-4444dddd"
+SIMILAR_VAULT_KEY = "similar-vault-key-1111aaaa"
+FACES_VAULT_KEY = "faces-vault-key-2222bbbb"
+
+
+class TestMaskLookalike:
+    def test_put_mask_lookalike_never_becomes_a_stored_key(self, client):
+        """某欄沒設過 Key、前端送來「••••」→ 不可被當成真 Key 存進庫／檔。"""
+        data = client.get("/api/config").json()["data"]
+        assert data["translate"]["gemini"]["api_key"] == ""
+        data["translate"]["gemini"]["api_key"] = "••••"
+
+        put_resp = client.put("/api/config", json=data)
+        assert put_resp.status_code == 200
+        assert put_resp.json()["success"] is True
+
+        assert load_config()["translate"]["gemini"]["api_key"] == ""
+        assert "translate.gemini.api_key" not in secret_store.snapshot()
+        assert _file_secrets() == ("",) * 7
+
+
+class TestFaceRecomputeHook:
+    def test_put_triggers_face_recompute_only_when_the_key_changed(
+        self, client, monkeypatch
+    ):
+        """只換人臉金鑰 → 鉤子恰 1 次；整包原樣 PUT → 0 次（不得每次都重算）。"""
+        cfg = load_config()
+        faces = cfg.setdefault("ai_services", {}).setdefault("faces", {})
+        faces["enabled"] = True
+        faces["url"] = "http://faces.local:9999/v1"
+        faces["api_key"] = FACES_SETTINGS_OLD
+        save_config(cfg)
+
+        spy = MagicMock(return_value=False)
+        monkeypatch.setattr(
+            "core.ai_services.faces_recompute.on_settings_saved", spy
+        )
+
+        real_after = config_router._after_faces_saved
+        joined = []
+
+        def _wrapped(old, new):
+            thread = real_after(old, new)
+            if thread is not None:
+                thread.join(5)
+                joined.append(thread)
+                assert not thread.is_alive(), "人臉重算鉤子 thread 逾時未結束"
+            return thread
+
+        monkeypatch.setattr(config_router, "_after_faces_saved", _wrapped)
+
+        changed = client.get("/api/config").json()["data"]
+        changed["ai_services"]["faces"]["api_key"] = FACES_SETTINGS_NEW
+        put_changed = client.put("/api/config", json=changed)
+        assert put_changed.status_code == 200
+        assert put_changed.json()["success"] is True
+        assert spy.call_count == 1
+        assert len(joined) == 1
+        assert load_config()["ai_services"]["faces"]["api_key"] == FACES_SETTINGS_NEW
+
+        unchanged = client.get("/api/config").json()["data"]
+        put_same = client.put("/api/config", json=unchanged)
+        assert put_same.status_code == 200
+        assert put_same.json()["success"] is True
+        assert spy.call_count == 1
+        assert len(joined) == 1
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("/api/ai/similar/test", "web.routers.ai_services.run_consistency_test",
+         "image_similar", SIMILAR_VAULT_KEY),
+        ("/api/ai/faces/test", "web.routers.ai_services.run_faces_test",
+         "faces", FACES_VAULT_KEY),
+    ],
+    ids=["similar", "faces"],
+)
+def test_similar_and_faces_test_buttons_use_the_vaulted_key(client, monkeypatch, case):
+    """Key 只在庫時按「測試連線」→ 接縫收到庫內真值（不是空／未設定）。"""
+    path, seam, section, vaulted = case
+    cfg = load_config()
+    target = cfg.setdefault("ai_services", {}).setdefault(section, {})
+    target["url"] = "http://vaulted.local:9999/v1"
+    target["model"] = "vaulted-model"
+    target["api_key"] = vaulted
+    save_config(cfg)
+    assert _file_secrets() == ("",) * 7
+
+    seen: list = []
+    stub = SimpleNamespace(
+        ok=False, elapsed_ms=1, kind="unreachable", check=None, model=None, dim=None
+    )
+
+    def _fake(cfg_obj):
+        seen.append(cfg_obj.api_key)
+        return stub
+
+    monkeypatch.setattr(seam, _fake)
+
+    resp = client.post(path, json={"url": "http://other-target.local:1234/v1"})
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is False
+    assert len(seen) == 1
+    assert seen[0] == vaulted
+
+
+class TestDeleteConfigClearsVault:
+    def test_delete_config_clears_the_vault_and_get_shows_unset(self, client):
+        """按「恢復原廠」→ 庫清空、GET 各金鑰欄回到未設定。"""
+        _seed_three_secrets()
+        assert secret_store.snapshot()["translate.gemini.api_key"] == GEMINI_PLAIN
+
+        resp = client.delete("/api/config")
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+
+        assert secret_store.snapshot() == {}
+
+        data = client.get("/api/config").json()["data"]
+        for dotted in _SECRET_PARTS:
+            node = data
+            for part in dotted.split("."):
+                node = node.get(part) if isinstance(node, dict) else None
+            assert node == "", f"{dotted} 應回到未設定（空字串）"
 
 

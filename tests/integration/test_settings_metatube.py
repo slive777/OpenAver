@@ -9,6 +9,7 @@ State isolation: reset metatube_state singleton between tests via fixture.
 """
 import threading
 import time
+import json
 import pytest
 from unittest.mock import DEFAULT, MagicMock, patch
 
@@ -17,6 +18,7 @@ from fastapi.testclient import TestClient
 from web.app import app
 from core.metatube.state import metatube_state as state
 from core.metatube.errors import MetatubeUnavailable, MetatubeAuthError
+from core.secret_fields import mask_secret
 from core.source_config import get_builtin_sources
 
 
@@ -750,6 +752,74 @@ class TestStartupReconnect:
         assert resp.json()["success"] is True
         # Config must have allow_lan=True after the dedup-hit connect
         assert store.data["metatube"]["allow_lan"] is True
+
+
+def _file_token() -> str:
+    """直接讀原始 config.json（不經 load_config 注入）的 metatube.token。"""
+    from core import config as core_config
+
+    with open(core_config.CONFIG_PATH, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+    mt = raw.get("metatube") or {}
+    return mt.get("token", "")
+
+
+@pytest.mark.parametrize("case", ["startup", "dedup"], ids=["startup", "dedup"])
+def test_metatube_token_in_vault_survives_restart_and_dedup(
+    reset_state, isolate_secret_store, case
+):
+    """token 只存在加密庫：重啟後仍連得上；dedup 不重連也不丟 token。"""
+    from core import secret_store
+    from core.config import load_config, save_config
+    from web.routers.settings_metatube import startup_reconnect
+
+    vaulted = "metatube-vault-token-5555eeee"
+    url = _LAN_URL
+    assert mask_secret(vaulted) != vaulted
+
+    cfg = load_config()
+    cfg.setdefault("metatube", {}).update(
+        {"enabled": True, "url": url, "token": vaulted, "allow_lan": True}
+    )
+    save_config(cfg)
+    assert _file_token() == ""
+    assert secret_store.snapshot()["metatube.token"] == vaulted
+
+    if case == "startup":
+        with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient:
+            instance = MagicMock()
+            instance.list_providers.return_value = {"JavBus": url}
+            instance.search.return_value = []
+            MockClient.return_value = instance
+
+            result = startup_reconnect(load_config())
+
+        assert result is not None
+        assert state.is_connected is True
+        # list_providers 與 token canary 各建一次 client，兩次都帶庫內 token。
+        ctor_calls = [c for c in MockClient.call_args_list if c.args]
+        assert len(ctor_calls) == 2
+        assert all(c.args[1] == vaulted for c in ctor_calls)
+        return
+
+    # dedup：已連同一組 url+token，POST 送遮罩仍不得重建 client、token 不丟
+    state.connect(url, vaulted, ["FANZA"])
+    mask = mask_secret(vaulted)
+
+    tc = TestClient(app)
+    with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient:
+        resp = tc.post(
+            "/api/settings/metatube/connect",
+            json={"url": url, "token": mask, "allow_lan": True},
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+    MockClient.assert_not_called()
+    assert state.token == vaulted
+    assert load_config()["metatube"]["allow_lan"] is True
+    assert _file_token() == ""
+    assert secret_store.snapshot()["metatube.token"] == vaulted
 
 
 # ======================================================================

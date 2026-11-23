@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 
 def test_update_config(client, temp_config_path):
     """測試更新設定"""
@@ -73,6 +75,7 @@ class TestTranslateConfigRoundTrip:
     """測試 translate 設定 round-trip（GET → PUT → GET）"""
 
 
+    @pytest.mark.usefixtures("isolate_secret_store")
     def test_openai_config_roundtrip(self, client, temp_config_path):
         """translate.openai 設定在 round-trip 後應完整保留"""
         response = client.get("/api/config")
