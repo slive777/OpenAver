@@ -236,7 +236,8 @@ async def test_folder_probe_respects_timeout(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-async def test_scheduled_round_rechecks_enabled_after_acquiring_ownership(monkeypatch):
+@pytest.mark.usefixtures("isolate_secret_store")
+async def test_scheduled_round_rechecks_enabled_after_acquiring_ownership(monkeypatch, tmp_path):
     """Codex 六審 P3：拿到執行權之後要再問一次開關。
 
     使用者流程：排程 loop 讀到「開著」→ 使用者**就在這一瞬間**撥掉開關 →
@@ -245,6 +246,7 @@ async def test_scheduled_round_rechecks_enabled_after_acquiring_ownership(monkey
     """
     from core import config as core_config
 
+    monkeypatch.setattr(core_config, "CONFIG_PATH", tmp_path / "config.json")
     core_config.mutate_config(
         lambda cfg: cfg.setdefault("search", {}).update(
             {

@@ -206,6 +206,7 @@ class TestAC4bServerModeIndependent:
 
 
 class TestCD114a9ConfigResetIndependent:
+    @pytest.mark.usefixtures("isolate_secret_store")
     def test_g1_delete_config_leaves_auth_intact(
         self, loopback_client, monkeypatch
     ):
