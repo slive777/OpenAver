@@ -112,7 +112,7 @@ export function aiTagsPanel() {
             } else {
                 const lists = this.aiTagsModelLists();
                 // 換連線時 current 一律傳空字串，避免舊家模型名帶到新家
-                this.setTagsModel(provider, this.tagsModelMemo[provider] ?? pickTagsModel(provider, '', lists[provider] || []));
+                this.setTagsModel(provider, this.tagsModelMemo[provider] ?? (provider === 'ollama' ? '' : pickTagsModel(provider, '', lists[provider] || [])));
             }
             await this.ensureProviderModels(provider);
         },
