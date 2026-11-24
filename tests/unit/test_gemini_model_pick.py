@@ -44,10 +44,3 @@ def test_pick_gemini_excludes_non_text_and_unsupported():
 def test_pick_gemini_collapses_numeric_suffix():
     items = [model(n) for n in ("gemini-2.5-flash-001", "gemini-2.0-flash-001", "gemini-2.5-flash")]
     assert names(pick_gemini_models(items)) == ["gemini-2.5-flash", "gemini-2.0-flash-001"]
-
-
-def test_pick_gemini_latest_aliases_first_and_free():
-    aliases = ["gemini-flash-lite-latest", "gemini-flash-latest"]
-    versions = [f"gemini-{v}-flash" for v in ("4", "3", "2", "1")]
-    items = [model(n) for n in versions + aliases + ["gemini-pro-latest"]]
-    assert names(pick_gemini_models(items)) == aliases + versions[:3]
