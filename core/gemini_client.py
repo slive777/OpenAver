@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from typing import Any
 
+import re
+
 import httpx
+
+from core.model_pick import is_experimental, latest_per_series, name_tokens
 
 from core.cloud_translate import (
     TranslateError,
@@ -197,3 +201,72 @@ async def request_vision(
     if not isinstance(data, dict):
         raise build_error(TAG, "api_error", None, "", "response is not a JSON object")
     return extract_text(data)
+
+
+_GEMINI_EXCLUDED_TOKENS = frozenset(
+    {"image", "tts", "live", "audio", "embedding", "embed", "aqa", "robotics", "imagen", "veo", "lyria"}
+)
+_GEMINI_SERIES_ORDER = {"flash-lite": 0, "flash": 1, "gemma": 2}
+
+
+def _gemini_supports_generation(model):
+    methods = next(
+        (model[key] for key in ("supportedGenerationMethods", "supportedActions", "supported_actions")
+         if isinstance(model.get(key), list)),
+        None,
+    )
+    if methods is None:
+        return True
+    return "generateContent" in methods
+
+
+def _gemini_series(tokens):
+    if "gemma" in tokens:
+        return "gemma"
+    if any(a == "flash" and b == "lite" for a, b in zip(tokens, tokens[1:], strict=False)):
+        return "flash-lite"
+    if "flash" in tokens:
+        return "flash"
+    return None
+
+
+def _gemini_candidate(model):
+    if not isinstance(model, dict) or not isinstance(model.get("name"), str):
+        return None
+    name = model["name"].removeprefix("models/").lower()
+    tokens = name_tokens(name)
+    if not _gemini_supports_generation(model) or is_experimental(name) or _GEMINI_EXCLUDED_TOKENS.intersection(tokens):
+        return None
+    series = _gemini_series(tokens)
+    if series is None:
+        return None
+    is_alias = name.endswith("-latest")
+    return model, name, series, is_alias
+
+
+def _gemini_version_key(candidate):
+    name = candidate[1]
+    match = re.search(r"\d+(?:\.\d+)*", name)
+    version = tuple(int(part) for part in match.group().split(".")) if match else ()
+    return (bool(match), version)
+
+
+def pick_gemini_models(models: list[dict]) -> list[dict]:
+    """Select supported text models in dropdown order without modifying the input."""
+    if not isinstance(models, list):
+        return []
+    candidates = [candidate for model in models if (candidate := _gemini_candidate(model)) is not None]
+    candidate_names = {candidate[1] for candidate in candidates}
+    aliases = sorted((c for c in candidates if c[3]), key=lambda c: (_GEMINI_SERIES_ORDER[c[2]], c[1]))
+    regular = [c for c in candidates if not c[3] and not (
+        re.search(r"-\d{3}$", c[1]) and c[1][:-4] in candidate_names
+    )]
+    result = list(aliases)
+    for series in ("flash-lite", "flash", "gemma"):
+        group = sorted((c for c in regular if c[2] == series), key=lambda c: c[1])
+        group.sort(key=_gemini_version_key, reverse=True)
+        if series == "gemma":
+            result.extend(latest_per_series(group, lambda c: c[2], cap=None))
+        else:
+            result.extend(latest_per_series(group, lambda c: c[2]))
+    return [candidate[0] for candidate in result]
