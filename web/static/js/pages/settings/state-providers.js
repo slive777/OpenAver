@@ -4,6 +4,7 @@ import { openaiGroupIdOf } from './openai-group-logic.js';
 
 export function stateProviders() {
     return {
+        modelAutoLoad: { attempted: {}, inflight: {} },
         // ===== Provider Status State =====
         ollamaStatus: '',
         modelStatus: '',
@@ -74,6 +75,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.ollama = true;
             this.testOllamaLoading = true;
             this.ollamaStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -149,6 +151,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.gemini = true;
             this.testGeminiLoading = true;
             this.geminiStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -245,6 +248,7 @@ export function stateProviders() {
                     rt.status = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_url')}</span>`;
                     return;
                 }
+                this.modelAutoLoad.attempted['openai:' + groupId] = true;
                 rt.fetching = true;
                 rt.status = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
                 try {
@@ -284,6 +288,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.openai = true;
             this.fetchingOpenaiModels = true;
             this.openaiStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -427,6 +432,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.claude = true;
             this.fetchingClaudeModels = true;
             this.claudeStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -528,6 +534,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.openai_official = true;
             this.fetchingOpenaiOfficialModels = true;
             this.openaiOfficialStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -642,24 +649,32 @@ export function stateProviders() {
             return connEnabled(this.form, p);
         },
 
-        async ensureProviderModels(provider) {
-            // 清單 ≤1 視為還沒抓過（載入播種）；金鑰／網址已填才抓
-            const n = (arr) => (Array.isArray(arr) ? arr.length : 0);
+        async autoLoadModels(provider) {
+            if (this.modelAutoLoad.attempted[provider]) return this.modelAutoLoad.inflight[provider];
             const groupId = openaiGroupIdOf(provider);
             const group = groupId && this.openaiGroupById(groupId);
-            if (group && n(this.openaiGroupRt[groupId]?.models) <= 1 && group.baseUrl) {
-                await this.fetchOpenAIModels({ source: 'auto', groupId });
-            } else if (provider === 'ollama' && n(this.ollamaModels) <= 1 && this.form.ollamaUrl) {
-                await this.loadOllamaModels(this.form.ollamaUrl, '', { keepModel: true });
-            } else if (provider === 'gemini' && n(this.geminiModels) <= 1 && this.secretHasValue('gemini')) {
-                await this.testGeminiConnection();
-            } else if (provider === 'claude' && n(this.claudeModels) <= 1 && this.secretHasValue('claude')) {
-                await this.fetchClaudeModels({ source: 'auto' });
-            } else if (provider === 'openai_official' && n(this.openaiOfficialModels) <= 1 && this.secretHasValue('openaiOfficial')) {
-                await this.fetchOpenAIOfficialModels({ source: 'auto' });
-            } else if (provider === 'openai' && n(this.openaiModels) <= 1 && this.form.openaiBaseUrl) {
-                await this.fetchOpenAIModels({ source: 'auto' });
+            let fetchModels;
+            if (groupId && group?.baseUrl.trim()) {
+                fetchModels = () => this.fetchOpenAIModels({ source: 'auto', groupId });
+            } else if (provider === 'ollama' && this.form.ollamaUrl.trim()) {
+                fetchModels = () => this.loadOllamaModels(this.form.ollamaUrl, '', { keepModel: true });
+            } else if (provider === 'gemini' && this.secretHasValue('gemini')) {
+                fetchModels = () => this.testGeminiConnection();
+            } else if (provider === 'claude' && this.secretHasValue('claude')) {
+                fetchModels = () => this.fetchClaudeModels({ source: 'auto' });
+            } else if (provider === 'openai_official' && this.secretHasValue('openaiOfficial')) {
+                fetchModels = () => this.fetchOpenAIOfficialModels({ source: 'auto' });
+            } else if (provider === 'openai' && this.form.openaiBaseUrl.trim()) {
+                fetchModels = () => this.fetchOpenAIModels({ source: 'auto' });
             }
+            if (!fetchModels) return;
+            this.modelAutoLoad.attempted[provider] = true;
+            this.modelAutoLoad.inflight[provider] = Promise.resolve().then(fetchModels).catch(() => {});
+            return this.modelAutoLoad.inflight[provider];
+        },
+
+        async ensureProviderModels(provider) {
+            await this.autoLoadModels(provider);
 
             // FE-TIMING-16：await 後再讀 form；provider 已換或 model 已有 → 不寫。
             // 已存 model 空時預選不進 savedState：畫面 isDirty=true，引導使用者存一次（CD-188c-14）。
