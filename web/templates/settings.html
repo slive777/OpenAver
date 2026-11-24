@@ -1405,8 +1405,8 @@
                                             <select class="select select-bordered select-sm flex-1" id="ollamaModel"
                                                 x-model="form.ollamaModel" :disabled="!form.translateEnabled || ollamaModels.length === 0">
                                                 <option value="" disabled x-show="ollamaModels.length === 0">{{ t('settings.translate.test_connection_placeholder') }}</option>
-                                                <template x-for="model in ollamaModels" :key="model">
-                                                    <option :value="model" x-text="model"></option>
+                                                <template x-for="m in translateModelOptions('ollama')" :key="m">
+                                                    <option :value="m" x-text="m" :selected="m === form.ollamaModel"></option>
                                                 </template>
                                             </select>
                                             <button class="btn btn-sm btn-outline" type="button" id="testModelBtn"
@@ -1433,8 +1433,8 @@
                                             <select class="select select-bordered select-sm flex-1" id="geminiModel"
                                                 x-model="form.geminiModel" :disabled="!form.translateEnabled || geminiModels.length === 0">
                                                 <option value="" disabled x-show="geminiModels.length === 0">{{ t('settings.translate.test_apikey_placeholder') }}</option>
-                                                <template x-for="model in geminiModels" :key="model.name">
-                                                    <option :value="model.name" x-text="model.name"></option>
+                                                <template x-for="m in translateModelOptions('gemini')" :key="m">
+                                                    <option :value="m" x-text="m" :selected="m === form.geminiModel"></option>
                                                 </template>
                                             </select>
                                             <button class="btn btn-sm btn-outline" type="button" id="testGeminiTranslateBtn"
@@ -1461,8 +1461,8 @@
                                             <select class="select select-bordered select-sm flex-1" id="claudeModel"
                                                 x-model="form.claudeModel" :disabled="!form.translateEnabled || claudeModels.length === 0">
                                                 <option value="" disabled x-show="claudeModels.length === 0">{{ t('settings.translate.test_apikey_placeholder') }}</option>
-                                                <template x-for="model in claudeModels" :key="model">
-                                                    <option :value="model" x-text="model"></option>
+                                                <template x-for="m in translateModelOptions('claude')" :key="m">
+                                                    <option :value="m" x-text="m" :selected="m === form.claudeModel"></option>
                                                 </template>
                                             </select>
                                             <button class="btn btn-sm btn-outline" type="button" id="testClaudeTranslateBtn"
@@ -1489,8 +1489,8 @@
                                             <select class="select select-bordered select-sm flex-1" id="openaiOfficialModel"
                                                 x-model="form.openaiOfficialModel" :disabled="!form.translateEnabled || openaiOfficialModels.length === 0">
                                                 <option value="" disabled x-show="openaiOfficialModels.length === 0">{{ t('settings.translate.test_apikey_placeholder') }}</option>
-                                                <template x-for="model in openaiOfficialModels" :key="model">
-                                                    <option :value="model" x-text="model"></option>
+                                                <template x-for="m in translateModelOptions('openai_official')" :key="m">
+                                                    <option :value="m" x-text="m" :selected="m === form.openaiOfficialModel"></option>
                                                 </template>
                                             </select>
                                             <button class="btn btn-sm btn-outline" type="button" id="testOpenaiOfficialTranslateBtn"
@@ -1519,7 +1519,7 @@
                                                     x-model="form.openaiModel"
                                                     @change="if ($event.target.value === '__custom__') { openaiUseCustomModel = true; form.openaiModel = ''; }"
                                                     :disabled="!form.translateEnabled">
-                                                    <template x-for="m in openaiModels" :key="m">
+                                                    <template x-for="m in translateModelOptions('openai')" :key="m">
                                                         <option :value="m" x-text="m" :selected="m === form.openaiModel"></option>
                                                     </template>
                                                     <option value="__custom__" x-text="window.t('settings.translate.openai_custom_model') || 'Custom...'"></option>
@@ -1564,7 +1564,7 @@
                                                         x-model="g.model"
                                                         @change="if ($event.target.value === '__custom__') { g.useCustomModel = true; g.model = ''; }"
                                                         :disabled="!form.translateEnabled">
-                                                        <template x-for="m in openaiGroupModelsOf(g.id)" :key="m">
+                                                        <template x-for="m in translateModelOptions('openai:' + g.id)" :key="m">
                                                             <option :value="m" x-text="m" :selected="m === g.model"></option>
                                                         </template>
                                                         <option value="__custom__" x-text="window.t('settings.translate.openai_custom_model')"></option>

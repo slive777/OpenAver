@@ -1,5 +1,5 @@
 import { pickClaudeModel } from './claude-model-pick.js';
-import { connShown, connEnabled, pickTagsModel } from '@/settings/ai-tags-logic.js';
+import { connShown, connEnabled, pickTagsModel, modelNamesWith } from '@/settings/ai-tags-logic.js';
 import { openaiGroupIdOf } from './openai-group-logic.js';
 
 export function stateProviders() {
@@ -630,6 +630,19 @@ export function stateProviders() {
                 openai: this.openaiModels,
                 ...this.openaiGroupModelLists(),
             };
+        },
+
+        translateModelOptions(provider) {
+            const values = {
+                ollama: this.form.ollamaModel,
+                gemini: this.form.geminiModel,
+                claude: this.form.claudeModel,
+                openai_official: this.form.openaiOfficialModel,
+                openai: this.form.openaiModel,
+            };
+            const groupId = openaiGroupIdOf(provider);
+            const current = groupId ? this.openaiGroupById(groupId)?.model : (Object.hasOwn(values, provider) ? values[provider] : undefined);
+            return modelNamesWith(this.aiTagsModelLists()[provider], current);
         },
 
         // tab 由模板傳入（aiTab 住在巢狀 aiServicesCard，root 讀不到）

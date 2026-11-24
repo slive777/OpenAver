@@ -10505,7 +10505,7 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_connections('translate') }}", scope: /(id="aiPanelTranslate"[\s\S]*?)id="aiPanelSimilar"/, id: '206b-T5-conn-in-translate', note: '[lint-guard:206b-T5-conn-in-translate] 連線區掉到別的分頁，使用者在翻譯分頁看不到金鑰欄。' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: "{{ ai_connections('tags', id_prefix='tags-') }}", scope: /(id="aiPanelTags"[\s\S]*?)<\/section><!-- \/sec-ai -->/, id: '206b-T5-conn-in-tags', note: '[lint-guard:206b-T5-conn-in-tags] 連線區掉到別的分頁，使用者在標籤分頁看不到金鑰欄。' },
   { file: 'web/templates/partials/ai_connections.html', kind: 'required-string', pattern: /(?<![\w:-])id="\{\{ id_prefix \}\}ollamaUrl"/, id: '206b-T5-conn-ids', note: '[lint-guard:206b-T5-conn-ids] 兩份 Ollama 網址欄需要不同 id。' },
-  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):selected="m === form\.openaiModel"/, scope: /(<template x-for="m in openaiModels"[\s\S]*?<\/template>)/, id: '206b-T6-selected-translate', note: '[lint-guard:206b-T6-selected-translate] 翻譯模型選項缺少 selected，使用者重開設定頁可能看到自訂並以為模型被改掉。' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):selected="m === form\.openaiModel"/, scope: /(<template x-for="m in translateModelOptions\('openai'\)"[\s\S]*?<\/template>)/, id: '206b-T6-selected-translate', note: '[lint-guard:206b-T6-selected-translate] 翻譯模型選項缺少 selected，使用者重開設定頁可能看到自訂並以為模型被改掉。' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):selected="m === form\.aiTagsModel"/, scope: /(<template x-for="m in modelOptions\(\)"[\s\S]*?<\/template>)/, id: '206b-T6-selected-tags', note: '[lint-guard:206b-T6-selected-tags] 標籤模型選項缺少 selected，使用者重開設定頁可能看到空白或別的模型。' },
   { file: 'web/templates/partials/secret_field.html', kind: 'required-string', pattern: '{% macro secret_field_dyn(field_expr, input_id_expr, placeholder_expr="\'\'", disabled_expr="false") %}', id: '206b-T7a-dyn-macro-wiring', note: '[lint-guard:206b-T7a-dyn-macro-wiring] 自訂組金鑰欄巨集簽名被改或刪除，使用者新增自訂連線後該組沒有金鑰欄可貼 Key。' },
   { file: 'web/templates/partials/secret_field.html', kind: 'required-string', pattern: /(?<![\w:-])x-model="secretFields\[\{\{ field_expr \}\}\]\.input"/, id: '206b-T7a-dyn-macro-wiring', note: '[lint-guard:206b-T7a-dyn-macro-wiring] 自訂組輸入框沒綁到該組欄位，使用者貼的 Key 送不進存檔。' },
@@ -10542,7 +10542,7 @@ const RULES = [
   { file: 'web/templates/partials/ai_connections.html', kind: 'structure-count', pattern: /\{\{\s*secret_field_dyn\(/g, count: 2, id: '206b-T8-conn-custom', note: '[lint-guard:206b-T8-conn-custom] 使用者須在兩分頁輸入組金鑰。' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):selected="o\.value === form\.translateProvider"/, scope: /(id="aiPanelTranslate"[\s\S]*?<template x-for="o in openaiGroupOptions\(\)"[\s\S]*?<\/template>)/, id: '206b-T8-selected-provider-translate', note: '[lint-guard:206b-T8-selected-provider-translate] 使用者重開後須看到已選翻譯連線。' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):selected="o\.value === form\.aiTagsProvider"/, scope: /(id="aiPanelTags"[\s\S]*?<template x-for="o in openaiGroupOptions\(\)"[\s\S]*?<\/template>)/, id: '206b-T8-selected-provider-tags', note: '[lint-guard:206b-T8-selected-provider-tags] 使用者重開後須看到已選標籤連線。' },
-  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):selected="m === g\.model"/, scope: /(<template x-for="m in openaiGroupModelsOf\(g\.id\)"[\s\S]*?<\/template>)/, id: '206b-T8-selected-group-model', note: '[lint-guard:206b-T8-selected-group-model] 使用者重開後須看到已選模型。' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):selected="m === g\.model"/, scope: /(<template x-for="m in translateModelOptions\('openai:' \+ g\.id\)"[\s\S]*?<\/template>)/, id: '206b-T8-selected-group-model', note: '[lint-guard:206b-T8-selected-group-model] 使用者重開後須看到已選模型。' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):class="\{ 'modal-open': openaiDeleteGid !== '' \}"/, id: '206b-T8-delete-dialog', note: '[lint-guard:206b-T8-delete-dialog] 使用者刪除前須看到確認視窗。' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="openaiDeleteConfirm\(\)"/, id: '206b-T8-delete-dialog', note: '[lint-guard:206b-T8-delete-dialog] 使用者須能確認刪除連線。' },
   { file: 'web/templates/partials/ai_connections.html', kind: 'required-string', pattern: /openaiPreviewText\(form\.openaiBaseUrl\)[\s\S]*openaiPreviewText\(g\.baseUrl\)/, id: '206b-T8-preview', note: '[lint-guard:206b-T8-preview] 使用者須看到實際連線網址。' },
@@ -10557,6 +10557,20 @@ const RULES = [
   ], note: '[lint-guard:206b-T12-add-in-tags] 新增鈕掉到模型列之外，使用者在標籤分頁找不到新增入口。' },
   { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /\{\{\s*ai_openai_group_add\(/g, count: 2, id: '206b-T12-call-count', note: '[lint-guard:206b-T12-call-count] 新增入口少了一份或多了一份，使用者有一分頁找不到新增鈕或看到重複按鈕。' },
   { file: 'web/templates/partials/ai_connections.html', kind: 'forbidden-string', scope: /(\{% macro ai_connections\([\s\S]*?\{% endmacro %\})/, pattern: /openaiGroupAdd|openaiAddUi/, id: '206b-T12-add-not-in-conn-macro', note: '[lint-guard:206b-T12-add-not-in-conn-macro] 新增鈕掉回連線區，使用者在 API Key 與模型之間看到被撐滿的分隔線。' },
+
+  ...[
+    ['ollama', 'ollama', 'ollamaModel'],
+    ['gemini', 'gemini', 'geminiModel'],
+    ['claude', 'claude', 'claudeModel'],
+    ['openai-official', 'openai_official', 'openaiOfficialModel'],
+  ].map(([id, provider, field]) => ({
+    file: 'web/templates/settings.html', kind: 'required-string',
+    scope: new RegExp(`(<select[^>]*(?<![\\w:-])id="${field}"[^>]*>[\\s\\S]*?<\\/select>)`),
+    pattern: new RegExp(`<template\\s+(?<![\\w:-])x-for="m in translateModelOptions\\('${provider}'\\)"[^>]*>\\s*<option\\b[^>]*(?<![\\w:-]):selected="m === form\\.${field}"[^>]*>`),
+    id: `206c-T6-selected-${id}`, note: `[lint-guard:206c-T6-selected-${id}] 使用者重開設定頁須看到已選模型。`,
+  })),
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: /(?<![\w:-])x-for="\w+ in (ollamaModels|geminiModels|claudeModels|openaiOfficialModels|openaiModels|openaiGroupModelsOf\(g\.id\))"/, id: '206c-T6-no-raw-model-xfor', note: '[lint-guard:206c-T6-no-raw-model-xfor] 使用者須看到已存模型選項。' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s*this\.ollamaModels = this\.form\.ollamaModel \? \[this\.form\.ollamaModel\] : \[\];\s*$/m, id: '206c-T6-ollama-seed', note: '[lint-guard:206c-T6-ollama-seed] 使用者開啟設定頁時須看到已存 Ollama 模型。' },
 
 ];
 

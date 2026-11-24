@@ -19,6 +19,7 @@ import {
     statusLine,
     progressExtras,
     pickTagsModel,
+    modelNamesWith,
     costHint,
     formatUsd,
     buildTagsTestBody,
@@ -101,15 +102,7 @@ export function aiTagsPanel() {
         modelOptions() {
             const provider = this.form.aiTagsProvider;
             if (!provider) return [];
-            const list = this.aiTagsModelLists()[provider];
-            const names = [];
-            for (const item of Array.isArray(list) ? list : []) {
-                const name = typeof item === 'string' ? item : (item && item.name);
-                if (typeof name === 'string' && name && !names.includes(name)) names.push(name);
-            }
-            const cur = this.form.aiTagsModel;
-            if (cur && !names.includes(cur)) names.push(cur);
-            return names;
+            return modelNamesWith(this.aiTagsModelLists()[provider], this.form.aiTagsModel);
         },
 
         async onProviderChange() {

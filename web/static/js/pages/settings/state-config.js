@@ -717,6 +717,7 @@ export function stateConfig() {
                     this.openaiGroupsLoad(config);
                     this.form.ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url || 'http://localhost:11434';
                     this.form.ollamaModel = config.translate.ollama?.model || config.translate.ollama_model || '';
+                    this.ollamaModels = this.form.ollamaModel ? [this.form.ollamaModel] : [];
 
                     // Gemini model 預設填入
                     if (config.translate.gemini?.model) {

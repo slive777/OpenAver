@@ -73,6 +73,16 @@ function listName(item) {
     return '';
 }
 
+export function modelNamesWith(list, current) {
+    const names = [];
+    for (const item of Array.isArray(list) ? list : []) {
+        const name = listName(item);
+        if (name && !names.includes(name)) names.push(name);
+    }
+    if (current && !names.includes(current)) names.push(current);
+    return names;
+}
+
 /**
  * Default model: keep non-empty current; else pick by provider family.
  * Empty list / not found -> ''.
