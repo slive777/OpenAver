@@ -36,7 +36,7 @@ export function stateProviders() {
         testGeminiTranslateLoading: false,
 
         // ===== Methods =====
-        async loadOllamaModels(url, savedModel = '', { keepModel = false } = {}) {
+        async loadOllamaModels(url) {
             if (!url) return;
 
             this.ollamaStatus = `<span class="text-base-content/50">${window.t('settings.status.loading_models')}</span>`;
@@ -47,16 +47,6 @@ export function stateProviders() {
 
                 if (result.success && result.models && result.models.length > 0) {
                     this.ollamaModels = result.models;
-
-                    // keepModel：只填清單／狀態列，不改 form.ollamaModel（AI 標籤唯讀抓取）
-                    if (!keepModel) {
-                        // 設定儲存的模型
-                        if (savedModel && result.models.includes(savedModel)) {
-                            this.form.ollamaModel = savedModel;
-                        } else if (result.models.length > 0) {
-                            this.form.ollamaModel = result.models[0];
-                        }
-                    }
 
                     this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.n_models', {count: result.models.length})}</span>`;
                 } else {
@@ -92,11 +82,9 @@ export function stateProviders() {
                     this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: result.models.length})}</span>`;
                 } else {
                     this.ollamaStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${result.error || window.t('settings.status.no_models')}</span>`;
-                    this.ollamaModels = [];
                 }
             } catch (e) {
                 this.ollamaStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
-                this.ollamaModels = [];
             } finally {
                 this.testOllamaLoading = false;
             }
@@ -143,7 +131,7 @@ export function stateProviders() {
             }
         },
 
-        async testGeminiConnection() {
+        async testGeminiConnection({ source = 'manual' } = {}) {
             const apiKey = this.secretWire('gemini');
 
             if (!apiKey) {
@@ -168,17 +156,17 @@ export function stateProviders() {
                     this.geminiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.count})}</span>`;
                     this.geminiModels = data.models;
 
-                    // 如果當前 model 不在 allowlist，自動選第一個
                     const modelNames = data.models.map(m => m.name);
-                    if (data.models.length > 0 && !modelNames.includes(this.form.geminiModel)) {
+                    const wasBlank = !this.form.geminiModel;
+                    if ((source === 'manual' || wasBlank) && data.models.length > 0 && !modelNames.includes(this.form.geminiModel)) {
                         this.form.geminiModel = data.models[0].name;
-                        // auto-fallback 不算用戶修改，同步快照避免 isDirty 誤判
-                        if (this.savedState) this.savedState.geminiModel = this.form.geminiModel;
+                        if (wasBlank && this.savedState) this.savedState.geminiModel = this.form.geminiModel;
                     }
                 } else {
-                    this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${data.error || window.t('settings.status.connect_failed')}</span>`;
-                    this.geminiModels = [];
-                    this.geminiModelStatus = '';
+                    const failClass = source === 'manual' ? 'text-error' : 'text-warning';
+                    const failIcon = source === 'manual' ? 'bi-x-circle' : 'bi-exclamation-circle';
+                    this.geminiStatus = `<span class="${failClass}"><i class="bi ${failIcon}"></i> ${data.error || window.t('settings.status.connect_failed')}</span>`;
+                    if (source === 'manual') this.geminiModelStatus = '';
                 }
             } catch (error) {
                 this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${error.message}</span>`;
@@ -449,16 +437,18 @@ export function stateProviders() {
                     this.claudeModels = data.models;
                     this.claudeStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
 
-                    const picked = pickClaudeModel(
-                        this.form.claudeModel,
-                        data.models,
-                        data.latest_haiku,
-                        data.default_model
-                    );
-                    if (picked !== this.form.claudeModel) {
-                        this.form.claudeModel = picked;
-                        // auto-assign 不算用戶修改，同步快照避免 isDirty 誤判
-                        if (this.savedState) this.savedState.claudeModel = this.form.claudeModel;
+                    if (source === 'manual') {
+                        const wasBlank = !this.form.claudeModel;
+                        const picked = pickClaudeModel(
+                            this.form.claudeModel,
+                            data.models,
+                            data.latest_haiku,
+                            data.default_model
+                        );
+                        if (picked !== this.form.claudeModel) {
+                            this.form.claudeModel = picked;
+                            if (wasBlank && this.savedState) this.savedState.claudeModel = this.form.claudeModel;
+                        }
                     }
                 } else {
                     // 不清空 claudeModels — 保留舊清單
@@ -551,16 +541,18 @@ export function stateProviders() {
                     this.openaiOfficialModels = data.models;
                     this.openaiOfficialStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
 
-                    const picked = pickClaudeModel(
-                        this.form.openaiOfficialModel,
-                        data.models,
-                        data.default_model,
-                        ''
-                    );
-                    if (picked !== this.form.openaiOfficialModel) {
-                        this.form.openaiOfficialModel = picked;
-                        // auto-assign 不算用戶修改，同步快照避免 isDirty 誤判
-                        if (this.savedState) this.savedState.openaiOfficialModel = this.form.openaiOfficialModel;
+                    const wasBlank = !this.form.openaiOfficialModel;
+                    if (source === 'manual' || wasBlank) {
+                        const picked = pickClaudeModel(
+                            this.form.openaiOfficialModel,
+                            data.models,
+                            data.default_model,
+                            ''
+                        );
+                        if (picked !== this.form.openaiOfficialModel) {
+                            this.form.openaiOfficialModel = picked;
+                            if (wasBlank && this.savedState) this.savedState.openaiOfficialModel = this.form.openaiOfficialModel;
+                        }
                     }
                 } else {
                     // 不清空 openaiOfficialModels — 保留舊清單
@@ -657,9 +649,9 @@ export function stateProviders() {
             if (groupId && group?.baseUrl.trim()) {
                 fetchModels = () => this.fetchOpenAIModels({ source: 'auto', groupId });
             } else if (provider === 'ollama' && this.form.ollamaUrl.trim()) {
-                fetchModels = () => this.loadOllamaModels(this.form.ollamaUrl, '', { keepModel: true });
+                fetchModels = () => this.loadOllamaModels(this.form.ollamaUrl);
             } else if (provider === 'gemini' && this.secretHasValue('gemini')) {
-                fetchModels = () => this.testGeminiConnection();
+                fetchModels = () => this.testGeminiConnection({ source: 'auto' });
             } else if (provider === 'claude' && this.secretHasValue('claude')) {
                 fetchModels = () => this.fetchClaudeModels({ source: 'auto' });
             } else if (provider === 'openai_official' && this.secretHasValue('openaiOfficial')) {
