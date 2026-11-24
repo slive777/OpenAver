@@ -13,6 +13,7 @@ import httpx
 
 from core.cloud_translate import TranslateError, finalize_translation, redact_secrets
 from core.logger import get_logger
+from core.model_pick import is_experimental, latest_per_series
 
 logger = get_logger(__name__)
 
@@ -126,8 +127,12 @@ def _supports_effort(item: dict) -> bool:
     return supported is not False
 
 
+def _claude_family(item: dict) -> str:
+    return "haiku" if "haiku" in str(item.get("id") or "").lower() else "sonnet"
+
+
 def pick_translate_models(data: dict) -> list[str]:
-    """過濾 haiku／sonnet，依 created_at 新到舊排，回傳 id 陣列。"""
+    """排除預覽版，依 created_at 排序並保留每系列最新 3 個 id。"""
     raw = data.get("data") or []
     items: list[dict] = []
     for m in raw:
@@ -135,8 +140,11 @@ def pick_translate_models(data: dict) -> list[str]:
             continue
         mid = str(m.get("id") or "").lower()
         if ("haiku" in mid or "sonnet" in mid) and _supports_effort(m):
+            if is_experimental(mid):
+                continue
             items.append(m)
     items.sort(key=lambda m: m.get("created_at") or "", reverse=True)
+    items = latest_per_series(items, _claude_family)
     return [str(m["id"]) for m in items]
 
 

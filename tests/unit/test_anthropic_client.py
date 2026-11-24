@@ -178,3 +178,15 @@ def test_pick_models_excludes_effort_unsupported():
          "capabilities": {"effort": {"supported": True}}},
     ]}
     assert pick_translate_models(data) == ["claude-haiku-5-5", "claude-haiku-legacy-nocaps"]
+
+
+@pytest.mark.parametrize("token", ["preview", "exp"])
+def test_pick_models_caps_per_family_and_excludes_experimental(token):
+    rows = [{"id": f"claude-{family}-{i}", "created_at": f"2026-01-{i:02d}"}
+            for family, count in (("sonnet", 5), ("haiku", 4)) for i in range(1, count + 1)]
+    rows += [{"id": "claude-opus-1", "created_at": "2026-01-09"},
+             {"id": f"claude-haiku-{token}", "created_at": "2026-01-10"}]
+    got = pick_translate_models({"data": rows})
+    assert got == ["claude-sonnet-5", "claude-sonnet-4", "claude-haiku-4",
+                   "claude-sonnet-3", "claude-haiku-3", "claude-haiku-2"]
+    assert next(mid for mid in got if "haiku" in mid) == "claude-haiku-4"
