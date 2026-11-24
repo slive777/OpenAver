@@ -37,6 +37,7 @@ from core.config import (
     iter_gallery_sources,
 )
 from core.nfo_title_format import validate_nfo_title_format
+from core.openai_groups import coerce_dangling_providers, validate_custom_groups
 from core.focal import device_state
 from core.secret_fields import (
     read_secret,
@@ -169,6 +170,10 @@ def update_config(config: AppConfig) -> dict:
     title_fmt_error = validate_nfo_title_format(config.scraper.nfo_title_format)
     if title_fmt_error:
         return {"success": False, "reason": "nfo_title_format_invalid", "error": title_fmt_error}
+    names = {gid: group.name for gid, group in config.translate.openai_custom.items()}
+    group_error = validate_custom_groups(names)
+    if group_error is not None:
+        return {"success": False, "reason": group_error, "error": "自訂連線設定無效。"}
     save_token = object()  # 每 request 唯一身份 token（比照 generate 的 _active_tokens）
     reason = try_begin_config_save(save_token)
     if reason is not None:
@@ -188,6 +193,7 @@ def update_config(config: AppConfig) -> dict:
         faces_after: dict = {}
         try:
             payload = config.model_dump()
+            coerce_dangling_providers(payload)
             # server_mode is toggle-lifecycle state owned exclusively by
             # PUT /api/config/general/server_mode (which calls lan_listener.start/stop
             # atomically with the persist). A full-config save must NEVER overwrite the

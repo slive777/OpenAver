@@ -1,6 +1,8 @@
 import { stateConfig }       from '@/settings/state-config.js';
 import { stateProviders }    from '@/settings/state-providers.js';
 import { stateSecrets } from '@/settings/state-secrets.js';
+import { stateOpenaiGroups } from '@/settings/state-openai-groups.js';
+import { stateOpenaiGroupView } from '@/settings/state-openai-group-view.js';
 import { stateUI }           from '@/settings/state-ui.js';
 import { stateSourceProbe }  from '@/settings/state-source-probe.js';
 import { customSources }     from '@/settings/state-custom-sources.js';
@@ -19,6 +21,8 @@ document.addEventListener('alpine:init', () => {
         stateConfig(),
         stateProviders(),
         stateSecrets(),
+        stateOpenaiGroups(),
+        stateOpenaiGroupView(),
         stateUI(),
         stateSourceProbe(),
         browseDirState(),

@@ -1,5 +1,6 @@
 import { pickClaudeModel } from './claude-model-pick.js';
 import { connShown, connEnabled, pickTagsModel } from '@/settings/ai-tags-logic.js';
+import { openaiGroupIdOf } from './openai-group-logic.js';
 
 export function stateProviders() {
     return {
@@ -234,7 +235,48 @@ export function stateProviders() {
             }
         },
 
-        async fetchOpenAIModels({ source = 'manual' } = {}) {
+        async fetchOpenAIModels({ source = 'manual', groupId = '' } = {}) {
+            if (groupId) {
+                const group = this.openaiGroupById(groupId);
+                const rt = this.openaiGroupRt[groupId];
+                if (!group || !rt) return;
+                const baseUrl = group.baseUrl.trim();
+                if (!baseUrl) {
+                    rt.status = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_url')}</span>`;
+                    return;
+                }
+                rt.fetching = true;
+                rt.status = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
+                try {
+                    const response = await fetch('/api/openai/models', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ base_url: baseUrl, api_key: this.secretWire(groupId), group_id: groupId })
+                    });
+                    const data = await response.json();
+                    if (data.success && data.models && data.models.length > 0) {
+                        rt.models = data.models;
+                        rt.status = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
+                        if (!data.models.includes(group.model)) {
+                            if (group.model) {
+                                if (source === 'manual') group.useCustomModel = true;
+                            } else {
+                                group.model = data.models[0];
+                                const saved = this.savedState?.openaiGroups?.find(item => item.id === groupId);
+                                if (saved) saved.model = group.model;
+                            }
+                        }
+                    } else {
+                        const errorKey = `settings.status.openai_${data.error || 'connection_failed'}`;
+                        rt.status = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${window.t(errorKey)}</span>`;
+                    }
+                } catch (error) {
+                    rt.status = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.openai_connection_failed')}</span>`;
+                } finally {
+                    rt.fetching = false;
+                }
+                return;
+            }
             const baseUrl = this.form.openaiBaseUrl.trim();
 
             if (!baseUrl) {
@@ -288,7 +330,44 @@ export function stateProviders() {
             }
         },
 
-        async testOpenAITranslation() {
+        async testOpenAITranslation({ groupId = '' } = {}) {
+            if (groupId) {
+                const group = this.openaiGroupById(groupId);
+                const rt = this.openaiGroupRt[groupId];
+                if (!group || !rt) return;
+                const baseUrl = group.baseUrl.trim();
+                const model = group.model.trim();
+                if (!baseUrl || !model) {
+                    const key = !baseUrl ? 'settings.status.enter_url' : 'settings.status.select_model';
+                    rt.modelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t(key)}</span>`;
+                    return;
+                }
+                rt.testing = true;
+                rt.modelStatus = `<span class="text-base-content/50">${window.t('settings.status.testing_translation')}</span>`;
+                try {
+                    const response = await fetch('/api/openai/test', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ base_url: baseUrl, api_key: this.secretWire(groupId), group_id: groupId, model })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        const div = document.createElement('div');
+                        div.textContent = data.translation;
+                        rt.modelStatus = data.translation === 'ja_skip'
+                            ? `<span class="text-info"><i class="bi bi-info-circle"></i> ${window.t('settings.status.ja_skip')}</span>`
+                            : `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ${div.innerHTML}</span>`;
+                    } else {
+                        const errorKey = `settings.status.openai_${data.error || 'translate_failed'}`;
+                        rt.modelStatus = `<span class="text-error"><i class="bi bi-exclamation-triangle-fill"></i> ${window.t(errorKey)}</span>`;
+                    }
+                } catch (error) {
+                    rt.modelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.openai_translate_failed')}</span>`;
+                } finally {
+                    rt.testing = false;
+                }
+                return;
+            }
             const baseUrl = this.form.openaiBaseUrl.trim();
             const model = this.form.openaiModel.trim();
 
@@ -550,6 +629,7 @@ export function stateProviders() {
                 claude: this.claudeModels,
                 openai_official: this.openaiOfficialModels,
                 openai: this.openaiModels,
+                ...this.openaiGroupModelLists(),
             };
         },
 
@@ -565,7 +645,11 @@ export function stateProviders() {
         async ensureProviderModels(provider) {
             // 清單 ≤1 視為還沒抓過（載入播種）；金鑰／網址已填才抓
             const n = (arr) => (Array.isArray(arr) ? arr.length : 0);
-            if (provider === 'ollama' && n(this.ollamaModels) <= 1 && this.form.ollamaUrl) {
+            const groupId = openaiGroupIdOf(provider);
+            const group = groupId && this.openaiGroupById(groupId);
+            if (group && n(this.openaiGroupRt[groupId]?.models) <= 1 && group.baseUrl) {
+                await this.fetchOpenAIModels({ source: 'auto', groupId });
+            } else if (provider === 'ollama' && n(this.ollamaModels) <= 1 && this.form.ollamaUrl) {
                 await this.loadOllamaModels(this.form.ollamaUrl, '', { keepModel: true });
             } else if (provider === 'gemini' && n(this.geminiModels) <= 1 && this.secretHasValue('gemini')) {
                 await this.testGeminiConnection();
@@ -581,7 +665,7 @@ export function stateProviders() {
             // 已存 model 空時預選不進 savedState：畫面 isDirty=true，引導使用者存一次（CD-188c-14）。
             if (this.form.aiTagsProvider === provider && !this.form.aiTagsModel) {
                 const lists = this.aiTagsModelLists();
-                this.form.aiTagsModel = pickTagsModel(provider, '', lists[provider] || []);
+                this.setTagsModel(provider, pickTagsModel(provider, '', lists[provider] || []));
             }
         },
     };

@@ -8,6 +8,7 @@ globalThis.window = globalThis;
 window.t = (k, p) => (p && Object.keys(p).length ? `${k}|${JSON.stringify(p)}` : k);
 
 const { aiTagsPanel } = await import('../ai-tags-panel.js');
+const { stateOpenaiGroups } = await import('../state-openai-groups.js');
 
 function deferred() {
     let resolve;
@@ -24,8 +25,10 @@ function makePanel(over = {}) {
     const lists = {
         gemini: [{ name: 'gemini-x' }], claude: [], ollama: [], openai_official: [], openai: [],
     };
+    const { setTagsModel, tagsModelMemo } = stateOpenaiGroups();
     const c = aiTagsPanel();
     Object.assign(c, {
+        setTagsModel, tagsModelMemo,
         aiTab: 'translate',
         form: {},
         isDirty: false,
@@ -39,6 +42,22 @@ function makePanel(over = {}) {
 }
 
 const RUNNING = { running: false, pending: 5, total: 10, tagged: 5, skipped: 0 };
+
+test('tags_model_options_keep_saved_model', () => {
+    const options = (provider, model, list) => makePanel({
+        form: { aiTagsProvider: provider, aiTagsModel: model },
+        aiTagsModelLists: () => ({ example: list }),
+    }).c.modelOptions();
+
+    const missing = options('example', 'saved', ['first', 'last']);
+    assert.deepEqual(missing, ['first', 'last', 'saved']);
+    assert.equal(missing.filter((name) => name === 'saved').length, 1);
+    const present = options('example', 'saved', ['first', 'saved', 'last']);
+    assert.deepEqual(present, ['first', 'saved', 'last']);
+    assert.equal(present.length, 3);
+    assert.deepEqual(options('', 'saved', ['first']), []);
+    assert.deepEqual(options('example', 'saved', ['first', { name: 'saved' }]), ['first', 'saved']);
+});
 
 test('tags_poll_stale_response_ignored', async () => {
     const realFetch = globalThis.fetch;

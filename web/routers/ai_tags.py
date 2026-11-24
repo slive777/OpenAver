@@ -29,6 +29,7 @@ from core.config import load_config
 from core.data_root import get_project_root
 from core.database import VideoRepository
 from core.logger import get_logger
+from core.openai_groups import custom_key_path, parse_openai_provider
 from core.path_utils import uri_to_local_fs_path
 from core.secret_fields import read_secret, resolve_secret
 from web.routers.collection import _normalize_to_uri  # noqa: PLC2701 — CD-188b-15 指定沿用 collection 的路徑正規化
@@ -88,14 +89,27 @@ def _prepare_tags_test(body: TagsTestRequest):
 
     provider = str(tags.get("provider") or "").strip()
 
-    stored_key = (
-        read_secret(config, f"translate.{provider}.api_key") if provider else ""
-    )
+    gid = parse_openai_provider(provider)
+    if gid is not None:
+        stored_key = read_secret(config, custom_key_path(gid))
+    else:
+        stored_key = (
+            read_secret(config, f"translate.{provider}.api_key") if provider else ""
+        )
     if body.api_key is None:
         api_key = stored_key
     else:
         api_key = resolve_secret(body.api_key, stored_key)
-    if provider in ("gemini", "claude", "openai", "openai_official"):
+    if gid is not None:
+        nest = (
+            config.setdefault("translate", {})
+            .setdefault("openai_custom", {})
+            .setdefault(gid, {})
+        )
+        nest["api_key"] = api_key
+        if body.base_url is not None:
+            nest["base_url"] = body.base_url
+    elif provider in ("gemini", "claude", "openai", "openai_official"):
         config.setdefault("translate", {}).setdefault(provider, {})["api_key"] = api_key
 
     if body.base_url is not None:

@@ -1,5 +1,6 @@
 """[lint-guard: pytest-justified] 巨集展開結果無法由模板靜態掃描驗證。"""
 import re
+from collections import Counter
 from html.parser import HTMLParser
 
 
@@ -15,8 +16,8 @@ class SecretFieldsParser(HTMLParser):
         if tag == "div":
             if self.current is not None:
                 self.depth += 1
-            elif "data-secret-field" in attrs:
-                self.current = [attrs["data-secret-field"], 0, False, []]
+            elif attrs.get("data-secret-field") or attrs.get(":data-secret-field"):
+                self.current = [attrs.get("data-secret-field") or attrs.get(":data-secret-field"), 0, False, []]
                 self.depth = 1
                 self.fields.append(self.current)
         if self.current is not None:
@@ -41,9 +42,10 @@ def test_settings_renders_seven_secret_fields_without_warning(client):
     parser = SecretFieldsParser()
     parser.feed(html)
     assert sorted(field[0] for field in parser.fields) == sorted(
-        ["gemini", "claude", "openaiOfficial", "openai", "aiSimilar", "aiFaces", "metatube"]
+        ["gemini", "claude", "openaiOfficial", "openai"] * 2
+        + ["aiSimilar", "aiFaces", "metatube", "g.id", "g.id"]
     )
-    assert len(re.findall(r'(?<![\w:-])type="password"', html)) == 7
+    assert len(re.findall(r'(?<![\w:-])type="password"', html)) == 13
     assert all(count == 1 and not eye for _, count, eye, _ in parser.fields)
     for field, _, _, texts in parser.fields:
         text = " ".join(texts)
@@ -56,4 +58,41 @@ def test_settings_renders_seven_secret_fields_without_warning(client):
             else:
                 assert base in text
                 assert connect not in text
-    assert html.count("aistudio.google.com/apikey") == 1
+    assert html.count("aistudio.google.com/apikey") == 2
+
+
+class ConnectionIdsParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.ids = []
+        self.gemini_count = 0
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if "id" in attrs:
+            self.ids.append(attrs["id"])
+        if attrs.get("data-ai-conn") == "gemini":
+            self.gemini_count += 1
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+
+
+def test_settings_ai_connections_have_unique_ids(client):
+    response = client.get("/settings")
+    assert response.status_code == 200
+    html = response.text
+    parser = ConnectionIdsParser()
+    parser.feed(html)
+    ids = Counter(parser.ids)
+    assert all(count == 1 for count in ids.values())
+    for base in (
+        "aiConnections", "geminiApiKey", "claudeApiKey", "openaiOfficialApiKey",
+        "openaiApiKey", "ollamaUrl", "testOllamaBtn", "testGeminiBtn", "testClaudeBtn",
+        "testOpenaiOfficialBtn", "openaiOfficialStatus",
+    ):
+        assert ids[base] == 1
+        assert ids[f"tags-{base}"] == 1
+    assert parser.gemini_count == 2
+    assert html.count("settings.ai.connections_title") == 2
+    assert html.count("settings.translate.gemini_free_hint") == 2

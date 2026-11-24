@@ -8,12 +8,14 @@ OpenAI Compatible API 路由 - 提供模型查詢和翻譯測試功能
 
 from core.logger import get_logger
 from core.config import load_config
+from core.openai_groups import custom_key_path, is_valid_group_id
 from core.secret_fields import read_secret, resolve_secret
 from core.translate_service import build_cloud_translate_prompt
 from core.cloud_translate import CLOUD_TRANSLATE_TIMEOUT, TranslateError, settings_error_key
 from core.openai_client import (
     OPENAI_OFFICIAL_BASE_URL,
     default_official_model,
+    models_url,
     pick_official_models,
     request_translation,
 )
@@ -33,6 +35,7 @@ class ModelsRequest(BaseModel):
     """查詢模型列表請求"""
     base_url: str
     api_key: str = ""
+    group_id: str = ""
 
 
 class ModelsResponse(BaseModel):
@@ -47,6 +50,7 @@ class TestTranslateRequest(BaseModel):
     base_url: str
     api_key: str = ""
     model: str
+    group_id: str = ""
 
 
 class TestTranslateResponse(BaseModel):
@@ -78,6 +82,14 @@ def _resolve_openai_official_key(request_key: str, config: dict) -> str:
     )
 
 
+def _stored_key_path(group_id: str) -> str | None:
+    if not group_id:
+        return "translate.openai.api_key"
+    if not is_valid_group_id(group_id):
+        return None
+    return custom_key_path(group_id)
+
+
 @router.post("/models", response_model=ModelsResponse)
 async def fetch_openai_models(request: ModelsRequest):
     """
@@ -93,21 +105,24 @@ async def fetch_openai_models(request: ModelsRequest):
     Returns:
         ModelsResponse: 包含成功狀態和模型列表
     """
+    path = _stored_key_path(request.group_id)
+    if path is None:
+        return ModelsResponse(success=False, error="invalid_group_id")
+
     if not request.base_url.strip():
         return ModelsResponse(success=False, error="missing_base_url")
 
     config = await asyncio.to_thread(load_config)
-    key = resolve_secret(request.api_key, read_secret(config, "translate.openai.api_key"))
+    key = resolve_secret(request.api_key, read_secret(config, path))
     key = (key or "").strip()
 
-    base_url = request.base_url.rstrip("/")
     headers = {}
     if key:
         headers["Authorization"] = f"Bearer {key}"
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{base_url}/models", headers=headers)
+            response = await client.get(models_url(request.base_url), headers=headers)
             response.raise_for_status()
 
         data = response.json()
@@ -158,6 +173,10 @@ async def test_openai_translate(request: TestTranslateRequest):
     Returns:
         TestTranslateResponse: 包含翻譯結果或錯誤訊息
     """
+    path = _stored_key_path(request.group_id)
+    if path is None:
+        return TestTranslateResponse(success=False, error="invalid_group_id")
+
     if not request.base_url.strip():
         return TestTranslateResponse(success=False, error="missing_base_url")
 
@@ -168,7 +187,7 @@ async def test_openai_translate(request: TestTranslateRequest):
     test_title = "新人女優デビュー"
 
     config = await asyncio.to_thread(load_config)
-    key = resolve_secret(request.api_key, read_secret(config, "translate.openai.api_key"))
+    key = resolve_secret(request.api_key, read_secret(config, path))
     locale = config.get("general", {}).get("locale", "zh-TW")
 
     # F2: ja short-circuit — 與 translate_service.py 的行為保持一致

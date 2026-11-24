@@ -335,16 +335,24 @@ export function stateScan() {
 
         async saveConfig() {
             try {
-                this.config.gallery = this.config.gallery || {};
-                this.config.gallery.directories = this.directories;
+                const latestResp = await fetch('/api/config');
+                const latest = await latestResp.json();
+                if (!latest.success) {
+                    this.showToast(window.t('scanner.toast.save_failed', { error: latest.error || window.t('common.unknown_error') }), 'error');
+                    return false;
+                }
+                const body = latest.data;
+                body.gallery = body.gallery || {};
+                body.gallery.directories = this.directories;
 
                 const resp = await fetch('/api/config', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(this.config)
+                    body: JSON.stringify(body)
                 });
                 const result = await resp.json();
                 if (result.success) {
+                    this.config = body;
                     this.configDirty = false;
                     this.folderSnapshot = JSON.stringify(this.directories);
                     this.showToast(window.t('scanner.toast.config_saved'), 'success');

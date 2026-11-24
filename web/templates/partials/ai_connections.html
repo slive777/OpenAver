@@ -1,0 +1,200 @@
+{# 連線區跟著翻譯或 AI 標籤分頁顯示所選服務；未啟用任一家時變淡並鎖住。 #}
+{% from 'partials/secret_field.html' import secret_field, secret_field_dyn %}
+{% macro ai_connections(tab, id_prefix='') %}
+<div id="{{ id_prefix }}aiConnections" class="ai-connections" :class="{ 'opacity-50': !aiConnEnabled('ollama') && !aiConnEnabled('gemini') && !aiConnEnabled('claude') && !aiConnEnabled('openai_official') && !aiConnEnabled('openai') && !form.openaiGroups.some(g => aiConnEnabled('openai:' + g.id)) }" x-show="['ollama','gemini','claude','openai_official','openai', ...form.openaiGroups.map(g => 'openai:' + g.id)].some(p => aiConnShown(p, '{{ tab }}'))" x-cloak>
+    <p class="settings-tier-label" x-text="window.t('settings.ai.connections_title')"></p>
+
+    <div data-ai-conn="ollama" x-show="aiConnShown('ollama', '{{ tab }}')">
+        <div class="settings-form-row">
+            <label class="row-label">Ollama URL</label>
+            <div class="flex-1 flex flex-col gap-1">
+                <div class="variable-input-group">
+                    <input type="text" class="input input-bordered input-sm flex-1" id="{{ id_prefix }}ollamaUrl"
+                        x-model="form.ollamaUrl" :disabled="!aiConnEnabled('ollama')">
+                    <button class="btn btn-sm btn-outline" type="button" id="{{ id_prefix }}testOllamaBtn"
+                        @click="testOllamaConnection()"
+                        :disabled="!aiConnEnabled('ollama') || testOllamaLoading">
+                        <span x-show="testOllamaLoading" class="loading loading-spinner loading-sm"></span>
+                        <template x-if="!testOllamaLoading">
+                            <i class="bi bi-plug"></i>
+                        </template>
+                        <span x-text="testOllamaLoading ? '' : ' ' + window.t('settings.action.test')"></span>
+                    </button>
+                </div>
+                <small class="settings-hint" x-html="ollamaStatus"></small>
+            </div>
+        </div>
+    </div>
+
+    <div data-ai-conn="gemini" x-show="aiConnShown('gemini', '{{ tab }}')">
+        <div class="settings-form-row">
+            <label class="row-label">Gemini API Key</label>
+            <div class="flex-1 flex flex-col gap-1">
+                <div class="variable-input-group">
+                    {% if tab == 'tags' %}
+                    {{ secret_field('gemini', 'tags-geminiApiKey', placeholder_expr="'AIza...'", disabled_expr="!aiConnEnabled('gemini')") }}
+                    {% else %}
+                    {{ secret_field('gemini', 'geminiApiKey', placeholder_expr="'AIza...'", disabled_expr="!aiConnEnabled('gemini')") }}
+                    {% endif %}
+                    <button class="btn btn-sm btn-outline" type="button" id="{{ id_prefix }}testGeminiBtn"
+                        @click="testGeminiConnection()"
+                        :disabled="!aiConnEnabled('gemini') || testGeminiLoading">
+                        <span x-show="testGeminiLoading" class="loading loading-spinner loading-sm"></span>
+                        <template x-if="!testGeminiLoading">
+                            <i class="bi bi-plug"></i>
+                        </template>
+                        <span x-text="testGeminiLoading ? '' : ' ' + window.t('settings.action.test')"></span>
+                    </button>
+                </div>
+                <small class="settings-hint" x-html="geminiStatus"></small>
+                <small class="settings-hint">
+                    <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> <span x-text="window.t('settings.translate.gemini_free_hint')"></span>
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div data-ai-conn="claude" x-show="aiConnShown('claude', '{{ tab }}')" x-cloak>
+        <div class="settings-form-row">
+            <label class="row-label">Claude API Key</label>
+            <div class="flex-1 flex flex-col gap-1">
+                <div class="variable-input-group">
+                    {% if tab == 'tags' %}
+                    {{ secret_field('claude', 'tags-claudeApiKey', placeholder_expr="window.t('settings.translate.claude_api_key_placeholder')", disabled_expr="!aiConnEnabled('claude')") }}
+                    {% else %}
+                    {{ secret_field('claude', 'claudeApiKey', placeholder_expr="window.t('settings.translate.claude_api_key_placeholder')", disabled_expr="!aiConnEnabled('claude')") }}
+                    {% endif %}
+                    <button class="btn btn-sm btn-outline" type="button" id="{{ id_prefix }}testClaudeBtn"
+                        @click="fetchClaudeModels()"
+                        :disabled="!aiConnEnabled('claude') || fetchingClaudeModels">
+                        <span x-show="fetchingClaudeModels" class="loading loading-spinner loading-sm"></span>
+                        <template x-if="!fetchingClaudeModels">
+                            <i class="bi bi-plug"></i>
+                        </template>
+                        <span x-text="fetchingClaudeModels ? '' : ' ' + window.t('settings.action.test')"></span>
+                    </button>
+                </div>
+                <small class="settings-hint" x-html="claudeStatus"></small>
+                <small class="settings-hint" x-text="window.t('settings.translate.claude_api_key_hint')"></small>
+            </div>
+        </div>
+    </div>
+
+    <div data-ai-conn="openai_official" x-show="aiConnShown('openai_official', '{{ tab }}')">
+        <div class="settings-form-row">
+            <label class="row-label">OpenAI API Key</label>
+            <div class="flex-1 flex flex-col gap-1">
+                <div class="variable-input-group">
+                    {% if tab == 'tags' %}
+                    {{ secret_field('openaiOfficial', 'tags-openaiOfficialApiKey', placeholder_expr="'sk-...'", disabled_expr="!aiConnEnabled('openai_official')") }}
+                    {% else %}
+                    {{ secret_field('openaiOfficial', 'openaiOfficialApiKey', placeholder_expr="'sk-...'", disabled_expr="!aiConnEnabled('openai_official')") }}
+                    {% endif %}
+                    <button class="btn btn-sm btn-outline" type="button" id="{{ id_prefix }}testOpenaiOfficialBtn"
+                        @click="fetchOpenAIOfficialModels()"
+                        :disabled="!aiConnEnabled('openai_official') || fetchingOpenaiOfficialModels">
+                        <span x-show="fetchingOpenaiOfficialModels" class="loading loading-spinner loading-sm"></span>
+                        <template x-if="!fetchingOpenaiOfficialModels">
+                            <i class="bi bi-plug"></i>
+                        </template>
+                        <span x-text="fetchingOpenaiOfficialModels ? '' : ' ' + window.t('settings.action.test')"></span>
+                    </button>
+                </div>
+                <small class="settings-hint" id="{{ id_prefix }}openaiOfficialStatus" x-html="openaiOfficialStatus"></small>
+            </div>
+        </div>
+    </div>
+
+    <div data-ai-conn="openai" x-show="aiConnShown('openai', '{{ tab }}')" x-cloak>
+        <div class="settings-form-row">
+            <label class="row-label" x-text="'Base URL'"></label>
+            <div class="flex-1 flex flex-col gap-1">
+                <div class="variable-input-group">
+                    <input type="text" class="input input-bordered input-sm flex-1"
+                        x-model="form.openaiBaseUrl"
+                        placeholder="https://api.openai.com/v1"
+                        :disabled="!aiConnEnabled('openai')">
+                    <button class="btn btn-sm btn-outline" type="button"
+                        @click="fetchOpenAIModels()"
+                        :disabled="!aiConnEnabled('openai') || fetchingOpenaiModels">
+                        <span x-show="fetchingOpenaiModels" class="loading loading-spinner loading-sm"></span>
+                        <template x-if="!fetchingOpenaiModels">
+                            <i class="bi bi-plug"></i>
+                        </template>
+                        <span x-text="fetchingOpenaiModels ? '' : ' ' + window.t('settings.action.test')"></span>
+                    </button>
+                </div>
+                <small class="settings-hint" x-show="openaiPreviewText(form.openaiBaseUrl) !== ''" x-text="openaiPreviewText(form.openaiBaseUrl)"></small>
+                <small class="settings-hint" x-html="openaiStatus"></small>
+            </div>
+        </div>
+        <div class="settings-form-row">
+            <label class="row-label">API Key</label>
+            <div class="flex-1 flex flex-col gap-1">
+                {% if tab == 'tags' %}
+                {{ secret_field('openai', 'tags-openaiApiKey', placeholder_expr="window.t('settings.translate.openai_api_key_placeholder')", disabled_expr="!aiConnEnabled('openai')") }}
+                {% else %}
+                {{ secret_field('openai', 'openaiApiKey', placeholder_expr="window.t('settings.translate.openai_api_key_placeholder')", disabled_expr="!aiConnEnabled('openai')") }}
+                {% endif %}
+                <small class="settings-hint" x-text="window.t('settings.translate.openai_api_key_hint')"></small>
+            </div>
+        </div>
+    </div>
+    <template x-for="g in form.openaiGroups" :key="g.id">
+        <div :data-ai-conn-group="g.id" x-show="aiConnShown('openai:' + g.id, '{{ tab }}')" x-cloak>
+            <div class="settings-form-row">
+                <label class="row-label" x-text="'Base URL'"></label>
+                <div class="flex-1 flex flex-col gap-1">
+                    <div class="variable-input-group">
+                        <input type="text" class="input input-bordered input-sm flex-1" :id="'{{ id_prefix }}openaiGroupUrl-' + g.id"
+                            x-model="g.baseUrl" :disabled="!aiConnEnabled('openai:' + g.id)">
+                        <button class="btn btn-sm btn-outline" type="button"
+                            @click="fetchOpenAIModels({ groupId: g.id })"
+                            :disabled="!aiConnEnabled('openai:' + g.id) || openaiGroupRt[g.id]?.fetching">
+                            <span x-show="openaiGroupRt[g.id]?.fetching" class="loading loading-spinner loading-sm"></span>
+                            <template x-if="!openaiGroupRt[g.id]?.fetching"><i class="bi bi-plug"></i></template>
+                            <span x-text="openaiGroupRt[g.id]?.fetching ? '' : ' ' + window.t('settings.action.test')"></span>
+                        </button>
+                    </div>
+                    <small class="settings-hint" x-show="openaiPreviewText(g.baseUrl) !== ''" x-text="openaiPreviewText(g.baseUrl)"></small>
+                    <small class="settings-hint" x-html="openaiGroupRt[g.id]?.status"></small>
+                </div>
+            </div>
+            <div class="settings-form-row">
+                <label class="row-label">API Key</label>
+                <div class="flex-1 flex flex-col gap-1">
+                    {% if tab == 'tags' %}
+                    {{ secret_field_dyn('g.id', "'tags-openaiGroupKey-' + g.id", placeholder_expr="window.t('settings.translate.openai_api_key_placeholder')", disabled_expr="!aiConnEnabled('openai:' + g.id)") }}
+                    {% else %}
+                    {{ secret_field_dyn('g.id', "'openaiGroupKey-' + g.id", placeholder_expr="window.t('settings.translate.openai_api_key_placeholder')", disabled_expr="!aiConnEnabled('openai:' + g.id)") }}
+                    {% endif %}
+                    <small class="settings-hint" x-text="window.t('settings.translate.openai_api_key_hint')"></small>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
+{% endmacro %}
+{% macro ai_openai_group_add(tab, id_prefix='') %}
+<div id="{{ id_prefix }}openaiGroupAdd" class="settings-form-row" x-show="openaiGroupShowAdd('{{ tab }}') || openaiGroupShowLimit('{{ tab }}')" x-cloak>
+    <span class="row-label" aria-hidden="true"></span>
+    <div class="flex-1 flex flex-col gap-1">
+        <button type="button" class="btn-add-layer" id="{{ id_prefix }}openaiGroupAddBtn"
+            x-show="openaiGroupShowAdd('{{ tab }}') && !openaiAddUi.{{ tab }}.open"
+            :disabled="openaiGroupAddDisabled('{{ tab }}')" @click="openaiAddOpen('{{ tab }}')">
+            <i class="bi bi-plus-lg"></i><span x-text="window.t('settings.ai.openai_group.add_btn')"></span>
+        </button>
+        <div x-show="openaiAddUi.{{ tab }}.open && openaiGroupShowAdd('{{ tab }}')">
+            <div class="variable-input-group">
+                <input type="text" class="input input-bordered input-sm w-64" id="{{ id_prefix }}openaiGroupName"
+                    x-model="openaiAddUi.{{ tab }}.name" @keydown.enter.prevent="openaiAddConfirm('{{ tab }}')"
+                    @keydown.escape.stop.prevent="openaiAddCancel('{{ tab }}')" :placeholder="window.t('settings.ai.openai_group.name_placeholder')">
+                <button type="button" class="btn btn-sm btn-primary" @click="openaiAddConfirm('{{ tab }}')" x-text="window.t('common.action.confirm')"></button>
+                <button type="button" class="btn btn-sm btn-ghost" @click="openaiAddCancel('{{ tab }}')" x-text="window.t('common.action.cancel')"></button>
+            </div>
+            <small class="settings-hint" role="alert" x-show="openaiAddUi.{{ tab }}.error !== ''"><span class="text-error" x-text="openaiAddErrorText('{{ tab }}')"></span></small>
+        </div>
+        <small class="settings-hint" id="{{ id_prefix }}openaiGroupLimit" x-show="openaiGroupShowLimit('{{ tab }}')" x-text="window.t('settings.ai.openai_group.limit_hint', { max: openaiGroupMax })"></small>
+    </div>
+</div>
+{% endmacro %}

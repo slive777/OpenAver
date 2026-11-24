@@ -37,6 +37,33 @@ OPENAI_NON_CHAT_TOKENS = (
 )
 _DATE_SUFFIX_RE = re.compile(r"-(?:\d{4}-\d{2}-\d{2}|\d{8})$")
 
+_ENDPOINT_SUFFIXES = ("/chat/completions", "/models")
+_URL_PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*://[^/?#]*")
+
+
+def normalize_openai_base_url(raw) -> str:
+    """移除尾斜線及端點後綴；後綴只作用於 scheme://host 之後，不剪主機名。"""
+    url = (raw or "").strip()
+    while True:
+        url = url.rstrip("/")
+        match = _URL_PREFIX_RE.match(url)
+        prefix = match.group() if match else ""
+        rest = url[len(prefix):]
+        for suffix in _ENDPOINT_SUFFIXES:
+            if rest[len(rest) - len(suffix):].lower() == suffix:
+                url = prefix + rest[: len(rest) - len(suffix)]
+                break
+        else:
+            return url
+
+
+def chat_completions_url(raw) -> str:
+    return normalize_openai_base_url(raw) + "/chat/completions"
+
+
+def models_url(raw) -> str:
+    return normalize_openai_base_url(raw) + "/models"
+
 
 def pick_official_models(models: list[tuple[str, int | None]]) -> list[str]:
     """過濾 luna／terra／mini（不含 nano）、剔除非聊天類型、去重日期快照後排序。"""
@@ -165,10 +192,11 @@ async def request_translation(
     timeout: float,
 ) -> str:
     """POST <base_url>/chat/completions；成功回非空 str，失敗拋 TranslateError。"""
+    url = chat_completions_url(base_url)
     resp = await cloud_request(
         TAG,
         "POST",
-        base_url.rstrip("/") + "/chat/completions",
+        url,
         headers=build_headers(api_key),
         timeout=timeout,
         json=build_translate_payload(model, prompt),
@@ -223,10 +251,11 @@ async def request_vision(
     timeout: float,
 ) -> str:
     """POST <base_url>/chat/completions with image；成功回非空 str，失敗拋 TranslateError。"""
+    vision_url = chat_completions_url(base_url)
     resp = await cloud_request(
         TAG,
         "POST",
-        base_url.rstrip("/") + "/chat/completions",
+        vision_url,
         headers=build_headers(api_key),
         timeout=timeout,
         json=build_vision_payload(model, system, user_text, image_data_uri),

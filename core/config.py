@@ -136,6 +136,14 @@ class OpenAIConfig(BaseModel):
     use_custom_model: bool = False
 
 
+class OpenAICustomConfig(BaseModel):
+    name: str = ""
+    base_url: str = ""
+    model: str = ""
+    use_custom_model: bool = False
+    api_key: str = ""
+
+
 class OpenAIOfficialConfig(BaseModel):
     """串接結構：OpenAI 官方配置（無 base_url；網址由常數固定）"""
     api_key: str = ""
@@ -158,7 +166,7 @@ class MetatubeConfig(BaseModel):
 
 class TranslateConfig(BaseModel):
     enabled: bool = False
-    provider: str = "ollama"  # "ollama" | "gemini" | "openai" | "claude" | "openai_official"
+    provider: str = "ollama"  # "ollama" | "gemini" | "openai" | "claude" | "openai_official" | "openai:<id>"
     batch_size: int = 10  # 批次翻譯大小
 
     # 嵌套結構
@@ -167,6 +175,7 @@ class TranslateConfig(BaseModel):
     openai: OpenAIConfig = OpenAIConfig()
     openai_official: OpenAIOfficialConfig = OpenAIOfficialConfig()
     claude: ClaudeConfig = ClaudeConfig()
+    openai_custom: dict[str, OpenAICustomConfig] = Field(default_factory=dict)
 
     # 舊字段（保留向後兼容）
     ollama_url: Optional[str] = None
@@ -269,7 +278,7 @@ class FacesConfig(BaseModel):
 class TagsConfig(BaseModel):
     """AI 標籤設定（CD-188b-14）；金鑰網址沿用 translate.<provider>.*。"""
     enabled: bool = False
-    provider: str = ""  # "ollama" | "gemini" | "openai" | "claude" | "openai_official"
+    provider: str = ""  # "ollama" | "gemini" | "openai" | "claude" | "openai_official" | "openai:<id>"
     model: str = ""
 
 

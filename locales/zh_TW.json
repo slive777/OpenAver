@@ -632,6 +632,24 @@
       "favorite_folder_example_prefix_synology": "範例：/volume1/&lt;共用資料夾&gt;/下載"
     },
     "ai": {
+      "openai_group": {
+        "label_default": "OpenAI 相容（預設）",
+        "label_named": "OpenAI 相容（{name}）",
+        "delete_confirm": "確定要刪除連線「{name}」嗎？按下「儲存設定」後，這組連線的設定與 API Key 會一併刪除，無法復原。",
+        "delete_confirm_also_used": "另一個分頁（AI 標籤／翻譯）目前也使用此連線，刪除後將一併改用預設連線。",
+        "default_name": "預設",
+        "add_btn": "新增 OpenAI 相容",
+        "name_placeholder": "連線名稱（例如 OpenRouter）",
+        "name_error_empty": "請輸入連線名稱",
+        "name_error_too_long": "名稱最多 {max} 個字",
+        "name_error_reserved": "「預設」是保留名稱，請換一個",
+        "name_error_duplicate": "已有同名的連線，請換一個名稱",
+        "limit_hint": "自訂連線最多 {max} 組，已達上限",
+        "preview": "實際連線：{url}",
+        "delete_title": "刪除 OpenAI 相容連線",
+        "delete_btn_title": "刪除這組連線",
+        "delete_confirm_btn": "刪除"
+      },
       "title": "AI 功能",
       "tab_translate": "翻譯",
       "tab_similar": "圖片相似",
@@ -782,7 +800,7 @@
       "clear": "清除"
     },
     "translate": {
-      "enabled_label": "啟用標題翻譯",
+      "enabled_label": "啟用標題／簡介翻譯",
       "provider_label": "翻譯服務",
       "ollama_local": "（本地）",
       "gemini_cloud": "（Google 雲端）",
@@ -800,7 +818,7 @@
       "openai_api_key_hint": "本地 LLM 可留空，雲端服務需填入 API Key",
       "openai_model_placeholder": "e.g. gpt-4o-mini",
       "openai_custom_model": "自訂...",
-      "openai_official": "OpenAI（官方）"
+      "openai_official": "GPT（OpenAI 雲端）"
     },
     "scraper": {
       "suffix_keywords_label": "版本標記",

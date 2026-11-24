@@ -137,7 +137,7 @@ def test_connection_area_shows_only_selected_provider(page: Page, base_url: str)
     for provider in providers:  # 標籤固定選 claude：翻譯分頁仍只列翻譯選的那一家
         page.locator("#translateProvider").select_option(provider)
         _only_conn(page, provider)
-        expect(page.locator("[data-ai-conn]")).to_have_count(5)
+        expect(page.locator("#aiPanelTranslate [data-ai-conn]")).to_have_count(5)
         expect(page.locator("#aiConnections .api-key-alert")).to_have_count(0)
 
     page.locator("#translateProvider").select_option("openai_official")
@@ -151,7 +151,7 @@ def test_connection_area_shows_only_selected_provider(page: Page, base_url: str)
 
     page.locator("#aiTabTags").click()
     page.locator("#aiTagsEnabled").uncheck()  # 標籤關：標籤分頁一格都不列，整區隱藏
-    expect(page.locator("#aiConnections")).to_be_hidden()
+    expect(page.locator("#tags-aiConnections")).to_be_hidden()
 
 
 def _open_settings(page: Page, base_url: str) -> None:

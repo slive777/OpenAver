@@ -71,6 +71,8 @@ register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.u
 
 const { stateConfig } = await import('../state-config.js');
 const { stateSecrets } = await import('../state-secrets.js');
+const { stateOpenaiGroups } = await import('../state-openai-groups.js');
+const { stateProviders } = await import('../state-providers.js');
 
 const FORMAT_VARS = [
   { name: '{num}', folder_ok: true },
@@ -87,7 +89,7 @@ const FORMAT_VARS = [
 
 function makeFakeThis() {
   const toasts = [];
-  const base = { ...stateConfig(), ...stateSecrets() };
+  const base = { ...stateConfig(), ...stateProviders(), ...stateSecrets(), ...stateOpenaiGroups() };
   return {
     ...base,
     formatVariables: FORMAT_VARS.map((v) => ({ ...v })),

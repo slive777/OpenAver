@@ -1,4 +1,5 @@
 import { createSecretField, startReplace, requestClear, wireValue, previewText, isDirty, afterSave } from './secret-field-logic.js';
+import { openaiGroupIdOf } from './openai-group-logic.js';
 import { maskSecret } from '@/shared/secret-mask.js';
 
 export const SECRET_PATHS = {
@@ -29,28 +30,55 @@ function setPath(obj, dotted, value) {
     obj[last] = value;
 }
 
+function isGroupId(gid) {
+    return typeof gid === 'string' && openaiGroupIdOf('openai:' + gid) === gid;
+}
+
+function secretPathOf(id) {
+    if (Object.hasOwn(SECRET_PATHS, id)) return SECRET_PATHS[id];
+    if (isGroupId(id)) return `translate.openai_custom.${id}.api_key`;
+    return null;
+}
+
+function customGroupIds(config) {
+    const groups = config?.translate?.openai_custom;
+    if (!groups || typeof groups !== 'object') return [];
+    return Object.keys(groups).filter(isGroupId);
+}
+
 export function stateSecrets() {
     return {
         secretFields: Object.fromEntries(Object.keys(SECRET_PATHS).map(id => [id, createSecretField('')])),
         secretsLoad(config) {
-            this.secretFields = Object.fromEntries(Object.entries(SECRET_PATHS).map(([id, path]) => [id, createSecretField(getPath(config, path))]));
+            this.secretFields = Object.fromEntries([
+                ...Object.entries(SECRET_PATHS).map(([id, path]) => [id, createSecretField(getPath(config, path))]),
+                ...customGroupIds(config).map((gid) => [gid, createSecretField(getPath(config, `translate.openai_custom.${gid}.api_key`))]),
+            ]);
         },
         secretWire(id) { return wireValue(this.secretFields[id]); },
         secretPreview(id) { return previewText(this.secretFields[id], maskSecret); },
         secretHasValue(id) { return wireValue(this.secretFields[id]) !== ''; },
         secretReplace(id) { this.secretFields[id] = startReplace(this.secretFields[id]); },
         secretClear(id) { this.secretFields[id] = requestClear(this.secretFields[id]); },
+        secretFieldAdd(gid) {
+            if (!isGroupId(gid)) return;
+            this.secretFields[gid] = createSecretField('');
+        },
+        secretFieldRemove(gid) {
+            delete this.secretFields[gid];
+        },
         secretsApplyToConfig(config) {
-            for (const id of Object.keys(SECRET_PATHS)) {
-                if (CONNECT_ONLY.has(id)) continue;
-                setPath(config, SECRET_PATHS[id], wireValue(this.secretFields[id]));
+            for (const id of Object.keys(this.secretFields)) {
+                const path = secretPathOf(id);
+                if (path === null || CONNECT_ONLY.has(id)) continue;
+                setPath(config, path, wireValue(this.secretFields[id]));
             }
             return config;
         },
         get secretsDirty() { return Object.entries(this.secretFields).some(([id, field]) => !CONNECT_ONLY.has(id) && isDirty(field)); },
         secretsAfterSave() {
-            for (const id of Object.keys(SECRET_PATHS)) {
-                if (!CONNECT_ONLY.has(id)) this.secretFields[id] = afterSave(this.secretFields[id], maskSecret);
+            for (const [id, field] of Object.entries(this.secretFields)) {
+                if (!CONNECT_ONLY.has(id)) this.secretFields[id] = afterSave(field, maskSecret);
             }
         },
     };

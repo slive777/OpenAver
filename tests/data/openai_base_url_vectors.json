@@ -1,0 +1,166 @@
+{
+ "_comment": "openai base url vectors shared by python and js parity tests; expected values produced by the implementation, verified by eye against the card rules",
+ "vectors": [
+  {
+   "input": "https://x.test/v1",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/v1/",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/v1/chat/completions",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/v1/chat/completions/",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/V1/Chat/Completions",
+   "normalized": "https://x.test/V1",
+   "chat_completions_url": "https://x.test/V1/chat/completions",
+   "models_url": "https://x.test/V1/models",
+   "preview": "https://x.test/V1/chat/completions"
+  },
+  {
+   "input": "https://x.test/v1/models",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/v1/models/",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/api/v1",
+   "normalized": "https://x.test/api/v1",
+   "chat_completions_url": "https://x.test/api/v1/chat/completions",
+   "models_url": "https://x.test/api/v1/models",
+   "preview": "https://x.test/api/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/v4",
+   "normalized": "https://x.test/v4",
+   "chat_completions_url": "https://x.test/v4/chat/completions",
+   "models_url": "https://x.test/v4/models",
+   "preview": "https://x.test/v4/chat/completions"
+  },
+  {
+   "input": "http://localhost:11434/v1",
+   "normalized": "http://localhost:11434/v1",
+   "chat_completions_url": "http://localhost:11434/v1/chat/completions",
+   "models_url": "http://localhost:11434/v1/models",
+   "preview": "http://localhost:11434/v1/chat/completions"
+  },
+  {
+   "input": "",
+   "normalized": "",
+   "chat_completions_url": "/chat/completions",
+   "models_url": "/models",
+   "preview": ""
+  },
+  {
+   "input": "  https://x.test/v1/  ",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/v1\n",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/v1//",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test/v1/mymodels",
+   "normalized": "https://x.test/v1/mymodels",
+   "chat_completions_url": "https://x.test/v1/mymodels/chat/completions",
+   "models_url": "https://x.test/v1/mymodels/models",
+   "preview": "https://x.test/v1/mymodels/chat/completions"
+  },
+  {
+   "input": "https://x.test/v1/models/chat/completions",
+   "normalized": "https://x.test/v1",
+   "chat_completions_url": "https://x.test/v1/chat/completions",
+   "models_url": "https://x.test/v1/models",
+   "preview": "https://x.test/v1/chat/completions"
+  },
+  {
+   "input": "https://x.test",
+   "normalized": "https://x.test",
+   "chat_completions_url": "https://x.test/chat/completions",
+   "models_url": "https://x.test/models",
+   "preview": "https://x.test/chat/completions"
+  },
+  {
+   "input": "http://models",
+   "normalized": "http://models",
+   "chat_completions_url": "http://models/chat/completions",
+   "models_url": "http://models/models",
+   "preview": "http://models/chat/completions"
+  },
+  {
+   "input": "http://models/",
+   "normalized": "http://models",
+   "chat_completions_url": "http://models/chat/completions",
+   "models_url": "http://models/models",
+   "preview": "http://models/chat/completions"
+  },
+  {
+   "input": "http://chat/completions",
+   "normalized": "http://chat/completions",
+   "chat_completions_url": "http://chat/completions/chat/completions",
+   "models_url": "http://chat/completions/models",
+   "preview": "http://chat/completions/chat/completions"
+  },
+  {
+   "input": "http://models/models",
+   "normalized": "http://models",
+   "chat_completions_url": "http://models/chat/completions",
+   "models_url": "http://models/models",
+   "preview": "http://models/chat/completions"
+  },
+  {
+   "input": "http://models/chat/completions",
+   "normalized": "http://models",
+   "chat_completions_url": "http://models/chat/completions",
+   "models_url": "http://models/models",
+   "preview": "http://models/chat/completions"
+  },
+  {
+   "input": "https://models:8080/v1/models",
+   "normalized": "https://models:8080/v1",
+   "chat_completions_url": "https://models:8080/v1/chat/completions",
+   "models_url": "https://models:8080/v1/models",
+   "preview": "https://models:8080/v1/chat/completions"
+  }
+ ]
+}

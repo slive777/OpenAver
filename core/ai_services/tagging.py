@@ -21,7 +21,8 @@ from core.cloud_translate import TranslateError
 from core.config import load_config
 from core.database import VideoRepository
 from core.logger import get_logger
-from core.openai_client import OPENAI_OFFICIAL_BASE_URL
+from core.openai_client import OPENAI_OFFICIAL_BASE_URL, normalize_openai_base_url
+from core.openai_groups import custom_key_path, parse_openai_provider
 from core.path_utils import uri_to_local_fs_path
 from core.secret_fields import read_secret
 from core.similar.canonicalize import alias_key
@@ -190,6 +191,19 @@ def resolve_vision_conn(config: dict) -> VisionConn:
     tags = _tags_section(config)
     provider = str(tags.get("provider") or "").strip()
     model = str(tags.get("model") or "").strip()
+    gid = parse_openai_provider(provider)
+    if gid is not None:
+        groups = (config.get("translate") or {}).get("openai_custom")
+        group = groups.get(gid) if isinstance(groups, dict) else None
+        if not isinstance(group, dict):
+            raise TaggingFailure("not_configured", detail="provider")
+        if not model:
+            raise TaggingFailure("not_configured", detail="model")
+        base = normalize_openai_base_url(group.get("base_url"))
+        if not base:
+            raise TaggingFailure("not_configured", detail="base_url")
+        key = read_secret(config, custom_key_path(gid)).strip()
+        return VisionConn(provider="openai", model=model, base_url=base, api_key=key)
     if not provider or provider not in _VALID_PROVIDERS:
         raise TaggingFailure("not_configured", detail="provider")
     if not model:
@@ -207,7 +221,7 @@ def resolve_vision_conn(config: dict) -> VisionConn:
         key = _require_key(config, f"translate.{provider}.api_key", "api_key")
         return VisionConn(provider=provider, model=model, base_url="", api_key=key)
     if provider == "openai":
-        base = _require_key(config, "translate.openai.base_url", "base_url")
+        base = normalize_openai_base_url(_require_key(config, "translate.openai.base_url", "base_url"))
         key = read_secret(config, "translate.openai.api_key").strip()
         return VisionConn(provider=provider, model=model, base_url=base, api_key=key)
     # openai_official
