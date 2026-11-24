@@ -1,4 +1,4 @@
-{% from 'partials/ai_connections.html' import ai_connections %}
+{% from 'partials/ai_connections.html' import ai_connections, ai_openai_group_add %}
 {% extends "base.html" %}
 {% from 'partials/ai_backfill_controls.html' import ai_backfill_controls %}
 {% from 'partials/secret_field.html' import secret_field %}
@@ -1594,6 +1594,9 @@
                                     </div>
                                 </div>
                             </template>
+
+                            {{ ai_openai_group_add('translate') }}
+
                         </div>
                     </div>
 
@@ -1814,6 +1817,8 @@
                                     <small class="settings-hint">{{ t('settings.ai.tags.model_hint') }}</small>
                                 </div>
                             </div>
+
+                            {{ ai_openai_group_add('tags', id_prefix='tags-') }}
 
                             <p class="settings-hint ai-tags-status"
                                id="aiTagsStatusLine"

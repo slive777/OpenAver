@@ -173,15 +173,20 @@
             </div>
         </div>
     </template>
-    <div id="{{ id_prefix }}openaiGroupAdd" class="mt-2 flex flex-col gap-1" x-show="openaiGroupShowAdd('{{ tab }}') || openaiGroupShowLimit('{{ tab }}')" x-cloak>
-        <button type="button" class="btn btn-xs btn-outline" id="{{ id_prefix }}openaiGroupAddBtn"
+</div>
+{% endmacro %}
+{% macro ai_openai_group_add(tab, id_prefix='') %}
+<div id="{{ id_prefix }}openaiGroupAdd" class="settings-form-row" x-show="openaiGroupShowAdd('{{ tab }}') || openaiGroupShowLimit('{{ tab }}')" x-cloak>
+    <span class="row-label" aria-hidden="true"></span>
+    <div class="flex-1 flex flex-col gap-1">
+        <button type="button" class="btn-add-layer" id="{{ id_prefix }}openaiGroupAddBtn"
             x-show="openaiGroupShowAdd('{{ tab }}') && !openaiAddUi.{{ tab }}.open"
             :disabled="openaiGroupAddDisabled('{{ tab }}')" @click="openaiAddOpen('{{ tab }}')">
             <i class="bi bi-plus-lg"></i><span x-text="window.t('settings.ai.openai_group.add_btn')"></span>
         </button>
         <div x-show="openaiAddUi.{{ tab }}.open && openaiGroupShowAdd('{{ tab }}')">
             <div class="variable-input-group">
-                <input type="text" class="input input-bordered input-sm flex-1" id="{{ id_prefix }}openaiGroupName"
+                <input type="text" class="input input-bordered input-sm w-64" id="{{ id_prefix }}openaiGroupName"
                     x-model="openaiAddUi.{{ tab }}.name" @keydown.enter.prevent="openaiAddConfirm('{{ tab }}')"
                     @keydown.escape.stop.prevent="openaiAddCancel('{{ tab }}')" :placeholder="window.t('settings.ai.openai_group.name_placeholder')">
                 <button type="button" class="btn btn-sm btn-primary" @click="openaiAddConfirm('{{ tab }}')" x-text="window.t('common.action.confirm')"></button>

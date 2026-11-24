@@ -10547,6 +10547,17 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-]):class="\{ 'modal-open': openaiDeleteGid !== '' \}"/, id: '206b-T8-delete-dialog', note: '[lint-guard:206b-T8-delete-dialog] 使用者刪除前須看到確認視窗。' },
   { file: 'web/templates/settings.html', kind: 'required-string', pattern: /(?<![\w:-])@click="openaiDeleteConfirm\(\)"/, id: '206b-T8-delete-dialog', note: '[lint-guard:206b-T8-delete-dialog] 使用者須能確認刪除連線。' },
   { file: 'web/templates/partials/ai_connections.html', kind: 'required-string', pattern: /openaiPreviewText\(form\.openaiBaseUrl\)[\s\S]*openaiPreviewText\(g\.baseUrl\)/, id: '206b-T8-preview', note: '[lint-guard:206b-T8-preview] 使用者須看到實際連線網址。' },
+  { file: 'web/templates/settings.html', kind: 'order', scope: /(id="translateModelFields"[\s\S]*?)id="aiPanelSimilar"/, id: '206b-T12-add-in-translate', items: [
+    { pattern: /(?<![\w:-]):id="'openaiGroupFields-' \+ g\.id"/ },
+    { pattern: /\{\{ ai_openai_group_add\('translate'\) \}\}/ },
+  ], note: '[lint-guard:206b-T12-add-in-translate] 新增鈕掉到模型列之外，使用者在翻譯分頁找不到新增入口。' },
+  { file: 'web/templates/settings.html', kind: 'order', scope: /(id="aiPanelTags"[\s\S]*?)<\/section><!-- \/sec-ai -->/, id: '206b-T12-add-in-tags', items: [
+    { pattern: /(?<![\w:-])id="aiTagsModel"/ },
+    { pattern: /\{\{ ai_openai_group_add\('tags', id_prefix='tags-'\) \}\}/ },
+    { pattern: /(?<![\w:-])id="aiTagsStatusLine"/ },
+  ], note: '[lint-guard:206b-T12-add-in-tags] 新增鈕掉到模型列之外，使用者在標籤分頁找不到新增入口。' },
+  { file: 'web/templates/settings.html', kind: 'structure-count', pattern: /\{\{\s*ai_openai_group_add\(/g, count: 2, id: '206b-T12-call-count', note: '[lint-guard:206b-T12-call-count] 新增入口少了一份或多了一份，使用者有一分頁找不到新增鈕或看到重複按鈕。' },
+  { file: 'web/templates/partials/ai_connections.html', kind: 'forbidden-string', scope: /(\{% macro ai_connections\([\s\S]*?\{% endmacro %\})/, pattern: /openaiGroupAdd|openaiAddUi/, id: '206b-T12-add-not-in-conn-macro', note: '[lint-guard:206b-T12-add-not-in-conn-macro] 新增鈕掉回連線區，使用者在 API Key 與模型之間看到被撐滿的分隔線。' },
 
 ];
 
