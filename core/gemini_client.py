@@ -13,6 +13,7 @@ import re
 
 import httpx
 
+from core.logger import get_logger
 from core.model_pick import is_experimental, latest_per_series, name_tokens
 
 from core.cloud_translate import (
@@ -21,6 +22,9 @@ from core.cloud_translate import (
     cloud_request,
     finalize_translation,
 )
+
+logger = get_logger(__name__)
+MAX_PAGES = 10
 
 TAG = "Gemini"
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
@@ -270,3 +274,29 @@ def pick_gemini_models(models: list[dict]) -> list[dict]:
         else:
             result.extend(latest_per_series(group, lambda c: c[2]))
     return [candidate[0] for candidate in result]
+
+
+async def list_models(api_key: str, *, timeout: float, base_url: str | None = None) -> list[dict]:
+    """Collect every page; propagate httpx errors unchanged for the router's error handling."""
+    models = []
+    seen_tokens = set()
+    page_token = None
+    async with httpx.AsyncClient() as client:
+        for _ in range(MAX_PAGES):
+            params = {"pageSize": 1000}
+            if page_token:
+                params["pageToken"] = page_token
+            page_resp = await client.get(
+                (base_url or GEMINI_BASE_URL) + "/models",
+                headers=build_headers(api_key), params=params, timeout=timeout,
+            )
+            page_resp.raise_for_status()
+            data = page_resp.json()
+            models.extend(data.get("models", []))
+            page_token = data.get("nextPageToken")
+            if not page_token or page_token in seen_tokens:
+                break
+            seen_tokens.add(page_token)
+        else:
+            logger.warning("[Gemini] models page limit reached: %d", MAX_PAGES)
+    return models

@@ -1,9 +1,15 @@
 """
-Gemini API router integration tests — TDD-lite for allowlist filtering.
+Gemini API router integration tests — model pagination.
 
 Covers POST /api/gemini/test endpoint.
 Uses TestClient + mock httpx.AsyncClient (no real HTTP connections).
 """
+import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
+
+import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock, MagicMock
 import httpx
@@ -51,57 +57,7 @@ def _make_http_response(status_code: int, json_body: dict | None = None):
     return mock_resp
 
 
-def _make_api_models(*names: str) -> dict:
-    """Build a Gemini-style API response dict with the given model short-names."""
-    return {
-        "models": [
-            {
-                "name": f"models/{n}",
-                "displayName": n.replace("-", " ").title(),
-                "description": f"Model {n}",
-            }
-            for n in names
-        ]
-    }
-
-
-ALLOWLIST = [
-    "gemini-flash-lite-latest",
-    "gemini-flash-latest",
-    "gemma-4-26b-a4b-it",
-    "gemma-4-31b-it",
-]
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
-
-class TestGeminiAllowlist:
-
-    def test_all_four_allowlist_models_returned_in_order(self):
-        """BC1: API 回傳全部 4 個 allowlist model → response models 長度 4，順序依 allowlist。"""
-        body = _make_api_models(*ALLOWLIST)
-        # Include some extra noise so filtering is exercised
-        body["models"].append({
-            "name": "models/gemini-1.5-flash",
-            "displayName": "Gemini 1.5 Flash",
-            "description": "Old model",
-        })
-        resp = _make_http_response(200, body)
-        mock_cm = _make_mock_client(get_response=resp)
-
-        with patch("web.routers.gemini.httpx.AsyncClient", return_value=mock_cm):
-            response = client.post("/api/gemini/test", json={"api_key": "valid-key"})
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["count"] == 4
-        assert len(data["models"]) == 4
-        names = [m["name"] for m in data["models"]]
-        assert names == ALLOWLIST
-
+class TestGeminiErrors:
 
     def test_invalid_api_key_400(self):
         """BC5: API Key 無效 (HTTP 400) → success=False + error 非空。"""
@@ -117,3 +73,81 @@ class TestGeminiAllowlist:
         assert data["error"]  # 非空即可，不鎖定具體文案
 
 
+
+
+class _PageHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        parsed = urlsplit(self.path)
+        query = parse_qs(parsed.query)
+        self.server.received.append((parsed.path, query, self.headers.get("x-goog-api-key")))
+        token = query.get("pageToken", [""])[0]
+        mode = self.server.mode
+        status = 500 if mode == "failure" and token else 200
+        body = {"models": [{"name": "models/gemini-2.0-flash"}]}
+        if mode == "follow":
+            if token:
+                body = {"models": [{"name": "models/gemini-2.5-flash-lite"}]}
+            else:
+                body["nextPageToken"] = "page-two"
+        elif mode == "repeat_token":
+            body["nextPageToken"] = "repeat-page"
+        elif mode == "endless_tokens":
+            body["nextPageToken"] = str(int(token or "0") + 1)
+        elif mode == "failure" and not token:
+            body["nextPageToken"] = "page-two"
+        payload = json.dumps(body).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, *args):
+        pass
+
+
+@pytest.fixture
+def stub_server(monkeypatch):
+    for var in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _PageHandler)
+    server.received = []
+    monkeypatch.setattr("core.gemini_client.GEMINI_BASE_URL", f"http://127.0.0.1:{server.server_port}")
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield server
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+
+
+def test_gemini_models_follow_next_page_token(stub_server):
+    stub_server.mode = "follow"
+    response = client.post("/api/gemini/test", json={"api_key": "fake-gemini-key-123456"})
+    assert response.json()["success"] is True
+    assert "gemini-2.5-flash-lite" in [model["name"] for model in response.json()["models"]]
+    assert stub_server.received == [
+        ("/models", {"pageSize": ["1000"]}, "fake-gemini-key-123456"),
+        ("/models", {"pageSize": ["1000"], "pageToken": ["page-two"]}, "fake-gemini-key-123456"),
+    ]
+
+
+@pytest.mark.parametrize("mode,expected", [("repeat_token", 2), ("endless_tokens", 10)], ids=["repeat_token", "endless_tokens"])
+def test_gemini_models_pagination_terminates(stub_server, mode, expected):
+    stub_server.mode = mode
+    response = client.post("/api/gemini/test", json={"api_key": "fake-gemini-key-123456"})
+    assert response.json()["success"] is True
+    assert response.json()["models"]
+    assert len(stub_server.received) == expected
+
+
+def test_gemini_models_page_failure_gives_no_partial_list(stub_server):
+    stub_server.mode = "failure"
+    response = client.post("/api/gemini/test", json={"api_key": "fake-gemini-key-123456"})
+    assert len(stub_server.received) == 2
+    assert response.json()["success"] is False
+    assert response.json()["models"] == []
+    assert response.json()["count"] == 0

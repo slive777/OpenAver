@@ -1,5 +1,5 @@
 """
-test_translate_gemini_models_live.py - Gemini 四模型翻譯 Smoke 金絲雀
+test_translate_gemini_models_live.py - Gemini 模型翻譯 Smoke 金絲雀
 
 只用於本地手動測試，不進 CI（需要真實 Gemini API Key 與外網）
 
@@ -10,7 +10,7 @@ test_translate_gemini_models_live.py - Gemini 四模型翻譯 Smoke 金絲雀
 - 環境變數 GEMINI_API_KEY（唯一金鑰來源；沒有則整檔 skip）
 - 可連 generativelanguage.googleapis.com（連不上／429 限流／5xx 伺服器暫時不可用 skip，不算紅）
 
-走服務層真實路徑（與搜尋頁同一條），對白名單每個模型各翻一次無害片名，
+走服務層真實路徑（與搜尋頁同一條），對各系列模型各翻一次無害片名，
 確認譯文非空、且不夾思考標記（Gemma 4 的 <think>／<thought>）。
 """
 
@@ -21,7 +21,7 @@ import pytest
 
 from core.cloud_translate import TranslateError
 from core.translate_service import GeminiTranslateService
-from web.routers.gemini import ALLOWED_GEMINI_MODELS
+from core.gemini_client import list_models, pick_gemini_models
 
 # 金鑰只留在環境變數；測試內以 os.environ[...] 直接當參數傳入，不綁區域變數
 # （避免 --showlocals 的 traceback 印出金鑰）。
@@ -47,8 +47,19 @@ def _handle(model: str, kind: str, status) -> None:
     pytest.fail(f"{model} 翻譯失敗 kind={kind} status={status}", pytrace=False)
 
 
-@pytest.mark.parametrize("model", ALLOWED_GEMINI_MODELS)
-async def test_gemini_model_translates_clean(model):
+@pytest.mark.parametrize("series", ["flash-lite", "flash", "gemma"])
+async def test_gemini_model_translates_clean(series):
+    models = pick_gemini_models(await list_models(os.environ["GEMINI_API_KEY"], timeout=30.0))
+    def matches(name):
+        name = name.lower()
+        if series == "gemma":
+            return name.removeprefix("models/").startswith("gemma-")
+        if series == "flash-lite":
+            return "flash-lite" in name
+        return "flash" in name and "flash-lite" not in name
+
+    model = next((m["name"].removeprefix("models/") for m in models if matches(m["name"])), None)
+    assert model, f"找不到 {series} 模型"
     svc = GeminiTranslateService(
         {"api_key": os.environ["GEMINI_API_KEY"], "model": model}, "zh-TW"
     )
