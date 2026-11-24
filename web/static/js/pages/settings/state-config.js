@@ -680,6 +680,7 @@ export function stateConfig() {
         async loadConfig() {
             // 鎖定表單（載入期間不可操作）
             this._configLoading = true;
+            this.modelAutoLoad = { attempted: {}, inflight: {}, seeded: {} };
             // 清空快照（載入期間不判定 dirty）
             this.savedState = null;
             // 95a-T8: 對稱重設 hydrate 旗標（reset 設定 / 重跑 loadConfig 時需重新 hydrate，
@@ -716,10 +717,13 @@ export function stateConfig() {
                     this.openaiGroupsLoad(config);
                     this.form.ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url || 'http://localhost:11434';
                     this.form.ollamaModel = config.translate.ollama?.model || config.translate.ollama_model || '';
+                    this.ollamaModels = this.form.ollamaModel ? [this.form.ollamaModel] : [];
+                    this.modelAutoLoad.seeded.ollama = true;
 
                     // Gemini model 預設填入
                     if (config.translate.gemini?.model) {
                         this.geminiModels = [{ name: config.translate.gemini.model }];
+                        this.modelAutoLoad.seeded.gemini = true;
                         this.form.geminiModel = config.translate.gemini.model;
                     }
 
@@ -731,12 +735,14 @@ export function stateConfig() {
                     // Claude
                     this.form.claudeModel = config.translate.claude?.model || 'claude-haiku-5-5';
                     this.claudeModels = [this.form.claudeModel];
+                    this.modelAutoLoad.seeded.claude = true;
 
                     // OpenAI Official
                     this.form.openaiOfficialModel = config.translate.openai_official?.model || '';
                     this.openaiOfficialModels = this.form.openaiOfficialModel
                         ? [this.form.openaiOfficialModel]
                         : [];
+                    if (this.form.openaiOfficialModel) this.modelAutoLoad.seeded.openai_official = true;
 
                     // AI services — image similar（186-T6）
                     this.form.aiSimilarEnabled = config.ai_services?.image_similar?.enabled || false;
@@ -750,50 +756,6 @@ export function stateConfig() {
 
                     // AI services — tags（188c-T8a；必須在 savedState 快照之前）
                     this.form.aiTagsEnabled = config.ai_services?.tags?.enabled || false;
-                    const tagsProvider = config.ai_services?.tags?.provider || '';
-
-                    // 自動測試 Gemini（翻譯選到該家；否則 tags 選到該家走 ensureProviderModels）
-                    // 同家：翻譯抓完後再 ensureProviderModels（清單已滿 → 只做 tags 預選，不重抓）
-                    if (config.translate.gemini?.api_key && config.translate.provider === 'gemini') {
-                        setTimeout(async () => {
-                            await this.testGeminiConnection();
-                            if (tagsProvider === 'gemini') await this.ensureProviderModels('gemini');
-                        }, 100);
-                    } else if (config.translate.gemini?.api_key && tagsProvider === 'gemini') {
-                        setTimeout(() => this.ensureProviderModels('gemini'), 100);
-                    }
-
-                    // 自動 fetch OpenAI models（翻譯選到該家；否則 tags 選到該家）
-                    if (config.translate.openai?.base_url && config.translate.provider === 'openai') {
-                        setTimeout(async () => {
-                            await this.fetchOpenAIModels({ source: 'auto' });
-                            if (tagsProvider === 'openai') await this.ensureProviderModels('openai');
-                        }, 100);
-                    } else if (config.translate.openai?.base_url && tagsProvider === 'openai') {
-                        setTimeout(() => this.ensureProviderModels('openai'), 100);
-                    }
-                    setTimeout(() => this.openaiGroupsAutoFetch(), 100);
-
-                    // 自動 fetch Claude models（翻譯選到該家；否則 tags 選到該家）
-                    if (config.translate.claude?.api_key && config.translate.provider === 'claude') {
-                        setTimeout(async () => {
-                            await this.fetchClaudeModels({ source: 'auto' });
-                            if (tagsProvider === 'claude') await this.ensureProviderModels('claude');
-                        }, 100);
-                    } else if (config.translate.claude?.api_key && tagsProvider === 'claude') {
-                        setTimeout(() => this.ensureProviderModels('claude'), 100);
-                    }
-
-                    // 自動 fetch OpenAI Official models（翻譯選到該家；否則 tags 選到該家）
-                    if (config.translate.openai_official?.api_key && config.translate.provider === 'openai_official') {
-                        setTimeout(async () => {
-                            await this.fetchOpenAIOfficialModels({ source: 'auto' });
-                            if (tagsProvider === 'openai_official') await this.ensureProviderModels('openai_official');
-                        }, 100);
-                    } else if (config.translate.openai_official?.api_key && tagsProvider === 'openai_official') {
-                        setTimeout(() => this.ensureProviderModels('openai_official'), 100);
-                    }
-
                     // Scraper
                     this.form.createFolder = config.scraper.create_folder;
                     // 資料夾層級 → {id,value}[] 動態清單（外→內序）。folder_layers 陣列語序即
@@ -940,18 +902,8 @@ export function stateConfig() {
                     this.metatubeLanMode = !!config.metatube?.allow_lan;   // hydrate LAN opt-in so re-connect doesn't fail SSRF (Codex P2)
                     try { await this.hydrateMetatubeStatus(); } catch (_e) { this.metatubeConnected = false; }
 
-                    // 背景載入 Ollama 模型列表（不阻塞表單）
-                    // 同家：翻譯 loadOllamaModels（會改 form.ollamaModel，既有行為）後再 ensureProviderModels 只預選 tags
-                    const ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url;
-                    const ollamaModel = config.translate.ollama?.model || config.translate.ollama_model;
-                    if (ollamaUrl && config.translate.provider === 'ollama') {
-                        (async () => {
-                            await this.loadOllamaModels(ollamaUrl, ollamaModel);
-                            if (tagsProvider === 'ollama') await this.ensureProviderModels('ollama');
-                        })();
-                    } else if (ollamaUrl && tagsProvider === 'ollama') {
-                        this.ensureProviderModels('ollama');  // 不 await；唯讀抓取＋tags 預選
-                    }
+                    void this.autoLoadModels(this.form.translateProvider);
+                    if (this.form.aiTagsProvider) void this.ensureProviderModels(this.form.aiTagsProvider);
                 }
             } catch (e) {
                 console.error('載入設定失敗:', e);
@@ -1305,7 +1257,8 @@ export function stateConfig() {
         },
 
         onTranslateProviderChange() {
-            // x-show already handles visibility logic
+            if (this._configLoading) return;
+            void this.autoLoadModels(this.form.translateProvider);
         },
 
         // ===== Reset Config Modal (T3.4: confirm → fluent-modal + i18n) =====

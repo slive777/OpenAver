@@ -1,9 +1,10 @@
 import { pickClaudeModel } from './claude-model-pick.js';
-import { connShown, connEnabled, pickTagsModel } from '@/settings/ai-tags-logic.js';
+import { connShown, connEnabled, pickTagsModel, modelNamesWith } from '@/settings/ai-tags-logic.js';
 import { openaiGroupIdOf } from './openai-group-logic.js';
 
 export function stateProviders() {
     return {
+        modelAutoLoad: { attempted: {}, inflight: {}, seeded: {} },
         // ===== Provider Status State =====
         ollamaStatus: '',
         modelStatus: '',
@@ -35,7 +36,7 @@ export function stateProviders() {
         testGeminiTranslateLoading: false,
 
         // ===== Methods =====
-        async loadOllamaModels(url, savedModel = '', { keepModel = false } = {}) {
+        async loadOllamaModels(url) {
             if (!url) return;
 
             this.ollamaStatus = `<span class="text-base-content/50">${window.t('settings.status.loading_models')}</span>`;
@@ -46,16 +47,7 @@ export function stateProviders() {
 
                 if (result.success && result.models && result.models.length > 0) {
                     this.ollamaModels = result.models;
-
-                    // keepModel：只填清單／狀態列，不改 form.ollamaModel（AI 標籤唯讀抓取）
-                    if (!keepModel) {
-                        // 設定儲存的模型
-                        if (savedModel && result.models.includes(savedModel)) {
-                            this.form.ollamaModel = savedModel;
-                        } else if (result.models.length > 0) {
-                            this.form.ollamaModel = result.models[0];
-                        }
-                    }
+                    this.modelsArrived('ollama');
 
                     this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.n_models', {count: result.models.length})}</span>`;
                 } else {
@@ -74,6 +66,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.ollama = true;
             this.testOllamaLoading = true;
             this.ollamaStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -83,6 +76,7 @@ export function stateProviders() {
 
                 if (result.success && result.models && result.models.length > 0) {
                     this.ollamaModels = result.models;
+                    this.modelsArrived('ollama');
                     this.form.ollamaModel = this.ollamaModels.includes(this.form.ollamaModel)
                         ? this.form.ollamaModel
                         : result.models[0];
@@ -90,11 +84,9 @@ export function stateProviders() {
                     this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: result.models.length})}</span>`;
                 } else {
                     this.ollamaStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${result.error || window.t('settings.status.no_models')}</span>`;
-                    this.ollamaModels = [];
                 }
             } catch (e) {
                 this.ollamaStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
-                this.ollamaModels = [];
             } finally {
                 this.testOllamaLoading = false;
             }
@@ -141,7 +133,7 @@ export function stateProviders() {
             }
         },
 
-        async testGeminiConnection() {
+        async testGeminiConnection({ source = 'manual' } = {}) {
             const apiKey = this.secretWire('gemini');
 
             if (!apiKey) {
@@ -149,6 +141,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.gemini = true;
             this.testGeminiLoading = true;
             this.geminiStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -164,18 +157,19 @@ export function stateProviders() {
                 if (data.success) {
                     this.geminiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.count})}</span>`;
                     this.geminiModels = data.models;
+                    this.modelsArrived('gemini');
 
-                    // 如果當前 model 不在 allowlist，自動選第一個
                     const modelNames = data.models.map(m => m.name);
-                    if (data.models.length > 0 && !modelNames.includes(this.form.geminiModel)) {
+                    const wasBlank = !this.form.geminiModel;
+                    if ((source === 'manual' || wasBlank) && data.models.length > 0 && !modelNames.includes(this.form.geminiModel)) {
                         this.form.geminiModel = data.models[0].name;
-                        // auto-fallback 不算用戶修改，同步快照避免 isDirty 誤判
-                        if (this.savedState) this.savedState.geminiModel = this.form.geminiModel;
+                        if (wasBlank && this.savedState) this.savedState.geminiModel = this.form.geminiModel;
                     }
                 } else {
-                    this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${data.error || window.t('settings.status.connect_failed')}</span>`;
-                    this.geminiModels = [];
-                    this.geminiModelStatus = '';
+                    const failClass = source === 'manual' ? 'text-error' : 'text-warning';
+                    const failIcon = source === 'manual' ? 'bi-x-circle' : 'bi-exclamation-circle';
+                    this.geminiStatus = `<span class="${failClass}"><i class="bi ${failIcon}"></i> ${data.error || window.t('settings.status.connect_failed')}</span>`;
+                    if (source === 'manual') this.geminiModelStatus = '';
                 }
             } catch (error) {
                 this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${error.message}</span>`;
@@ -245,6 +239,7 @@ export function stateProviders() {
                     rt.status = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_url')}</span>`;
                     return;
                 }
+                this.modelAutoLoad.attempted['openai:' + groupId] = true;
                 rt.fetching = true;
                 rt.status = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
                 try {
@@ -256,6 +251,7 @@ export function stateProviders() {
                     const data = await response.json();
                     if (data.success && data.models && data.models.length > 0) {
                         rt.models = data.models;
+                        this.modelsArrived('openai:' + groupId);
                         rt.status = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
                         if (!data.models.includes(group.model)) {
                             if (group.model) {
@@ -284,6 +280,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.openai = true;
             this.fetchingOpenaiModels = true;
             this.openaiStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -301,6 +298,7 @@ export function stateProviders() {
 
                 if (data.success && data.models && data.models.length > 0) {
                     this.openaiModels = data.models;
+                    this.modelsArrived('openai');
                     this.openaiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
 
                     // model 不在清單中 → 切換到自訂模式（保留用戶的 custom model）
@@ -427,6 +425,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.claude = true;
             this.fetchingClaudeModels = true;
             this.claudeStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -441,18 +440,21 @@ export function stateProviders() {
 
                 if (data.success && data.models && data.models.length > 0) {
                     this.claudeModels = data.models;
+                    this.modelsArrived('claude');
                     this.claudeStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
 
-                    const picked = pickClaudeModel(
-                        this.form.claudeModel,
-                        data.models,
-                        data.latest_haiku,
-                        data.default_model
-                    );
-                    if (picked !== this.form.claudeModel) {
-                        this.form.claudeModel = picked;
-                        // auto-assign 不算用戶修改，同步快照避免 isDirty 誤判
-                        if (this.savedState) this.savedState.claudeModel = this.form.claudeModel;
+                    if (source === 'manual') {
+                        const wasBlank = !this.form.claudeModel;
+                        const picked = pickClaudeModel(
+                            this.form.claudeModel,
+                            data.models,
+                            data.latest_haiku,
+                            data.default_model
+                        );
+                        if (picked !== this.form.claudeModel) {
+                            this.form.claudeModel = picked;
+                            if (wasBlank && this.savedState) this.savedState.claudeModel = this.form.claudeModel;
+                        }
                     }
                 } else {
                     // 不清空 claudeModels — 保留舊清單
@@ -528,6 +530,7 @@ export function stateProviders() {
                 return;
             }
 
+            this.modelAutoLoad.attempted.openai_official = true;
             this.fetchingOpenaiOfficialModels = true;
             this.openaiOfficialStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
@@ -542,18 +545,21 @@ export function stateProviders() {
 
                 if (data.success && data.models && data.models.length > 0) {
                     this.openaiOfficialModels = data.models;
+                    this.modelsArrived('openai_official');
                     this.openaiOfficialStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
 
-                    const picked = pickClaudeModel(
-                        this.form.openaiOfficialModel,
-                        data.models,
-                        data.default_model,
-                        ''
-                    );
-                    if (picked !== this.form.openaiOfficialModel) {
-                        this.form.openaiOfficialModel = picked;
-                        // auto-assign 不算用戶修改，同步快照避免 isDirty 誤判
-                        if (this.savedState) this.savedState.openaiOfficialModel = this.form.openaiOfficialModel;
+                    const wasBlank = !this.form.openaiOfficialModel;
+                    if (source === 'manual' || wasBlank) {
+                        const picked = pickClaudeModel(
+                            this.form.openaiOfficialModel,
+                            data.models,
+                            data.default_model,
+                            ''
+                        );
+                        if (picked !== this.form.openaiOfficialModel) {
+                            this.form.openaiOfficialModel = picked;
+                            if (wasBlank && this.savedState) this.savedState.openaiOfficialModel = this.form.openaiOfficialModel;
+                        }
                     }
                 } else {
                     // 不清空 openaiOfficialModels — 保留舊清單
@@ -622,7 +628,24 @@ export function stateProviders() {
         },
 
         // ===== AI tags（188c-T8a）=====
+        modelsArrived(provider) {
+            delete this.modelAutoLoad.seeded[provider];
+            this.tagsPreselect(provider);
+        },
+
+        tagsPreselect(provider) {
+            if (this.form.aiTagsProvider === provider && !this.form.aiTagsModel) {
+                this.setTagsModel(provider, pickTagsModel(provider, '', this.aiTagsModelLists()[provider] || []));
+            }
+        },
+
         aiTagsModelLists() {
+            const lists = this.allModelLists();
+            for (const provider of Object.keys(this.modelAutoLoad.seeded)) lists[provider] = [];
+            return lists;
+        },
+
+        allModelLists() {
             return {
                 ollama: this.ollamaModels,
                 gemini: this.geminiModels,
@@ -631,6 +654,19 @@ export function stateProviders() {
                 openai: this.openaiModels,
                 ...this.openaiGroupModelLists(),
             };
+        },
+
+        translateModelOptions(provider) {
+            const values = {
+                ollama: this.form.ollamaModel,
+                gemini: this.form.geminiModel,
+                claude: this.form.claudeModel,
+                openai_official: this.form.openaiOfficialModel,
+                openai: this.form.openaiModel,
+            };
+            const groupId = openaiGroupIdOf(provider);
+            const current = groupId ? this.openaiGroupById(groupId)?.model : (Object.hasOwn(values, provider) ? values[provider] : undefined);
+            return modelNamesWith(this.allModelLists()[provider], current);
         },
 
         // tab 由模板傳入（aiTab 住在巢狀 aiServicesCard，root 讀不到）
@@ -642,31 +678,36 @@ export function stateProviders() {
             return connEnabled(this.form, p);
         },
 
-        async ensureProviderModels(provider) {
-            // 清單 ≤1 視為還沒抓過（載入播種）；金鑰／網址已填才抓
-            const n = (arr) => (Array.isArray(arr) ? arr.length : 0);
+        async autoLoadModels(provider) {
+            if (this.modelAutoLoad.attempted[provider]) return this.modelAutoLoad.inflight[provider];
             const groupId = openaiGroupIdOf(provider);
             const group = groupId && this.openaiGroupById(groupId);
-            if (group && n(this.openaiGroupRt[groupId]?.models) <= 1 && group.baseUrl) {
-                await this.fetchOpenAIModels({ source: 'auto', groupId });
-            } else if (provider === 'ollama' && n(this.ollamaModels) <= 1 && this.form.ollamaUrl) {
-                await this.loadOllamaModels(this.form.ollamaUrl, '', { keepModel: true });
-            } else if (provider === 'gemini' && n(this.geminiModels) <= 1 && this.secretHasValue('gemini')) {
-                await this.testGeminiConnection();
-            } else if (provider === 'claude' && n(this.claudeModels) <= 1 && this.secretHasValue('claude')) {
-                await this.fetchClaudeModels({ source: 'auto' });
-            } else if (provider === 'openai_official' && n(this.openaiOfficialModels) <= 1 && this.secretHasValue('openaiOfficial')) {
-                await this.fetchOpenAIOfficialModels({ source: 'auto' });
-            } else if (provider === 'openai' && n(this.openaiModels) <= 1 && this.form.openaiBaseUrl) {
-                await this.fetchOpenAIModels({ source: 'auto' });
+            let fetchModels;
+            if (groupId && group?.baseUrl.trim()) {
+                fetchModels = () => this.fetchOpenAIModels({ source: 'auto', groupId });
+            } else if (provider === 'ollama' && this.form.ollamaUrl.trim()) {
+                fetchModels = () => this.loadOllamaModels(this.form.ollamaUrl);
+            } else if (provider === 'gemini' && this.secretHasValue('gemini')) {
+                fetchModels = () => this.testGeminiConnection({ source: 'auto' });
+            } else if (provider === 'claude' && this.secretHasValue('claude')) {
+                fetchModels = () => this.fetchClaudeModels({ source: 'auto' });
+            } else if (provider === 'openai_official' && this.secretHasValue('openaiOfficial')) {
+                fetchModels = () => this.fetchOpenAIOfficialModels({ source: 'auto' });
+            } else if (provider === 'openai' && this.form.openaiBaseUrl.trim()) {
+                fetchModels = () => this.fetchOpenAIModels({ source: 'auto' });
             }
+            if (!fetchModels) return;
+            this.modelAutoLoad.attempted[provider] = true;
+            this.modelAutoLoad.inflight[provider] = Promise.resolve().then(fetchModels).catch(() => {});
+            return this.modelAutoLoad.inflight[provider];
+        },
+
+        async ensureProviderModels(provider) {
+            await this.autoLoadModels(provider);
 
             // FE-TIMING-16：await 後再讀 form；provider 已換或 model 已有 → 不寫。
             // 已存 model 空時預選不進 savedState：畫面 isDirty=true，引導使用者存一次（CD-188c-14）。
-            if (this.form.aiTagsProvider === provider && !this.form.aiTagsModel) {
-                const lists = this.aiTagsModelLists();
-                this.setTagsModel(provider, pickTagsModel(provider, '', lists[provider] || []));
-            }
+            this.tagsPreselect(provider);
         },
     };
 }

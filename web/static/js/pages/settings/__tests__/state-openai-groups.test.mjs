@@ -268,6 +268,7 @@ test('group_delete_never_leaves_dangling_provider', async () => {
   await f.openaiGroupRemove(A);
   assert.ok(f.form.translateProvider === 'openai' && f.form.aiTagsProvider === 'gemini' && f.form.aiTagsModel === 'gem-model');
   for (const invalid of [Q, 'openai:zzz']) {
+    f.openaiModels = [];
     await load(f, configWith({}, invalid, invalid, 'stale'));
     assert.ok(f.form.translateProvider === 'openai', 'invalid translate provider');
     assert.ok(f.form.aiTagsProvider === 'openai' && f.form.aiTagsModel === '', 'invalid tags provider');
@@ -480,6 +481,7 @@ test('tags_model_memo_survives_switch_reload_and_fill', async () => {
   await f.confirmResetConfig();
   await delayTimers();
   assert.deepEqual(f.tagsModelMemo, {}, 'confirm reset clears memo');
+  f.openaiModels = [];
   await load(f, configWith({}, 'ollama', Q, 'stale'));
   assert.ok(f.form.aiTagsProvider === 'openai' && f.form.aiTagsModel === '', 'missing provider fallback');
 });

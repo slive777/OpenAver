@@ -18,6 +18,7 @@ from core.cloud_translate import (
     cloud_request,
     finalize_translation,
 )
+from core.model_pick import is_experimental, latest_per_series
 
 TAG = "OpenAI"
 
@@ -65,14 +66,24 @@ def models_url(raw) -> str:
     return normalize_openai_base_url(raw) + "/models"
 
 
+def _official_series(item: tuple[str, int | None]) -> str:
+    mid = item[0].lower()
+    for series in ("luna", "terra", "mini"):
+        if series in mid:
+            return series
+    return "mini"
+
+
 def pick_official_models(models: list[tuple[str, int | None]]) -> list[str]:
-    """過濾 luna／terra／mini（不含 nano）、剔除非聊天類型、去重日期快照後排序。"""
+    """排除預覽版及非聊天模型，去重並排序後保留每系列最新 3 個。"""
     candidates: list[tuple[str, int | None]] = []
     for mid_raw, created in models:
         mid = (mid_raw or "").lower()
         if not (any(k in mid for k in ("luna", "terra", "mini")) and "nano" not in mid):
             continue
         if any(tok in mid for tok in OPENAI_NON_CHAT_TOKENS):
+            continue
+        if is_experimental(mid_raw):
             continue
         candidates.append((mid_raw, created))
 
@@ -86,6 +97,7 @@ def pick_official_models(models: list[tuple[str, int | None]]) -> list[str]:
         filtered.append((mid_raw, created))
 
     filtered.sort(key=lambda item: (item[1] is None, -(item[1] or 0), item[0].lower()))
+    filtered = latest_per_series(filtered, _official_series)
     return [mid for mid, _ in filtered]
 
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 import core.config as core_config
 from core.config import load_config
 from core.translate_service import (
@@ -53,7 +55,7 @@ _PICK_CASES: list[tuple[str, list[tuple[str, int | None]], list[str], str]] = [
      [("gpt-4o-mini", 2), ("gpt-4o-mini-20240718", 1)], ["gpt-4o-mini"], "gpt-4o-mini"),
     ("sort_created_none_alpha",
      [("b-mini", 100), ("a-mini", 100), ("c-mini", None), ("d-mini", 200)],
-     ["d-mini", "a-mini", "b-mini", "c-mini"], "d-mini"),
+     ["d-mini", "a-mini", "b-mini"], "d-mini"),
     ("keyword_keep_luna_terra",
      [("gpt-luna-1", 3), ("gpt-terra-1", 2), ("gpt-other", 9)],
      ["gpt-luna-1", "gpt-terra-1"], "gpt-luna-1"),
@@ -81,6 +83,31 @@ def test_pick_official_models():
         assert default_official_model(got) == expected_default, (
             f"{name}: default got {default_official_model(got)!r}"
         )
+
+
+def test_pick_official_caps_three_per_series():
+    from core.openai_client import default_official_model, pick_official_models
+
+    models = [(f"gpt-{series}-{i}", i * 10 + offset)
+              for series, offset in (("luna", 3), ("terra", 2)) for i in range(1, 5)]
+    models += [(mid, i * 10 + 1) for i, mid in enumerate(
+        ("o4-mini", "gpt-5-mini", "gpt-6-mini", "gpt-4o-mini"), 1)]
+    models.append(("gpt-luna-4-2026-01-01", 42))
+    got = pick_official_models(models)
+    assert got == ["gpt-luna-4", "gpt-terra-4", "gpt-4o-mini", "gpt-luna-3",
+                   "gpt-terra-3", "gpt-6-mini", "gpt-luna-2", "gpt-terra-2", "gpt-5-mini"]
+    assert default_official_model(got) == "gpt-luna-4"
+
+
+@pytest.mark.parametrize("token", ["preview", "exp"])
+def test_pick_official_excludes_preview_and_exp(token):
+    from core.openai_client import default_official_model, pick_official_models
+
+    models = [(f"gpt-luna-{i}", i) for i in range(1, 5)]
+    models.append((f"gpt-luna-{token}", 5))
+    got = pick_official_models(models)
+    assert got == ["gpt-luna-4", "gpt-luna-3", "gpt-luna-2"]
+    assert default_official_model(got) == "gpt-luna-4"
 
 
 # ---------------------------------------------------------------------------

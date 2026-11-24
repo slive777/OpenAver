@@ -73,19 +73,6 @@ export function stateOpenaiGroups() {
                 use_custom_model: group.useCustomModel, api_key: '',
             }]));
         },
-        async openaiGroupsAutoFetch() {
-            const translateId = openaiGroupIdOf(this.form.translateProvider);
-            const tagsId = openaiGroupIdOf(this.form.aiTagsProvider);
-            const translate = this.openaiGroupById(translateId);
-            const tags = this.openaiGroupById(tagsId);
-            if (translate?.baseUrl) {
-                await this.fetchOpenAIModels({ source: 'auto', groupId: translateId });
-                if (tagsId === translateId) await this.ensureProviderModels('openai:' + tagsId);
-            } else if (tags?.baseUrl && tagsId === translateId) {
-                await this.ensureProviderModels('openai:' + tagsId);
-            }
-            if (tags?.baseUrl && tagsId !== translateId) await this.ensureProviderModels('openai:' + tagsId);
-        },
         openaiGroupModelLists() {
             return Object.fromEntries(this.form.openaiGroups.map(group => ['openai:' + group.id, this.openaiGroupRt[group.id]?.models || []]));
         },
