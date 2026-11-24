@@ -4,7 +4,7 @@ import { openaiGroupIdOf } from './openai-group-logic.js';
 
 export function stateProviders() {
     return {
-        modelAutoLoad: { attempted: {}, inflight: {} },
+        modelAutoLoad: { attempted: {}, inflight: {}, seeded: {} },
         // ===== Provider Status State =====
         ollamaStatus: '',
         modelStatus: '',
@@ -47,6 +47,7 @@ export function stateProviders() {
 
                 if (result.success && result.models && result.models.length > 0) {
                     this.ollamaModels = result.models;
+                    this.modelsArrived('ollama');
 
                     this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.n_models', {count: result.models.length})}</span>`;
                 } else {
@@ -75,6 +76,7 @@ export function stateProviders() {
 
                 if (result.success && result.models && result.models.length > 0) {
                     this.ollamaModels = result.models;
+                    this.modelsArrived('ollama');
                     this.form.ollamaModel = this.ollamaModels.includes(this.form.ollamaModel)
                         ? this.form.ollamaModel
                         : result.models[0];
@@ -155,6 +157,7 @@ export function stateProviders() {
                 if (data.success) {
                     this.geminiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.count})}</span>`;
                     this.geminiModels = data.models;
+                    this.modelsArrived('gemini');
 
                     const modelNames = data.models.map(m => m.name);
                     const wasBlank = !this.form.geminiModel;
@@ -248,6 +251,7 @@ export function stateProviders() {
                     const data = await response.json();
                     if (data.success && data.models && data.models.length > 0) {
                         rt.models = data.models;
+                        this.modelsArrived('openai:' + groupId);
                         rt.status = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
                         if (!data.models.includes(group.model)) {
                             if (group.model) {
@@ -294,6 +298,7 @@ export function stateProviders() {
 
                 if (data.success && data.models && data.models.length > 0) {
                     this.openaiModels = data.models;
+                    this.modelsArrived('openai');
                     this.openaiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
 
                     // model 不在清單中 → 切換到自訂模式（保留用戶的 custom model）
@@ -435,6 +440,7 @@ export function stateProviders() {
 
                 if (data.success && data.models && data.models.length > 0) {
                     this.claudeModels = data.models;
+                    this.modelsArrived('claude');
                     this.claudeStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
 
                     if (source === 'manual') {
@@ -539,6 +545,7 @@ export function stateProviders() {
 
                 if (data.success && data.models && data.models.length > 0) {
                     this.openaiOfficialModels = data.models;
+                    this.modelsArrived('openai_official');
                     this.openaiOfficialStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
 
                     const wasBlank = !this.form.openaiOfficialModel;
@@ -621,7 +628,24 @@ export function stateProviders() {
         },
 
         // ===== AI tags（188c-T8a）=====
+        modelsArrived(provider) {
+            delete this.modelAutoLoad.seeded[provider];
+            this.tagsPreselect(provider);
+        },
+
+        tagsPreselect(provider) {
+            if (this.form.aiTagsProvider === provider && !this.form.aiTagsModel) {
+                this.setTagsModel(provider, pickTagsModel(provider, '', this.aiTagsModelLists()[provider] || []));
+            }
+        },
+
         aiTagsModelLists() {
+            const lists = this.allModelLists();
+            for (const provider of Object.keys(this.modelAutoLoad.seeded)) lists[provider] = [];
+            return lists;
+        },
+
+        allModelLists() {
             return {
                 ollama: this.ollamaModels,
                 gemini: this.geminiModels,
@@ -642,7 +666,7 @@ export function stateProviders() {
             };
             const groupId = openaiGroupIdOf(provider);
             const current = groupId ? this.openaiGroupById(groupId)?.model : (Object.hasOwn(values, provider) ? values[provider] : undefined);
-            return modelNamesWith(this.aiTagsModelLists()[provider], current);
+            return modelNamesWith(this.allModelLists()[provider], current);
         },
 
         // tab 由模板傳入（aiTab 住在巢狀 aiServicesCard，root 讀不到）
@@ -683,10 +707,7 @@ export function stateProviders() {
 
             // FE-TIMING-16：await 後再讀 form；provider 已換或 model 已有 → 不寫。
             // 已存 model 空時預選不進 savedState：畫面 isDirty=true，引導使用者存一次（CD-188c-14）。
-            if (this.form.aiTagsProvider === provider && !this.form.aiTagsModel) {
-                const lists = this.aiTagsModelLists();
-                this.setTagsModel(provider, pickTagsModel(provider, '', lists[provider] || []));
-            }
+            this.tagsPreselect(provider);
         },
     };
 }

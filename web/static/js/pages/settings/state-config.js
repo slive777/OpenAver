@@ -680,7 +680,7 @@ export function stateConfig() {
         async loadConfig() {
             // 鎖定表單（載入期間不可操作）
             this._configLoading = true;
-            this.modelAutoLoad = { attempted: {}, inflight: {} };
+            this.modelAutoLoad = { attempted: {}, inflight: {}, seeded: {} };
             // 清空快照（載入期間不判定 dirty）
             this.savedState = null;
             // 95a-T8: 對稱重設 hydrate 旗標（reset 設定 / 重跑 loadConfig 時需重新 hydrate，
@@ -718,10 +718,12 @@ export function stateConfig() {
                     this.form.ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url || 'http://localhost:11434';
                     this.form.ollamaModel = config.translate.ollama?.model || config.translate.ollama_model || '';
                     this.ollamaModels = this.form.ollamaModel ? [this.form.ollamaModel] : [];
+                    this.modelAutoLoad.seeded.ollama = true;
 
                     // Gemini model 預設填入
                     if (config.translate.gemini?.model) {
                         this.geminiModels = [{ name: config.translate.gemini.model }];
+                        this.modelAutoLoad.seeded.gemini = true;
                         this.form.geminiModel = config.translate.gemini.model;
                     }
 
@@ -733,12 +735,14 @@ export function stateConfig() {
                     // Claude
                     this.form.claudeModel = config.translate.claude?.model || 'claude-haiku-5-5';
                     this.claudeModels = [this.form.claudeModel];
+                    this.modelAutoLoad.seeded.claude = true;
 
                     // OpenAI Official
                     this.form.openaiOfficialModel = config.translate.openai_official?.model || '';
                     this.openaiOfficialModels = this.form.openaiOfficialModel
                         ? [this.form.openaiOfficialModel]
                         : [];
+                    if (this.form.openaiOfficialModel) this.modelAutoLoad.seeded.openai_official = true;
 
                     // AI services — image similar（186-T6）
                     this.form.aiSimilarEnabled = config.ai_services?.image_similar?.enabled || false;

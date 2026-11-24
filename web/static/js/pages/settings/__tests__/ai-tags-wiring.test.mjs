@@ -351,6 +351,63 @@ test('tags_switch_to_ollama_ignores_translate_seed', async () => {
   }
 });
 
+test('tags_preselect_only_from_server_list', async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const scenario of ['manual', 'claude', 'failure']) {
+      const vm = makeFakeThis();
+      let release;
+      const pendingResponse = new Promise((resolve) => { release = resolve; });
+      globalThis.fetch = async (url) => {
+        if (String(url).includes('/api/config')) return { json: async () => ({
+          success: true,
+          data: minimalConfig({
+            translate: {
+              enabled: false, provider: 'gemini',
+              ollama: { url: 'http://localhost:11434', model: 'retired-ollama-model' },
+              gemini: {}, openai: {},
+              claude: { model: 'old-claude-model', api_key: 'synthetic-claude-key-1234567890' },
+            },
+            ai_services: { tags: { enabled: true, provider: 'openai', model: 'existing-tags-model' } },
+          }),
+        }) };
+        if (String(url).includes('/api/ollama/models')) {
+          if (scenario === 'manual') return pendingResponse;
+          return { json: async () => ({ success: false }) };
+        }
+        if (String(url).includes('/api/claude/models')) return { json: async () => ({
+          success: true, models: ['claude-sonnet-new', 'claude-haiku-new'],
+        }) };
+        return { json: async () => ({ success: true, data: {} }) };
+      };
+      await vm.loadConfig();
+      const manual = scenario === 'manual' ? vm.testOllamaConnection() : null;
+      vm.form.aiTagsProvider = scenario === 'claude' ? 'claude' : 'ollama';
+      const switching = aiTagsPanel().onProviderChange.call(vm);
+      assert.equal(vm.form.aiTagsModel, '');
+      if (manual) {
+        await switching;
+        assert.equal(vm.form.aiTagsModel, '');
+        release({ json: async () => ({ success: true, models: ['fresh-ollama-model', 'next-ollama-model'] }) });
+        await manual;
+        assert.equal(vm.form.aiTagsModel, 'fresh-ollama-model');
+        assert.notEqual(vm.tagsModelMemo.ollama, 'retired-ollama-model');
+      } else {
+        await switching;
+        if (scenario === 'claude') {
+          assert.equal(vm.form.aiTagsModel, 'claude-haiku-new');
+          assert.equal(vm.tagsModelMemo.claude, 'claude-haiku-new');
+        } else {
+          assert.equal(vm.form.aiTagsModel, '');
+          assert.notEqual(vm.tagsModelMemo.ollama, 'retired-ollama-model');
+        }
+      }
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('tags_save_roundtrip_keeps_siblings', async () => {
   const fakeThis = makeFakeThis();
   let putBody = null;
