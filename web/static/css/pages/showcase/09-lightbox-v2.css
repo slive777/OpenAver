@@ -538,35 +538,23 @@
 }
 
 /* ── 199a-T5：文字區第 3 列（女優＋作品資訊小膠囊＋ⓘ）＋「另有 N 位」／ⓘ 兩種浮層內容 ──────────────
-   左：女優區 `.lbx-actors`（flex:1 1 0＋min-width:0，FE-CSS-12：不用裸 1fr），內容寬度由 lbxFit 量測決定露出數；
-   右：`.lbx-works` 不收縮（片商 pill 例外：設上限＋省略號，免得超長片商把女優區擠到零）。
+   女優區 `.lbx-actors` 可伸縮並保留 min-width:0，lbxFit 以整列寬量測露出數；
+   作品區 `.lbx-works` 靠右，與女優區由 CSS 換行決定同列或分列，系列與片商限寬並省略溢出。
    量測層 `.lbx-measure` 是可見層的隱形複本（共用 .lbx-actor-chip／.lbx-more-actors 的樣式，寬度才一致）：
    visibility:hidden＋height:0＋absolute，不佔版面也不影響 `.lbx-actors` 的 clientWidth。
    `.is-measuring` 只用 visibility:hidden（版面保留，不用 display:none——會讓 clientWidth 變 0、量測失效）。
-   視窗閘（769×720）內 nowrap＋container query 由右往左省略；閘外沒有 container，靠 wrap 與可捲不壞（spec §2.11）。
+   視窗閘內系列限文字區一半寬；閘外依容器寬限制，作品資訊不因容器變窄而隱藏。
    單一 accent 原則：本段與兩個浮層內不出現 accent；pill 走 tonal（文字色 8%），不加玻璃、不加 accent。
    pill 沿用 .lb-tag 基底（pill 白名單類 3），不新增 999px 選擇器。 */
 .lbx-people-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: .75rem;
+    column-gap: .75rem;
+    row-gap: .375rem;
     position: relative;
     min-height: 2.125rem;
     margin-top: .6875rem;
-}
-
-@media (max-width: 768px), (max-height: 719px) {
-    .lbx-people-row,
-    .lbx-works {
-        flex-wrap: wrap;
-    }
-}
-
-@media (min-width: 769px) and (min-height: 720px) {
-    .lbx-people-row,
-    .lbx-works {
-        flex-wrap: nowrap;
-    }
 }
 
 .lbx-people-row.is-measuring {
@@ -574,20 +562,13 @@
 }
 
 .lbx-actors {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
     display: flex;
     align-items: center;
     gap: .75rem;
     overflow: hidden;
     white-space: nowrap;
-}
-
-/* 閘外沒有 container／不降級：女優區給 10rem 基準寬，放不下作品資訊就整排換到下一行（與上面 wrap 互斥同條件） */
-@media (max-width: 768px), (max-height: 719px) {
-    .lbx-actors {
-        flex-basis: 10rem;
-    }
 }
 
 .lbx-actor-chip {
@@ -682,10 +663,14 @@ button.lbx-avatar {
 }
 
 .lbx-works {
-    flex: none;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: .375rem;
+    margin-inline-start: auto;
 }
 
 .lbx-people-row .lbx-work,
@@ -721,6 +706,27 @@ button.lbx-avatar {
     line-height: 1.25rem;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.lbx-people-row .lbx-work--series {
+    display: inline-block;
+    line-height: 1.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (min-width: 769px) and (min-height: 720px) {
+    .lbx-people-row .lbx-work--series {
+        max-width: 50cqw;
+    }
+}
+
+@media (max-width: 768px), (max-height: 719px) {
+    .lbx-people-row .lbx-work--series,
+    .lbx-people-row .lbx-work--maker {
+        min-width: 0;
+        max-width: 100%;
+    }
 }
 
 .lbx-people-row .lbx-more-actors {
@@ -824,43 +830,8 @@ button.lbx-avatar {
     }
 }
 
-/* 寬度降級（只在視窗閘內有 container）：由右往左省略 來源片長 → 系列 → 發行日；被省略的都在ⓘ裡。
-   斷點初值 900／700／640 沿用 mockup（NC-6 待 CDP 量測後由主 session 裁）。
-   選擇器必須帶 `.lbx-people-row` 前綴：上面 `.lbx-people-row .lbx-work { display: inline-flex }`（0,2,0）權重高於單 class 的
-   `.lbx-work--src { display: none }`（0,1,0），container query 命中了也會被蓋掉（CDP 實測 computed display 仍是 flex）。 */
-@container lbx-meta (max-width: 899px) {
-    .lbx-people-row .lbx-work--src {
-        display: none;
-    }
-}
-
-@container lbx-meta (max-width: 699px) {
-    .lbx-people-row .lbx-work--series {
-        display: none;
-    }
-}
-
-/* 極窄（桌面最小保證 1280×720 的直幅封面約 280px）：片商 pill 整個省略（仍在ⓘ）。
-   （曾試過讓第 1 位女優 chip 不收縮——名字很長時會把「另有 N 位」擠出 overflow:hidden 的女優區，已撤回。） */
-@container lbx-meta (max-width: 359px) {
-    .lbx-people-row .lbx-work--maker {
-        display: none;
-    }
-}
-
-/* 很窄（直幅封面 900p 約 400px）：片商 pill 再縮短，否則作品資訊吃掉女優區，第 1 位名字被擠成省略號；全名在 title 與ⓘ */
-@container lbx-meta (max-width: 479px) {
-    .lbx-people-row .lbx-work--maker {
-        max-width: 7.5rem;
-    }
-}
-
+/* 文字區較窄時只縮小片名字級。 */
 @container lbx-meta (max-width: 639px) {
-    .lbx-people-row .lbx-work--release,
-    .lbx-people-row .lbx-actor-chip .lb-actor-age {
-        display: none;
-    }
-
     .lbx-meta .lbx-title-row .lb-title {
         font-size: 1.125rem;
     }

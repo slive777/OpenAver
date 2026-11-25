@@ -84,13 +84,13 @@ test('test_menu_items_focal_item_follows_can_focal_and_sits_before_rescrape', as
 });
 
 // TASK-199a-T5：第 3 列女優露出數與作品資訊欄位。
-test('test_fit_actresses_caps_at_three_and_keeps_at_least_one', async () => {
+test('test_fit_actresses_default_has_no_cap_and_keeps_at_least_one', async () => {
     const { fitActresses } = await import('../lbx-logic.js');
     const chip = (n) => Array(n).fill(100);
     const base = { moreChipWidth: 60, gap: 10 };
 
-    // (a) 6 位、寬度充裕 → 上限 3
-    assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 5000 }), 3);
+    // (a) 6 位、寬度充裕 → 全數露出
+    assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 5000 }), 6);
     // (b) 連第 1 位都放不下 → 至少 1 位，不是 0
     assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 10 }), 1);
     // (c) 2 位、寬度充裕 → 兩位都露，沒有「另有」

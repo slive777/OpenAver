@@ -1,7 +1,7 @@
 /**
  * state-lightbox-fit.js — Showcase ESM（199a-T5）
  *
- * 影片燈箱文字區第 3 列的「女優露出數」量測：最多露 3 位、放不下逐位減少、至少 1 位，其餘收成「另有 N 位」。
+ * 影片燈箱文字區第 3 列的「女優露出數」量測：不設上限、放不下逐位減少、至少 1 位，其餘收成「另有 N 位」。
  * mergeState 分片（plan-199a CD-199a-3／9）：不定義 init()（FE-ALPINE-05）、頂層 key 一律 lbxFit 前綴、
  * 分片內不掛任何 $watch（FE-ALPINE-08）——觸發全靠模板第 3 列的 x-effect＝lbxFitSchedule(輸入簽章)。
  *
@@ -15,9 +15,9 @@
 
 import { fitActresses, fitSig } from './lbx-logic.js';
 
-const LBX_FIT_DEFAULT_SHOWN = 3;
+const LBX_FIT_DEFAULT_SHOWN = Infinity;
 
-// 預設量測：讀 DOM 回 { chipWidths, moreChipWidth, available, gap }；任何元素缺或寬度不可用 → null（呼叫端退回預設露出數）
+// 預設量測：讀 DOM 與整列寬回 { chipWidths, moreChipWidth, available, gap }；元素缺或寬度不可用 → null（退回預設露出數）
 function measureRow({ rowEl } = {}) {
     if (!rowEl || typeof rowEl.querySelector !== 'function') return null;
     const actorsEl = rowEl.querySelector('.lbx-actors');
@@ -26,7 +26,7 @@ function measureRow({ rowEl } = {}) {
     const chipWidths = Array.from(measureEl.querySelectorAll('.lbx-actor-chip')).map((el) => el.offsetWidth);
     const moreEl = measureEl.querySelector('.lbx-more-actors');
     const moreChipWidth = moreEl ? moreEl.offsetWidth : 0;
-    const available = actorsEl.clientWidth;
+    const available = rowEl.clientWidth;
     const gap = parseFloat(getComputedStyle(actorsEl).columnGap) || 0;
     if (!(Number.isFinite(available) && available > 0)) return null;
     if (!chipWidths.every(Number.isFinite) || !Number.isFinite(moreChipWidth)) return null;

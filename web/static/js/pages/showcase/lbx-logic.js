@@ -84,10 +84,10 @@ export function hasDistinctOtitle(video) {
 }
 
 /**
- * fitActresses：第 3 列女優露出數（199a-T5，CD-199a-9）。最多 max 位、至少 min 位（不足人數時取人數）；
+ * fitActresses：第 3 列女優露出數（199a-T5，CD-199a-9）。預設不設上限、至少 min 位（不足人數時取人數）；
  * 放不下就逐位減少，有被收起的人時要多留「另有 N 位」那顆的寬度。輸入都是量到的寬度（px），純函式。
  */
-export function fitActresses({ chipWidths, moreChipWidth, available, gap, max = 3, min = 1 }) {
+export function fitActresses({ chipWidths, moreChipWidth, available, gap, max = Infinity, min = 1 }) {
     const n = chipWidths.length;
     let shown = Math.min(max, n);
     const floor = Math.min(min, n);

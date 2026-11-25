@@ -27,9 +27,32 @@ test('test_fit_hides_until_measured_then_writes_once', () => {
     assert.equal(store.sig, 'sig-a');
     assert.equal(store.actressShown, 2);
 
-    // (c) measurement failed → sig still updated, fallback count 3 (never stuck hidden)
+    // (c) measurement failed → sig still updated, fallback count Infinity (never stuck hidden)
     fit.lbxFitRun('sig-b', {}, () => null);
     assert.equal(fit.lbxFitMeasuring('sig-b'), false);
-    assert.equal(store.actressShown, 3);
+    assert.equal(store.actressShown, Infinity);
+});
+
+test('test_fit_measure_uses_whole_row_width', () => {
+    const fit = stateLightboxFit();
+    const actors = { clientWidth: 120 };
+    const measure = {
+        querySelectorAll: () => Array.from({ length: 5 }, () => ({ offsetWidth: 100 })),
+        querySelector: () => ({ offsetWidth: 60 }),
+    };
+    const rowEl = {
+        clientWidth: 600,
+        querySelector: (selector) => ({ '.lbx-actors': actors, '.lbx-measure': measure })[selector],
+    };
+    const hadStyle = Object.hasOwn(globalThis, 'getComputedStyle');
+    const originalStyle = globalThis.getComputedStyle;
+    try {
+        globalThis.getComputedStyle = () => ({ columnGap: '10px' });
+        fit.lbxFitRun('sig', { rowEl });
+        assert.equal(fit.lbxFit.actressShown, 5);
+    } finally {
+        if (hadStyle) globalThis.getComputedStyle = originalStyle;
+        else delete globalThis.getComputedStyle;
+    }
 });
 
