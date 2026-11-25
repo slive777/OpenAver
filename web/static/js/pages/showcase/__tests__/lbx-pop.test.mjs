@@ -187,7 +187,7 @@ test('test_esc_cancels_tag_input_before_closing_lightbox', () => {
         c.closeLightbox = () => { closeCount++; };
 
         c.addingLbTag = true;
-        c.lbxPopOpen('moreTags', {}, { mode: 'click' });
+        c.lbxPopOpen('info', {}, { mode: 'click' });
         assert.ok(c.lbxPop, 'pop opened');
 
         // 1st Esc: only the pop closes; the tag input stays open
