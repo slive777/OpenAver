@@ -120,6 +120,14 @@ export function workInfoFields(video, { releaseClickable = false } = {}) {
     return fields;
 }
 
+/** sourceDurationPillShown：文字區「來源 xxx 分」膠囊是否顯示（207a-T1，CD-207a-9）。實際片長可信（≥1 分鐘且與來源差 ≤30%）時藏起避免重複；其餘照舊顯示。 */
+export function sourceDurationPillShown(video) {
+    if (!video) return false;
+    if (!(Number(video.source_duration) > 0)) return false;
+    if (formatRuntime(video.media_duration_min) === '') return true;
+    return Math.abs(Number(video.media_duration_min) - Number(video.source_duration)) / Number(video.source_duration) > 0.3;
+}
+
 /**
  * fitSig：量測簽章（199a-T5，CD-199a-9）。簽章變 ⇒ 重量測；分隔字元避免欄位內容互相拼出相同字串。
  * favKey（199b-T1）：頭像表的鍵集合（頭像會讓 chip 變寬，頭像表一變就要重量）；空字串＝與舊版逐字相同。

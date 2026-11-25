@@ -1516,7 +1516,7 @@
                                     <template x-if="lbxInfoHas('release') && !lbxInfoField('release').clickable">
                                         <span class="lb-tag lbx-work lbx-work--release" x-text="currentLightboxVideo?.release_date"></span>
                                     </template>
-                                    <span class="lb-tag lbx-work lbx-work--src" x-show="lbxInfoHas('source_duration')"
+                                    <span class="lb-tag lbx-work lbx-work--src" x-show="lbxSrcPillShown()"
                                           x-text="t('showcase.lightbox.source_duration', { n: currentLightboxVideo?.source_duration })"></span>
                                     <button type="button" class="lbx-info-btn" data-lbx-anchor="info" aria-haspopup="true"
                                             :aria-expanded="lbxPopIs('info', 'info')"

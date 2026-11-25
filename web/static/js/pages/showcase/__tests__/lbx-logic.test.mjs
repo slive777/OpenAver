@@ -279,3 +279,23 @@ test('test_adv_edit_files_view_and_action_notices', async () => {
     const cases = [['regen', { success: true, poster: { status: 'updated' } }, 'poster_updated', true], ['regen', { success: true, poster: { status: 'skipped' } }, 'poster_skipped', false], ['regen', { success: true, poster: { status: 'failed' } }, 'poster_failed', false], ...[['generic_cover_name','poster_generic_cover'],['no_cover','poster_no_cover'],['readonly_output_not_current','poster_readonly_output'],['unreachable','unreachable']].map(([error,key]) => ['regen', { success: false, error }, key, false]), ['regen', null, 'poster_failed', false], ...[['ok','reread_done',true],['failed','media_failed',true],['unreadable','reread_unreadable',false],['stale','reread_stale',false],['changed','reread_changed',false],['timeout','reread_timeout',false],['unavailable','reread_unavailable',false],['skipped','reread_skipped',false]].map(([status,key,reload]) => ['reread', { success: true, status }, key, reload]), ['reread', { success: true, status: 'changed', readonly: true }, 'reread_changed_readonly', false], ['reread', { success: false, error: 'unreachable' }, 'unreachable', false], ['reread', null, 'reread_error', false]];
     for (const [kind, data, key, reload] of cases) { const notice = advEditActionNotice(kind, data, t); assert.equal(notice.text, `showcase.adv_edit.files.${key}`); assert.equal(notice.reload, reload); }
 });
+
+// TASK-207a-T1：來源片長膠囊去重判準（sourceDurationPillShown 真值表）。
+test('test_source_duration_pill_shown_truth_table', async () => {
+    const { sourceDurationPillShown } = await import('../lbx-logic.js');
+    const cases = [
+        ['來源缺 key → 藏', {}, false],
+        ['來源 0 → 藏', { source_duration: 0, media_duration_min: 100 }, false],
+        ['來源 null → 藏', { source_duration: null, media_duration_min: 100 }, false],
+        ['實際缺 key（undefined）→ 顯示', { source_duration: 100 }, true],
+        ['實際 null → 顯示', { source_duration: 100, media_duration_min: null }, true],
+        ['實際 <1 分鐘 → 顯示', { source_duration: 100, media_duration_min: 0.4 }, true],
+        ['差 <30% → 藏', { source_duration: 100, media_duration_min: 90 }, false],
+        ['恰 30%（70 vs 100）→ 藏', { source_duration: 100, media_duration_min: 70 }, false],
+        ['殘檔 0:42 vs 139 → 顯示', { source_duration: 139, media_duration_min: 42 }, true],
+        ['無影片 → 藏', null, false],
+    ];
+    for (const [label, video, expected] of cases) {
+        assert.equal(sourceDurationPillShown(video), expected, label);
+    }
+});

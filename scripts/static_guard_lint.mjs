@@ -790,6 +790,18 @@ const RULES = [
     note: '[lint-guard:199a-T4-menu-gates] lbxMenuItems 少了翻譯／劇照／對應檔／canFocal（has_cover＋lbIsBorrowed）條件 → 沒翻譯條件的片也看到「翻譯片名」、有劇照的片還出現「補劇照」（按下去重複向外站抓取）、沒有對應檔的片還能按「從收藏移除」、沿用版本或沒封面圖的片也看到「調整海報裁切」',
   },
 
+  // ---- 207a-T1：片長去重——實際片長可信時文字區藏掉重複的「來源 xxx 分」膠囊，ⓘ 那列永遠在 ----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxSrcPillShown\(\)"/,
+    scope: { anchor: /class="lb-tag lbx-work lbx-work--src"/, window: 90 }, // 實測 anchor 到 x-show 結尾 64 字元，加約 40% 餘裕（FE-GUARD-27）
+    note: '[lint-guard:207a-T1-src-pill-wired] 文字區「來源 xxx 分」膠囊少了 lbxSrcPillShown() 接線 → 實際片長已可信的片還重複顯示來源片長，使用者以為有兩種片長',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: '<div class="lbx-pop-row" x-show="lbxInfoHas(\'source_duration\')">',
+    note: '[lint-guard:207a-T1-info-src-kept] ⓘ 浮層少了「來源片長」那一列 → 使用者開實際片長可信的片，文字區膠囊藏起後兩頭都看不到來源片長',
+  },
   // ---- 199a-T5：文字區第 3 列（女優最多 3 位＋「另有 N 位」、作品資訊小膠囊＋ⓘ；露出數由 lbxFit 量測）----
   {
     file: 'web/templates/showcase.html', kind: 'required-string',

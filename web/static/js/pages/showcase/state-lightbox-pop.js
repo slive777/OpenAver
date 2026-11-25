@@ -11,7 +11,7 @@
  */
 
 import { versionsOf } from './work-versions.js';
-import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields, orderFavoritesFirst, actorCardLines, ghostOnClose } from './lbx-logic.js';
+import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields, orderFavoritesFirst, actorCardLines, ghostOnClose, sourceDurationPillShown } from './lbx-logic.js';
 
 const LBX_POP_HOVER_CLOSE_MS = 160;
 const LBX_POP_HOVER_OPEN_MS = 300;   // 滑鼠停在錨點多久才開（只用於 dwell 的錨點，199b-T3）
@@ -280,6 +280,11 @@ export function stateLightboxPop() {
 
         lbxInfoHas(id) {
             return !!this.lbxInfoField(id);
+        },
+
+        // 文字區「來源 xxx 分」膠囊開關（207a-T1）：實際片長可信時藏起；ⓘ 那列不受影響
+        lbxSrcPillShown() {
+            return sourceDurationPillShown(this.currentLightboxVideo);
         },
     };
 }
