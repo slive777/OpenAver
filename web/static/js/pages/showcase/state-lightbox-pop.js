@@ -108,6 +108,11 @@ export function stateLightboxPop() {
             this.lbxPopOpen(kind, anchorEl, opts);
         },
 
+        lbxMetaToTop() {
+            const meta = this.$refs?.lbxMeta;
+            if (meta) meta.scrollTop = 0;
+        },
+
         // lbxPop 已是 null 時零成本早退（@resize.window 與 closeLightbox 會在浮層沒開時也呼叫）
         lbxPopClose({ restoreFocus = false, immediate = false } = {}) {
             this._lbxPopClearTimer();

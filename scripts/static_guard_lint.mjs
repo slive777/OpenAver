@@ -704,6 +704,17 @@ const RULES = [
     note: '[lint-guard:199a-T3-watch-close] 換片 $watch 少了 lbxPopClose → 使用者在膠囊上開著檔案提示時換到下一部片，上一部片的檔名與規格還浮在畫面上、內容對不上目前這部',
   },
   {
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', stripLineComments: true,
+    pattern: [/import\s*\{\s*isSameWork\s*\}\s*from\s*'\.\/lbx-logic\.js'/, /(?<![\w:-])\$watch\('currentLightboxVideo',\s*\(nv, ov\)\s*=>\s*\{\s*if \(!isSameWork\(nv, ov\)\)\s*this\.lbxMetaToTop\?\.\(\);?\s*\}\)/],
+    note: '[lint-guard:207a-T2-watch-meta-top] 換片回頂接線缺失 → 使用者會看到上一部片的捲動位置',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    scope: /<div class="lightbox-metadata lbx-meta"[^>]*>/,
+    pattern: [/(?<![\w:-])x-ref="lbxMeta"/, /(?<![\w:-])@scroll\.passive="lbxPopClose\(\)"/],
+    note: '[lint-guard:207a-T2-meta-scroll-ref] 文字區捲動接線缺失 → 使用者換片不回頂或捲動後浮層未關閉',
+  },
+  {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: ['@pointerdown.window="lbxPopOnPointerDown($event)"', '@resize.window="lbxPopClose()"'],
     scope: { anchor: /<div class="showcase-lightbox"/, window: 600 }, // 實測 anchor 到 @resize.window 結尾 452 字元，加約 30% 餘裕

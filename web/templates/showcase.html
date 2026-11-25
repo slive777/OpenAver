@@ -1425,7 +1425,7 @@
                              改為獨立全螢幕 .similar-mobile-panel（page-level sibling，見 .similar-stage 之後）。 -->
 
                         <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
-                        <div class="lightbox-metadata lbx-meta">
+                        <div class="lightbox-metadata lbx-meta" x-ref="lbxMeta" @scroll.passive="lbxPopClose()">
                             <!-- Row 1（199a-T4）：片名列＝★＋一行片名（省略號）…〔劇照圖示〕〔⋯〕。
                                  123-T8：精選星掛在標題最前面（owner 拍板：標題前比番號前更清楚，與標題有沒有番號前綴無關）。
                                  星與標題文字同屬一個 inline 格式化脈絡＝共用同一條基線（詳見 05-lightbox.css 該段註解）。

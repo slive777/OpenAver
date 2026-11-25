@@ -31,8 +31,7 @@ export function isStaleLbFullError(actualSrc, expectedSrc) {
 
 // 199a-T1：垂直滾輪「交還原生捲動」判定（handleWheel 的 vertical 分支）。
 // 交還：.lbx-pop 浮層內、女優 .lightbox-metadata（今天可捲），以及 .lbx-meta 在「可捲且真的溢出」時
-// （僅 overflow-y 為 auto／scroll 的閘外情況）。閘內 .lbx-meta 是 overflow:hidden 的固定高度文字區，
-// 就算內容溢出也不交還——滾輪換片，不讓使用者陷在既不捲也不換片的死區。
+// （overflow-y 為 auto／scroll）。不溢出時滾輪仍用於換片。
 export function shouldYieldVerticalWheel(target) {
     if (target.closest(WHEEL_VERTICAL_EXCLUDE_SELECTOR)) return true;
     const meta = target.closest('.lbx-meta, .lbx-ap-meta');

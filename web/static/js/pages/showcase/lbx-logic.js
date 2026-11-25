@@ -6,6 +6,8 @@
  * 只用相對 import（FE-GUARD-11）；本檔零 Alpine、零 window。
  */
 
+import { sameWork, sameNumber } from './work-versions.js';
+
 export function formatRuntime(min) {
     const total = Math.round(Number(min));
     if (!Number.isFinite(total) || total < 1) return '';
@@ -388,4 +390,10 @@ export function stripRevealPlan({ trigger, lightboxOpen, lightboxAnimating }) {
     if (trigger === 'next') return { play: true, photo: false, films: true, next: false };
     if (trigger === 'appear' && !lightboxAnimating) return { play: true, photo: true, films: true, next: true };
     return { play: false, photo: false, films: false, next: false };
+}
+export function isSameWork(nv, ov) {
+    if (!nv) return true;
+    if (!ov) return false;
+    if (nv.path && ov.path) return sameWork(ov, nv) || sameWork(nv, ov);
+    return sameNumber(nv.number, ov.number);
 }

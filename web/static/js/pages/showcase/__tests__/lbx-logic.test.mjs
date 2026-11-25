@@ -5,6 +5,23 @@ import assert from 'node:assert/strict';
 
 const { formatRuntime, bandParts } = await import('../lbx-logic.js');
 
+test('test_is_same_work_follows_membership_not_index_or_order', async () => {
+    const { isSameWork } = await import('../lbx-logic.js');
+    const work = (path, paths) => Object.defineProperty({ path }, '_versions', { value: paths.map((p) => ({ path: p })) });
+    const versions = [{ path: '/a' }, { path: '/b' }];
+    const [a, b] = versions.map((v) => Object.defineProperty(v, '_versions', { value: versions }));
+    assert.equal(isSameWork(b, a), true);
+    assert.equal(isSameWork(a, b), true);
+    assert.equal(isSameWork(work('/b', ['/a', '/b']), { path: '/a' }), true);
+    assert.equal(isSameWork(work('/b', ['/b', '/a']), a), true);
+    assert.equal(isSameWork(work('/c', ['/c']), a), false);
+    assert.equal(isSameWork({ number: ' abc ' }, { path: '/a', number: 'ABC' }), true);
+    assert.equal(isSameWork({ number: 'xyz' }, { path: '/a', number: 'ABC' }), false);
+    assert.equal(isSameWork(null, a), true);
+    assert.equal(isSameWork(a, null), false);
+    assert.equal(isSameWork(work('/new', ['/new']), work('/old', ['/old'])), false);
+});
+
 test('test_format_runtime_hours_minutes', () => {
     assert.equal(formatRuntime(123), '2:03');
     assert.equal(formatRuntime(59), '0:59');

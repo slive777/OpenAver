@@ -6,10 +6,13 @@
    不改 05／06／08 的任何既有規則。
    閘：寬 ≥769（避開 06 的 max-width:768px）且高 ≥720（桌面最小保證）。閘外沿用今天的外框規則，
    `.lbx-meta` 仍是 `.lightbox-metadata` 的 overflow-y:auto。
-   垂直預算全用 rem：1.5 上 padding + .75 gap + 13.875 文字區 + .875 下 padding = 17rem。
+   垂直預算：1.5 上 padding + .75 gap + 文字區變數 + .875 下 padding。
    本檔不得出現 px 高度數字。 */
 @media (min-width: 769px) and (min-height: 720px) {
     .lightbox-content:has(> .lb-video-branch) {
+        --lbx-meta-h: 15rem;
+        --lbx-v-reserve: calc(3.125rem + var(--lbx-meta-h));
+        min-width: min(calc(37.5rem + 3rem), 90vw);
         max-height: 96vh;
         max-height: 96dvh;
         padding: 1.5rem 1.5rem .875rem;
@@ -17,15 +20,21 @@
     }
 
     .lightbox-content:has(> .lb-video-branch) .lightbox-cover.has-cover {
-        width: min(90vw, calc((96vh - 17rem) * var(--lb-cover-ar, 1.5)));
-        width: min(90vw, calc((96dvh - 17rem) * var(--lb-cover-ar, 1.5)));
+        width: min(90vw, calc((96vh - var(--lbx-v-reserve)) * var(--lb-cover-ar, 1.5)));
+        width: min(90vw, calc((96dvh - var(--lbx-v-reserve)) * var(--lb-cover-ar, 1.5)));
     }
 
     .lightbox-content:has(> .lb-video-branch) .lbx-meta {
-        height: 13.875rem;
+        height: var(--lbx-meta-h);
         flex: none;
         box-sizing: border-box;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        overflow-anchor: none;
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in oklch, var(--text-primary) 28%, transparent) transparent;
+        scrollbar-gutter: stable;
         container: lbx-meta / inline-size;
     }
 }

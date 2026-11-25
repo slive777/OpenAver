@@ -3135,16 +3135,35 @@ const RULES = [
         return;
       }
       for (const { selector, declarations } of styleBlocks) {
-        const sized = /96dvh|17rem|13\.875rem/.test(declarations);
+        const sized = /96dvh|17rem|13\.875rem|--lbx-meta-h|--lbx-v-reserve|37\.5rem|88dvh|7dvh/.test(declarations);
         for (const one of splitSelectors(selector)) {
           if (!/\.lbx-|\.lb-video-branch/.test(one)) {
             ctx.fail(`CG-199A-01: 選擇器缺 .lbx- 或 .lb-video-branch 隔離標記（會在女優／搜尋頁燈箱命中）— ${one}`);
           }
           if (sized && !/:has\(\s*>\s*\.lb-video-branch\s*\)/.test(one)) {
-            ctx.fail(`CG-199A-01: 帶外框尺寸（96dvh／17rem／13.875rem）的選擇器必須掛 :has(> .lb-video-branch) — ${one}`);
+            ctx.fail(`CG-199A-01: 帶外框尺寸（96dvh／17rem／13.875rem／--lbx-meta-h／--lbx-v-reserve／37.5rem／88dvh／7dvh）的選擇器必須掛 :has(> .lb-video-branch) — ${one}`);
           }
         }
       }
+    },
+  },
+  {
+    id: 'CG-207A-01',
+    file: 'pages/showcase/09-lightbox-v2.css',
+    kind: 'fn',
+    check(ctx) {
+      const blocks = flattenWithMedia(ctx.blocks).filter(({ media }) => media.length === 1 && media[0] === '(min-width: 769px) and (min-height: 720px)');
+      const hasBranch = (selector) => /:has\(\s*>\s*\.lb-video-branch\s*\)/.test(selector);
+      const meta = blocks.filter(({ selector }) => hasBranch(selector) && /\.lbx-meta\s*$/.test(selector));
+      const covers = blocks.filter(({ selector }) => hasBranch(selector) && /\.lightbox-cover\.has-cover\s*$/.test(selector));
+      const values = (declarations, property) => [...declarations.matchAll(new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`, 'g'))].map((m) => m[1].trim());
+      const heights = meta.flatMap(({ declarations }) => values(declarations, 'height'));
+      const widths = covers.flatMap(({ declarations }) => values(declarations, 'width'));
+      const heightsDeclared = blocks.filter(({ declarations }) => values(declarations, '--lbx-meta-h').length);
+      const reserves = blocks.filter(({ declarations }) => values(declarations, '--lbx-v-reserve').length);
+      if (!meta.length || !heights.length || heights.some((v) => v !== 'var(--lbx-meta-h)')) ctx.fail('CG-207A-01: 文字區高度必須使用 --lbx-meta-h');
+      if (!covers.length || !widths.length || widths.some((v) => !v.includes('var(--lbx-v-reserve)'))) ctx.fail('CG-207A-01: 封面寬度必須使用 --lbx-v-reserve');
+      if (!heightsDeclared.length || !reserves.length || reserves.flatMap(({ declarations }) => values(declarations, '--lbx-v-reserve')).some((v) => !v.includes('var(--lbx-meta-h)'))) ctx.fail('CG-207A-01: 垂直預算必須引用文字區高度');
     },
   },
   // 199b-T4：10-lightbox-actress-v2.css 女優燈箱 v2 外框隔離（形狀鏡射 CG-199A-01）。
