@@ -98,6 +98,96 @@ test('test_place_pop_never_covers_cover_or_leaves_viewport', () => {
     assert.equal(rightEdge.left, vw - popSize.w - margin);
 });
 
+test('test_place_pop_right_table', () => {
+    const vw = 1920;
+    const vh = 1080;
+    const coverBottom = 810;
+    const floor = coverBottom + 4;
+    const A = { left: 100, right: 140, top: 840, bottom: 880 };
+    const base = { coverBottom, vw, vh, mode: 'right', shrinkMax: 80 };
+
+    // 格 1 放得下：上緣對齊頭像、不縮、不限高
+    const fit = placePop({ ...base, anchorRect: A, popSize: { w: 300, h: 200 } });
+    assert.equal(fit.left, 146);
+    assert.equal(fit.top, 840);
+    assert.equal(fit.shrink, 0);
+    assert.equal(fit.maxHeight, undefined);
+
+    // 格 2 往上挪：仍在封面下緣之下、頭像上緣之上
+    const shift = placePop({ ...base, anchorRect: A, popSize: { w: 300, h: 240 } });
+    assert.equal(shift.top, 832);
+    assert.ok(shift.top >= floor && shift.top < A.top);
+    assert.equal(shift.shrink, 0);
+    assert.equal(shift.maxHeight, undefined);
+
+    // 格 3 挪到 floor 仍不夠→縮
+    const shrunk = placePop({ ...base, anchorRect: A, popSize: { w: 300, h: 266 } });
+    assert.equal(shrunk.top, floor);
+    assert.equal(shrunk.shrink, 8);
+    assert.equal(shrunk.maxHeight, undefined);
+
+    // 格 4 極矮視窗縮到下限：shrink 不超過 shrinkMax，剩餘溢出回 maxHeight
+    const tiny = placePop({
+        ...base, vh: 700, coverBottom: 520,
+        anchorRect: { left: 100, right: 140, top: 560, bottom: 600 },
+        popSize: { w: 300, h: 266 },
+    });
+    assert.equal(tiny.top, 524);
+    assert.equal(tiny.shrink, 80);
+    assert.equal(tiny.maxHeight, 168);
+
+    // 格 5 右緣夾邊；窄到放不下時左緣貼 margin
+    const edge = placePop({
+        ...base, anchorRect: { left: 1860, right: 1900, top: 840, bottom: 880 },
+        popSize: { w: 300, h: 200 },
+    });
+    assert.equal(edge.left, 1612);
+    const narrow = placePop({ ...base, anchorRect: A, popSize: { w: 2000, h: 200 } });
+    assert.equal(narrow.left, 8);
+
+    // 格 6 無照片：shrinkMax 傳 0 與省略各一次，皆不縮、溢出回 maxHeight
+    const noPhotoZero = placePop({ ...base, shrinkMax: 0, anchorRect: A, popSize: { w: 300, h: 266 } });
+    assert.equal(noPhotoZero.top, floor);
+    assert.equal(noPhotoZero.shrink, 0);
+    assert.equal(noPhotoZero.maxHeight, 258);
+    const noPhotoOmit = placePop({ coverBottom, vw, vh, mode: 'right', anchorRect: A, popSize: { w: 300, h: 266 } });
+    assert.equal(noPhotoOmit.top, floor);
+    assert.equal(noPhotoOmit.shrink, 0);
+    assert.equal(noPhotoOmit.maxHeight, 258);
+
+    // 格 7 錨點在 floor 之上：上緣夾在封面下緣，不蓋封面
+    const above = placePop({
+        ...base, anchorRect: { left: 100, right: 140, top: 790, bottom: 830 },
+        popSize: { w: 300, h: 200 },
+    });
+    assert.equal(above.top, floor);
+    assert.equal(above.shrink, 0);
+
+    // 其他 mode 形狀不變：below 回傳鍵集仍只有 left／top／maxHeight（無 shrink 鍵）
+    assert.deepEqual(
+        placePop({ anchorRect: { left: 100, top: 840, bottom: 870 }, coverBottom: 810, vw: 1920, vh: 1080, popSize: { w: 300, h: 80 }, mode: 'below' }),
+        { left: 100, top: 876, maxHeight: undefined },
+    );
+});
+
+test('test_pop_placement_table', async () => {
+    const { popPlacement } = await import('../lbx-logic.js');
+    const cases = [
+        ['title', 'inplace', 'left'],
+        ['otitle', 'inplace', 'left'],
+        ['actorCard', 'right', 'left'],
+        ['menu', 'below', 'right'],
+        ['info', 'below', 'right'],
+        ['actresses', 'below', 'left'],
+        ['plot', 'below', 'left'],
+        ['verTip', 'below', 'left'],
+        ['__unknown__', 'below', 'left'],
+    ];
+    for (const [kind, mode, align] of cases) {
+        assert.deepEqual(popPlacement(kind), { mode, align });
+    }
+});
+
 test('test_is_outside_pop_anchor_click_is_not_outside', () => {
     const inner = { closest: (sel) => (sel === '[data-lbx-anchor]' ? {} : null) };
     const stranger = { closest: () => null };

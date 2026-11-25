@@ -29,11 +29,23 @@ export function bandParts(video, { formatSize, formatRuntime }) {
  * placePop：浮層位置（199a-T3，CD-199a-4）。
  * mode 是「位置模式」：'below'＝錨點下緣＋gap；'inplace'＝錨點上緣−4（T4 的片名／原文才用）。
  * 恆不低於封面下緣＋4（浮層不蓋封面）；超出視窗底就上移；interactive（點開類）一律回 maxHeight（視窗底−top）讓內容長高時在浮層內捲，純閱讀類不內捲。
+ * 'right'＝卡片左緣貼錨點右側＋gap、上緣先對齊錨點上緣（寫真卡用；放不下往上挪但不低於封面下緣＋4，極矮才縮照片回 shrink）。
  * align：'left'（預設）左緣對齊錨點；'right' 右緣對齊錨點（⋯ 選單）。
  */
-export function placePop({ anchorRect, coverBottom, vw, vh, popSize, mode, align = 'left', interactive = false, margin = 8, gap = 6 }) {
+export function placePop({ anchorRect, coverBottom, vw, vh, popSize, mode, align = 'left', interactive = false, margin = 8, gap = 6, shrinkMax = 0 }) {
     const floor = coverBottom + 4;
     const bottomLimit = vh - margin;
+    if (mode === 'right') {
+        const cap = Number(shrinkMax);
+        const limit = !Number.isFinite(cap) || cap < 0 ? 0 : cap;
+        let top = Math.max(anchorRect.top, floor);
+        const over = top + popSize.h - bottomLimit;
+        if (over > 0) top = Math.max(floor, top - over);
+        const left = Math.min(Math.max(anchorRect.right + gap, margin), Math.max(margin, vw - popSize.w - margin));
+        const shrink = Math.min(limit, Math.max(0, top + popSize.h - bottomLimit));
+        const maxHeight = top + popSize.h - shrink > bottomLimit ? Math.max(0, bottomLimit - top) : undefined;
+        return { left, top, maxHeight, shrink };
+    }
     let top = mode === 'inplace' ? anchorRect.top - 4 : anchorRect.bottom + gap;
     top = Math.max(top, floor);
     if (top + popSize.h > bottomLimit) top = Math.max(floor, bottomLimit - popSize.h);
@@ -71,7 +83,7 @@ export function menuItems(video, { sampleCount, trVisible, hasPath, canFocal }) 
 /** popPlacement：各 kind 的位置模式與水平對齊（199a-T4）。 */
 export function popPlacement(kind) {
     if (kind === 'title' || kind === 'otitle') return { mode: 'inplace', align: 'left' };
-    if (kind === 'actorCard') return { mode: 'below', align: 'left' };
+    if (kind === 'actorCard') return { mode: 'right', align: 'left' };
     if (kind === 'menu') return { mode: 'below', align: 'right' };
     if (kind === 'info') return { mode: 'below', align: 'right' };
     return { mode: 'below', align: 'left' };
