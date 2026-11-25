@@ -539,6 +539,7 @@
 
 /* ── 199a-T5：文字區第 3 列（女優＋作品資訊小膠囊＋ⓘ）＋「另有 N 位」／ⓘ 兩種浮層內容 ──────────────
    女優區 `.lbx-actors` 可伸縮並保留 min-width:0，lbxFit 以整列寬量測露出數；
+   收藏女優項目由頭像與名字／副行組成，可見層與量測層結構相同。
    作品區 `.lbx-works` 靠右，與女優區由 CSS 換行決定同列或分列，系列與片商限寬並省略溢出。
    量測層 `.lbx-measure` 是可見層的隱形複本（共用 .lbx-actor-chip／.lbx-more-actors 的樣式，寬度才一致）：
    visibility:hidden＋height:0＋absolute，不佔版面也不影響 `.lbx-actors` 的 clientWidth。
@@ -572,12 +573,48 @@
 }
 
 .lbx-actor-chip {
+    display: inline-flex;
+    align-items: center;
     flex: 0 1 auto;
     min-width: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
     font-size: .875rem;
     color: var(--text-primary);
+}
+
+.lbx-actor-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.lbx-actor-line {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lbx-people-row .lbx-actor-sub {
+    display: flex;
+    font-size: .75rem;
+    line-height: 1.25;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.lbx-people-row .lbx-sub-seg + .lbx-sub-seg::before {
+    content: '·';
+    margin-inline: .25rem;
+}
+
+@media (min-width: 769px) and (min-height: 720px) {
+    .lbx-people-row .lbx-actor-chip.is-fav .lb-actor-age { display: none; }
+}
+
+@media (max-width: 768px), (max-height: 719px) {
+    .lbx-people-row .lbx-actor-sub { display: none; }
 }
 
 .lbx-link {

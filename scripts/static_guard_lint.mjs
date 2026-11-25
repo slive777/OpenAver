@@ -813,7 +813,7 @@ const RULES = [
     pattern: '<div class="lbx-pop-row" x-show="lbxInfoHas(\'source_duration\')">',
     note: '[lint-guard:207a-T1-info-src-kept] ⓘ 浮層少了「來源片長」那一列 → 使用者開實際片長可信的片，文字區膠囊藏起後兩頭都看不到來源片長',
   },
-  // ---- 199a-T5：文字區第 3 列（女優最多 3 位＋「另有 N 位」、作品資訊小膠囊＋ⓘ；露出數由 lbxFit 量測）----
+  // ---- 199a-T5：文字區第 3 列（女優放得下幾位就露幾位＋「另有 N 位」、作品資訊小膠囊＋ⓘ；露出數由 lbxFit 量測）----
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: [/x-effect="lbxFitSchedule\(\$el,\s*lbxFitSig\(/, /lbxFitMeasuring\(lbxFitSig\(/],
@@ -844,8 +844,22 @@ const RULES = [
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: '<span class="lbx-avatar"',
-    scope: { anchor: /<div class="lbx-measure" aria-hidden="true" inert>/, window: 360 }, // 實測 anchor 到 <span class="lbx-avatar" 結尾 272 字元（人物列量測層），加約 32% 餘裕
+    scope: { anchor: /<div class="lbx-measure" aria-hidden="true" inert>/, window: 410 }, // 實測 anchor 到 <span class="lbx-avatar" 結尾 314 字元（人物列量測層），加約 30% 餘裕
     note: '[lint-guard:199b-T1-measure-avatar] 量測層 chip 少了與頭像同尺寸的空圓 → 使用者開三位都收藏的片，量測層算出的 chip 比實際窄，名字被擠斷或「另有 N 位」的數字不對',
+  },
+
+  // ---- 207a-T5a：人物列人數開關與量測層副行 ----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-]):data-crowded="lbxActressList\(\)\.length >= 3"/,
+    scope: { anchor: /<div class="lbx-people-row"/, window: 480 }, // 實測 363 字元，餘裕約 32%
+    note: '[lint-guard:207a-T5a-crowded-wired] 人數開關缺失 → 使用者開三位以上女優的片，副行可能撐寬項目而同列少放人',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['class="lbx-actor-text"', 'class="lbx-actor-sub"', 'lbxActorSub(name)'],
+    scope: { anchor: /<div class="lbx-measure" aria-hidden="true" inert>/, window: 910 }, // 實測最遠 699 字元，餘裕約 30%
+    note: '[lint-guard:207a-T5a-measure-isomorphic] 量測層少了副行結構 → 使用者看到名字被擠斷或「另有 N 位」數字對不上',
   },
 
   // ---- 199b-T3：收藏女優小卡（滑過／聚焦／觸控頭像 → 往下浮出，純顯示）----

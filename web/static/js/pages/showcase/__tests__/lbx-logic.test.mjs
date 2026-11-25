@@ -295,3 +295,21 @@ test('test_source_duration_pill_shown_truth_table', async () => {
         assert.equal(sourceDurationPillShown(video), expected, label);
     }
 });
+
+test('test_actor_sub_segments_order_and_omit_missing', async () => {
+    const { actorSubSegments } = await import('../lbx-logic.js');
+    const t = k => ({ 'showcase.unit.age_suffix': 'y', 'search.unit.cup': 'cup' })[k];
+    const cases = [
+        [{ ageAtRelease: 22, height: '155cm', cup: 'D' }, ['age', 'height', 'cup'], ['22y', '155cm', 'Dcup']],
+        [{ ageAtRelease: 22, height: '', cup: 'D' }, ['age', 'cup'], ['22y', 'Dcup']],
+        [{ ageAtRelease: null, height: '155cm', cup: 'D' }, ['height', 'cup'], ['155cm', 'Dcup']],
+        [{ ageAtRelease: 0, height: undefined, cup: undefined }, ['age'], ['0y']],
+        [{ ageAtRelease: undefined, height: '', cup: '' }, [], []],
+    ];
+    for (const [input, ids, texts] of cases) {
+        const result = actorSubSegments({ ...input, t });
+        assert.deepEqual(result.map(x => x.id), ids);
+        assert.deepEqual(result.map(x => x.text), texts);
+        for (const { text } of result) assert.ok(!/null|undefined|NaN/.test(text));
+    }
+});

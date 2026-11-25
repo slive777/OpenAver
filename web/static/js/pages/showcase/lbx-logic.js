@@ -155,7 +155,7 @@ export function orderFavoritesFirst(names, isFav) {
 /**
  * actorFavsOf：影片女優頭像表（199b-T1，CD-199b-7）。key＝片上寫的名字（trim 過、同名只留一筆），
  * 只收 index.lookup(片上名字) 查得到的；name＝收藏名、photo_url＝當下的 a.photo_url（無照片為 ''）、
- * initial＝片上名字的第一個字（Array.from 處理代理對）。index 為空或沒有影片 ⇒ {}。純函式。
+ * initial＝片上名字的第一個字（Array.from 處理代理對），height／cup 缺值為 ''。index 為空或沒有影片 ⇒ {}。純函式。
  */
 export function actorFavsOf(video, index) {
     const out = {};
@@ -164,9 +164,17 @@ export function actorFavsOf(video, index) {
         if (Object.prototype.hasOwnProperty.call(out, name)) continue;
         const a = index.lookup(name);
         if (!a) continue;
-        out[name] = { name: a.name, photo_url: a.photo_url || '', initial: Array.from(name)[0] || '' };
+        out[name] = { name: a.name, photo_url: a.photo_url || '', initial: Array.from(name)[0] || '', height: a.height || '', cup: a.cup || '' };
     }
     return out;
+}
+
+export function actorSubSegments({ ageAtRelease, height, cup, t }) {
+    const segs = [];
+    if (ageAtRelease != null) segs.push({ id: 'age', text: ageAtRelease + t('showcase.unit.age_suffix') });
+    if (height) segs.push({ id: 'height', text: height });
+    if (cup) segs.push({ id: 'cup', text: cup + t('search.unit.cup') });
+    return segs;
 }
 
 /**
