@@ -10623,6 +10623,19 @@ const RULES = [
   { file: "web/templates/_macros/lbx_search_pop_host.html", kind: "required-string", scope: { anchor: /<template\ x\-if="lbxPop">/, window: 6510 }, pattern: ["lbxPop.kind === 'title'", "lbxPop.kind === 'otitle'", "lbxPop.kind === 'actresses'", "lbxPop.kind === 'info'", "lbxPop.kind === 'plot'", "lbxPop.kind === 'actorCard'"], id: '207b-T3a-pop-kinds', note: '[lint-guard:207b-T3a-pop-kinds] 搜尋燈箱結構與接線。' },
   { file: "web/templates/_macros/lbx_search_pop_host.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-pop\-info">/, window: 3030 }, pattern: ["lbxInfoHas('number')", "lbxInfoHas('maker')", "lbxInfoHas('label')", "lbxInfoHas('series')", "lbxInfoHas('director')", "lbxInfoHas('release')", "lbxInfoHas('source_duration')"], id: '207b-T3a-info-rows', note: '[lint-guard:207b-T3a-info-rows] 搜尋燈箱結構與接線。' },
 
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', stripLineComments: true,
+    pattern: [/(?<![\w:-])import\s*\{\s*shouldYieldVerticalWheel\s*\}\s*from\s*'@\/shared\/lbx-wheel\.js';/, /(?<![\w:-])if \(vertical && shouldYieldVerticalWheel\(event\.target\)\) return;/],
+    id: '207b-T3c-wheel-showcase', note: '[lint-guard:207b-T3c-wheel-showcase] 燈箱滾輪共用判定缺失。' },
+  { file: 'web/static/js/pages/search/state/navigation.js', kind: 'required-string', stripLineComments: true,
+    pattern: [/(?<![\w:-])import\s*\{\s*shouldYieldVerticalWheel\s*\}\s*from\s*'@\/shared\/lbx-wheel\.js';/, /(?<![\w:-])if \(vertical && shouldYieldVerticalWheel\(event\.target\)\) return;/],
+    id: '207b-T3c-wheel-search', note: '[lint-guard:207b-T3c-wheel-search] 搜尋燈箱滾輪共用判定缺失。' },
+  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /^\s*closeLightbox\s*\([^)]*\)\s*\{/m, braceBalanced: true }, pattern: /(?<![\w.])this\.lbxPopClose\?\.\(\{ immediate: true \}\)/,
+    id: '207b-T3c-close-reset', note: '[lint-guard:207b-T3c-close-reset] 關燈箱時浮層未同步關閉。' },
+  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /^\s*openLightbox\s*\([^)]*\)\s*\{/m, braceBalanced: true }, pattern: /(?<![\w.])this\.\$nextTick\(\(\) => this\.lbxMetaToTop\?\.\(\)\);/,
+    id: '207b-T3c-open-top', note: '[lint-guard:207b-T3c-open-top] 開啟燈箱時文字區未回頂。' },
+
 ];
 
 // ---- helpers ----

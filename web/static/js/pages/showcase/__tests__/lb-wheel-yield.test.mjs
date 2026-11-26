@@ -39,7 +39,7 @@ export async function resolve(specifier, context, nextResolve) {
 `;
 register(`data:text/javascript,${encodeURIComponent(loaderCode)}`, import.meta.url);
 
-const { shouldYieldVerticalWheel } = await import('../state-lightbox.js');
+const { shouldYieldVerticalWheel } = await import('@/shared/lbx-wheel.js');
 
 // 極小 selector 求值：逗號切多個選擇器；每個由 `.class` 與 `:not(.class)` token 組成。
 function matches(node, selector) {

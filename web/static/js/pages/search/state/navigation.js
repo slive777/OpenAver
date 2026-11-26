@@ -4,16 +4,12 @@
  */
 import { detectSwipe } from '@/shared/swipe.js';
 import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/wheel-nav.js';
+import { shouldYieldVerticalWheel } from '@/shared/lbx-wheel.js';
 import { buildSearchUrl, MAKER_PAGE_SIZE } from '@/search/search-url.js';
 
 // 排除清單容器（橫向捲動列表/表格）：命中即整條 wheel handler 提早 return，
 // 讓原生橫向捲動不受影響（見 TASK-102d-T1.md「技術要點」排除清單段）。
 const WHEEL_EXCLUDE_SELECTOR = '.sample-strip, .sg-thumbs, .picker-candidates-grid, .table-scroll-container, .overflow-x-auto';
-// 102d P2b（owner 拍板 2026-07-19）：overlay 內可垂直捲動的子容器（lightbox metadata 面板，
-// search.css:949 `.lightbox-metadata{overflow-y:auto}`）——垂直滾輪命中時交還原生捲動，
-// 不吃導航。Search detail 頁（`.av-card-full-info`）不在此清單：detail 不是 overlay，
-// vertical 分支在 handleWheel 頂端就已對非 overlay 狀態早退，不會走到本排除檢查。
-const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata';
 
 export function searchStateNavigation() {
     // 三個獨立累積器（Search Detail / Search 劇照 / Search Lightbox）——各自閉包狀態，
@@ -314,6 +310,7 @@ export function searchStateNavigation() {
         // T2a: Lightbox 鍵盤導航（sampleGalleryOpen 已排除後處理）
         if (this.lightboxOpen) {
             if (event.key === 'Escape') {
+                if (this.lbxPop) { event.preventDefault(); this.lbxPopClose({ restoreFocus: true }); return; }
                 event.preventDefault();
                 this.closeLightbox();  // closeLightbox handles kill + cleanup + generation++
                 return;
@@ -368,7 +365,7 @@ export function searchStateNavigation() {
         // 排除清單容器：原生橫向捲動優先，不吃導航。
         if (event.target.closest(WHEEL_EXCLUDE_SELECTOR)) return;
         // overlay 內可垂直捲動的子容器（metadata 面板）：垂直滾輪交還原生捲動。
-        if (vertical && event.target.closest(WHEEL_VERTICAL_EXCLUDE_SELECTOR)) return;
+        if (vertical && shouldYieldVerticalWheel(event.target)) return;
 
         // rescrape 彈窗開啟時鎖所有快捷輸入（比照 handleKeydown）
         if (this.rescrapeOpen) return;
