@@ -10585,6 +10585,19 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: /(?<![\w:-])x-for="\w+ in (ollamaModels|geminiModels|claudeModels|openaiOfficialModels|openaiModels|openaiGroupModelsOf\(g\.id\))"/, id: '206c-T6-no-raw-model-xfor', note: '[lint-guard:206c-T6-no-raw-model-xfor] 使用者須看到已存模型選項。' },
   { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s*this\.ollamaModels = this\.form\.ollamaModel \? \[this\.form\.ollamaModel\] : \[\];\s*$/m, id: '206c-T6-ollama-seed', note: '[lint-guard:206c-T6-ollama-seed] 使用者開啟設定頁時須看到已存 Ollama 模型。' },
 
+
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])stateLightboxPop\(\{/, braceBalanced: true },
+    pattern: [/(?<![\w.])getVideo\s*:\s*\(\s*\w+\s*\)\s*=>\s*\w+\.lbxView\(\)/, /(?<![\w.])avatarClick\s*:/, /(?<![\w.])metaRef\s*:/, /(?<![\w.])hostRef\s*:/],
+    id: '207b-T1-pop-options', note: '[lint-guard:207b-T1-pop-options] 燈箱選項缺失 → 女優列空白、頭像離開搜尋或兩個燈箱互刪捲動目標。' },
+  { file: 'web/static/js/pages/search/state/lbx-view.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])lbxOpenSamples\s*\(\s*\)\s*\{/, braceBalanced: true },
+    pattern: /preview_sample_images\?\.\[i\]\s*\|\|\s*\w+/,
+    id: '207b-T1-samples-proxy-or', note: '[lint-guard:207b-T1-samples-proxy-or] 劇照代理回退缺失 → 劇照廊破圖或載入原圖大檔。' },
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', stripLineComments: true,
+    pattern: /(?<![\w:-])\$watch\(\s*\(\)\s*=>\s*this\.lbxViewKey\(\)\s*,\s*\(\)\s*=>\s*\{\s*this\.lbxPopClose\?\.\(\{ immediate: true \}\);\s*this\.lbxMetaToTop\?\.\(\);?\s*\}\s*\)/,
+    id: '207b-T1-watch-view-key', note: '[lint-guard:207b-T1-watch-view-key] 換片監聽缺失 → 文字停在上一部的位置且舊浮層仍顯示。' },
+
 ];
 
 // ---- helpers ----

@@ -15,6 +15,10 @@ import { searchStateEmptyExplainer } from '@/search/state/empty-explainer.js';
 import { searchStateMakerLatest }    from '@/search/state/maker-latest.js';
 import { searchStateBlankCard }      from '@/search/state/blank-card.js';
 import { searchStateImageSearch }    from '@/search/state/image-search.js';
+import { searchStateLbxView } from '@/search/state/lbx-view.js';
+import { stateLightboxPop } from '@/showcase/state-lightbox-pop.js';
+import { stateLightboxFit } from '@/showcase/state-lightbox-fit.js';
+import { stateLightboxApFit } from '@/showcase/state-lightbox-apfit.js';
 import { mergeState }              from '@/shared/merge-state.js';
 import { dragKindOf }              from '@/search/image-search-rules.js';
 
@@ -44,6 +48,15 @@ export function searchPage() {
         searchStateMakerLatest(),
         searchStateBlankCard(),
         searchStateImageSearch(),
+        searchStateLbxView(),
+        stateLightboxPop({
+            getVideo: (s) => s.lbxView(),
+            avatarClick: () => {},
+            metaRef: (s) => (s.lbxOwner() === 'wishlist' ? 'lbxMetaW' : 'lbxMeta'),
+            hostRef: (s) => (s.lbxOwner() === 'wishlist' ? 'lbxPopHostW' : 'lbxPopHost'),
+        }),
+        stateLightboxFit(),
+        stateLightboxApFit(),
         {
             // ===== 頁面組裝層 lifecycle（從 state/index.js 搬移）=====
             _armDragHeartbeat(e) {
@@ -150,6 +163,10 @@ export function searchPage() {
                 });
                 this.$watch('searchResults', () => {
                     this._setTimer('updateCoverHeight', () => this._updateCoverHeight(), 500);
+                });
+                this.$watch(() => this.lbxViewKey(), () => {
+                    this.lbxPopClose?.({ immediate: true });
+                    this.lbxMetaToTop?.();
                 });
             },
         }
