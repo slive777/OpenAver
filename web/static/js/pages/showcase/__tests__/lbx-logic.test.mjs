@@ -5,6 +5,23 @@ import assert from 'node:assert/strict';
 
 const { formatRuntime, bandParts } = await import('../lbx-logic.js');
 
+test('test_is_same_work_follows_membership_not_index_or_order', async () => {
+    const { isSameWork } = await import('../lbx-logic.js');
+    const work = (path, paths) => Object.defineProperty({ path }, '_versions', { value: paths.map((p) => ({ path: p })) });
+    const versions = [{ path: '/a' }, { path: '/b' }];
+    const [a, b] = versions.map((v) => Object.defineProperty(v, '_versions', { value: versions }));
+    assert.equal(isSameWork(b, a), true);
+    assert.equal(isSameWork(a, b), true);
+    assert.equal(isSameWork(work('/b', ['/a', '/b']), { path: '/a' }), true);
+    assert.equal(isSameWork(work('/b', ['/b', '/a']), a), true);
+    assert.equal(isSameWork(work('/c', ['/c']), a), false);
+    assert.equal(isSameWork({ number: ' abc ' }, { path: '/a', number: 'ABC' }), true);
+    assert.equal(isSameWork({ number: 'xyz' }, { path: '/a', number: 'ABC' }), false);
+    assert.equal(isSameWork(null, a), true);
+    assert.equal(isSameWork(a, null), false);
+    assert.equal(isSameWork(work('/new', ['/new']), work('/old', ['/old'])), false);
+});
+
 test('test_format_runtime_hours_minutes', () => {
     assert.equal(formatRuntime(123), '2:03');
     assert.equal(formatRuntime(59), '0:59');
@@ -67,13 +84,13 @@ test('test_menu_items_focal_item_follows_can_focal_and_sits_before_rescrape', as
 });
 
 // TASK-199a-T5：第 3 列女優露出數與作品資訊欄位。
-test('test_fit_actresses_caps_at_three_and_keeps_at_least_one', async () => {
+test('test_fit_actresses_default_has_no_cap_and_keeps_at_least_one', async () => {
     const { fitActresses } = await import('../lbx-logic.js');
     const chip = (n) => Array(n).fill(100);
     const base = { moreChipWidth: 60, gap: 10 };
 
-    // (a) 6 位、寬度充裕 → 上限 3
-    assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 5000 }), 3);
+    // (a) 6 位、寬度充裕 → 全數露出
+    assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 5000 }), 6);
     // (b) 連第 1 位都放不下 → 至少 1 位，不是 0
     assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 10 }), 1);
     // (c) 2 位、寬度充裕 → 兩位都露，沒有「另有」
@@ -82,6 +99,14 @@ test('test_fit_actresses_caps_at_three_and_keeps_at_least_one', async () => {
     assert.equal(2 - two, 0);
     // (d) 6 位、只夠 2 位＋more chip（2*100+10+60+10=280）→ 2
     assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 290 }), 2);
+});
+
+test('test_fit_actresses_exact_fit_leaves_slack_for_more_chip', async () => {
+    const { fitActresses } = await import('../lbx-logic.js');
+    const base = { chipWidths: Array(6).fill(100), moreChipWidth: 60, gap: 10 };
+    // 使用者在 1280×720 開 8 位以上女優合集、那一列剛好滿到邊 → 少露一位而不是每位名字被截掉一個字
+    assert.equal(fitActresses({ ...base, available: 280 }), 1);
+    assert.equal(fitActresses({ ...base, available: 282 }), 2);
 });
 
 test('test_work_info_fields_skip_empty_and_dup_label', async () => {
@@ -101,27 +126,6 @@ test('test_work_info_fields_skip_empty_and_dup_label', async () => {
     const rel = (o) => workInfoFields(full, o).find((f) => f.id === 'release').clickable;
     assert.equal(rel({ releaseClickable: false }), false);
     assert.equal(rel({ releaseClickable: true }), true);
-});
-
-test('test_fit_tag_row_user_tags_first_then_overflow_to_more', async () => {
-    const { fitTagRow } = await import('../lbx-logic.js');
-    const rep = (n, w) => Array(n).fill(w);
-    const base = { plusWidth: 28, moreChipWidth: 36, gap: 6 };
-
-    // (a) 寬度充裕：使用者標籤先排、全露；作品標籤用剩下的寬度，N = 13 - 6 = 7
-    const a = fitTagRow({ ...base, rowWidth: 1000, userWidths: rep(5, 60), workWidths: rep(13, 80) });
-    assert.equal(a.userShown, 5);
-    assert.equal(a.workShown, 6);
-    assert.equal(13 - a.workShown, 7);
-
-    // (b) 使用者標籤超過半行才收；作品標籤本來放得下 3 個，但因為有使用者標籤被收起，要為 +N 讓位 → 2 個，N = (3-2) + (4-2) = 3
-    const b = fitTagRow({ ...base, rowWidth: 400, userWidths: rep(4, 60), workWidths: rep(3, 70) });
-    assert.equal(b.userShown, 2);
-    assert.equal(b.workShown, 2);
-    assert.equal(3 - b.workShown + (4 - b.userShown), 3);
-
-    // (c) 都沒有標籤 → 0／0
-    assert.deepEqual(fitTagRow({ ...base, rowWidth: 1000, userWidths: [], workWidths: [] }), { userShown: 0, workShown: 0 });
 });
 
 // TASK-199b-T2：收藏者優先穩定分組（純函式）。
@@ -278,4 +282,42 @@ test('test_adv_edit_files_view_and_action_notices', async () => {
     const t = k => k;
     const cases = [['regen', { success: true, poster: { status: 'updated' } }, 'poster_updated', true], ['regen', { success: true, poster: { status: 'skipped' } }, 'poster_skipped', false], ['regen', { success: true, poster: { status: 'failed' } }, 'poster_failed', false], ...[['generic_cover_name','poster_generic_cover'],['no_cover','poster_no_cover'],['readonly_output_not_current','poster_readonly_output'],['unreachable','unreachable']].map(([error,key]) => ['regen', { success: false, error }, key, false]), ['regen', null, 'poster_failed', false], ...[['ok','reread_done',true],['failed','media_failed',true],['unreadable','reread_unreadable',false],['stale','reread_stale',false],['changed','reread_changed',false],['timeout','reread_timeout',false],['unavailable','reread_unavailable',false],['skipped','reread_skipped',false]].map(([status,key,reload]) => ['reread', { success: true, status }, key, reload]), ['reread', { success: true, status: 'changed', readonly: true }, 'reread_changed_readonly', false], ['reread', { success: false, error: 'unreachable' }, 'unreachable', false], ['reread', null, 'reread_error', false]];
     for (const [kind, data, key, reload] of cases) { const notice = advEditActionNotice(kind, data, t); assert.equal(notice.text, `showcase.adv_edit.files.${key}`); assert.equal(notice.reload, reload); }
+});
+
+// TASK-207a-T1：來源片長膠囊去重判準（sourceDurationPillShown 真值表）。
+test('test_source_duration_pill_shown_truth_table', async () => {
+    const { sourceDurationPillShown } = await import('../lbx-logic.js');
+    const cases = [
+        ['來源缺 key → 藏', {}, false],
+        ['來源 0 → 藏', { source_duration: 0, media_duration_min: 100 }, false],
+        ['來源 null → 藏', { source_duration: null, media_duration_min: 100 }, false],
+        ['實際缺 key（undefined）→ 顯示', { source_duration: 100 }, true],
+        ['實際 null → 顯示', { source_duration: 100, media_duration_min: null }, true],
+        ['實際 <1 分鐘 → 顯示', { source_duration: 100, media_duration_min: 0.4 }, true],
+        ['差 <30% → 藏', { source_duration: 100, media_duration_min: 90 }, false],
+        ['恰 30%（70 vs 100）→ 藏', { source_duration: 100, media_duration_min: 70 }, false],
+        ['殘檔 0:42 vs 139 → 顯示', { source_duration: 139, media_duration_min: 42 }, true],
+        ['無影片 → 藏', null, false],
+    ];
+    for (const [label, video, expected] of cases) {
+        assert.equal(sourceDurationPillShown(video), expected, label);
+    }
+});
+
+test('test_actor_sub_segments_order_and_omit_missing', async () => {
+    const { actorSubSegments } = await import('../lbx-logic.js');
+    const t = k => ({ 'showcase.unit.age_suffix': 'y', 'search.unit.cup': 'cup' })[k];
+    const cases = [
+        [{ ageAtRelease: 22, height: '155cm', cup: 'D' }, ['age', 'height', 'cup'], ['22y', '155cm', 'Dcup']],
+        [{ ageAtRelease: 22, height: '', cup: 'D' }, ['age', 'cup'], ['22y', 'Dcup']],
+        [{ ageAtRelease: null, height: '155cm', cup: 'D' }, ['height', 'cup'], ['155cm', 'Dcup']],
+        [{ ageAtRelease: 0, height: undefined, cup: undefined }, ['age'], ['0y']],
+        [{ ageAtRelease: undefined, height: '', cup: '' }, [], []],
+    ];
+    for (const [input, ids, texts] of cases) {
+        const result = actorSubSegments({ ...input, t });
+        assert.deepEqual(result.map(x => x.id), ids);
+        assert.deepEqual(result.map(x => x.text), texts);
+        for (const { text } of result) assert.ok(!/null|undefined|NaN/.test(text));
+    }
 });

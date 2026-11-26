@@ -14,6 +14,7 @@ import { computeBadges, resolveEnabledIds } from '@/shared/cover-badges.js';
 import { formatPartLabel } from '@/shared/part-label.js';
 import { computeActorAgesMap, singleActorAge } from '@/shared/actress-release-age.js';
 import { versionsOf } from './work-versions.js';
+import { isSameWork } from './lbx-logic.js';
 
 // 53a codex F3: $persist 對 localStorage 壞 JSON 沒 try/catch（會在 Alpine init 階段拋錯炸整頁），
 // 必須在 Alpine.data 註冊前先清掃壞值，讓 $persist fallback 走預設物件
@@ -563,6 +564,7 @@ export function stateBase() {
             this.$watch('currentLightboxVideo?.path', () => { this._lbPlotReset?.(); if (this.lbPlotRowVisible?.()) this._lbPlotLoad?.(); })
             this.$watch('currentLightboxVideo?.has_plot', () => { if (this.lbPlotRowVisible?.() && this._lbPlotView?.path !== this.currentLightboxVideo?.path) this._lbPlotLoad?.(); })
             this.$watch('currentLightboxVideo?.path', () => { this.lbxPopClose?.({ immediate: true }); })
+            this.$watch('currentLightboxVideo', (nv, ov) => { if (!isSameWork(nv, ov)) this.lbxMetaToTop?.(); })
             // 100b-T2a（§B-1c 姊妹 watcher）：actress→actress 切換用（x-if 不重新掛載，watcher
             // 夠用）。video→actress／actress→video 的掛載瞬間已由 _setActressLightboxIndex()／
             // prevLightboxVideo()／nextLightboxVideo() 內的同步 _resetMask() 擋住（gotchas-frontend

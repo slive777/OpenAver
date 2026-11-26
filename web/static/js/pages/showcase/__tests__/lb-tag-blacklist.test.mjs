@@ -56,7 +56,6 @@ function makeComponent(overrides) {
         addingLbTag: true,
         newLbTagValue: 'TESTTAG',
         currentLightboxVideo: { path: PATH, user_tags: [] },
-        lbxFit: { workTagShown: 1, userTagShown: 0 },
         $nextTick(fn) { if (typeof fn === 'function') fn(); },
         $refs: {},
         toasts,
@@ -73,15 +72,6 @@ test('test_lightbox_work_tag_dedup_with_user_tag', () => {
         video.user_tags = [];
         assert.deepEqual(c.lbxWorkTags(), ['女僕', '巨乳']);
         assert.deepEqual(workTagsOf({ tags: '舊字', tags_display: '' }), []);
-    } finally { _setHiddenTagKeys([]); }
-});
-
-test('test_lightbox_more_count_uses_displayed_tags', () => {
-    try {
-        const c = makeComponent({ currentLightboxVideo: {
-            tags: '中出,巨乳,女僕,隱藏,舊字', tags_display: '中出,巨乳,女僕', user_tags: ['メイド'],
-        } });
-        assert.equal(c.lbxTagMoreCount(), 3);
     } finally { _setHiddenTagKeys([]); }
 });
 

@@ -789,7 +789,7 @@
                             <span class="lb-tag">喜劇</span>
                             <span class="adv-edit-tag">標籤</span>
                             <span class="adv-edit-tag adv-edit-tag--mine">你的標籤</span>
-                            <div class="lbx-tags-pop"><div class="lbx-tags-pop-list"><span class="lb-tag lbx-utag"><span class="lbx-utag-link">自訂標籤</span><button type="button" class="lbx-utag-x" style="pointer-events: none;" tabindex="-1" aria-hidden="true">×</button></span></div></div>
+                            <div class="lbx-tag-row" style="min-height: 0; pointer-events: none;"><span class="lb-tag lbx-utag"><span class="lbx-utag-link">自訂標籤</span><button type="button" class="lbx-utag-x" style="pointer-events: none;" tabindex="-1" aria-hidden="true">×</button></span></div>
                             <button type="button" class="maker-latest-chip" style="pointer-events: none;">示例片商</button>
                             <button type="button" class="lb-tag lbx-vcap is-active" style="pointer-events: none;" tabindex="-1">FHD 中字</button>
                         </div>
@@ -948,7 +948,7 @@
                     <div class="ds-pill-card">
                         <div class="ds-pill-card-demo" style="display: block;">
                             <div class="lbx-people-row" style="min-height: 0; margin-top: 0; flex-wrap: wrap; min-width: 0; pointer-events: none;">
-                                <div class="lbx-works" style="flex: 0 1 auto; min-width: 0; flex-wrap: wrap;">
+                                <div class="lbx-works" style="flex: 0 1 auto; min-width: 0; flex-wrap: wrap; margin-inline-start: 0;">
                                     <span class="lb-tag lbx-work lbx-work--num">ABC-123</span>
                                     <span class="lb-tag lbx-work lbx-work--maker">示例片商</span>
                                     <span class="lb-tag lbx-work lbx-work--series">示例系列</span>
@@ -959,7 +959,7 @@
                         </div>
                         <div class="ds-pill-card-meta">
                             <span class="ds-pill-card-class">作品資訊 pill · <code>.lb-tag.lbx-work</code> / <code>.lbx-more-actors</code></span>
-                            <p class="ds-pill-card-desc">tonal 中性色（無 accent）；寬度不夠時由右往左省略，全部收在 ⓘ 浮層</p>
+                            <p class="ds-pill-card-desc">tonal 中性色（無 accent）；放得下與女優同一行，放不下掉到下一列；過長的系列／片商以省略號收尾，全名在 ⓘ 浮層</p>
                             <code class="ds-pill-card-token">--text-primary 8% tint · --text-secondary · --radius-pill</code>
                         </div>
                     </div>
@@ -1079,7 +1079,7 @@
                         </div>
                         <div class="ds-pill-card-meta">
                             <span class="ds-pill-card-class">女優小卡 · <code>.lbx-pop[data-kind="actorCard"]</code> / <code>.lbx-actor-card</code></span>
-                            <p class="ds-pill-card-desc">照片塊固定尺寸（圖載入前後浮層大小不變）；只能看、不能點；示意裡的照片塊留空</p>
+                            <p class="ds-pill-card-desc">照片塊隨視窗寬度放大（桌機約 150×200 至 180×240、手機與矮視窗 108×144），圖載入前後浮層大小不變；位於頭像右側、不蓋封面（示意為靜態）；只能看、不能點</p>
                             <code class="ds-pill-card-token">--surface-2 · --stroke-default · --text-secondary · --radius-sm</code>
                         </div>
                     </div>

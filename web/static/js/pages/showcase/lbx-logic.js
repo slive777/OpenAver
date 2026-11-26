@@ -6,6 +6,8 @@
  * 只用相對 import（FE-GUARD-11）；本檔零 Alpine、零 window。
  */
 
+import { sameWork, sameNumber } from './work-versions.js';
+
 export function formatRuntime(min) {
     const total = Math.round(Number(min));
     if (!Number.isFinite(total) || total < 1) return '';
@@ -27,11 +29,23 @@ export function bandParts(video, { formatSize, formatRuntime }) {
  * placePop：浮層位置（199a-T3，CD-199a-4）。
  * mode 是「位置模式」：'below'＝錨點下緣＋gap；'inplace'＝錨點上緣−4（T4 的片名／原文才用）。
  * 恆不低於封面下緣＋4（浮層不蓋封面）；超出視窗底就上移；interactive（點開類）一律回 maxHeight（視窗底−top）讓內容長高時在浮層內捲，純閱讀類不內捲。
+ * 'right'＝卡片左緣貼錨點右側＋gap、上緣先對齊錨點上緣（寫真卡用；放不下往上挪但不低於封面下緣＋4，極矮才縮照片回 shrink）。
  * align：'left'（預設）左緣對齊錨點；'right' 右緣對齊錨點（⋯ 選單）。
  */
-export function placePop({ anchorRect, coverBottom, vw, vh, popSize, mode, align = 'left', interactive = false, margin = 8, gap = 6 }) {
+export function placePop({ anchorRect, coverBottom, vw, vh, popSize, mode, align = 'left', interactive = false, margin = 8, gap = 6, shrinkMax = 0 }) {
     const floor = coverBottom + 4;
     const bottomLimit = vh - margin;
+    if (mode === 'right') {
+        const cap = Number(shrinkMax);
+        const limit = !Number.isFinite(cap) || cap < 0 ? 0 : cap;
+        let top = Math.max(anchorRect.top, floor);
+        const over = top + popSize.h - bottomLimit;
+        if (over > 0) top = Math.max(floor, top - over);
+        const left = Math.min(Math.max(anchorRect.right + gap, margin), Math.max(margin, vw - popSize.w - margin));
+        const shrink = Math.min(limit, Math.max(0, top + popSize.h - bottomLimit));
+        const maxHeight = top + popSize.h - shrink > bottomLimit ? Math.max(0, bottomLimit - top) : undefined;
+        return { left, top, maxHeight, shrink };
+    }
     let top = mode === 'inplace' ? anchorRect.top - 4 : anchorRect.bottom + gap;
     top = Math.max(top, floor);
     if (top + popSize.h > bottomLimit) top = Math.max(floor, bottomLimit - popSize.h);
@@ -69,7 +83,7 @@ export function menuItems(video, { sampleCount, trVisible, hasPath, canFocal }) 
 /** popPlacement：各 kind 的位置模式與水平對齊（199a-T4）。 */
 export function popPlacement(kind) {
     if (kind === 'title' || kind === 'otitle') return { mode: 'inplace', align: 'left' };
-    if (kind === 'actorCard') return { mode: 'below', align: 'left' };
+    if (kind === 'actorCard') return { mode: 'right', align: 'left' };
     if (kind === 'menu') return { mode: 'below', align: 'right' };
     if (kind === 'info') return { mode: 'below', align: 'right' };
     return { mode: 'below', align: 'left' };
@@ -81,17 +95,20 @@ export function hasDistinctOtitle(video) {
     return !!o && o !== String(video?.title || '').trim();
 }
 
+// 量測層「另有 N 位」的位數可能比實際顯示的窄 1px，有收起人時多留 2px。
+const FIT_MORE_SLACK = 2;
+
 /**
- * fitActresses：第 3 列女優露出數（199a-T5，CD-199a-9）。最多 max 位、至少 min 位（不足人數時取人數）；
+ * fitActresses：第 3 列女優露出數（199a-T5，CD-199a-9）。預設不設上限、至少 min 位（不足人數時取人數）；
  * 放不下就逐位減少，有被收起的人時要多留「另有 N 位」那顆的寬度。輸入都是量到的寬度（px），純函式。
  */
-export function fitActresses({ chipWidths, moreChipWidth, available, gap, max = 3, min = 1 }) {
+export function fitActresses({ chipWidths, moreChipWidth, available, gap, max = Infinity, min = 1 }) {
     const n = chipWidths.length;
     let shown = Math.min(max, n);
     const floor = Math.min(min, n);
     for (; shown > floor; shown -= 1) {
         const used = chipWidths.slice(0, shown).reduce((a, w) => a + w, 0) + gap * (shown - 1);
-        const more = shown < n ? moreChipWidth + gap : 0;
+        const more = shown < n ? moreChipWidth + gap + FIT_MORE_SLACK : 0;
         if (used + more <= available) break;
     }
     return shown;
@@ -120,6 +137,14 @@ export function workInfoFields(video, { releaseClickable = false } = {}) {
     return fields;
 }
 
+/** sourceDurationPillShown：文字區「來源 xxx 分」膠囊是否顯示（207a-T1，CD-207a-9）。實際片長可信（≥1 分鐘且與來源差 ≤30%）時藏起避免重複；其餘照舊顯示。 */
+export function sourceDurationPillShown(video) {
+    if (!video) return false;
+    if (!(Number(video.source_duration) > 0)) return false;
+    if (formatRuntime(video.media_duration_min) === '') return true;
+    return Math.abs(Number(video.media_duration_min) - Number(video.source_duration)) / Number(video.source_duration) > 0.3;
+}
+
 /**
  * fitSig：量測簽章（199a-T5，CD-199a-9）。簽章變 ⇒ 重量測；分隔字元避免欄位內容互相拼出相同字串。
  * favKey（199b-T1）：頭像表的鍵集合（頭像會讓 chip 變寬，頭像表一變就要重量）；空字串＝與舊版逐字相同。
@@ -145,7 +170,7 @@ export function orderFavoritesFirst(names, isFav) {
 /**
  * actorFavsOf：影片女優頭像表（199b-T1，CD-199b-7）。key＝片上寫的名字（trim 過、同名只留一筆），
  * 只收 index.lookup(片上名字) 查得到的；name＝收藏名、photo_url＝當下的 a.photo_url（無照片為 ''）、
- * initial＝片上名字的第一個字（Array.from 處理代理對）。index 為空或沒有影片 ⇒ {}。純函式。
+ * initial＝片上名字的第一個字（Array.from 處理代理對），height／cup 缺值為 ''。index 為空或沒有影片 ⇒ {}。純函式。
  */
 export function actorFavsOf(video, index) {
     const out = {};
@@ -154,9 +179,17 @@ export function actorFavsOf(video, index) {
         if (Object.prototype.hasOwnProperty.call(out, name)) continue;
         const a = index.lookup(name);
         if (!a) continue;
-        out[name] = { name: a.name, photo_url: a.photo_url || '', initial: Array.from(name)[0] || '' };
+        out[name] = { name: a.name, photo_url: a.photo_url || '', initial: Array.from(name)[0] || '', height: a.height || '', cup: a.cup || '' };
     }
     return out;
+}
+
+export function actorSubSegments({ ageAtRelease, height, cup, t }) {
+    const segs = [];
+    if (ageAtRelease != null) segs.push({ id: 'age', text: ageAtRelease + t('showcase.unit.age_suffix') });
+    if (height) segs.push({ id: 'height', text: height });
+    if (cup) segs.push({ id: 'cup', text: cup + t('search.unit.cup') });
+    return segs;
 }
 
 /**
@@ -180,30 +213,6 @@ export function actorCardLines(entity, { ageAtRelease, count, t }) {
     if (body.length) rows.push({ id: 'body', text: body.join(' · ') });
     if (count != null) rows.push({ id: 'count', text: t('showcase.lightbox.actor_card_count', { n: count }) });
     return { name: entity.name, photo: entity.photo_url || '', rows };
-}
-
-/**
- * fitTagRow：第 5 列標籤露出數（199a-T7，CD-199a-13）。使用者標籤先排（右區，上限＝列寬 × userMaxRatio，「＋」永遠先算進去），
- * 作品標籤用剩下的寬度；只要有任何標籤被收起（作品或使用者）就要為「+N」預留一顆寬度。輸入都是量到的寬度（px），純函式。
- */
-export function fitTagRow({ userWidths, workWidths, plusWidth, moreChipWidth, rowWidth, gap, userMaxRatio = 0.5 }) {
-    const budget = rowWidth * userMaxRatio;
-    let userShown = 0;
-    let right = plusWidth;
-    for (; userShown < userWidths.length; userShown += 1) {
-        const next = right + gap + userWidths[userShown];
-        if (next > budget) break;
-        right = next;
-    }
-    const userHidden = userWidths.length - userShown;
-    const left = right > 0 ? rowWidth - right - gap : rowWidth;
-    let workShown = workWidths.length;
-    for (; workShown > 0; workShown -= 1) {
-        const used = workWidths.slice(0, workShown).reduce((a, w) => a + w, 0) + gap * (workShown - 1);
-        const more = workWidths.length - workShown + userHidden > 0 ? moreChipWidth + gap : 0;
-        if (used + more <= left) break;
-    }
-    return { userShown, workShown };
 }
 
 /** parseWorkTags：影片的作品標籤（逗號分隔、去空白、去空字串）。 */
@@ -380,4 +389,10 @@ export function stripRevealPlan({ trigger, lightboxOpen, lightboxAnimating }) {
     if (trigger === 'next') return { play: true, photo: false, films: true, next: false };
     if (trigger === 'appear' && !lightboxAnimating) return { play: true, photo: true, films: true, next: true };
     return { play: false, photo: false, films: false, next: false };
+}
+export function isSameWork(nv, ov) {
+    if (!nv) return true;
+    if (!ov) return false;
+    if (nv.path && ov.path) return sameWork(ov, nv) || sameWork(nv, ov);
+    return sameNumber(nv.number, ov.number);
 }

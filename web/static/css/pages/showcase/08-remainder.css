@@ -2016,13 +2016,14 @@ body.sidebar-collapsed .showcase-footer {
 .av-card-preview:hover .cover-badges-part { opacity: 0; }
 
 /* 121d-T2: 燈箱標籤整組下移，讓開常駐的魔法棒。只覆寫 top，其餘繼承 base。
+   207a-T8 加寬（8px → 16px，spec-207a §7-1）。
    為什麼是兩個值：魔法棒 `.lightbox-similar-btn` 相對 `.lightbox-content` 的 padding box
    定位（top:1rem、高 44px ⇒ 下緣恆在內距邊起算 60px）；封面 `.lightbox-cover` 是該 flex
    容器的第一個 in-flow 項目（上緣＝padding 值）。桌機 padding 1.5rem ⇒ 需淨距 60−24＝36px、
-   取 44px（間距 8px）；≤768px padding 降成 1rem（showcase.css:1894-1899）⇒ 需淨距
-   60−16＝44px、取 52px（間距 8px）。只寫一個 2.75rem 的話手機上間距會歸零。 */
-.lightbox-cover .cover-badges { top: 2.75rem; }
+   取 52px（間距約 16px）；≤768px padding 降成 1rem（showcase.css:1894-1899）⇒ 需淨距
+   60−16＝44px、取 60px（間距約 16px）。若只寫桌機那一個值，手機上間距會縮到 8px。 */
+.lightbox-cover .cover-badges { top: 3.25rem; }
 
 @media (max-width: 768px) {
-    .lightbox-cover .cover-badges { top: 3.25rem; }
+    .lightbox-cover .cover-badges { top: 3.75rem; }
 }

@@ -80,10 +80,6 @@ test('shouldYieldVerticalWheel：只有「可捲且真的溢出」或女優／�
         const pop = el(['lbx-pop'], el(['lightbox-content']));
         assert.equal(shouldYieldVerticalWheel(el(['lbx-pop-body'], pop)), true);
     });
-    await t.test('影片 .lbx-meta 閘內 overflow:hidden 但內容溢出（舊內容被截）→ false：滾輪照樣換片', () => {
-        const meta = el(['lightbox-metadata', 'lbx-meta'], null, { overflowY: 'hidden', scrollHeight: 700, clientHeight: 221 });
-        assert.equal(shouldYieldVerticalWheel(el(['lb-row'], meta)), false);
-    });
 });
 
 // TASK-199b-T4: 女優資料區（.lbx-ap-meta）平常 overflow:hidden＝捲不動，滾輪必須換人；展開後可捲且真溢出才交還。

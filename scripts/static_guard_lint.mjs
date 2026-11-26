@@ -704,6 +704,17 @@ const RULES = [
     note: '[lint-guard:199a-T3-watch-close] 換片 $watch 少了 lbxPopClose → 使用者在膠囊上開著檔案提示時換到下一部片，上一部片的檔名與規格還浮在畫面上、內容對不上目前這部',
   },
   {
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', stripLineComments: true,
+    pattern: [/import\s*\{\s*isSameWork\s*\}\s*from\s*'\.\/lbx-logic\.js'/, /(?<![\w:-])\$watch\('currentLightboxVideo',\s*\(nv, ov\)\s*=>\s*\{\s*if \(!isSameWork\(nv, ov\)\)\s*this\.lbxMetaToTop\?\.\(\);?\s*\}\)/],
+    note: '[lint-guard:207a-T2-watch-meta-top] 換片回頂接線缺失 → 使用者會看到上一部片的捲動位置',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    scope: /<div class="lightbox-metadata lbx-meta"[^>]*>/,
+    pattern: [/(?<![\w:-])x-ref="lbxMeta"/, /(?<![\w:-])@scroll\.passive="lbxPopClose\(\)"/],
+    note: '[lint-guard:207a-T2-meta-scroll-ref] 文字區捲動接線缺失 → 使用者換片不回頂或捲動後浮層未關閉',
+  },
+  {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: ['@pointerdown.window="lbxPopOnPointerDown($event)"', '@resize.window="lbxPopClose()"'],
     scope: { anchor: /<div class="showcase-lightbox"/, window: 600 }, // 實測 anchor 到 @resize.window 結尾 452 字元，加約 30% 餘裕
@@ -790,7 +801,19 @@ const RULES = [
     note: '[lint-guard:199a-T4-menu-gates] lbxMenuItems 少了翻譯／劇照／對應檔／canFocal（has_cover＋lbIsBorrowed）條件 → 沒翻譯條件的片也看到「翻譯片名」、有劇照的片還出現「補劇照」（按下去重複向外站抓取）、沒有對應檔的片還能按「從收藏移除」、沿用版本或沒封面圖的片也看到「調整海報裁切」',
   },
 
-  // ---- 199a-T5：文字區第 3 列（女優最多 3 位＋「另有 N 位」、作品資訊小膠囊＋ⓘ；露出數由 lbxFit 量測）----
+  // ---- 207a-T1：片長去重——實際片長可信時文字區藏掉重複的「來源 xxx 分」膠囊，ⓘ 那列永遠在 ----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-])x-show="lbxSrcPillShown\(\)"/,
+    scope: { anchor: /class="lb-tag lbx-work lbx-work--src"/, window: 90 }, // 實測 anchor 到 x-show 結尾 64 字元，加約 40% 餘裕（FE-GUARD-27）
+    note: '[lint-guard:207a-T1-src-pill-wired] 文字區「來源 xxx 分」膠囊少了 lbxSrcPillShown() 接線 → 實際片長已可信的片還重複顯示來源片長，使用者以為有兩種片長',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: '<div class="lbx-pop-row" x-show="lbxInfoHas(\'source_duration\')">',
+    note: '[lint-guard:207a-T1-info-src-kept] ⓘ 浮層少了「來源片長」那一列 → 使用者開實際片長可信的片，文字區膠囊藏起後兩頭都看不到來源片長',
+  },
+  // ---- 199a-T5：文字區第 3 列（女優放得下幾位就露幾位＋「另有 N 位」、作品資訊小膠囊＋ⓘ；露出數由 lbxFit 量測）----
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: [/x-effect="lbxFitSchedule\(\$el,\s*lbxFitSig\(/, /lbxFitMeasuring\(lbxFitSig\(/],
@@ -813,23 +836,37 @@ const RULES = [
     note: '[lint-guard:199b-T1-favs-clear] 女優載入失敗時沒有清空頭像表 → 使用者在女優資料載入失敗後開影片燈箱，名字前還掛著失敗前的頭像',
   },
   {
-    // 舊兩引數形式不得出現在模板任何地方（人物列 :class／x-effect、標籤列 :class 三處都要帶 lbxFavKey()）
+    // 舊兩引數形式不得出現在模板任何地方（人物列 :class／x-effect 兩處都要帶 lbxFavKey()）
     file: 'web/templates/showcase.html', kind: 'forbidden-string',
     pattern: /lbxFitSig\(currentLightboxVideo,\s*addingLbTag\)/,
-    note: '[lint-guard:199b-T1-favkey-all-sites] 有一個 lbxFitSig( 呼叫沒帶 lbxFavKey() → 使用者開任何一部有收藏女優的片，那一列（人物列或標籤列）的「量完了」簽章永遠對不上而整列看不見',
+    note: '[lint-guard:199b-T1-favkey-all-sites] 有一個 lbxFitSig( 呼叫沒帶 lbxFavKey() → 使用者開任何一部有收藏女優的片，那一列（人物列）的「量完了」簽章永遠對不上而整列看不見',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: '<span class="lbx-avatar"',
-    scope: { anchor: /<div class="lbx-measure" aria-hidden="true" inert>/, window: 360 }, // 實測 anchor 到 <span class="lbx-avatar" 結尾 272 字元（人物列那一個量測層，先出現；標籤列的量測層不放頭像），加約 32% 餘裕
+    scope: { anchor: /<div class="lbx-measure" aria-hidden="true" inert>/, window: 410 }, // 實測 anchor 到 <span class="lbx-avatar" 結尾 314 字元（人物列量測層），加約 30% 餘裕
     note: '[lint-guard:199b-T1-measure-avatar] 量測層 chip 少了與頭像同尺寸的空圓 → 使用者開三位都收藏的片，量測層算出的 chip 比實際窄，名字被擠斷或「另有 N 位」的數字不對',
+  },
+
+  // ---- 207a-T5a：人物列人數開關與量測層副行 ----
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: /(?<![\w:-]):data-crowded="lbxActressList\(\)\.length >= 3"/,
+    scope: { anchor: /<div class="lbx-people-row"/, window: 480 }, // 實測 363 字元，餘裕約 32%
+    note: '[lint-guard:207a-T5a-crowded-wired] 人數開關缺失 → 使用者開三位以上女優的片，副行可能撐寬項目而同列少放人',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ['class="lbx-actor-text"', 'class="lbx-actor-sub"', 'lbxActorSub(name)'],
+    scope: { anchor: /<div class="lbx-measure" aria-hidden="true" inert>/, window: 910 }, // 實測最遠 699 字元，餘裕約 30%
+    note: '[lint-guard:207a-T5a-measure-isomorphic] 量測層少了副行結構 → 使用者看到名字被擠斷或「另有 N 位」數字對不上',
   },
 
   // ---- 199b-T3：收藏女優小卡（滑過／聚焦／觸控頭像 → 往下浮出，純顯示）----
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: "lbxPop.kind === 'actorCard'",
-    scope: { anchor: /<div class="lbx-pop-host"/, window: 19500 }, // 實測 anchor 到 actorCard template 的 kind 判斷結尾 14990 字元（隔著 verTip／title／otitle／menu／actresses／info／plot／moreTags），加約 30% 餘裕
+    scope: { anchor: /<div class="lbx-pop-host"/, window: 19500 }, // 實測 anchor 到 actorCard template 的 kind 判斷結尾 13569 字元（隔著 verTip／title／otitle／menu／actresses／info／plot），加約 44% 餘裕
     note: '[lint-guard:199b-T3-card-in-host] 收藏女優小卡必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者把滑鼠停在頭像上什麼都看不到',
   },
   {
@@ -928,16 +965,7 @@ const RULES = [
     note: '[lint-guard:199a-T6-watch-has-plot] 少了 has_plot 的載入 watch → 使用者在燈箱裡補完讓片有了簡介，簡介列出現卻停在骨架，要關掉重開才看得到文字',
   },
 
-  // ---- 199a-T7：文字區第 5 列（作品標籤＋「+N」／你的標籤＋「＋」展開；Esc 先取消輸入）----
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: [
-      /<a\b(?=[^>]*\bclass="lbx-utag-link")(?=[^>]*@click\.prevent="searchFromMetadata\(tag, 'tag'\)")[^>]*>/,
-      'removeLbUserTag(tag)',
-    ],
-    scope: { anchor: /<template x-if="lbxPop\.kind === 'moreTags'"/, window: 2400 }, // 實測 anchor 到浮層內 removeLbUserTag(tag) 結尾 1785 字元，加約 34% 餘裕
-    note: '[lint-guard:199a-T7-utag-in-more-pop] 「+N」浮層裡「你的標籤」少了點擊篩選或 × 移除接線 → 被收進 +N 的自己的標籤點了沒反應、或刪不掉（可見層那顆餵不飽它：scope 在 moreTags 浮層內）',
-  },
+  // ---- 199a-T7：文字區第 5 列（作品標籤／你的標籤＋「＋」展開；Esc 先取消輸入）----
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'order',
     scope: { anchor: /handleKeydown\(e\) \{/, braceBalanced: true },
@@ -951,29 +979,14 @@ const RULES = [
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
     pattern: [
-      'lbxFitMeasuring(lbxFitSig(',
-      'data-lbx-anchor="moreTags"',
-      "lbxPopToggle('moreTags'",
       'showAddLbTagInput()',
       'removeLbUserTag(tag)',
       'x-ref="lbTagInput"',
       '@keydown.enter.stop="confirmAddLbTag()"',
       '@keydown.escape.stop="cancelAddLbTag()"',
     ],
-    scope: { anchor: /<div class="lbx-tag-row"/, window: 4200 }, // 實測 anchor 到最遠的 @keydown.escape.stop 結尾 3205 字元，加約 31% 餘裕
-    note: '[lint-guard:199a-T7-tag-row-wired] 第 5 列少了量測隱藏／+N 錨點／＋ 展開／× 移除／輸入框 Enter／Esc 任一接線 → 使用者換片後標籤列不重算或列永遠看不到、+N 點了收不掉、＋ 打開後輸入框 Enter／Esc 沒反應',
-  },
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: "lbxPop.kind === 'moreTags'",
-    scope: { anchor: /<div class="lbx-pop-host"/, window: 16200 }, // 實測 anchor 到 moreTags template 的 kind 判斷結尾 12377 字元（隔著 verTip／title／otitle／menu／actresses／info／plot），加約 31% 餘裕
-    note: '[lint-guard:199a-T7-pop-in-host] 「+N」浮層內容必須畫在浮層宿主 .lbx-pop-host 內 → 被畫進卡片內會被 overflow:hidden 裁掉，使用者點 +N 看不到其餘標籤',
-  },
-  {
-    file: 'web/templates/showcase.html', kind: 'required-string',
-    pattern: /<div class="lbx-measure"(?=[^>]*\baria-hidden="true")(?=[^>]*\binert\b)/,
-    scope: { anchor: /<div class="lbx-tag-row"/, window: 6600 }, // 實測 anchor 到量測層 inert 開標籤結尾 4983 字元，加約 32% 餘裕；T5 那條是整檔 flat、被人物列那顆餵飽，標籤列這顆掉了不會紅，所以這裡 scope 到標籤列
-    note: '[lint-guard:199a-T7-measure-inert] 第 5 列量測層少了 aria-hidden 或 inert → 螢幕閱讀器把每個標籤念兩遍，鍵盤 Tab 還會停在看不見的東西上',
+    scope: { anchor: /<div class="lbx-tag-row"/, window: 3100 }, // 實測 anchor 到最遠的 @keydown.escape.stop 結尾 2343 字元，加約 32% 餘裕
+    note: '[lint-guard:199a-T7-tag-row-wired] 第 5 列少了 ＋ 展開／× 移除／輸入框 Enter／Esc 接線 → 使用者無法開啟輸入框、移除標籤或以鍵盤確認與取消',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',
@@ -4391,7 +4404,7 @@ const RULES = [
 
   // 195-T11：燈箱 user tag 文字必須包進 <a class="lbx-utag-link"> 並呼叫 searchFromMetadata。
   // 只錨 <a> 開標籤，不錨整個 span——整個 span 範圍內的 HTML 註解會餵飽 required-string 而 fail-open（FE-GUARD-03）。
-  // 199a-T7：class 由 lb-user-tag-link 改名 lbx-utag-link（舊兩列標籤換成第 5 列）；量測層的複本是 <span class="lbx-utag-link">、不是 <a>，所以「第一個命中」永遠是可見層那顆。
+  // 199a-T7：class 由 lb-user-tag-link 改名 lbx-utag-link（舊兩列標籤換成第 5 列）；標籤列的連結是可見層互動入口。
   {
     file: 'web/templates/showcase.html', kind: 'required-string', pattern: "searchFromMetadata(tag, 'tag')",
     scope: /<a\b[^>]*\bclass="lbx-utag-link"[^>]*>/,

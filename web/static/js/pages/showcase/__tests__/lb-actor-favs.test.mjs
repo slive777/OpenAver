@@ -61,7 +61,7 @@ function makeComponent(overrides = {}) {
 
 test('lbActorFavs 頭像表以片上名字為 key、首字取片上名字、換片不殘留、資料未到為空', () => {
     const PHOTO = '/api/actresses/photo/%E7%94%B2';
-    const favorites = [{ name: '甲', photo_url: PHOTO }, { name: '乙' }];
+    const favorites = [{ name: '甲', photo_url: PHOTO, height: '155cm', cup: 'D' }, { name: '乙' }];
     const nameToGroup = { '別名甲': ['別名甲', '甲'], '甲': ['別名甲', '甲'] };
     _setActresses(favorites);
     _setActressIndex(buildActressIndex(favorites, nameToGroup));
@@ -71,8 +71,8 @@ test('lbActorFavs 頭像表以片上名字為 key、首字取片上名字、換�
         const first = c._lbActorFavs;
         // key 是片上名字（別名），entry.name 是收藏名，initial 取片上名字第一字（別 ≠ 甲）；沒收藏的不在表內
         assert.deepEqual(first, {
-            '別名甲': { name: '甲', photo_url: PHOTO, initial: '別' },
-            '乙': { name: '乙', photo_url: '', initial: '乙' },
+            '別名甲': { name: '甲', photo_url: PHOTO, initial: '別', height: '155cm', cup: 'D' },
+            '乙': { name: '乙', photo_url: '', initial: '乙', height: '', cup: '' },
         });
         assert.deepEqual(Object.keys(first).sort(), ['乙', '別名甲']);
 
@@ -80,7 +80,7 @@ test('lbActorFavs 頭像表以片上名字為 key、首字取片上名字、換�
         c.currentLightboxVideo = { actresses: '甲' };
         c._refreshLbActorAges();
         assert.notStrictEqual(c._lbActorFavs, first);
-        assert.deepEqual(c._lbActorFavs, { '甲': { name: '甲', photo_url: PHOTO, initial: '甲' } });
+        assert.deepEqual(c._lbActorFavs, { '甲': { name: '甲', photo_url: PHOTO, initial: '甲', height: '155cm', cup: 'D' } });
         assert.equal('別名甲' in c._lbActorFavs, false);
 
         // 代理對首字不被切半

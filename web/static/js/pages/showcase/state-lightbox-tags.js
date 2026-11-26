@@ -15,16 +15,9 @@ export function stateLightboxTags() {
         addingLbTag: false,
         newLbTagValue: '',
 
-        // 199a-T7 第 5 列：作品標籤／你的標籤清單與露出數（lbxFit 量測寫入；非整數＝全露）
+        // 199a-T7 第 5 列：作品標籤／你的標籤清單
         lbxWorkTags() { return lightboxWorkTags(this.currentLightboxVideo, _hiddenTagKeys); },
         lbxUserTags() { return visibleUserTags(this.currentLightboxVideo, _hiddenTagKeys); },
-        lbxTagShown(kind) {
-            const v = kind === 'user' ? this.lbxFit?.userTagShown : this.lbxFit?.workTagShown;
-            return Number.isInteger(v) ? v : Infinity;
-        },
-        lbxTagMoreCount() {
-            return Math.max(0, this.lbxWorkTags().length - this.lbxTagShown('work')) + Math.max(0, this.lbxUserTags().length - this.lbxTagShown('user'));
-        },
         _lbTagFocusPlus() { this.$nextTick?.(() => this.$refs?.lbTagPlus?.focus?.()); },
 
         // 展開 inline 輸入框並 focus

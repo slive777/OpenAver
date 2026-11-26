@@ -20,39 +20,39 @@ test('test_fit_hides_until_measured_then_writes_once', () => {
     // (a) signature changed but not measured yet → still hidden
     assert.equal(fit.lbxFitMeasuring('sig-a'), true);
 
-    // (b) one run → shown, exactly one assignment carrying both sig and count; T7 fields untouched
+    // (b) one run → shown, exactly one assignment carrying both sig and count
     fit.lbxFitRun('sig-a', {}, measure);
     assert.equal(fit.lbxFitMeasuring('sig-a'), false);
     assert.equal(writes, 1);
     assert.equal(store.sig, 'sig-a');
     assert.equal(store.actressShown, 2);
-    assert.equal(store.workTagShown, null);
-    assert.equal(store.userTagShown, null);
 
-    // (c) measurement failed → sig still updated, fallback count 3 (never stuck hidden)
+    // (c) measurement failed → sig still updated, fallback count Infinity (never stuck hidden)
     fit.lbxFitRun('sig-b', {}, () => null);
     assert.equal(fit.lbxFitMeasuring('sig-b'), false);
-    assert.equal(store.actressShown, 3);
+    assert.equal(store.actressShown, Infinity);
 });
 
-test('test_fit_run_writes_tag_counts_with_actress_count_once', () => {
+test('test_fit_measure_uses_whole_row_width', () => {
     const fit = stateLightboxFit();
-    let writes = 0;
-    let store = fit.lbxFit;
-    Object.defineProperty(fit, 'lbxFit', {
-        get: () => store,
-        set: (v) => { writes += 1; store = v; },
-        configurable: true,
-    });
-    const measure = () => ({
-        chipWidths: [100, 100, 100, 100], moreChipWidth: 50, available: 1000, gap: 6,
-        tagRow: { userWidths: [60, 60, 60, 60, 60], workWidths: Array(13).fill(80), plusWidth: 28, moreChipWidth: 36, rowWidth: 1000, gap: 6 },
-    });
-
-    fit.lbxFitRun('sig-t', {}, measure);
-    assert.equal(writes, 1, 'one assignment carries all four fields');
-    assert.equal(store.sig, 'sig-t');
-    assert.equal(store.actressShown, 3);
-    assert.equal(store.workTagShown, 6);
-    assert.equal(store.userTagShown, 5);
+    const actors = { clientWidth: 120 };
+    const measure = {
+        querySelectorAll: () => Array.from({ length: 5 }, () => ({ offsetWidth: 100 })),
+        querySelector: () => ({ offsetWidth: 60 }),
+    };
+    const rowEl = {
+        clientWidth: 600,
+        querySelector: (selector) => ({ '.lbx-actors': actors, '.lbx-measure': measure })[selector],
+    };
+    const hadStyle = Object.hasOwn(globalThis, 'getComputedStyle');
+    const originalStyle = globalThis.getComputedStyle;
+    try {
+        globalThis.getComputedStyle = () => ({ columnGap: '10px' });
+        fit.lbxFitRun('sig', { rowEl });
+        assert.equal(fit.lbxFit.actressShown, 5);
+    } finally {
+        if (hadStyle) globalThis.getComputedStyle = originalStyle;
+        else delete globalThis.getComputedStyle;
+    }
 });
+

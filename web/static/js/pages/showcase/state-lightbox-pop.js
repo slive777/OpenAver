@@ -11,15 +11,18 @@
  */
 
 import { versionsOf } from './work-versions.js';
-import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields, orderFavoritesFirst, actorCardLines, ghostOnClose } from './lbx-logic.js';
+import { bandParts, formatRuntime, placePop, isOutsidePop, menuItems, popPlacement, hasDistinctOtitle, parseActresses, workInfoFields, orderFavoritesFirst, actorCardLines, actorSubSegments, ghostOnClose, sourceDurationPillShown } from './lbx-logic.js';
 
 const LBX_POP_HOVER_CLOSE_MS = 160;
 const LBX_POP_HOVER_OPEN_MS = 300;   // 滑鼠停在錨點多久才開（只用於 dwell 的錨點，199b-T3）
 const LBX_POP_ANCHOR_SEL = '[data-lbx-anchor]';
 
-// 片名／原文是塊級單行省略號元素：內容寬超過可視寬才算被截斷（FE-REVIEW-16：inline 元素量不到，恆 0）
+// 橫向溢出或 line-clamp 生效時縱向溢出才算截斷；FE-REVIEW-16：inline 元素量不到恆 0；FE-CSS-16：驗截斷看行為不看 computed display
 function isTruncated(el) {
-    return !!el && el.scrollWidth > el.clientWidth + 1;
+    if (!el) return false;
+    if (el.scrollWidth > el.clientWidth + 1) return true;
+    const clamp = window.getComputedStyle?.(el)?.webkitLineClamp;
+    return !!clamp && clamp !== 'none' && el.scrollHeight > el.clientHeight + 1;
 }
 
 export function stateLightboxPop() {
@@ -59,7 +62,7 @@ export function stateLightboxPop() {
         },
 
         // 量完一次寫入（整包替換才會重繪）；任何量測值取不到 → 維持不可見、不 throw
-        _lbxPopPlace(gen) {
+        _lbxPopPlace(gen, settle = false) {
             if (gen !== this._lbxPopGen || !this.lbxPop) return;
             const anchor = this._lbxPopAnchorEl;
             const panel = this.$refs?.lbxPopHost?.querySelector?.('.lbx-pop');
@@ -77,7 +80,12 @@ export function stateLightboxPop() {
                 }
             }
             const coverBottom = coverEl.getBoundingClientRect().bottom;
+            const isCard = this.lbxPop.kind === 'actorCard';
+            if (isCard && !settle) panel.style?.removeProperty?.('--lbx-card-photo-h');
             const popSize = { w: panel.offsetWidth, h: panel.offsetHeight };
+            const photo = isCard && !settle ? panel.querySelector?.('.lbx-actor-card__photo') : null;
+            const photoH = photo ? photo.offsetHeight : 0;
+            const shrinkMax = Math.max(0, photoH - 120);
             const vw = window.innerWidth;
             const vh = window.innerHeight;
             const nums = [anchorRect.left, anchorRect.right, anchorRect.top, anchorRect.bottom, coverBottom, popSize.w, popSize.h, vw, vh];
@@ -92,8 +100,19 @@ export function stateLightboxPop() {
                 mode: placement.mode,
                 align: placement.align,
                 interactive: this.lbxPop.mode === 'click',
+                ...(isCard ? { shrinkMax } : {}),
             });
             const style = { left: pos.left + 'px', top: pos.top + 'px' };
+            const shrink = isCard && !settle ? pos.shrink || 0 : 0;
+            if (shrink > 0) style['--lbx-card-photo-h'] = (photoH - shrink) + 'px';
+            if (shrink > 0) {
+                this.lbxPop = { ...this.lbxPop, placed: false, style };
+                this.$nextTick?.(() => this._lbxPopPlace(gen, true));
+                return;
+            }
+            if (isCard && settle && this.lbxPop.style['--lbx-card-photo-h'] !== undefined) {
+                style['--lbx-card-photo-h'] = this.lbxPop.style['--lbx-card-photo-h'];
+            }
             if (pos.maxHeight !== undefined) style.maxHeight = pos.maxHeight + 'px';
             this.lbxPop = { ...this.lbxPop, placed: true, style };
         },
@@ -106,6 +125,11 @@ export function stateLightboxPop() {
                 return;
             }
             this.lbxPopOpen(kind, anchorEl, opts);
+        },
+
+        lbxMetaToTop() {
+            const meta = this.$refs?.lbxMeta;
+            if (meta) meta.scrollTop = 0;
         },
 
         // lbxPop 已是 null 時零成本早退（@resize.window 與 closeLightbox 會在浮層沒開時也呼叫）
@@ -269,6 +293,12 @@ export function stateLightboxPop() {
             return orderFavoritesFirst(parseActresses(this.currentLightboxVideo), (n) => !!this._lbActorFavs?.[n]);
         },
 
+        lbxActorSub(name) {
+            const fav = this._lbActorFavs?.[name];
+            if (!fav) return [];
+            return actorSubSegments({ ageAtRelease: this._lbActorAges?.[name] ?? null, height: fav.height, cup: fav.cup, t: (k, p) => window.t(k, p) });
+        },
+
         // 頭像表鍵集合（199b-T1，D3）：排序後串成字串，餵給 lbxFitSig 的第三引數；放這裡不放 fit 分片（fit 外求 0）
         lbxFavKey() {
             return Object.keys(this._lbActorFavs || {}).sort().join('\u0000');
@@ -280,6 +310,11 @@ export function stateLightboxPop() {
 
         lbxInfoHas(id) {
             return !!this.lbxInfoField(id);
+        },
+
+        // 文字區「來源 xxx 分」膠囊開關（207a-T1）：實際片長可信時藏起；ⓘ 那列不受影響
+        lbxSrcPillShown() {
+            return sourceDurationPillShown(this.currentLightboxVideo);
         },
     };
 }
