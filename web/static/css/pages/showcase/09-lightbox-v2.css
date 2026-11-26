@@ -869,14 +869,13 @@ button.lbx-avatar {
     flex: none;
 }
 
-/* 觸控：ⓘ 與「另有 N 位」熱區 ≥44px，不把第 3 列撐高。
-   ⓘ 本體放大成 2.75rem 方塊（負 margin-block 吃掉多出的高度；放在列尾，不能靠偽元素外擴——右側會被 .lbx-meta 的 overflow 裁掉）；
-   「另有 N 位」本來就比 44px 寬，只用透明偽元素外擴上下（女優區用負 margin 吃掉 padding，免得 overflow:hidden 裁掉偽元素） */
+/* 觸控：ⓘ 保持原排版高度，避免熱區跨列；「另有 N 位」上下外擴 5px，
+   為列間命中保留 1px 容差。女優區以等量負 margin 抵銷 padding，避免裁掉熱區。 */
 @media (pointer: coarse) {
     .lbx-info-btn {
         width: 2.75rem;
-        height: 2.75rem;
-        margin-block: -.4375rem;
+        height: 1.875rem;
+        margin-block: 0;
     }
 
     .lbx-people-row .lbx-more-actors {
@@ -886,12 +885,12 @@ button.lbx-avatar {
     .lbx-people-row .lbx-more-actors::after {
         content: "";
         position: absolute;
-        inset: -.75rem 0;
+        inset: -.3125rem 0;
     }
 
     .lbx-actors {
-        padding-block: .75rem;
-        margin-block: -.75rem;
+        padding-block: .3125rem;
+        margin-block: -.3125rem;
     }
 }
 
@@ -1409,19 +1408,19 @@ a.lbx-utag-link:focus-visible {
     }
 }
 
-/* 觸控：「＋」放大按鈕本體，× 用透明偽元素外擴點擊熱區。 */
+/* 觸控：「＋」縮小垂直熱區以免跨列；× 左側只外擴 3px，避免蓋到標籤文字。 */
 @media (pointer: coarse) {
     .lbx-tag-plus {
         width: 2.75rem;
-        height: 2.75rem;
-        margin-block: -.6875rem;
+        height: 1.625rem;
+        margin-block: -.125rem;
     }
 
     .lbx-utag-x::after {
         content: "";
         position: absolute;
-        /* 兩排中心距 28px，垂直只外擴 .3125rem（5px），留 1px 命中容差，不跨列。 */
-        inset: -.3125rem -.875rem;
+        /* 兩排中心距 28px，上下外擴 5px，留 1px 容差；右側不進入相鄰的「＋」或標籤，左側 3px 不蓋文字。 */
+        inset: -.3125rem -.5625rem -.3125rem -.1875rem;
     }
 }
 
@@ -1554,7 +1553,7 @@ a.lbx-utag-link:focus-visible {
 
 /* 觸控手機文字區底內距包住「＋」放大熱區伸出的高度，
    負外距抵銷內距，保持外框高度不變。
-   數值與上方觸控段 .lbx-tag-plus 的負 margin-block 同值。 */
+   保留原內距，足以包住「＋」的外伸量。 */
 /* × 熱區右側外伸會撐出橫向捲動，觸控手機裁掉外伸，與桌機視窗閘同做法。 */
 @media (max-width: 768px) and (pointer: coarse) {
     .lbx-meta {
