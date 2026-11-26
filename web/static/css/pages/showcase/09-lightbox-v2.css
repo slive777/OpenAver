@@ -1550,3 +1550,13 @@ a.lbx-utag-link:focus-visible {
         line-clamp: 5;
     }
 }
+
+/* 觸控手機文字區底內距包住「＋」放大熱區伸出的高度，
+   負外距抵銷內距，保持外框高度不變。
+   數值與上方觸控段 .lbx-tag-plus 的負 margin-block 同值。 */
+@media (max-width: 768px) and (pointer: coarse) {
+    .lbx-meta {
+        padding-bottom: .6875rem;
+        margin-bottom: -.6875rem;
+    }
+}
