@@ -451,6 +451,27 @@ test('test_actor_card_shrink_two_pass_and_stale_settle_noop', () => {
     }
 });
 
+test('test_tap_open_truncation_horizontal_or_clamped_vertical', () => {
+    const prevCs = globalThis.getComputedStyle;
+    globalThis.getComputedStyle = (el) => ({ webkitLineClamp: el.clamp ?? 'none' });
+    try {
+        const c = popComponent();
+        const box = (o) => ({ scrollWidth: 200, clientWidth: 200, scrollHeight: 24, clientHeight: 24, ...o });
+        const tap = (kind, el) => {
+            c.lbxPopClose();
+            c.lbxPopTapOpen({ currentTarget: el, pointerType: 'touch' }, kind, kind);
+            return c.lbxPop ? c.lbxPop.kind : null;
+        };
+        assert.equal(tap('title', box({ scrollWidth: 300 })), 'title');
+        assert.equal(tap('title', box({ clamp: '3', scrollHeight: 96, clientHeight: 72 })), 'title');
+        assert.equal(tap('otitle', box({ clamp: '2', scrollHeight: 54, clientHeight: 36 })), 'otitle');
+        assert.equal(tap('title', box({ clamp: '3', scrollHeight: 72, clientHeight: 72 })), null);
+        assert.equal(tap('title', box({ scrollHeight: 26, clientHeight: 24 })), null);
+    } finally {
+        globalThis.getComputedStyle = prevCs;
+    }
+});
+
 test('test_ghost_preserves_scroll_after_append', () => {
     window.OpenAver = { prefersReducedMotion: false, motion: { stripAlpine() {}, DURATION: { fast: 0.1, emphasis: 0.5 } } };
     globalThis.gsap = { fromTo() { return { kill() {} }; } };

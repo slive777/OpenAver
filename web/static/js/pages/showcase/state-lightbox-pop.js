@@ -17,9 +17,12 @@ const LBX_POP_HOVER_CLOSE_MS = 160;
 const LBX_POP_HOVER_OPEN_MS = 300;   // 滑鼠停在錨點多久才開（只用於 dwell 的錨點，199b-T3）
 const LBX_POP_ANCHOR_SEL = '[data-lbx-anchor]';
 
-// 片名／原文是塊級單行省略號元素：內容寬超過可視寬才算被截斷（FE-REVIEW-16：inline 元素量不到，恆 0）
+// 橫向溢出或 line-clamp 生效時縱向溢出才算截斷；FE-REVIEW-16：inline 元素量不到恆 0；FE-CSS-16：驗截斷看行為不看 computed display
 function isTruncated(el) {
-    return !!el && el.scrollWidth > el.clientWidth + 1;
+    if (!el) return false;
+    if (el.scrollWidth > el.clientWidth + 1) return true;
+    const clamp = window.getComputedStyle?.(el)?.webkitLineClamp;
+    return !!clamp && clamp !== 'none' && el.scrollHeight > el.clientHeight + 1;
 }
 
 export function stateLightboxPop() {

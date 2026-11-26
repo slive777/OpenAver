@@ -1496,3 +1496,57 @@ a.lbx-utag-link:focus-visible {
         max-width: min(20rem, calc(100vw - 2rem));
     }
 }
+
+/* 手機影片卡片上緣固定，讓換片時位置穩定。
+   標題、原文與簡介放寬為多行。
+   寬度達 769 以上時不套用此段。 */
+@media (max-width: 768px) {
+    .lightbox-content:has(> .lb-video-branch) {
+        align-self: flex-start;
+        margin-top: 7vh;
+        margin-top: 7dvh;
+        max-height: 88vh;
+        max-height: 88dvh;
+    }
+
+    .lbx-title-row {
+        height: auto;
+        min-height: 1.875rem;
+        align-items: flex-start;
+    }
+
+    .lbx-meta .lbx-title-row .lb-title {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+        overflow: hidden;
+        font-size: 1.125rem;
+        line-height: 1.5rem;
+    }
+
+    .lbx-title-acts {
+        align-self: flex-start;
+    }
+
+    .lbx-otitle {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+    }
+
+    .lbx-plot-row {
+        height: auto;
+        min-height: 3.125rem;
+    }
+
+    .lbx-plot-text {
+        -webkit-line-clamp: 5;
+        line-clamp: 5;
+    }
+}
