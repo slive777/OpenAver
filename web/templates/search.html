@@ -226,7 +226,7 @@
              x-trap.inert="wishlistLightboxOpen && !sampleGalleryOpen && !rescrapeOpen && !browseDirOpen && !duplicateModalOpen"
              @touchstart.passive="_wishlistLbTouchStart($event)"
              @touchend.passive="_wishlistLbTouchEnd($event)"
-             @click="closeWishlistLightbox()">
+             @click="handleWishlistBackdropClick($event)">
 
             <div class="lightbox-content" @click.stop>
                 <!-- Close Button -->
@@ -236,6 +236,7 @@
                     <i class="bi bi-x-lg"></i>
                 </button>
 
+                <template x-if="lbxOwner() === 'wishlist' && wishlistLightboxIndex >= 0 && lbxView()"><div class="lb-video-branch" style="display:contents">
                 <!-- Cover Image：本地端點，零對外請求（設計決策 #4，不得用 resolveCoverUrl／proxy-image）
                      破圖 fallback 照清單卡（search.html .wishlist-grid）同一套 x-show/@error/placeholder，
                      否則 cover_available:false 的列會露出瀏覽器預設破圖 icon -->
@@ -272,48 +273,11 @@
                     </div>
                 </div>
 
-                <!-- Metadata -->
-                <div class="lightbox-metadata">
-                    <div class="lb-header">
-                        <div class="lb-title" x-text="currentWishlistLightboxItem()?.title || '-'"></div>
-                        <!-- FE-JS-01: preview || raw 的 || 刻意——preview_sample_images 目前每筆皆為空陣列，
-                             取 index 得 undefined，|| 落回 raw；哪天代理組不出來改填 ''，?? 會把 '' 當非 nullish
-                             放行成破圖，|| 才會正確再落回 raw -->
-                        <button class="sg-open-btn"
-                                x-show="(currentWishlistLightboxItem()?.sample_images || []).length > 0"
-                                @click="openSampleGallery((currentWishlistLightboxItem()?.sample_images || []).map((url, i) => '/api/proxy-image?url=' + encodeURIComponent(currentWishlistLightboxItem()?.preview_sample_images?.[i] || url)), 0)"
-                                x-text="t('search.gallery.sample_prefix') + ' (' + (currentWishlistLightboxItem()?.sample_images || []).length + ')'">
-                        </button>
-                    </div>
-                    <div class="lb-actor" x-text="(currentWishlistLightboxItem()?.actresses || []).join(', ') || '-'"></div>
-                    <div class="lb-details">
-                        <span class="lb-detail-num" x-text="currentWishlistLightboxItem()?.number || '-'"></span>
-                        <span x-show="currentWishlistLightboxItem()?.maker">
-                            &nbsp;·&nbsp;<span x-text="currentWishlistLightboxItem()?.maker"></span>
-                        </span>
-                        <span x-show="currentWishlistLightboxItem()?.director">
-                            &nbsp;·&nbsp;<b>{{ t('search.label.director') }}：</b><span x-text="currentWishlistLightboxItem()?.director"></span>
-                        </span>
-                        <span x-show="currentWishlistLightboxItem()?.duration">
-                            &nbsp;·&nbsp;<span x-text="currentWishlistLightboxItem()?.duration ? currentWishlistLightboxItem().duration + ' ' + t('search.unit.minutes') : ''"></span>
-                        </span>
-                        <span x-show="currentWishlistLightboxItem()?.series">
-                            &nbsp;·&nbsp;<b>{{ t('search.label.series') }}：</b><span x-text="currentWishlistLightboxItem()?.series"></span>
-                        </span>
-                        <span x-show="currentWishlistLightboxItem()?.label && currentWishlistLightboxItem()?.label !== currentWishlistLightboxItem()?.maker">
-                            &nbsp;·&nbsp;<b>{{ t('search.label.label') }}：</b><span x-text="currentWishlistLightboxItem()?.label"></span>
-                        </span>
-                        <span x-show="currentWishlistLightboxItem()?.release_date">
-                            &nbsp;·&nbsp;<span x-text="currentWishlistLightboxItem()?.release_date"></span>
-                        </span>
-                    </div>
-                    <div class="lb-tags" x-show="(currentWishlistLightboxItem()?.tags || []).length > 0">
-                        <template x-for="tag in (currentWishlistLightboxItem()?.tags || [])" :key="tag">
-                            <span class="lb-tag" x-text="tag"></span>
-                        </template>
-                    </div>
-                </div>
+                <div class="lightbox-metadata lbx-meta lbx-meta--static" x-ref="lbxMetaW" @scroll.passive="lbxPopClose()">{% include '_macros/lbx_search_video_meta.html' %}</div>
+                </div></template>
             </div>
+
+            <template x-if="lbxOwner() === 'wishlist'"><div class="lbx-pop-host" x-ref="lbxPopHostW" @click.stop @pointerdown.window="lbxPopOnPointerDown($event)" @resize.window="lbxPopClose()">{% include '_macros/lbx_search_pop_host.html' %}</div></template>
 
             <!-- Navigation Arrows：純陣列邊界導航，無 loadMore -->
             <button class="lightbox-nav lightbox-nav-prev"

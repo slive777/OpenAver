@@ -290,6 +290,11 @@ export function searchStateNavigation() {
         // prevLightboxVideo/nextLightboxVideo，見 gotcha FE-ALPINE-04）
         if (this.wishlistLightboxOpen) {
             if (event.key === 'Escape') {
+                if (this.lbxPop) {
+                    event.preventDefault();
+                    this.lbxPopClose({ restoreFocus: true });
+                    return;
+                }
                 event.preventDefault();
                 this.closeWishlistLightbox();
                 return;

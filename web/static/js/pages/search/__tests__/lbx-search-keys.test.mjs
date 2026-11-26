@@ -6,6 +6,7 @@ globalThis.window = globalThis;
 register(new URL('./alias-loader.mjs', import.meta.url), import.meta.url);
 const { searchStateNavigation } = await import('../state/navigation.js');
 const { searchStateGridMode } = await import('../state/grid-mode.js');
+const { searchStateWishlist } = await import('../state/wishlist.js');
 
 test('test_lbx_search_esc_closes_pop_before_lightbox', (t) => {
     const previousDocument = globalThis.document;
@@ -37,4 +38,33 @@ test('test_lbx_search_backdrop_swallow_after_pop_close', (t) => {
     assert.equal(fake._lbxPopSwallowClick, false);
     fake.handleLightboxBackdropClick(event);
     assert.equal(clicks, 1);
+});
+
+
+test('test_lbx_wishlist_esc_closes_pop_before_lightbox', (t) => {
+    const previousDocument = globalThis.document;
+    t.after(() => { globalThis.document = previousDocument; });
+    globalThis.document = { activeElement: { tagName: 'DIV' } };
+    const calls = [];
+    const fake = { ...searchStateNavigation(), wishlistLightboxOpen: true, lbxPop: { kind: 'info' },
+        lbxPopClose(options) { calls.push(['pop', options]); this.lbxPop = null; },
+        closeWishlistLightbox() { calls.push(['lightbox']); } };
+    const event = { key: 'Escape', preventDefault() {} };
+    fake.handleKeydown(event);
+    assert.deepEqual(calls, [['pop', { restoreFocus: true }]]);
+    fake.handleKeydown(event);
+    assert.deepEqual(calls, [['pop', { restoreFocus: true }], ['lightbox']]);
+});
+
+test('test_lbx_wishlist_backdrop_swallow_after_pop_close', (t) => {
+    const previousDocument = globalThis.document;
+    t.after(() => { globalThis.document = previousDocument; });
+    globalThis.document = { activeElement: { tagName: 'DIV' } };
+    let closes = 0;
+    const fake = { ...searchStateWishlist(), _lbxPopSwallowClick: true, closeWishlistLightbox() { closes++; } };
+    fake.handleWishlistBackdropClick({});
+    assert.equal(closes, 0);
+    assert.equal(fake._lbxPopSwallowClick, false);
+    fake.handleWishlistBackdropClick({});
+    assert.equal(closes, 1);
 });
