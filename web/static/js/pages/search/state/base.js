@@ -660,6 +660,7 @@ export function searchStateBase() {
                 clearTimeout(this._actressFavoriteTimer);
                 this._actressFavoriteTimer = null;
 
+                if (resp.status === 200 || resp.status === 409) this.lbxFavsReload?.();
                 if (resp.status === 200) {
                     const data = await resp.json();
                     // stale-check：await 期間可能已切女優，丟棄過時結果

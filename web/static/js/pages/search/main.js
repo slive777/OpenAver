@@ -16,6 +16,7 @@ import { searchStateMakerLatest }    from '@/search/state/maker-latest.js';
 import { searchStateBlankCard }      from '@/search/state/blank-card.js';
 import { searchStateImageSearch }    from '@/search/state/image-search.js';
 import { searchStateLbxView } from '@/search/state/lbx-view.js';
+import { searchStateLbxFavs } from '@/search/state/lbx-favs.js';
 import { stateLightboxPop } from '@/showcase/state-lightbox-pop.js';
 import { stateLightboxFit } from '@/showcase/state-lightbox-fit.js';
 import { stateLightboxApFit } from '@/showcase/state-lightbox-apfit.js';
@@ -49,6 +50,7 @@ export function searchPage() {
         searchStateBlankCard(),
         searchStateImageSearch(),
         searchStateLbxView(),
+        searchStateLbxFavs(),
         stateLightboxPop({
             getVideo: (s) => s.lbxView(),
             avatarClick: () => {},
@@ -167,6 +169,9 @@ export function searchPage() {
                 this.$watch(() => this.lbxViewKey(), () => {
                     this.lbxPopClose?.({ immediate: true });
                     this.lbxMetaToTop?.();
+                });
+                this.$watch(() => this.lbxViewKey(), () => {
+                    this._refreshLbActorAges?.();
                 });
             },
         }

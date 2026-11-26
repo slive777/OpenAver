@@ -10598,6 +10598,22 @@ const RULES = [
     pattern: /(?<![\w:-])\$watch\(\s*\(\)\s*=>\s*this\.lbxViewKey\(\)\s*,\s*\(\)\s*=>\s*\{\s*this\.lbxPopClose\?\.\(\{ immediate: true \}\);\s*this\.lbxMetaToTop\?\.\(\);?\s*\}\s*\)/,
     id: '207b-T1-watch-view-key', note: '[lint-guard:207b-T1-watch-view-key] 換片監聽缺失 → 文字停在上一部的位置且舊浮層仍顯示。' },
 
+  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])openLightbox\s*\(\s*index\s*\)\s*\{/, braceBalanced: true },
+    pattern: /(?<![\w.])this\.lbxFavsLoad\?\.\(\);/,
+    id: '207b-T2-favs-open', note: '[lint-guard:207b-T2-favs-open] 載入接線缺失 → 搜尋結果燈箱不顯示收藏女優頭像。' },
+  { file: 'web/static/js/pages/search/state/wishlist.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])openWishlistLightbox\s*\(\s*index\s*\)\s*\{/, braceBalanced: true },
+    pattern: /(?<![\w.])this\.lbxFavsLoad\?\.\(\);/,
+    id: '207b-T2-favs-open-wishlist', note: '[lint-guard:207b-T2-favs-open-wishlist] 載入接線缺失 → 先開書籤燈箱時沒有收藏女優頭像。' },
+  { file: 'web/static/js/pages/search/state/base.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])async\s+addFavoriteActress\s*\(\s*\)\s*\{/, braceBalanced: true },
+    pattern: /resp\.status\s*===\s*200\s*\|\|\s*resp\.status\s*===\s*409\s*\)\s*this\.lbxFavsReload\?\.\(\);/,
+    id: '207b-T2-favs-reload', note: '[lint-guard:207b-T2-favs-reload] 重載接線缺失 → 收藏女優後燈箱頭像要重新整理才出現。' },
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', stripLineComments: true,
+    pattern: [/(?<![\w.])searchStateLbxFavs\(\)\s*,/, /(?<![\w:-])\$watch\(\s*\(\)\s*=>\s*this\.lbxViewKey\(\)\s*,\s*\(\)\s*=>\s*\{\s*this\._refreshLbActorAges\?\.\(\);?\s*\}\s*\)/],
+    id: '207b-T2-favs-wired', note: '[lint-guard:207b-T2-favs-wired] 分片或換片刷新缺失 → 燈箱沒有頭像或顯示上一部的頭像。' },
+
 ];
 
 // ---- helpers ----

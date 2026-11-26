@@ -593,6 +593,7 @@ export function searchStateWishlist() {
         },
 
         openWishlistLightbox(index) {
+            this.lbxFavsLoad?.();
             if (this.wishlistLightboxOpen && this.wishlistLightboxIndex === index) return;
             if (this.wishlistLightboxOpen && this.wishlistLightboxIndex !== index) {
                 var dir = index > this.wishlistLightboxIndex ? 'next' : 'prev';

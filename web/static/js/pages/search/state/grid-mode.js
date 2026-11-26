@@ -57,6 +57,7 @@ export function searchStateGridMode() {
      * @param {number} index - 搜尋結果索引
      */
     openLightbox(index) {
+        this.lbxFavsLoad?.();
         // F2: cancel pending delayed clear from previous close
         if (this.lightboxCloseTimer) {
             clearTimeout(this.lightboxCloseTimer);
