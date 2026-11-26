@@ -387,6 +387,70 @@ test('test_outside_pointerdown_closing_pop_swallows_backdrop_click', () => {
     }
 });
 
+test('test_actor_card_shrink_two_pass_and_stale_settle_noop', () => {
+    const prevW = globalThis.innerWidth;
+    const prevH = globalThis.innerHeight;
+    globalThis.innerWidth = 1920;
+    globalThis.innerHeight = 1080;
+    try {
+        const calls = [];
+        const photo = { offsetHeight: 200 };
+        const panel = {
+            offsetWidth: 300, offsetHeight: 266,
+            style: { removeProperty(name) { calls.push(name); } },
+            querySelector: (sel) => (sel === '.lbx-actor-card__photo' ? photo : null),
+        };
+        const content = { querySelector: () => ({ getBoundingClientRect: () => ({ bottom: 810 }) }) };
+        const anchor = { getBoundingClientRect: () => ({ left: 100, right: 140, top: 840, bottom: 880 }), closest: () => content };
+        const c = popComponent();
+        c.$refs = { lbxPopHost: { querySelector: () => panel } };
+        let scheduled = 0;
+        c.$nextTick = () => { scheduled++; };
+
+        c.lbxPopOpen('actorCard', anchor, { mode: 'hover', anchorKey: 'a' });
+        assert.equal(scheduled, 1);
+        const gen = c._lbxPopGen;
+        c._lbxPopPlace(gen);
+        assert.equal(c.lbxPop.style['--lbx-card-photo-h'], '192px');
+        assert.equal(c.lbxPop.placed, false);
+        assert.ok(parseFloat(c.lbxPop.style.left) > 140);
+        assert.ok(calls.includes('--lbx-card-photo-h'));
+        assert.equal(scheduled, 2);
+
+        panel.offsetHeight = 258;
+        c._lbxPopPlace(gen, true);
+        assert.equal(c.lbxPop.placed, true);
+        assert.equal(c.lbxPop.style['--lbx-card-photo-h'], '192px');
+        assert.equal(c.lbxPop.style.top, '814px');
+        assert.equal(c.lbxPop.style.maxHeight, undefined);
+        assert.equal(scheduled, 2);
+
+        panel.offsetHeight = 200;
+        panel.querySelector = () => null;
+        scheduled = 0;
+        c.lbxPopOpen('actorCard', anchor, { mode: 'hover', anchorKey: 'a' });
+        assert.equal(scheduled, 1);
+        c._lbxPopPlace(c._lbxPopGen);
+        assert.equal(c.lbxPop.placed, true);
+        assert.equal('--lbx-card-photo-h' in c.lbxPop.style, false);
+        assert.equal(c.lbxPop.style.top, '840px');
+        assert.equal(scheduled, 1);
+
+        panel.offsetHeight = 266;
+        panel.querySelector = (sel) => (sel === '.lbx-actor-card__photo' ? photo : null);
+        c.lbxPopOpen('actorCard', anchor, { mode: 'hover', anchorKey: 'a' });
+        const staleGen = c._lbxPopGen;
+        c._lbxPopPlace(staleGen);
+        assert.equal(c.lbxPop.placed, false);
+        c.lbxPopClose();
+        c._lbxPopPlace(staleGen, true);
+        assert.equal(c.lbxPop, null);
+    } finally {
+        globalThis.innerWidth = prevW;
+        globalThis.innerHeight = prevH;
+    }
+});
+
 test('test_ghost_preserves_scroll_after_append', () => {
     window.OpenAver = { prefersReducedMotion: false, motion: { stripAlpine() {}, DURATION: { fast: 0.1, emphasis: 0.5 } } };
     globalThis.gsap = { fromTo() { return { kill() {} }; } };

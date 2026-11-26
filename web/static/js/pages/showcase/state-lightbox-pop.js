@@ -59,7 +59,7 @@ export function stateLightboxPop() {
         },
 
         // 量完一次寫入（整包替換才會重繪）；任何量測值取不到 → 維持不可見、不 throw
-        _lbxPopPlace(gen) {
+        _lbxPopPlace(gen, settle = false) {
             if (gen !== this._lbxPopGen || !this.lbxPop) return;
             const anchor = this._lbxPopAnchorEl;
             const panel = this.$refs?.lbxPopHost?.querySelector?.('.lbx-pop');
@@ -77,7 +77,12 @@ export function stateLightboxPop() {
                 }
             }
             const coverBottom = coverEl.getBoundingClientRect().bottom;
+            const isCard = this.lbxPop.kind === 'actorCard';
+            if (isCard && !settle) panel.style?.removeProperty?.('--lbx-card-photo-h');
             const popSize = { w: panel.offsetWidth, h: panel.offsetHeight };
+            const photo = isCard && !settle ? panel.querySelector?.('.lbx-actor-card__photo') : null;
+            const photoH = photo ? photo.offsetHeight : 0;
+            const shrinkMax = Math.max(0, photoH - 120);
             const vw = window.innerWidth;
             const vh = window.innerHeight;
             const nums = [anchorRect.left, anchorRect.right, anchorRect.top, anchorRect.bottom, coverBottom, popSize.w, popSize.h, vw, vh];
@@ -92,8 +97,19 @@ export function stateLightboxPop() {
                 mode: placement.mode,
                 align: placement.align,
                 interactive: this.lbxPop.mode === 'click',
+                ...(isCard ? { shrinkMax } : {}),
             });
             const style = { left: pos.left + 'px', top: pos.top + 'px' };
+            const shrink = isCard && !settle ? pos.shrink || 0 : 0;
+            if (shrink > 0) style['--lbx-card-photo-h'] = (photoH - shrink) + 'px';
+            if (shrink > 0) {
+                this.lbxPop = { ...this.lbxPop, placed: false, style };
+                this.$nextTick?.(() => this._lbxPopPlace(gen, true));
+                return;
+            }
+            if (isCard && settle && this.lbxPop.style['--lbx-card-photo-h'] !== undefined) {
+                style['--lbx-card-photo-h'] = this.lbxPop.style['--lbx-card-photo-h'];
+            }
             if (pos.maxHeight !== undefined) style.maxHeight = pos.maxHeight + 'px';
             this.lbxPop = { ...this.lbxPop, placed: true, style };
         },
