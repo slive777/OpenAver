@@ -10671,6 +10671,16 @@ const RULES = [
 
   { file: 'web/static/js/pages/search/state/batch.js', kind: 'forbidden-string', pattern: 'translated_summary', id: '207b-T6-batch-no-summary', note: '[lint-guard:207b-T6-batch-no-summary] 使用者按「全部翻譯」→ 簡介被偷偷一起翻、白花翻譯額度' },
   { file: 'web/templates/search.html', kind: 'required-string', scope: { anchor: /<div class="info-row" id="summaryRow"/, window: 1600 }, pattern: ['x-show="current()._summary"', 'x-text="current().translated_summary || current()._summary"', 'x-show="canTranslateSummary()"', '@click="translateSummary()"', 'x-show="isTranslatingSummary"', "{{ t('search.label.summary') }}"], id: '207b-T6-detail-wired', note: '[lint-guard:207b-T6-detail-wired] 簡介列或翻譯鈕接線掉了 → 使用者看不到簡介，或翻譯鈕按了沒反應／翻完畫面不換' },
+  {
+    file: 'core/organizer.py', kind: 'required-string',
+    pattern: [/^[ \t]+plot, original_plot = resolve_plot_pair\(/m, /^[ \t]+summary=plot, original_summary=original_plot, /m],
+    note: '[lint-guard:207b-T7-plot-pair-wired] 少了簡介譯文與原文接線 → 使用者翻好簡介再整理，NFO 只有日文原文，到 Showcase 還要再翻一次，且沒有任何錯誤',
+  },
+  {
+    file: 'core/organizer.py', kind: 'required-string',
+    pattern: [/^[ \t]+plot_block = _plot_block\(summary, original_summary\)$/m, '{rating_line}  {plot_block}'],
+    note: '[lint-guard:207b-T7-plot-block-wired] 少了簡介區塊接線 → 整理出的 NFO 簡介區塊沒經過控制字元剝除／跳脫，整份 NFO 讀不出來',
+  },
 ];
 
 // ---- helpers ----

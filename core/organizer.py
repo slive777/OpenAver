@@ -21,7 +21,8 @@ from core.atomic_write import atomic_move
 from core.config import STEM_IMAGE_MODES
 from core.cover_attributes import effective_tags, existing_marker_kinds, filename_marker_kinds, filename_marker_spans, marker_kinds_in_text
 from core.nfo_read import nfo_merged_tags
-from core.nfo_utils import sanitize_nfo_bytes
+from core.nfo_utils import sanitize_nfo_bytes, strip_illegal_xml_chars
+from core.plot_nfo import resolve_plot_pair
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS
 from core.cover_layout import resolve_cover_target, same_target_verdict
 from core.image_codec import decode_image_payload, looks_like_image
@@ -837,36 +838,7 @@ def download_image(
     return _attempt_download_image(fallback_url, save_path, referer)
 
 
-# NFO-CTRL-01（PR #191 CodeRabbit F1/加固；BE-GUARD-01：閘門寫在 sink，不寫在上游白名單）：
-# XML 1.0 合法字元只有 \t(0x09) \n(0x0A) \r(0x0D) 與 0x20 以上（另排除 surrogate 區段
-# 0xD800–0xDFFF 與 0xFFFE/0xFFFF）。含裸控制字元（\x07/\x0b/\x0c/\x1b/\x00 等）的欄位值
-# 目前會讓 generate_nfo() 寫出成功（回 True）但整份 XML 解析失敗——ET.parse 與
-# core.nfo_updater.parse_nfo 都讀不到任何欄位，Jellyfin/Kodi/OpenAver 自己全部看不到。
-# 這是既有病（core/enricher.py:528 批次補完／進階重刮早就會把 _summary 寫進 <plot>），
-# 本次一併在唯一 sink（generate_nfo）收斂，不分兩處補。
-_ILLEGAL_XML_CHARS_RE = re.compile(
-    '[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]'
-)
-
-
-def _strip_illegal_xml_chars(value):
-    """剝除字串裡 XML 1.0 不合法的字元，保留 \\t/\\n/\\r（簡介換行不可被吃掉）。
-
-    **非字串一律先收斂成字串**（`None` → `''`，其餘 → `str(value)`）。理由與
-    147c-T2 的 `<rating>` 型別防護同一條（BE-GUARD-01：閘門寫在 sink）：
-    `POST /api/scrape-single` 對 `metadata` **零驗證**（`web/routers/scraper.py:222`，
-    與 `enrich_single` 的嚴格白名單不對稱），AI 送 `{"_summary": null}` 進來時
-    `metadata.get('_summary', '')` 會回 `None`（key 存在，default 不生效），
-    而 `generate_nfo()` 在 `atomic_move()` **之後**才跑 —— `html.escape(None)` 拋
-    `AttributeError` 會讓畫面顯示「整理失敗」，但影片檔其實已經改名搬走了。
-    CodeRabbit PR #191 的 P2 提對了這條鏈，只是把觸發前提歸給 scraper 端
-    （`Video.summary` 是 `str = Field(default='')` 且 frozen，那半確實不可能）。
-    """
-    if value is None:
-        return ''
-    if not isinstance(value, str):
-        value = str(value)
-    return _ILLEGAL_XML_CHARS_RE.sub('', value)
+_strip_illegal_xml_chars = strip_illegal_xml_chars
 
 
 def _clean_xml_str_list(value):
@@ -883,6 +855,14 @@ def _clean_xml_str_list(value):
     if not isinstance(value, (list, tuple)):
         return []
     return [_strip_illegal_xml_chars(v) for v in value]
+
+
+def _plot_block(summary, original_summary) -> str:
+    plot_xml = f"<plot>{html.escape(_strip_illegal_xml_chars(summary))}</plot>"
+    original_text = _strip_illegal_xml_chars(original_summary)
+    if not original_text.strip():
+        return plot_xml
+    return f"{plot_xml}\n  <originalplot>{html.escape(original_text)}</originalplot>"
 
 
 def generate_nfo(
@@ -909,6 +889,7 @@ def generate_nfo(
     mpaa: str = 'JP-18+',
     external_manager: str = 'off',
     nfo_title_format: str = '[{num}]{title}',
+    original_summary: str = '',
 ) -> bool:
     """
     生成 NFO 檔案
@@ -948,7 +929,6 @@ def generate_nfo(
     director = _strip_illegal_xml_chars(director)
     series = _strip_illegal_xml_chars(series)
     label = _strip_illegal_xml_chars(label)
-    summary = _strip_illegal_xml_chars(summary)
     actors = _clean_xml_str_list(actors)
     tags = _clean_xml_str_list(tags)
     user_tags = _clean_xml_str_list(user_tags)
@@ -996,6 +976,7 @@ def generate_nfo(
     # 空時不留空行（embedded 在 <plot> 之前）。
     rating_line = f"  <rating>{rating * 2:.1f}</rating>\n" if (isinstance(rating, (int, float)) and not isinstance(rating, bool) and rating > 0) else ""
 
+    plot_block = _plot_block(summary, original_summary)
     nfo_content = f'''<?xml version="1.0" encoding="utf-8"?>
 <movie>
   <title>{html.escape(display_title)}</title>
@@ -1005,7 +986,7 @@ def generate_nfo(
   {label_tag}
   <year>{html.escape(year)}</year>
   <premiered>{html.escape(date)}</premiered>
-{rating_line}  <plot>{html.escape(summary)}</plot>
+{rating_line}  {plot_block}
   <mpaa>{html.escape(mpaa)}</mpaa>
   {runtime_tag}
   {director_tag}
@@ -1598,6 +1579,7 @@ def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在�
         nfo_path = os.path.join(target_dir, filename_base + '.nfo')
         tags = metadata.get('tags', [])
         user_tags = metadata.get('user_tags', [])
+        plot, original_plot = resolve_plot_pair(metadata.get('_summary'), metadata.get('translated_summary'))
         if generate_nfo(
             number=number,
             title=title,
@@ -1619,7 +1601,7 @@ def organize_file(  # noqa: C901 — 整理主流程；Phase 2（110b）會在�
             label=metadata.get('label', ''),
             # 63c-5：metadata 是 raw search_jav 結果 dict，summary/rating 走 _ 前綴 carrier
             # （兩條路徑現在都帶值；該剝除機制已於 0.15.16 退場）
-            summary=metadata.get('_summary', ''), rating=metadata.get('_rating'),
+            summary=plot, original_summary=original_plot, rating=metadata.get('_rating'),
             external_manager=ext_mode,
             nfo_title_format=config.get('nfo_title_format', '[{num}]{title}'),
         ):
