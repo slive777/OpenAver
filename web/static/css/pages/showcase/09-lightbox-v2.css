@@ -1560,3 +1560,10 @@ a.lbx-utag-link:focus-visible {
         margin-bottom: -.6875rem;
     }
 }
+
+/* 封面最寬只到卡片內容區；基底只看視窗寬度，
+   窄視窗會撐出橫向捲動。
+   高度決定封面寬度的視窗不受影響。 */
+.lightbox-content:has(> .lb-video-branch) .lightbox-cover.has-cover {
+    max-width: 100%;
+}
