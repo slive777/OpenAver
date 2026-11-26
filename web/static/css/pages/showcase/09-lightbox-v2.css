@@ -10,7 +10,7 @@
    本檔不得出現 px 高度數字。 */
 @media (min-width: 769px) and (min-height: 720px) {
     .lightbox-content:has(> .lb-video-branch) {
-        --lbx-meta-h: 15rem;
+        --lbx-meta-h: 15.5rem;
         --lbx-v-reserve: calc(3.125rem + var(--lbx-meta-h));
         min-width: min(calc(37.5rem + 3rem), 90vw);
         max-height: 96vh;
@@ -540,6 +540,7 @@
 /* ── 199a-T5：文字區第 3 列（女優＋作品資訊小膠囊＋ⓘ）＋「另有 N 位」／ⓘ 兩種浮層內容 ──────────────
    女優區 `.lbx-actors` 可伸縮並保留 min-width:0，lbxFit 以整列寬量測露出數；
    收藏女優項目由頭像與名字／副行組成，可見層與量測層結構相同。
+   視窗閘內頭像隨寬度放大，三位以上時副行寬度跟名字走。
    作品區 `.lbx-works` 靠右，與女優區由 CSS 換行決定同列或分列，系列與片商限寬並省略溢出。
    量測層 `.lbx-measure` 是可見層的隱形複本（共用 .lbx-actor-chip／.lbx-more-actors 的樣式，寬度才一致）：
    visibility:hidden＋height:0＋absolute，不佔版面也不影響 `.lbx-actors` 的 clientWidth。
@@ -611,6 +612,33 @@
 
 @media (min-width: 769px) and (min-height: 720px) {
     .lbx-people-row .lbx-actor-chip.is-fav .lb-actor-age { display: none; }
+
+    /* 207a-T5b：頭像隨視窗寬度在 3.375rem 至 3.875rem 間連續放大；
+       [data-crowded] 觸發副行寬度跟名字走。.9375rem 是基底 font-size .75rem × line-height 1.25 的一行高，改基底要同步。 */
+    .lbx-people-row {
+        --lbx-avatar-lg: clamp(3.375rem, calc(3.375rem + (100vw - 1920px) * 0.0125), 3.875rem);
+    }
+
+    .lbx-people-row .lbx-actor-chip .lbx-avatar {
+        --lbx-avatar-size: var(--lbx-avatar-lg);
+    }
+
+    .lbx-people-row[data-crowded] .lbx-actor-chip.is-fav .lbx-actor-text {
+        min-width: 4.5rem;
+    }
+
+    .lbx-people-row[data-crowded] .lbx-actor-sub {
+        width: 0;
+        min-width: 100%;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        height: .9375rem;
+        overflow: hidden;
+    }
+
+    .lbx-people-row[data-crowded] .lbx-sub-seg {
+        white-space: nowrap;
+    }
 }
 
 @media (max-width: 768px), (max-height: 719px) {
