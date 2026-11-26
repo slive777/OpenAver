@@ -3108,9 +3108,10 @@ const RULES = [
   //
   //
   //
-  // 199a-T1：09-lightbox-v2.css 影片燈箱 v2 外框隔離。該檔同時被 search.html／design-system.html 載入，
-  // 隔離全靠選擇器結構：① 每條選擇器都必含 .lbx- 或 .lb-video-branch（在其他頁零命中）；
-  // ② 帶外框尺寸（96dvh／17rem／13.875rem）的 block 每條選擇器都必須掛 :has(> .lb-video-branch)。
+  // 199a-T1：09-lightbox-v2.css 的外框掛 .lightbox-content:has(> .lb-video-branch)。
+  // Showcase 與搜尋頁影片燈箱（207b 起）刻意帶 wrapper、共用外框；女優分支與 design-system.html 不帶。
+  // Search 專屬補強須帶 .search-container 前綴。此守衛檢查每條選擇器含 .lbx- 或 .lb-video-branch，
+  // 不守頁面結構是否帶 wrapper；帶外框尺寸的 block 每條選擇器都必須掛 :has(> .lb-video-branch)。
   // 外框規則包在 @media 內，必須 flattenRuleBlocks 展平逐一檢查（頂層只看得到一個 @media block ⇒ fail-open，FE-GUARD-14）。
   {
     id: 'CG-199A-01',
