@@ -839,7 +839,7 @@ const RULES = [
     // 舊兩引數形式不得出現在模板任何地方（人物列 :class／x-effect 兩處都要帶 lbxFavKey()）
     file: 'web/templates/showcase.html', kind: 'forbidden-string',
     pattern: /lbxFitSig\(currentLightboxVideo,\s*addingLbTag\)/,
-    note: '[lint-guard:199b-T1-favkey-all-sites] 有一個 lbxFitSig( 呼叫沒帶 lbxFavKey() → 使用者開任何一部有收藏女優的片，那一列（人物列或標籤列）的「量完了」簽章永遠對不上而整列看不見',
+    note: '[lint-guard:199b-T1-favkey-all-sites] 有一個 lbxFitSig( 呼叫沒帶 lbxFavKey() → 使用者開任何一部有收藏女優的片，那一列（人物列）的「量完了」簽章永遠對不上而整列看不見',
   },
   {
     file: 'web/templates/showcase.html', kind: 'required-string',

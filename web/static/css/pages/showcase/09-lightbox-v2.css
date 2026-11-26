@@ -869,7 +869,7 @@ button.lbx-avatar {
     flex: none;
 }
 
-/* 觸控：ⓘ 保持原排版高度，避免熱區跨列；「另有 N 位」上下外擴 5px，
+/* 觸控：ⓘ 熱區高 30px，避免熱區跨列；「另有 N 位」上下外擴 5px，
    為列間命中保留 1px 容差。女優區以等量負 margin 抵銷 padding，避免裁掉熱區。 */
 @media (pointer: coarse) {
     .lbx-info-btn {
@@ -1298,7 +1298,7 @@ a.lbx-utag-link:focus-visible {
     cursor: pointer;
 }
 
-/* 虛線框畫在圖示上、不畫在按鈕上：觸控時按鈕放大成 2.75rem 熱區，視覺仍是 1.375rem 方塊 */
+/* 虛線框隨圖示維持 22px 方形，觸控時「＋」按鈕的熱區高 26px。 */
 .lbx-tag-plus > i {
     box-sizing: border-box;
     display: inline-flex;

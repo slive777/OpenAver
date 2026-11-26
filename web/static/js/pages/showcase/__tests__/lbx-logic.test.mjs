@@ -101,6 +101,14 @@ test('test_fit_actresses_default_has_no_cap_and_keeps_at_least_one', async () =>
     assert.equal(fitActresses({ ...base, chipWidths: chip(6), available: 290 }), 2);
 });
 
+test('test_fit_actresses_exact_fit_leaves_slack_for_more_chip', async () => {
+    const { fitActresses } = await import('../lbx-logic.js');
+    const base = { chipWidths: Array(6).fill(100), moreChipWidth: 60, gap: 10 };
+    // 使用者在 1280×720 開 8 位以上女優合集、那一列剛好滿到邊 → 少露一位而不是每位名字被截掉一個字
+    assert.equal(fitActresses({ ...base, available: 280 }), 1);
+    assert.equal(fitActresses({ ...base, available: 282 }), 2);
+});
+
 test('test_work_info_fields_skip_empty_and_dup_label', async () => {
     const { workInfoFields } = await import('../lbx-logic.js');
     const ids = (v, o) => workInfoFields(v, o).map((f) => f.id);

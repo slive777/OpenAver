@@ -95,6 +95,9 @@ export function hasDistinctOtitle(video) {
     return !!o && o !== String(video?.title || '').trim();
 }
 
+// 量測層「另有 N 位」的位數可能比實際顯示的窄 1px，有收起人時多留 2px。
+const FIT_MORE_SLACK = 2;
+
 /**
  * fitActresses：第 3 列女優露出數（199a-T5，CD-199a-9）。預設不設上限、至少 min 位（不足人數時取人數）；
  * 放不下就逐位減少，有被收起的人時要多留「另有 N 位」那顆的寬度。輸入都是量到的寬度（px），純函式。
@@ -105,7 +108,7 @@ export function fitActresses({ chipWidths, moreChipWidth, available, gap, max = 
     const floor = Math.min(min, n);
     for (; shown > floor; shown -= 1) {
         const used = chipWidths.slice(0, shown).reduce((a, w) => a + w, 0) + gap * (shown - 1);
-        const more = shown < n ? moreChipWidth + gap : 0;
+        const more = shown < n ? moreChipWidth + gap + FIT_MORE_SLACK : 0;
         if (used + more <= available) break;
     }
     return shown;
