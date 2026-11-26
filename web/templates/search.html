@@ -35,12 +35,11 @@
                 <i class="bi bi-x-lg"></i>
             </button>
 
+            <template x-if="lbxOwner() === 'search' && lightboxIndex >= 0 && lbxView()"><div class="lb-video-branch" style="display:contents">
             <!-- Cover Image -->
-            <div class="lightbox-cover" :class="{'has-cover': !actressLightboxMode() && !!resolveCoverUrl(currentLightboxVideo()) && !_heroLightboxImageError}">
-                <img :src="actressLightboxMode()
-                         ? (actressProfile?.img ? (actressProfile.img.startsWith('/api/') ? actressProfile.img : `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}`) : '')
-                         : (resolveCoverUrl(currentLightboxVideo()) ? `/api/proxy-image?url=${encodeURIComponent(resolveCoverUrl(currentLightboxVideo()))}` : '')"
-                     :alt="actressLightboxMode() ? actressProfile?.name : currentLightboxVideo()?.number"
+            <div class="lightbox-cover" :class="{'has-cover': !!resolveCoverUrl(currentLightboxVideo()) && !_heroLightboxImageError}">
+                <img :src="resolveCoverUrl(currentLightboxVideo()) ? `/api/proxy-image?url=${encodeURIComponent(resolveCoverUrl(currentLightboxVideo()))}` : ''"
+                     :alt="currentLightboxVideo()?.number"
                      x-show="!_heroLightboxImageError"
                      @error="handleHeroLightboxError($event)"
                      @load="_setCoverAspect($event)">
@@ -58,13 +57,6 @@
                             @click="switchToDetail(lightboxIndex)"
                             data-tooltip="{{ t('search.action.back_to_detail') }}" aria-label="{{ t('search.action.back_to_detail') }}">
                         <i class="bi bi-arrow-return-left"></i>
-                    </button>
-                    <!-- Actress source link：取代返回詳情的位置，actress 模式才顯示 -->
-                    <button class="lb-action-btn"
-                            x-show="actressLightboxMode() && !actressProfile?.is_favorite && _actressSourceUrl()"
-                            @click.stop="openSourceUrl(_actressSourceUrl())"
-                            data-tooltip="{{ t('search.action.open_source_url') }}" aria-label="{{ t('search.action.open_source_url') }}">
-                        <i class="bi bi-box-arrow-up-right"></i>
                     </button>
                     <!-- TASK-140-T6: 播放 -->
                     <button class="lb-action-btn"
@@ -110,49 +102,23 @@
                     </button>
                 </div>
             </div>
-            <!-- lightbox-metadata: actress mode 時隱藏 -->
-            <div class="lightbox-metadata" x-show="!actressLightboxMode()">
-                <!-- Row 1: Header (title + sample gallery button) -->
-                <div class="lb-header">
-                    <div class="lb-title" x-text="currentLightboxVideo()?.title || '-'"></div>
-                    <!-- T8: Sample Gallery 入口按鈕 -->
-                    <!-- FE-JS-01: preview || raw 的 || 刻意；''＝這格無代理，必須落回原址，不准改 ?? -->
-                    <button class="sg-open-btn"
-                            x-show="(currentLightboxVideo()?.sample_images || []).length > 0"
-                            @click="openSampleGallery((currentLightboxVideo()?.sample_images || []).map((url, i) => '/api/proxy-image?url=' + encodeURIComponent(currentLightboxVideo()?.preview_sample_images?.[i] || url)), 0)"
-                            x-text="t('search.gallery.sample_prefix') + ' (' + (currentLightboxVideo()?.sample_images || []).length + ')'">
+                <div class="lightbox-metadata lbx-meta lbx-meta--static" x-ref="lbxMeta" @scroll.passive="lbxPopClose()">{% include '_macros/lbx_search_video_meta.html' %}</div>
+            </div></template>
+            <div class="lightbox-cover" x-show="actressLightboxMode()">
+                <img :src="actressProfile?.img ? (actressProfile.img.startsWith('/api/') ? actressProfile.img : `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}`) : ''"
+                     :alt="actressProfile?.name" x-show="!_heroLightboxImageError" @error="handleHeroLightboxError($event)">
+                <div x-show="_heroLightboxImageError" class="cover-error-placeholder">
+                    <i class="bi bi-image text-5xl"></i>
+                    <p class="mt-2" x-text="t('common.no_image')"></p>
+                </div>
+                <div class="cover-actions">
+                    <!-- Actress source link：取代返回詳情的位置，actress 模式才顯示 -->
+                    <button class="lb-action-btn"
+                            x-show="actressLightboxMode() && !actressProfile?.is_favorite && _actressSourceUrl()"
+                            @click.stop="openSourceUrl(_actressSourceUrl())"
+                            data-tooltip="{{ t('search.action.open_source_url') }}" aria-label="{{ t('search.action.open_source_url') }}">
+                        <i class="bi bi-box-arrow-up-right"></i>
                     </button>
-                </div>
-                <!-- Row 3: Actresses -->
-                <div class="lb-actor" x-text="(currentLightboxVideo()?.actors || []).join(', ') || '-'"></div>
-                <!-- Row 4: Details (merged) -->
-                <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
-                <div class="lb-details">
-                    <span class="lb-detail-num" x-text="currentLightboxVideo()?.number || '-'"></span>
-                    <span x-show="currentLightboxVideo()?.maker">
-                        &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.maker"></span>
-                    </span>
-                    <span x-show="currentLightboxVideo()?.director">
-                        &nbsp;·&nbsp;<b>{{ t('search.label.director') }}：</b><span x-text="currentLightboxVideo()?.director"></span>
-                    </span>
-                    <span x-show="currentLightboxVideo()?.duration">
-                        &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.duration ? currentLightboxVideo().duration + ' ' + t('search.unit.minutes') : ''"></span>
-                    </span>
-                    <span x-show="currentLightboxVideo()?.series">
-                        &nbsp;·&nbsp;<b>{{ t('search.label.series') }}：</b><span x-text="currentLightboxVideo()?.series"></span>
-                    </span>
-                    <span x-show="currentLightboxVideo()?.label && currentLightboxVideo()?.label !== currentLightboxVideo()?.maker">
-                        &nbsp;·&nbsp;<b>{{ t('search.label.label') }}：</b><span x-text="currentLightboxVideo()?.label"></span>
-                    </span>
-                    <span x-show="currentLightboxVideo()?.date">
-                        &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.date"></span>
-                    </span>
-                </div>
-                <!-- Row 5: Tags -->
-                <div class="lb-tags" x-show="(currentLightboxVideo()?.tags || []).length > 0">
-                    <template x-for="tag in (currentLightboxVideo()?.tags || [])" :key="tag">
-                        <span class="lb-tag" x-text="tag"></span>
-                    </template>
                 </div>
             </div>
 
@@ -225,6 +191,10 @@
                 </div>
             </div>
         </div>
+
+        <template x-if="lbxOwner() === 'search'">
+            <div class="lbx-pop-host" x-ref="lbxPopHost" @click.stop @pointerdown.window="lbxPopOnPointerDown($event)" @resize.window="lbxPopClose()">{% include '_macros/lbx_search_pop_host.html' %}</div>
+        </template>
 
         <!-- Navigation Arrows -->
         <button class="lightbox-nav lightbox-nav-prev"

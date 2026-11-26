@@ -1593,12 +1593,6 @@ const RULES = [
     note: '[TestMaskToggleGuard] 100c-T2（CD-5）：_refreshActressPhotoLoaded() 的 $nextTick 內呼叫 _readyActressPhotoState()（已快取路徑；未快取路徑那次由 showcase.html @load required 規則鎖）',
   },
 
-  // ---- [TestSearchLightboxMetadataGuard] search.html：5 個 required ----
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.director', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.duration', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.series', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.label', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'lb-details', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
 
   // ---- [TestShowcaseHeroCard] required 半邊 + forbidden（同批簡單字串）+ animations.js required ----
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'hero-card', note: '[TestShowcaseHeroCard] hero card structure' },
@@ -2018,7 +2012,7 @@ const RULES = [
 
   // ---- [TestUS5VideoCoverFitMobile] / [TestUS9SearchGridMobileFix]（discrepancy：flat required-string，非 tag-scan） ----
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: "'has-cover': !!currentLightboxVideo?.cover_url", note: '[TestUS5VideoCoverFitMobile] test_video_lightbox_cover_has_cover_class' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: "'has-cover': !actressLightboxMode() && !!resolveCoverUrl(currentLightboxVideo()) && !_heroLightboxImageError", note: '[TestUS9SearchGridMobileFix] test_search_lightbox_has_cover_class（TASK-113c-T7：改用 resolveCoverUrl() 純函式，內部含 _previewFailed error-time fallback，preview_cover_url 優先 fallback cover 語意不變）' },
+  { file: 'web/templates/search.html', kind: 'required-string', pattern: "'has-cover': !!resolveCoverUrl(currentLightboxVideo()) && !_heroLightboxImageError", note: '[TestUS9SearchGridMobileFix] test_search_lightbox_has_cover_class（TASK-113c-T7：改用 resolveCoverUrl() 純函式，內部含 _previewFailed error-time fallback，preview_cover_url 優先 fallback cover 語意不變；207b-T3a：拿掉已由分支承擔的 !actressLightboxMode()）' },
 
   // ---- [TestActressCoreMetadataVideoCount]（order + required，brace-balanced scope，handoff 已解除留置 AD-96b-2） ----
   // 116a-T3：anchor 由 _actressCoreMetadata 改為 _actressCoreMetadataParts（函式被結構化陣列版原地取代）。
@@ -5428,9 +5422,10 @@ const RULES = [
   // 那一格劇照又變回 403 破圖，而且沒人會去查，因為守衛回報過關。
   // 指紋各自帶「誰的 index」，所以三處不會互相冒充。
   {
-    file: 'web/templates/search.html',
-    kind: 'required-string',
-    pattern: 'currentLightboxVideo()?.preview_sample_images?.[i]',
+    file: 'web/static/js/pages/search/state/lbx-view.js',
+    kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])lbxOpenSamples\s*\(\s*\)\s*\{/, braceBalanced: true },
+    pattern: /preview_sample_images\?\.\[i\]\s*\|\|\s*url/,
     note: '[lint-guard 126-T3a] 燈箱劇照按鈕的 /api/proxy-image 必須吃 preview_sample_images?.[i] || raw（CD-126-3；FE-JS-01 用 || 不用 ??）',
   },
   {
@@ -6774,8 +6769,8 @@ const RULES = [
   },
   {
     file: 'web/templates/search.html', kind: 'required-string',
-    pattern: ['sampleGalleryOpen', 'sampleGalleryImages', 'sampleGalleryIndex', 'lb-header'],
-    note: '[lint-guard 162c-test_sample_gallery_template_html_contains] search.html 須含 sampleGallery* state 與 lb-header — 遷自 test_frontend_lint.py',
+    pattern: ['sampleGalleryOpen', 'sampleGalleryImages', 'sampleGalleryIndex'],
+    note: '[lint-guard 162c-test_sample_gallery_template_html_contains] search.html 須含 sampleGallery* state；207b-T3a 移除 lb-header — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/search.html', kind: 'forbidden-string',
@@ -6794,12 +6789,6 @@ const RULES = [
       { pattern: /(?<![\w:-])class="sample-gallery"/ },
     ],
     note: '[lint-guard 162c-test_sample_gallery_template_structure] .sample-gallery 須在 searchPage scope 之後 — 遷自 test_frontend_lint.py',
-  },
-  {
-    file: 'web/templates/search.html', kind: 'required-string',
-    pattern: 'sg-open-btn',
-    scope: { anchor: /<div class="lb-header">/, window: 500 },
-    note: '[lint-guard 162c-test_sample_gallery_template_structure] sg-open-btn 須在 lb-header 窗內 — 遷自 test_frontend_lint.py',
   },
 
   // 162c: TestShowcaseSampleGalleryGuard
@@ -10613,6 +10602,26 @@ const RULES = [
   { file: 'web/static/js/pages/search/main.js', kind: 'required-string', stripLineComments: true,
     pattern: [/(?<![\w.])searchStateLbxFavs\(\)\s*,/, /(?<![\w:-])\$watch\(\s*\(\)\s*=>\s*this\.lbxViewKey\(\)\s*,\s*\(\)\s*=>\s*\{\s*this\._refreshLbActorAges\?\.\(\);?\s*\}\s*\)/],
     id: '207b-T2-favs-wired', note: '[lint-guard:207b-T2-favs-wired] 分片或換片刷新缺失 → 燈箱沒有頭像或顯示上一部的頭像。' },
+
+  { file: "web/templates/search.html", kind: "structure-count", pattern: 'lb-video-branch', count: 1, id: '207b-T3a-branch-count', note: '[lint-guard:207b-T3a-branch-count] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<template\ x\-if="lbxOwner\(\)\ ===\ 'search'\ \&\&\ lightboxIndex\ >=\ 0\ \&\&\ lbxView\(\)">/, window: 150 }, pattern: ["class=\"lb-video-branch\""], id: '207b-T3a-branch-scope', note: '[lint-guard:207b-T3a-branch-scope] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "structure-count", pattern: 'lbx-actress-branch', count: 0, id: '207b-T3a-actress-branch-absent', note: '[lint-guard:207b-T3a-actress-branch-absent] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: /<div class="lightbox-metadata lbx-meta[^"]*"[^>]*>/, pattern: ["x-ref=\"lbxMeta\"", "@scroll.passive=\"lbxPopClose()\""], id: '207b-T3a-meta-root', note: '[lint-guard:207b-T3a-meta-root] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: /<template x-if="lbxOwner\(\) === \'search\'">\s*(<div class="lbx-pop-host"[^>]*>)/, pattern: ["x-ref=\"lbxPopHost\"", "@click.stop", "@pointerdown.window=\"lbxPopOnPointerDown($event)\"", "@resize.window=\"lbxPopClose()\""], id: '207b-T3a-pop-host-root', note: '[lint-guard:207b-T3a-pop-host-root] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "tag-scan", mode: 'class-tag', tagName: 'div', className: 'showcase-lightbox', multi: true, expectedCount: 2, forbidden: ['@pointerdown.window', '@resize.window'], id: '207b-T3a-roots-no-window-listeners', note: '[lint-guard:207b-T3a-roots-no-window-listeners] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<div\ class="lightbox\-metadata\ lbx\-meta/, window: 210 }, pattern: ["{% include '_macros/lbx_search_video_meta.html' %}"], id: '207b-T3a-include-meta', note: '[lint-guard:207b-T3a-include-meta] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-pop\-host"/, window: 260 }, pattern: ["{% include '_macros/lbx_search_pop_host.html' %}"], id: '207b-T3a-include-pop', note: '[lint-guard:207b-T3a-include-pop] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "forbidden-string", pattern: ["searchFromMetadata", "<a ", "@click.prevent", "lbxActorAvatarTap", "pick-star", "lbxMenuHas", "bi-three-dots", "proxy-image", "resolveCoverUrl", "http", "bi-pencil", "bi-translate", "bi-play-fill", "bi-folder2-open", "bi-bookmark", "lbPlot", "lbxWorkTags"], id: '207b-T3a-meta-static', note: '[lint-guard:207b-T3a-meta-static] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_pop_host.html", kind: "forbidden-string", pattern: ["searchFromMetadata", "<a ", "@click.prevent", "lbxActorAvatarTap", "lbxPop.kind === 'menu'", "'verTip'", "lbPlot", "_lbPlotView", "lbx-plot-pop-btn", "/api/", "proxy-image", "resolveCoverUrl", "http", "bi-pencil", "bi-translate", "bi-play-fill", "bi-folder2-open", "bi-bookmark"], id: '207b-T3a-pop-static', note: '[lint-guard:207b-T3a-pop-static] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-title\-row">/, window: 10950 }, pattern: ["data-lbx-anchor=\"title\"", "data-lbx-anchor=\"otitle\"", "data-lbx-anchor=\"actorCard\"", "data-lbx-anchor=\"actresses\"", "data-lbx-anchor=\"info\"", "data-lbx-anchor=\"plot\""], id: '207b-T3a-anchors', note: '[lint-guard:207b-T3a-anchors] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-people\-row"/, window: 450 }, pattern: ["x-effect=\"lbxFitSchedule($el, lbxFitSig(lbxView(), false, lbxFavKey()))\"", "lbxFitMeasuring(lbxFitSig(lbxView(), false, lbxFavKey()))", ":data-crowded=\"lbxActressList().length >= 3\""], id: '207b-T3a-people-wired', note: '[lint-guard:207b-T3a-people-wired] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-measure"\ aria\-hidden="true"\ inert>/, window: 950 }, pattern: ["class=\"lbx-actor-text\"", "class=\"lbx-actor-sub\"", "lbxActorSub(name)", "<span class=\"lbx-avatar\""], id: '207b-T3a-measure-isomorphic', note: '[lint-guard:207b-T3a-measure-isomorphic] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<button\b[^>]*\bclass="lbx-avatar"[^>]*>/, window: 440 }, pattern: ["lbxPopHoverStart($event, 'actorCard', name, { dwell: true })", "@focus=", "@pointerleave=", "@blur=", "lbxPopTapOpen($event, 'actorCard', name)"], id: '207b-T3a-avatar-wired', note: '[lint-guard:207b-T3a-avatar-wired] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<button\ type="button"\ class="lbx\-sg\-btn"/, window: 280 }, pattern: ["lbxOpenSamples()"], id: '207b-T3a-sg-wired', note: '[lint-guard:207b-T3a-sg-wired] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<button\ type="button"\ class="lbx\-plot\-row"/, window: 320 }, pattern: ["@click.stop=\"lbxPlotTap($event)\"", "x-text=\"lbxView().summary\""], id: '207b-T3a-plot-wired', note: '[lint-guard:207b-T3a-plot-wired] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /class="lb\-tag\ lbx\-work\ lbx\-work\-\-src"/, window: 90 }, pattern: ["x-show=\"lbxSrcPillShown()\""], id: '207b-T3a-src-pill', note: '[lint-guard:207b-T3a-src-pill] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_pop_host.html", kind: "required-string", scope: { anchor: /<template\ x\-if="lbxPop">/, window: 6510 }, pattern: ["lbxPop.kind === 'title'", "lbxPop.kind === 'otitle'", "lbxPop.kind === 'actresses'", "lbxPop.kind === 'info'", "lbxPop.kind === 'plot'", "lbxPop.kind === 'actorCard'"], id: '207b-T3a-pop-kinds', note: '[lint-guard:207b-T3a-pop-kinds] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_pop_host.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-pop\-info">/, window: 3030 }, pattern: ["lbxInfoHas('number')", "lbxInfoHas('maker')", "lbxInfoHas('label')", "lbxInfoHas('series')", "lbxInfoHas('director')", "lbxInfoHas('release')", "lbxInfoHas('source_duration')"], id: '207b-T3a-info-rows', note: '[lint-guard:207b-T3a-info-rows] 搜尋燈箱結構與接線。' },
 
 ];
 

@@ -1569,3 +1569,9 @@ a.lbx-utag-link:focus-visible {
 .lightbox-content:has(> .lb-video-branch) .lightbox-cover.has-cover {
     max-width: 100%;
 }
+
+.lbx-meta--static .lbx-work,
+.lbx-meta--static .lbx-tag,
+.lbx-meta--static .lbx-link {
+    cursor: default;
+}
