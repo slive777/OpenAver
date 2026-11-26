@@ -161,6 +161,7 @@
       "add_tag": "新增標籤",
       "edit_title": "編輯標題",
       "translate_ai": "AI 翻譯",
+      "translate_summary": "AI 翻譯簡介",
       "edit_chinese_title": "編輯中文片名",
       "edit_actors": "編輯演員",
       "edit_number": "編輯番號",
@@ -243,7 +244,8 @@
       "tags": "標籤",
       "title": "標題",
       "chinese_title": "中文片名",
-      "chinese_title_ai": "AI 翻譯標題"
+      "chinese_title_ai": "AI 翻譯標題",
+      "summary": "簡介"
     },
     "unit": {
       "minutes": "分鐘",
@@ -371,6 +373,7 @@
       "translate_batch_done": "翻譯完成：成功 {success}，失敗 {failed}",
       "translate_blocked": "這片的片名被翻譯服務的內容審查拒絕了。換模型通常沒用，可改用其他翻譯服務（例如 Claude 或本機 Ollama）",
       "translate_rate_limited": "翻譯額度用完或請求太頻繁，請稍後再試，或檢查方案額度",
+      "summary_already_zh": "簡介已是中文",
       "translate_batch_blocked_suffix": "（其中 {blocked} 片被翻譯服務的內容審查擋下，可改用其他翻譯服務）",
       "translate_batch_limited_suffix": "（{limited} 片遇到額度或限流，請稍後再試）",
       "fields_defaulted": "⚠️ {fields} 資訊未取得，已使用預設值",

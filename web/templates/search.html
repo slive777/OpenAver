@@ -974,6 +974,21 @@
                             </span>
                         </span>
                     </div>
+                    <div class="info-row" id="summaryRow" x-show="current()._summary">
+                        <span class="info-label">{{ t('search.label.summary') }}</span>
+                        <div class="info-value-with-actions">
+                            <span class="info-value whitespace-pre-line" id="resultSummary" x-text="current().translated_summary || current()._summary"></span>
+                            <div class="av-card-full-footer-actions">
+                                <button id="translateSummaryBtn" class="info-icon-btn"
+                                        x-show="canTranslateSummary()"
+                                        @click="translateSummary()" title="{{ t('search.action.translate_summary') }}">
+                                    <i class="bi bi-translate"></i>
+                                </button>
+                                <span id="translateSummarySpinner" class="loading loading-spinner loading-sm"
+                                      x-show="isTranslatingSummary"></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             </div>

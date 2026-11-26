@@ -10669,6 +10669,8 @@ const RULES = [
   { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<div class="actress-lb-photo-frame">/, window: 1310 }, pattern: ["@error=\"handleHeroLightboxError($event)\"", "class=\"actress-lb-cover-placeholder\"", "<div class=\"lbx-actions\">", "!actressProfile?.is_favorite && _actressSourceUrl()", "openSourceUrl(_actressSourceUrl())"], id: '207b-T5-cover-wired', note: '[lint-guard:207b-T5-cover-wired] 搜尋女優燈箱結構與接線。' },
   { file: "web/templates/search.html", kind: "forbidden-string", pattern: ["lbx-ap-strip", "lb-mask-btn", "lb-delete-btn", "lbx-faces", "cover-actions--focal-edit", "lb-actress-urls", "lb-chips-row", "_visibleAliases(", "_visibleInfoChips(", "_chipsLimit("], id: '207b-T5-not-brought', note: '[lint-guard:207b-T5-not-brought] 搜尋女優燈箱結構與接線。' },
 
+  { file: 'web/static/js/pages/search/state/batch.js', kind: 'forbidden-string', pattern: 'translated_summary', id: '207b-T6-batch-no-summary', note: '[lint-guard:207b-T6-batch-no-summary] 使用者按「全部翻譯」→ 簡介被偷偷一起翻、白花翻譯額度' },
+  { file: 'web/templates/search.html', kind: 'required-string', scope: { anchor: /<div class="info-row" id="summaryRow"/, window: 1600 }, pattern: ['x-show="current()._summary"', 'x-text="current().translated_summary || current()._summary"', 'x-show="canTranslateSummary()"', '@click="translateSummary()"', 'x-show="isTranslatingSummary"', "{{ t('search.label.summary') }}"], id: '207b-T6-detail-wired', note: '[lint-guard:207b-T6-detail-wired] 簡介列或翻譯鈕接線掉了 → 使用者看不到簡介，或翻譯鈕按了沒反應／翻完畫面不換' },
 ];
 
 // ---- helpers ----

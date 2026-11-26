@@ -5,6 +5,7 @@
 import { openLocal } from '@/shared/open-local.js';
 import { playVideo } from '@/shared/play-video.js';
 import { isCloudTranslateProvider, translateFailureToastKey } from '@/shared/translate-provider.js';
+import { sameAfterNormalize } from '@/showcase/lb-plot-logic.js';
 import { parseActorsInput } from '@/shared/parse-actors-input.js';
 
 // TASK-113c-T8：三顆純函式已搬至 shared/cover-fallback.js（單一所有者）。
@@ -114,6 +115,8 @@ export function searchStateResultCard() {
     return {
     // ===== T1c: Result Card Computed =====
 
+    isTranslatingSummary: false,
+
     current() {
         if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
             const file = this.fileList[this.currentFileIndex];
@@ -192,6 +195,12 @@ export function searchStateResultCard() {
                c.title &&
                this.hasJapanese(c.title) &&
                !this.isBatchTranslating(this.currentIndex);
+    },
+
+    canTranslateSummary() {
+        const c = this.current();
+        return !!(this.appConfig?.translate?.enabled && !c._blank && c._summary &&
+            !c.translated_summary && this.hasJapanese(c._summary) && !this.isTranslatingSummary);
     },
 
     hasLocalBadge() {
@@ -365,6 +374,30 @@ export function searchStateResultCard() {
             batchMeta.forEach(meta => {
                 this._deleteBatchTranslatingIndex(meta.resultIndex);
             });
+        }
+    },
+
+    async translateSummary() {
+        if (this.isTranslatingSummary) return;
+        const target = this.current();
+        const source = target?._summary;
+        if (!source || !this.hasJapanese(source)) return;
+        this.isTranslatingSummary = true;
+        try {
+            const trData = await this.translateWithOllama(source, 'translate', target);
+            if (trData.skipped === true || sameAfterNormalize(trData.result, source)) {
+                this.showToast(window.t('search.toast.summary_already_zh'), 'info');
+                return;
+            }
+            if (trData.success !== true || typeof trData.result !== 'string' || !trData.result) {
+                const key = translateFailureToastKey(trData.reason);
+                this.showToast(window.t(key), key === 'search.toast.translate_rate_limited' ? 'warning' : 'error');
+                return;
+            }
+            target.translated_summary = trData.result;
+            this.saveState();
+        } finally {
+            this.isTranslatingSummary = false;
         }
     },
 
