@@ -1,9 +1,8 @@
 /* 199b 女優燈箱 v2：外框＋資料區（T4）。
-   本檔每條選擇器必含 `.lbx-`（CG-199B-01 強制）——本檔也會被 search.html、design-system.html 一起載入
-   （共用 _showcase_css.html），隔離全靠選擇器在那兩頁與影片分支結構上零命中。
+   本檔每條選擇器必含 `.lbx-`（CG-199B-01 強制）——Showcase 與 Search 的女優分支都帶 `.lbx-actress-branch` wrapper；隔離開關是 wrapper，不是頁面。
    隔離開關只有一個：女優分支包裝 div 的 `.lbx-actress-branch`；外框規則一律掛
-   `.lightbox-content:has(> .lbx-actress-branch)`，影片分支與搜尋頁結構上不帶它，不靠權重或載入順序。
-   不改 05／06／08／09 的任何既有規則（搜尋頁的女優燈箱仍在用 08 的舊列規則）。
+   `.lightbox-content:has(> .lbx-actress-branch)`，影片分支不帶它，不靠權重或載入順序。
+   搜尋頁舊女優列規則（08／search.css）已無使用者，待 T8 清。
    閘：寬 ≥769（避開 06 的 max-width:768px）且高 ≥720（桌面最小保證），與 09 同閘。
    垂直預算全用 rem（與影片燈箱同一條公式）：1.5 上 padding + .75 gap + 13.875 資料區 + .875 下 padding = 17rem。
    本檔不得出現 px 高度數字。 */
@@ -75,6 +74,8 @@
         text-overflow: ellipsis;
     }
 }
+
+.lbx-ap-lead:empty { display: none; }
 
 /* ── 名字列右端：部落格／官網小圖示（沒有該連結的女優 DOM 裡不存在）──────────────
    形狀沿用 06 的 `.lb-delete-btn`（muted 小圖示），hover 換成 --text-primary（不 accent 常駐，克制）。 */

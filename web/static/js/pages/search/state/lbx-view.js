@@ -30,6 +30,28 @@ export function searchStateLbxView() {
                 '/api/proxy-image?url=' + encodeURIComponent(video.preview_sample_images?.[i] || url));
             this.openSampleGallery(urls, 0);
         },
+        _actressLbChips() {
+            const aliases = (this.actressProfile?.aliases || []).map(text => ({ kind: 'alias', text }));
+            const info = this._allInfoChips().map(text => ({ kind: 'info', text }));
+            return aliases.concat(info);
+        },
+        _actressChipsIsExpanded() {
+            const aliases = this._actressChipsExpanded.aliases;
+            const info = this._actressChipsExpanded.info;
+            return aliases || info;
+        },
+        _actressCoreMetadataParts() {
+            const a = this.actressProfile;
+            if (!a) return [];
+            const parts = [];
+            if (a.age) parts.push({ key: 'age', text: a.age + window.t('search.unit.age'), clickable: false });
+            if (a.birth) parts.push({ key: 'birth', text: a.birth, clickable: false });
+            if (a.height) parts.push({ key: 'height', text: a.height, clickable: false });
+            if (a.cup) parts.push({ key: 'cup', text: a.cup + window.t('search.unit.cup'), clickable: false });
+            const bwh = [a.bust, a.waist, a.hip].filter(Boolean).join('-');
+            if (bwh) parts.push({ key: 'bwh', text: bwh, clickable: false });
+            return parts;
+        },
         lbxPlotTap(e) {
             const text = e?.currentTarget?.querySelector('.lbx-plot-text');
             if (!text || !(text.scrollHeight > text.clientHeight + 1)) return;
