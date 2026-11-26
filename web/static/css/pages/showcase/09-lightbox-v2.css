@@ -1420,7 +1420,8 @@ a.lbx-utag-link:focus-visible {
     .lbx-utag-x::after {
         content: "";
         position: absolute;
-        inset: -.875rem;
+        /* 兩排中心距 28px，垂直只外擴 .3125rem（5px），留 1px 命中容差，不跨列。 */
+        inset: -.3125rem -.875rem;
     }
 }
 
