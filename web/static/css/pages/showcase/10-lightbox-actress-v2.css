@@ -2,7 +2,6 @@
    本檔每條選擇器必含 `.lbx-`（CG-199B-01 強制）——Showcase 與 Search 的女優分支都帶 `.lbx-actress-branch` wrapper；隔離開關是 wrapper，不是頁面。
    隔離開關只有一個：女優分支包裝 div 的 `.lbx-actress-branch`；外框規則一律掛
    `.lightbox-content:has(> .lbx-actress-branch)`，影片分支不帶它，不靠權重或載入順序。
-   搜尋頁舊女優列規則（08／search.css）已無使用者，待 T8 清。
    閘：寬 ≥769（避開 06 的 max-width:768px）且高 ≥720（桌面最小保證），與 09 同閘。
    垂直預算全用 rem（與影片燈箱同一條公式）：1.5 上 padding + .75 gap + 13.875 資料區 + .875 下 padding = 17rem。
    本檔不得出現 px 高度數字。 */

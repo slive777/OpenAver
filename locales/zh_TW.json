@@ -269,8 +269,7 @@
     },
     "gallery": {
       "prev": "上一張 (←)",
-      "next": "下一張 (→)",
-      "sample_prefix": "劇照"
+      "next": "下一張 (→)"
     },
     "grid": {
       "sample_prefix": "劇照",

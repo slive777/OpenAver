@@ -267,8 +267,7 @@
     },
     "gallery": {
       "prev": "上一张 (←)",
-      "next": "下一张 (→)",
-      "sample_prefix": "剧照"
+      "next": "下一张 (→)"
     },
     "grid": {
       "sample_prefix": "剧照",

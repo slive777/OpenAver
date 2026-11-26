@@ -129,20 +129,20 @@
                             <span class="lb-name" x-text="actressProfile?.name"></span>
                             <span class="lb-name-en" x-show="actressProfile?.name_en" x-text="actressProfile?.name_en"></span>
                         </div>
-                    <button class="btn-glass-circle"
-                            x-show="actressProfile && !actressProfile?.is_favorite && !_actressFavoriteLoading"
-                            @click.stop="addFavoriteActress()"
-                            :title="t('search.actress.add_favorite')">
-                        <i class="bi bi-heart"></i>
-                    </button>
-                    <button class="btn-glass-circle" x-show="_actressFavoriteLoading" disabled>
-                        <span class="loading loading-spinner loading-xs"></span>
-                    </button>
-                    <span class="btn-glass-circle is-favorite"
-                          x-show="actressProfile?.is_favorite && !_actressFavoriteLoading"
-                          :title="t('search.actress.favorited')">
-                        <i class="bi bi-heart-fill"></i>
-                    </span>
+                        <button class="btn-glass-circle"
+                                x-show="actressProfile && !actressProfile?.is_favorite && !_actressFavoriteLoading"
+                                @click.stop="addFavoriteActress()"
+                                :title="t('search.actress.add_favorite')">
+                            <i class="bi bi-heart"></i>
+                        </button>
+                        <button class="btn-glass-circle" x-show="_actressFavoriteLoading" disabled>
+                            <span class="loading loading-spinner loading-xs"></span>
+                        </button>
+                        <span class="btn-glass-circle is-favorite"
+                              x-show="actressProfile?.is_favorite && !_actressFavoriteLoading"
+                              :title="t('search.actress.favorited')">
+                            <i class="bi bi-heart-fill"></i>
+                        </span>
                         <template x-if="actressProfile?.blog_url">
                             <a class="lbx-ap-link" target="_blank" rel="noopener" :href="_safeUrl(actressProfile.blog_url)"
                                :title="t('showcase.actress.link_blog')" :aria-label="t('showcase.actress.link_blog')"><i class="bi bi-journal-text" aria-hidden="true"></i></a>
@@ -157,29 +157,29 @@
                             <span><span x-show="idx > 0"> · </span><span x-text="part.text"></span></span>
                         </template>
                     </div>
-                            <template x-if="_actressLbChips().length > 0">
-                                <div class="lbx-ap-chips"
-                                     :class="{'is-measuring': lbxApFitMeasuring(lbxApFitSig(actressProfile?.name, _actressLbChips(), _actressChipsIsExpanded()))}"
-                                     x-effect="lbxApFitSchedule($el, lbxApFitSig(actressProfile?.name, _actressLbChips(), _actressChipsIsExpanded()))">
-                                    <template x-if="(actressProfile?.aliases || []).length > 0">
-                                        <span class="lbx-ap-label"
-                                              x-text="t('showcase.lightbox.alias_label')"></span>
-                                    </template>
-                                    <div class="lbx-ap-list">
-                                        <template x-for="chip in (_actressChipsIsExpanded() ? _actressLbChips() : _actressLbChips().slice(0, lbxApFitShown(_actressLbChips().length)))" :key="chip.kind + ':' + chip.text"><span class="lb-tag lbx-ap-chip" :title="chip.text" x-text="chip.text"></span></template>
-                                        <template x-if="!_actressChipsIsExpanded() && lbxApFitHidden(_actressLbChips().length) > 0">
-                                            <button type="button" class="lb-tag lbx-ap-more"
-                                                    :aria-label="t('showcase.actress.chips_more_aria', { n: lbxApFitHidden(_actressLbChips().length) })"
-                                                    @click="_actressChipsExpanded = { aliases: true, info: true }"
-                                                    x-text="'+' + lbxApFitHidden(_actressLbChips().length)"></button>
-                                        </template>
-                                    </div>
-                                    <div class="lbx-ap-measure" aria-hidden="true" inert>
-                                        <template x-for="chip in _actressLbChips()" :key="chip.kind + ':' + chip.text"><span class="lb-tag lbx-ap-chip" x-text="chip.text"></span></template>
-                                        <template x-if="_actressLbChips().length > 1"><span class="lb-tag lbx-ap-more" x-text="'+' + (_actressLbChips().length - 1)"></span></template>
-                                    </div>
-                                </div>
+                    <template x-if="_actressLbChips().length > 0">
+                        <div class="lbx-ap-chips"
+                             :class="{'is-measuring': lbxApFitMeasuring(lbxApFitSig(actressProfile?.name, _actressLbChips(), _actressChipsIsExpanded()))}"
+                             x-effect="lbxApFitSchedule($el, lbxApFitSig(actressProfile?.name, _actressLbChips(), _actressChipsIsExpanded()))">
+                            <template x-if="(actressProfile?.aliases || []).length > 0">
+                                <span class="lbx-ap-label"
+                                      x-text="t('showcase.lightbox.alias_label')"></span>
                             </template>
+                            <div class="lbx-ap-list">
+                                <template x-for="chip in (_actressChipsIsExpanded() ? _actressLbChips() : _actressLbChips().slice(0, lbxApFitShown(_actressLbChips().length)))" :key="chip.kind + ':' + chip.text"><span class="lb-tag lbx-ap-chip" :title="chip.text" x-text="chip.text"></span></template>
+                                <template x-if="!_actressChipsIsExpanded() && lbxApFitHidden(_actressLbChips().length) > 0">
+                                    <button type="button" class="lb-tag lbx-ap-more"
+                                            :aria-label="t('showcase.actress.chips_more_aria', { n: lbxApFitHidden(_actressLbChips().length) })"
+                                            @click="_actressChipsExpanded = { aliases: true, info: true }"
+                                            x-text="'+' + lbxApFitHidden(_actressLbChips().length)"></button>
+                                </template>
+                            </div>
+                            <div class="lbx-ap-measure" aria-hidden="true" inert>
+                                <template x-for="chip in _actressLbChips()" :key="chip.kind + ':' + chip.text"><span class="lb-tag lbx-ap-chip" x-text="chip.text"></span></template>
+                                <template x-if="_actressLbChips().length > 1"><span class="lb-tag lbx-ap-more" x-text="'+' + (_actressLbChips().length - 1)"></span></template>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div></template>
         </div>
