@@ -363,9 +363,9 @@ def on_settings_saved() -> bool:
         return False
     faces_state.observe_success(test.model)
     faces_state.meta_set(META_TARGET, test.model)
+    _remember_target(test.model)
     actress_faces.kick()  # 207c-T6 on_settings_saved
     if not _pending_rows(VideoRepository(), test.model):
         return False
     started = ensure(test.model)
-    _remember_target(test.model)
     return started

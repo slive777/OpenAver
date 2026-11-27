@@ -78,6 +78,9 @@ def test_face_crop_redirects_to_original_when_no_valid_crop_and_404s_without_pho
     repo.update_face_result(NAME, "found", box, "ext-model", *fp)
     response = client.get(crop, follow_redirects=False)
     assert response.status_code == 307 and response.headers["location"] == original
+    monkeypatch.setattr("core.actress_avatar.get_or_create", lambda *args: photo.parent / "gone.webp")
+    response = client.get(crop, follow_redirects=False)
+    assert response.status_code == 307 and response.headers["location"] == original
     photo.unlink()
     assert client.get(crop, follow_redirects=False).status_code == 404
     assert client.get("/api/actresses/face-crop/不存在", follow_redirects=False).status_code == 404

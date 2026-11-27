@@ -686,7 +686,11 @@ def get_actress_face_crop(name: str, request: Request, v: Optional[str] = Query(
     path = actress_avatar.get_or_create(actress, Path(fp[0]))
     if path is None:
         return _redirect_to_photo(name)
-    return Response(content=path.read_bytes(), media_type="image/webp", headers=headers)
+    try:
+        content = path.read_bytes()
+    except OSError:
+        return _redirect_to_photo(name)
+    return Response(content=content, media_type="image/webp", headers=headers)
 
 
 # ---------------------------------------------------------------------------

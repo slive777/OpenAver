@@ -776,6 +776,7 @@ def test_model_change_kicks_actress_sweep(tmp_path, monkeypatch, case):
     from core.ai_services import actress_faces, faces_recompute
 
     env = Env(tmp_path, monkeypatch, case)
+    monkeypatch.setattr(faces_recompute, "_target_cache", None)
     env.add_video(focal_model="model-A")
     kicks = []
     monkeypatch.setattr(actress_faces, "kick", lambda: kicks.append(1))
@@ -790,5 +791,6 @@ def test_model_change_kicks_actress_sweep(tmp_path, monkeypatch, case):
         None if case == "settings_saved_endpoint_down" else "model-A"
     )
     if case == "settings_saved":
+        assert faces_recompute._target_cache == "model-A"
         assert faces_recompute.status()["pending"] == 0
         assert faces_recompute.resume()["reason"] == "nothing_pending"
