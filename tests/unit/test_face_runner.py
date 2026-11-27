@@ -192,3 +192,61 @@ def test_external_result_carries_boxes_for_found_and_no_face(score, kind):
     result = faces_detect._to_external_result(FacesResult(boxes=boxes, model='m'), 100, 100, 1.5, 'warmup')
     assert result.kind == kind
     assert result.boxes == tuple(boxes)
+
+
+def test_unreadable_result_releases_slot_without_changing_device():
+    from core.focal import face_runner
+    from core.version import VERSION
+
+    config.save_config({'focal_device': {'disabled': False, 'consecutive_timeout_count': 0,
+                                       'judged_at_version': VERSION, 'set_by_user': False}})
+    before = config.load_config()['focal_device']
+    streak = subprocess_runner._breaker_streak
+    result = face_runner.run_face_boxes(
+        'x', pre_spawn_check=lambda: False,
+        spawn_fn=lambda path: FakeProcess({'error': 'unreadable'}),
+    )
+    assert result == ('ABANDONED', 'unreadable')
+    assert subprocess_runner._slot_lock.acquire(blocking=False)
+    subprocess_runner._slot_lock.release()
+    assert bool(config.load_config()['focal_device'] == before)
+    assert subprocess_runner._breaker_streak == streak
+
+
+@pytest.mark.parametrize('case', ['truncated', 'missing'])
+def test_child_reports_unreadable_image(case, tmp_path, monkeypatch, capsys):
+    import sys
+    from core.focal import _detect_faces_child as child
+
+    path = tmp_path / 'photo.jpg'
+    if case == 'truncated':
+        Image.effect_noise((300, 200), 100).convert('RGB').save(path, 'JPEG')
+        data = path.read_bytes()
+        path.write_bytes(data[:len(data) // 2])
+        with Image.open(path) as image:
+            assert image.size == (300, 200)
+            with pytest.raises(OSError):
+                image.load()
+    monkeypatch.setattr(sys, 'argv', ['child', str(path)])
+    child.main()
+    output = capsys.readouterr()
+    assert output.out.splitlines() == ['READY', '{"error": "unreadable"}']
+    assert output.err == ''
+
+
+def test_child_detection_exception_still_crashes(tmp_path, monkeypatch, capsys):
+    import sys
+    from core.focal import _detect_faces_child as child
+
+    path = tmp_path / 'photo.jpg'
+    Image.new('RGB', (20, 20)).save(path)
+    monkeypatch.setattr(sys, 'argv', ['child', str(path)])
+    def fail(work):
+        raise RuntimeError('detect failed')
+    monkeypatch.setattr(child.detector, 'detect_faces', fail)
+    with pytest.raises(SystemExit) as exc:
+        child.main()
+    assert exc.value.code == 1
+    output = capsys.readouterr()
+    assert output.out.splitlines() == ['READY']
+    assert 'RuntimeError: detect failed' in output.err

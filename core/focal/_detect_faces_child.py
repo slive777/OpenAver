@@ -13,8 +13,11 @@ def faces_payload(dets, s, w, h):
 
 
 def build_payload(fs_path):
-    with Image.open(fs_path) as source:
-        img = ImageOps.exif_transpose(source).convert('RGB')
+    try:
+        with Image.open(fs_path) as source:
+            img = ImageOps.exif_transpose(source).convert('RGB')
+    except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+        return {'error': 'unreadable'}
     w, h = img.size
     s = detector.WORK_WIDTH / w if w > detector.WORK_WIDTH else 1
     work = img.resize((round(w*s), round(h*s)), Image.NEAREST) if s < 1 else img

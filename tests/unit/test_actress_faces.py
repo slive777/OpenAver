@@ -212,27 +212,17 @@ def test_existing_result_is_never_downgraded(case, setup_faces, monkeypatch):
     assert runner.call_count == 0 and detect.call_count == (0 if model == 'm0' else 1)
 
 
-def test_truncated_photo_does_not_stop_pigo_sweep(setup_faces, tmp_path, monkeypatch):
+def test_truncated_photo_does_not_stop_pigo_sweep(setup_faces, monkeypatch):
     repo, cfg, fps, avatars, target, add = setup_faces
     add('A')
     add('B')
-    path = tmp_path / 'A.jpg'
-    Image.effect_noise((300, 200), 100).convert('RGB').save(path, 'JPEG')
-    data = path.read_bytes()
-    path.write_bytes(data[:len(data) // 2])
-    stat = path.stat()
-    fps['A'] = (str(path), stat.st_mtime_ns, stat.st_size)
-    with Image.open(path) as image:
-        assert image.size == (300, 200)
-        with pytest.raises(OSError):
-            image.load()
     cfg['ai_services']['faces']['enabled'] = False
-    runner = Mock(return_value=('FOUND', [], (400, 400)))
+    runner = Mock(side_effect=[('ABANDONED', 'unreadable'), ('FOUND', [], (400, 400))])
     monkeypatch.setattr(actress_faces.face_runner, 'run_face_boxes', runner)
 
     actress_faces.sweep()
 
-    assert runner.call_count == 1
-    runner.assert_called_once_with(fps['B'][0])
+    assert runner.call_count == 2
+    assert [call.args[0] for call in runner.call_args_list] == [fps['A'][0], fps['B'][0]]
     assert repo.get_by_name('A').face_status == ''
     assert repo.get_by_name('B').face_status == 'none'

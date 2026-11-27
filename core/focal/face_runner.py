@@ -51,6 +51,8 @@ def _acquire_slot():
 def _parse_faces_line(line):
     try:
         data = json.loads(line)
+        if data == {'error': 'unreadable'}:
+            return ('ABANDONED', 'unreadable')
         faces, size = data['faces'], data['size']
         if not isinstance(faces, list) or not isinstance(size, list) or len(size) != 2:
             return None
