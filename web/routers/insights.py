@@ -39,6 +39,8 @@ from core.config import (
 from core.cover_attributes import is_source_4k_tag, manifest_payload
 from core.tag_display import is_hidden_tag, load_context
 
+from web.routers.actress import avatar_url_for
+
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/insights", tags=["insights"])
@@ -241,6 +243,7 @@ def get_insights_snapshot(request: Request):
                 "hasPhoto": get_local_photo_path(a.name) is not None,
                 "auto_focal": a.auto_focal,
                 "crop_mode": a.crop_mode,
+                "avatarUrl": avatar_url_for(a),
             }
 
         resp = JSONResponse({

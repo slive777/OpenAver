@@ -255,7 +255,7 @@ class TestInsightsActressFavorites:
         mocker.patch("web.routers.insights.get_local_photo_path", return_value=None)
         snap = _get_snapshot(client, mocker, insights_setup)
         body = snap.json()
-        expected = {"birth", "photoName", "hasPhoto", "auto_focal", "crop_mode"}
+        expected = {"birth", "photoName", "hasPhoto", "auto_focal", "crop_mode", "avatarUrl"}
         assert body["actressFavorites"], "應至少有收藏女優進入表"
         for primary, value in body["actressFavorites"].items():
             assert set(value.keys()) == expected, (
@@ -560,3 +560,29 @@ class TestInsightsTagBadgeAliasMerge:
         assert records_by_date["2023-03-02"]["tags"] == ["字幕組"]
 
 
+
+
+class TestInsightsAvatarUrl:
+    def test_face_result_write_changes_etag_and_exposes_avatar_url(
+        self, client, insights_setup, mocker, tmp_path
+    ):
+        from PIL import Image
+        from core.actress_face import current_photo_fp
+        from core.focal.face_judge import format_face_box
+
+        gf = tmp_path / "gf"
+        gf.mkdir()
+        Image.new("RGB", (400, 600), "gray").save(gf / "舊名.jpg", "JPEG")
+        mocker.patch("core.actress_photo.GFRIENDS_DIR", gf)
+        first = _get_snapshot(client, mocker, insights_setup)
+        assert first.json()["actressFavorites"]["新名"]["avatarUrl"] == ""
+        etag = first.headers["etag"]
+        fp = current_photo_fp("舊名")
+        ActressRepository(insights_setup["db_path"]).update_face_result(
+            "舊名", "found", format_face_box(0.5, 0.4, 0.3), "ext-model", *fp
+        )
+        second = _get_snapshot(client, mocker, insights_setup, if_none_match=etag)
+        assert second.status_code == 200
+        assert second.headers["etag"] != etag
+        url = second.json()["actressFavorites"]["新名"]["avatarUrl"]
+        assert url.startswith("/api/actresses/face-crop/") and "?v=" in url
