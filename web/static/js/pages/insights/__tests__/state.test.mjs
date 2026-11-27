@@ -447,3 +447,22 @@ test('addFocusedFavorite: 頁面已死或快照為空時晚到回應不寫入不
         assert.equal(spies.redraws, 0);
     });
 });
+
+test('actressPhotoUrl／focusPhotoUrl 有特寫用特寫、沒有退原圖；previewPhotoUrl 恆原圖', () => {
+    const s = libraryInsightsState();
+    s.snapshot = {
+        actressFavorites: {
+            A: { photoName: 'A', hasPhoto: true, avatarUrl: '/api/actresses/face-crop/A?v=1' },
+            B: { photoName: 'B 名', hasPhoto: true, avatarUrl: '' },
+        },
+    };
+    assert.equal(s.actressPhotoUrl('A'), '/api/actresses/face-crop/A?v=1');
+    assert.equal(s.actressPhotoUrl('B'), '/api/actresses/photo/' + encodeURIComponent('B 名'));
+    assert.equal(s.actressPhotoUrl('C'), '/api/actresses/photo/C');
+    s.sel = { ...s.sel, actress: 'A' };
+    assert.equal(s.focusPhotoUrl(), '/api/actresses/face-crop/A?v=1');
+    s.sel = { ...s.sel, actress: 'B' };
+    assert.equal(s.focusPhotoUrl(), '/api/actresses/photo/' + encodeURIComponent('B 名'));
+    s.previewActress = 'A';
+    assert.equal(s.previewPhotoUrl(), '/api/actresses/photo/A');
+});

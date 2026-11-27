@@ -191,9 +191,10 @@ const PREVIEW_POPUP = { width: 160, height: 224 };
 const PREVIEW_GAP = 8;
 const PREVIEW_OPEN_DELAY_MS = 250;
 
-function _photoUrl(name, favorites) {
+function _photoUrl(name, favorites, opts) {
     if (!name) return '';
     const fav = favorites && favorites[name];
+    if (opts && opts.avatar && fav && fav.avatarUrl) return fav.avatarUrl;
     const photoName = (fav && fav.photoName) || name;
     return '/api/actresses/photo/' + encodeURIComponent(photoName);
 }
@@ -1450,6 +1451,7 @@ export function libraryInsightsState() {
             return _photoUrl(
                 name,
                 this.snapshot && this.snapshot.actressFavorites,
+                { avatar: true },
             );
         },
 
@@ -1621,6 +1623,7 @@ export function libraryInsightsState() {
             return _photoUrl(
                 this.sel.actress,
                 this.snapshot && this.snapshot.actressFavorites,
+                { avatar: true },
             );
         },
 

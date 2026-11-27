@@ -29,7 +29,7 @@ test('syncActressFields〔四欄皆傳，upload/pick 回應形狀〕四欄全部
     photo_url: 'new', photo_source: 'upload', auto_focal: '', crop_mode: 'auto',
   });
   assert.deepEqual(paginatedActresses[0], {
-    name: 'A', photo_url: 'new', photo_source: 'upload', auto_focal: '', crop_mode: 'auto',
+    name: 'A', photo_url: 'new', photo_source: 'upload', auto_focal: '', crop_mode: 'auto', avatar_url: '',
   });
 });
 
@@ -55,4 +55,24 @@ test('syncActressFields〔by-name 定位，非 index 0〕在多筆陣列中找�
   assert.equal(paginatedActresses[0].photo_url, 'x-orig');
   assert.equal(paginatedActresses[1].photo_url, 'a-new');
   assert.equal(paginatedActresses[2].photo_url, 'y-orig');
+});
+
+test('syncActressFields〔換照片〕舊特寫被清掉、只動焦點的不清，影片頭像表改吃新原圖', async () => {
+  const { actorFavsOf } = await import('../lbx-logic.js');
+  const { buildActressIndex } = await import('../../../shared/actress-lookup.js');
+  const arr = [
+    { name: 'A', photo_url: '/old', avatar_url: '/face-crop/A?v=1' },
+    { name: 'B', photo_url: '/b', avatar_url: '/face-crop/B?v=1', auto_focal: '0.5,0.5', crop_mode: 'auto' },
+  ];
+  const index = buildActressIndex(arr, {});
+  const video = { actresses: 'A,B' };
+  assert.equal(actorFavsOf(video, index).A.photo_url, '/face-crop/A?v=1');
+  assert.equal(actorFavsOf(video, index).B.photo_url, '/face-crop/B?v=1');
+  syncActressFields(arr, 'A', { photo_url: '/new' });
+  syncActressFields(arr, 'B', { auto_focal: '0.4,0.6', crop_mode: 'manual' });
+  assert.equal(arr[0].avatar_url, '');
+  assert.equal(arr[1].avatar_url, '/face-crop/B?v=1');
+  const out = actorFavsOf(video, index);
+  assert.equal(out.A.photo_url, '/new');
+  assert.equal(out.B.photo_url, '/face-crop/B?v=1');
 });
