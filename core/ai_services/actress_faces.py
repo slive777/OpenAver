@@ -81,8 +81,6 @@ def _detect_endpoint(row, fp):
 
 
 def _detect_pigo(row, fp):
-    if row.photo_source == "local_crop":
-        return "unsure", "", "local-pigo"
     logger.info("[actress_faces] detect pigo %s", row.name)
     result = face_runner.run_face_boxes(fp[0])
     if result[0] == "FOUND":
@@ -102,9 +100,14 @@ def _process_one(name):
     cfg = load_config()
     source = choose_source(cfg, device_state.is_disabled_in(cfg))
     fp = current_photo_fp(name)
-    if not needs_compute(row, fp, source, _target_model()):
+    target_model = _target_model()
+    if not needs_compute(row, fp, source, target_model):
         return _SKIP
-    result = _detect_endpoint(row, fp) if source == "endpoint" else _detect_pigo(row, fp)
+    if row.photo_source == "local_crop":
+        model = (target_model or "external") if source == "endpoint" else "local-pigo"
+        result = ("unsure", "", model)
+    else:
+        result = _detect_endpoint(row, fp) if source == "endpoint" else _detect_pigo(row, fp)
     if result in (_STOP, _SKIP):
         return result
     if current_photo_fp(name) != fp:

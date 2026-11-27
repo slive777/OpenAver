@@ -43,12 +43,12 @@ def setup_faces(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize('case', ['endpoint_down_stops_round', 'switch_off_no_detection',
     'endpoint_ignores_local_switch', 'endpoint_without_model_string', 'endpoint_uses_upright_size',
-    'pigo_when_endpoint_off_switch_open', 'pigo_skips_local_crop', 'same_result_not_redetected',
+    'pigo_when_endpoint_off_switch_open', 'pigo_skips_local_crop', 'endpoint_skips_local_crop', 'same_result_not_redetected',
     'pigo_result_upgraded_by_endpoint', 'target_model_changed_recomputes',
     'fingerprint_changed_recomputes', 'pigo_abandoned_then_endpoint_next'])
 def test_source_decision_table(case, setup_faces, monkeypatch):
     repo, cfg, fps, avatars, target, add = setup_faces
-    add('A', 'local_crop' if case == 'pigo_skips_local_crop' else '', 6 if case == 'endpoint_uses_upright_size' else 1)
+    add('A', 'local_crop' if case in ('pigo_skips_local_crop', 'endpoint_skips_local_crop') else '', 6 if case == 'endpoint_uses_upright_size' else 1)
     if case in ('endpoint_down_stops_round', 'switch_off_no_detection', 'pigo_abandoned_then_endpoint_next'):
         add('B')
     endpoint = cfg['ai_services']['faces']
@@ -100,6 +100,12 @@ def test_source_decision_table(case, setup_faces, monkeypatch):
     elif case == 'pigo_abandoned_then_endpoint_next':
         assert runner.call_count == detect.call_count == 1
         assert row.face_status == '' and repo.get_by_name('B').face_status == 'found'
+    elif case == 'endpoint_skips_local_crop':
+        assert detect.call_count == 0 and runner.call_count == 0
+        assert (row.face_status, row.face_model) == ('unsure', 'm1')
+        assert (row.photo_fp_path, row.photo_fp_mtime_ns, row.photo_fp_size) == fps['A']
+        actress_faces.sweep()
+        assert detect.call_count == 0 and runner.call_count == 0
     elif case in ('pigo_when_endpoint_off_switch_open', 'pigo_skips_local_crop'):
         assert detect.call_count == 0 and runner.call_count == (0 if case == 'pigo_skips_local_crop' else 1)
         assert (row.face_status, row.face_model) == ('unsure' if case == 'pigo_skips_local_crop' else 'none', 'local-pigo')
