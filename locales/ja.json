@@ -267,8 +267,7 @@
     },
     "gallery": {
       "prev": "前の画像 (←)",
-      "next": "次の画像 (→)",
-      "sample_prefix": "サンプル"
+      "next": "次の画像 (→)"
     },
     "grid": {
       "sample_prefix": "サンプル画像",

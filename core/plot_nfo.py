@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 from core.nfo_read import nfo_text
-from core.nfo_utils import sanitize_nfo_bytes
+from core.nfo_utils import sanitize_nfo_bytes, strip_illegal_xml_chars
 
 
 def plot_present(text: Optional[str]) -> bool:
@@ -40,3 +40,17 @@ def read_plot_flag(nfo_path: Union[str, Path]) -> Optional[bool]:
     except Exception:
         return False
     return plot_present(nfo_text(root, "plot"))
+
+
+def plot_norm(text):
+    return " ".join(str(text or "").split())
+
+
+def resolve_plot_pair(source_summary, translated_summary) -> Tuple[str, str]:
+    source = strip_illegal_xml_chars(source_summary)
+    translated = strip_illegal_xml_chars(translated_summary)
+    if not plot_norm(translated):
+        return source, ""
+    if plot_norm(translated) == plot_norm(source):
+        return source, ""
+    return translated, (source if plot_norm(source) else "")

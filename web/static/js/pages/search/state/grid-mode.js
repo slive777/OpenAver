@@ -57,6 +57,7 @@ export function searchStateGridMode() {
      * @param {number} index - 搜尋結果索引
      */
     openLightbox(index) {
+        this.lbxFavsLoad?.();
         // F2: cancel pending delayed clear from previous close
         if (this.lightboxCloseTimer) {
             clearTimeout(this.lightboxCloseTimer);
@@ -129,6 +130,7 @@ export function searchStateGridMode() {
         this.lightboxOpen = true;
         // 同步 currentIndex（讓 Detail 與 Grid 保持一致）
         this.currentIndex = index;
+        this.$nextTick(() => this.lbxMetaToTop?.());
 
         // D2: 進場動畫（fire-and-forget）
         var lbGen = ++this._lightboxGeneration;
@@ -172,6 +174,7 @@ export function searchStateGridMode() {
 
         // Phase 43 T6: 重置 actress chips 展開狀態
         this._actressChipsExpanded = { aliases: false, info: false };
+        this.lbxPopClose?.({ immediate: true });
 
         // ★ C11: fly-back capture
         var closingIndex = this.lightboxIndex;
@@ -471,6 +474,10 @@ export function searchStateGridMode() {
      * @param {MouseEvent} event - 點擊事件
      */
     handleLightboxBackdropClick(event) {
+        if (this._lbxPopSwallowClick) {
+            this._lbxPopSwallowClick = false;
+            return;
+        }
         // T5: 對齊 showcase.js L420-446 的 Click-through 邏輯
 
         // 如果點擊的是 lightbox-content 內部，不處理（對齊 showcase）

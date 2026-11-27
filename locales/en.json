@@ -267,8 +267,7 @@
     },
     "gallery": {
       "prev": "Previous (←)",
-      "next": "Next (→)",
-      "sample_prefix": "Stills"
+      "next": "Next (→)"
     },
     "grid": {
       "sample_prefix": "Stills",

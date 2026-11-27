@@ -1545,18 +1545,8 @@
 }
 
 /* ==================== Phase 43 T6: Actress Lightbox ==================== */
-.actress-lightbox-meta .lb-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .actress-lightbox-meta .lb-name-en { font-size: 0.9em; opacity: 0.7; }
 .actress-lightbox-meta .lb-actress-core { font-size: 0.95em; margin: 8px 0; opacity: 0.85; }
-.actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
-.actress-lightbox-meta .lb-chips-more {
-    cursor: pointer; font-size: 0.85em; padding: 2px 8px;
-    border-radius: var(--radius-md); border: 1px solid currentColor; opacity: 0.6;
-}
-.actress-lightbox-meta .lb-chips-more:hover { opacity: 1; }
-.actress-lightbox-meta .lb-actress-urls { margin-top: 8px; }
-.actress-lightbox-meta .lb-actress-urls a { display: block; font-size: 0.8em; word-break: break-all; opacity: 0.7; }
-.actress-lightbox-meta .lb-actress-urls a:hover { opacity: 1; text-decoration: underline; }
 
 /* Actress Lightbox Row 1 愛心（inline，使用 .btn-glass-circle） */
 .actress-lb-header .btn-glass-circle { width: 32px; height: 32px; font-size: 1rem; margin-left: auto; }

@@ -1102,6 +1102,7 @@ class TestGenerateNfoNoUnescapedInterpolation:
         "poster_tag": (1, "預組 XML 片段，內容組裝時已 html.escape(basename)"),
         "fanart_tag": (2, "預組 XML 片段（<thumb> 與 <fanart> 各一），內容已 html.escape(basename)"),
         "rating_line": (1, "預組 XML 片段，內容是數字格式化結果"),
+        "plot_block": (1, "預組 XML 片段，內容由 _plot_block 組裝時已 html.escape(summary／original_summary)"),
         "external_block": (1, "預組 XML 片段，內容組裝時已 html.escape"),
         "title_record_block": (1, "預組 XML 片段，內容組裝時已 html.escape(display_title)／html.escape(_t)"),
         "e": (1, "logger.error 的例外訊息，不進 XML"),
@@ -2739,3 +2740,66 @@ def test_crop_to_poster_local_focal_keeps_untransposed_frame(tmp_path):
         from PIL import ImageChops
         expect = raw.convert("RGB").crop((67, 0, 400, 500))
         assert max(hi for _, hi in ImageChops.difference(out.convert("RGB"), expect).getextrema()) < 60
+
+
+class TestOrganizeFilePlotPair:
+    @pytest.mark.parametrize("translated", [False, True], ids=["baseline", "translated"])
+    def test_organize_file_plot_pair_nfo(self, tmp_path, translated):
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"fake mp4")
+        metadata = _make_ext_metadata()
+        metadata.update(title="Test Title", actors=["Actor"], tags=["Tag"],
+                        _summary="原文 & <b>文字</b>\n第二行", _rating=4.5)
+        if translated:
+            metadata["_summary"] += "\x07"
+            metadata["translated_summary"] = "譯文 & <中文>"
+        with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
+            result = organize_file(str(src), metadata, _make_ext_config("off"))
+        assert result["success"] is True
+        nfo = Path(result["nfo_path"])
+        if translated:
+            from core.plot_nfo import read_plot_flag
+            from core.plot_writeback import read_nfo_plots
+
+            ET.parse(nfo)
+            assert read_nfo_plots(nfo) == ("譯文 & <中文>", "原文 & <b>文字</b>\n第二行")
+            assert "</plot>\n  <originalplot>" in nfo.read_text(encoding="utf-8")
+            assert read_plot_flag(nfo) is True
+            return
+        assert nfo.read_text(encoding="utf-8") == '''<?xml version="1.0" encoding="utf-8"?>
+<movie>
+  <title>[SONE-205]Test Title</title>
+  <originaltitle>Test Title</originaltitle>
+  <set></set>
+  <studio>S1</studio>
+  <label></label>
+  <year>2024</year>
+  <premiered>2024-01-15</premiered>
+  <rating>9.0</rating>
+  <plot>原文 &amp; &lt;b&gt;文字&lt;/b&gt;
+第二行</plot>
+  <mpaa>JP-18+</mpaa>
+  <runtime></runtime>
+  <director></director>
+  <poster>[SONE-205] Test Title.jpg</poster>
+  <thumb>[SONE-205] Test Title.jpg</thumb>
+  <fanart>[SONE-205] Test Title.jpg</fanart>
+  <actor>
+    <name>Actor</name>
+    <role></role>
+  </actor>
+  <tag>Tag</tag>
+  <genre>Tag</genre>
+  <num>SONE-205</num>
+  <release>2024-01-15</release>
+  <cover></cover>
+  <website></website>
+  <uniqueid type="home" default="true">SONE-205</uniqueid>
+</movie>'''
+
+
+    def test_generate_nfo_original_summary_control_chars_stripped(self, tmp_path):
+        nfo = tmp_path / "test.nfo"
+        assert generate_nfo(number="TEST-001", title="Test", output_path=str(nfo),
+                            summary="譯文", original_summary="a\x00b\x0b")
+        assert ET.parse(nfo).findtext("originalplot") == "ab"

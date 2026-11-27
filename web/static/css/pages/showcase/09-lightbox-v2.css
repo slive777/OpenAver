@@ -1,8 +1,8 @@
 /* 199a 影片燈箱 v2：外框（T1）。
-   本檔每條選擇器必含 `.lbx-` 或 `.lb-video-branch`（CG-199A-01 強制）——本檔也會被 search.html、
-   design-system.html 一起載入（共用 _showcase_css.html），隔離全靠選擇器在那兩頁結構上零命中。
-   隔離開關只有一個：影片分支包裝 div 的 `.lb-video-branch`；外框規則一律掛
-   `.lightbox-content:has(> .lb-video-branch)`，女優分支與搜尋頁結構上不帶它，不靠權重或載入順序。
+   外框規則掛 `.lightbox-content:has(> .lb-video-branch)`；Showcase 影片燈箱與搜尋頁影片燈箱
+   （207b 起）刻意帶此 wrapper，共用外框；女優分支與 design-system.html 結構上不帶它。
+   Search 專屬補強規則必須帶 `.search-container ` 前綴。
+   CG-199A-01 守本檔每條選擇器含 `.lbx-` 或 `.lb-video-branch`，不守哪些頁面結構上帶 wrapper。
    不改 05／06／08 的任何既有規則。
    閘：寬 ≥769（避開 06 的 max-width:768px）且高 ≥720（桌面最小保證）。閘外沿用今天的外框規則，
    `.lbx-meta` 仍是 `.lightbox-metadata` 的 overflow-y:auto。
@@ -1568,4 +1568,10 @@ a.lbx-utag-link:focus-visible {
    高度決定封面寬度的視窗不受影響。 */
 .lightbox-content:has(> .lb-video-branch) .lightbox-cover.has-cover {
     max-width: 100%;
+}
+
+.lbx-meta--static .lbx-work,
+.lbx-meta--static .lbx-tag,
+.lbx-meta--static .lbx-link {
+    cursor: default;
 }

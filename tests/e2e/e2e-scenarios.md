@@ -905,7 +905,7 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
    - ⚠️ **選 nav 按鈕陷阱（實測踩過）**：一般搜尋結果燈箱與書籤燈箱**共用同一組 class**（`.lightbox-nav-prev`／`.lightbox-nav-next`），`document.querySelector('.lightbox-nav-next')` 在兩個燈箱都存在的 DOM 裡會抓到**第一個**（通常是關著的那個），click 沒有任何效果也不報錯。務必先 `document.querySelector('.wishlist-lightbox').querySelector('.lightbox-nav-next')` 縮限範圍
    - `click` 右箭頭（`wishlistLightboxIndex < length-1` 時可見）→ **驗**大圖換成下一筆、番號跟著換（實測：`.wishlist-lightbox img` 的 `alt` 從 `SNOS-365` 變 `MIDV-960`，index 0→1；讀值前留一個 evaluate tick，click 與讀值同一次 `eval` 呼叫內可能搶在 Alpine reactive 更新之前）
    - `click` 左箭頭回到上一筆 → **驗**回到 step 3 開的那張卡的番號（往返一致，不錯位）
-4. **[MCP] 關閉燈箱三條路**：分別測試 `.lightbox-close` 按鈕、點遮罩空白處（`@click="closeWishlistLightbox()"`）、`Escape` 鍵（若有綁）
+4. **[MCP] 關閉燈箱三條路**：分別測試 `.lightbox-close` 按鈕、點遮罩空白處（`@click="handleWishlistBackdropClick($event)"`；ⓘ／另有 N 位／頭像卡／片名全文任一浮層開著時，第一下只收浮層、再點一下才關燈箱）、`Escape` 鍵（浮層開著時同樣先收浮層、再按一次才關）
    - **驗**：三種都能關閉，關閉後 `.wishlist-lightbox` 失去 `.show`，牆與搜尋列狀態未被清空
 5. **[MCP] 切回搜尋結果分頁**：點放大鏡那顆 `.mode-toggle-btn`
    - **驗**：回到 `listMode !== 'wishlist'` 的一般搜尋畫面，之前的搜尋框內容／狀態未被書籤分頁污染

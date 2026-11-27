@@ -1593,12 +1593,6 @@ const RULES = [
     note: '[TestMaskToggleGuard] 100c-T2（CD-5）：_refreshActressPhotoLoaded() 的 $nextTick 內呼叫 _readyActressPhotoState()（已快取路徑；未快取路徑那次由 showcase.html @load required 規則鎖）',
   },
 
-  // ---- [TestSearchLightboxMetadataGuard] search.html：5 個 required ----
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.director', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.duration', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.series', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.label', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'lb-details', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
 
   // ---- [TestShowcaseHeroCard] required 半邊 + forbidden（同批簡單字串）+ animations.js required ----
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'hero-card', note: '[TestShowcaseHeroCard] hero card structure' },
@@ -2018,7 +2012,7 @@ const RULES = [
 
   // ---- [TestUS5VideoCoverFitMobile] / [TestUS9SearchGridMobileFix]（discrepancy：flat required-string，非 tag-scan） ----
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: "'has-cover': !!currentLightboxVideo?.cover_url", note: '[TestUS5VideoCoverFitMobile] test_video_lightbox_cover_has_cover_class' },
-  { file: 'web/templates/search.html', kind: 'required-string', pattern: "'has-cover': !actressLightboxMode() && !!resolveCoverUrl(currentLightboxVideo()) && !_heroLightboxImageError", note: '[TestUS9SearchGridMobileFix] test_search_lightbox_has_cover_class（TASK-113c-T7：改用 resolveCoverUrl() 純函式，內部含 _previewFailed error-time fallback，preview_cover_url 優先 fallback cover 語意不變）' },
+  { file: 'web/templates/search.html', kind: 'required-string', pattern: "'has-cover': !!resolveCoverUrl(currentLightboxVideo()) && !_heroLightboxImageError", note: '[TestUS9SearchGridMobileFix] test_search_lightbox_has_cover_class（TASK-113c-T7：改用 resolveCoverUrl() 純函式，內部含 _previewFailed error-time fallback，preview_cover_url 優先 fallback cover 語意不變；207b-T3a：拿掉已由分支承擔的 !actressLightboxMode()）' },
 
   // ---- [TestActressCoreMetadataVideoCount]（order + required，brace-balanced scope，handoff 已解除留置 AD-96b-2） ----
   // 116a-T3：anchor 由 _actressCoreMetadata 改為 _actressCoreMetadataParts（函式被結構化陣列版原地取代）。
@@ -5428,9 +5422,10 @@ const RULES = [
   // 那一格劇照又變回 403 破圖，而且沒人會去查，因為守衛回報過關。
   // 指紋各自帶「誰的 index」，所以三處不會互相冒充。
   {
-    file: 'web/templates/search.html',
-    kind: 'required-string',
-    pattern: 'currentLightboxVideo()?.preview_sample_images?.[i]',
+    file: 'web/static/js/pages/search/state/lbx-view.js',
+    kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])lbxOpenSamples\s*\(\s*\)\s*\{/, braceBalanced: true },
+    pattern: /preview_sample_images\?\.\[i\]\s*\|\|\s*url/,
     note: '[lint-guard 126-T3a] 燈箱劇照按鈕的 /api/proxy-image 必須吃 preview_sample_images?.[i] || raw（CD-126-3；FE-JS-01 用 || 不用 ??）',
   },
   {
@@ -5813,7 +5808,7 @@ const RULES = [
     // window 實測（Opus 2026-09-03）：anchor → 本字面距離 2860 字元；訂 3200（約 340 字元安全邊際，
     // 見「現況分析」F 段完整量測過程）。不得抄旁邊 7000 那個窗——那是給區塊「頭部」規則用的預算，
     // 本規則的目標字面在區塊中段，用 7000 雖然也能過但會虛耗窗口、也會誤導未來的人以為這是頭部規則。
-    scope: { anchor: /class="showcase-lightbox wishlist-lightbox"/, window: 3200 },
+    scope: { anchor: /class="showcase-lightbox wishlist-lightbox"/, window: 4000 },
     note: '[TASK-141b-T7] 書籤燈箱移除鈕的接線鎖：這顆鈕是燈箱裡唯一的移除入口（spec F8.4），字面被改掉或刪掉的話，燈箱裡就再也移除不了、而 node:test（測 JS 函式）與其餘守衛全部照樣綠。`.stop` 一併鎖住：它在目前 DOM 下是防禦性冗餘（祖先 .lightbox-content 已有無條件 @click.stop 攔截冒泡），但與同容器既有那顆鈕寫法一致；若日後有人拿掉 .lightbox-content 那道攔截，這裡就是唯一的防線',
   },
   {
@@ -6774,8 +6769,8 @@ const RULES = [
   },
   {
     file: 'web/templates/search.html', kind: 'required-string',
-    pattern: ['sampleGalleryOpen', 'sampleGalleryImages', 'sampleGalleryIndex', 'lb-header'],
-    note: '[lint-guard 162c-test_sample_gallery_template_html_contains] search.html 須含 sampleGallery* state 與 lb-header — 遷自 test_frontend_lint.py',
+    pattern: ['sampleGalleryOpen', 'sampleGalleryImages', 'sampleGalleryIndex'],
+    note: '[lint-guard 162c-test_sample_gallery_template_html_contains] search.html 須含 sampleGallery* state；207b-T3a 移除 lb-header — 遷自 test_frontend_lint.py',
   },
   {
     file: 'web/templates/search.html', kind: 'forbidden-string',
@@ -6794,12 +6789,6 @@ const RULES = [
       { pattern: /(?<![\w:-])class="sample-gallery"/ },
     ],
     note: '[lint-guard 162c-test_sample_gallery_template_structure] .sample-gallery 須在 searchPage scope 之後 — 遷自 test_frontend_lint.py',
-  },
-  {
-    file: 'web/templates/search.html', kind: 'required-string',
-    pattern: 'sg-open-btn',
-    scope: { anchor: /<div class="lb-header">/, window: 500 },
-    note: '[lint-guard 162c-test_sample_gallery_template_structure] sg-open-btn 須在 lb-header 窗內 — 遷自 test_frontend_lint.py',
   },
 
   // 162c: TestShowcaseSampleGalleryGuard
@@ -10585,6 +10574,113 @@ const RULES = [
   { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: /(?<![\w:-])x-for="\w+ in (ollamaModels|geminiModels|claudeModels|openaiOfficialModels|openaiModels|openaiGroupModelsOf\(g\.id\))"/, id: '206c-T6-no-raw-model-xfor', note: '[lint-guard:206c-T6-no-raw-model-xfor] 使用者須看到已存模型選項。' },
   { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: /^\s*this\.ollamaModels = this\.form\.ollamaModel \? \[this\.form\.ollamaModel\] : \[\];\s*$/m, id: '206c-T6-ollama-seed', note: '[lint-guard:206c-T6-ollama-seed] 使用者開啟設定頁時須看到已存 Ollama 模型。' },
 
+
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])stateLightboxPop\(\{/, braceBalanced: true },
+    pattern: [/(?<![\w.])getVideo\s*:\s*\(\s*\w+\s*\)\s*=>\s*\w+\.lbxView\(\)/, /(?<![\w.])avatarClick\s*:/, /(?<![\w.])metaRef\s*:/, /(?<![\w.])hostRef\s*:/],
+    id: '207b-T1-pop-options', note: '[lint-guard:207b-T1-pop-options] 燈箱選項缺失 → 女優列空白、頭像離開搜尋或兩個燈箱互刪捲動目標。' },
+  { file: 'web/static/js/pages/search/state/lbx-view.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])lbxOpenSamples\s*\(\s*\)\s*\{/, braceBalanced: true },
+    pattern: /preview_sample_images\?\.\[i\]\s*\|\|\s*\w+/,
+    id: '207b-T1-samples-proxy-or', note: '[lint-guard:207b-T1-samples-proxy-or] 劇照代理回退缺失 → 劇照廊破圖或載入原圖大檔。' },
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', stripLineComments: true,
+    pattern: /(?<![\w:-])\$watch\(\s*\(\)\s*=>\s*this\.lbxViewKey\(\)\s*,\s*\(\)\s*=>\s*\{\s*this\.lbxPopClose\?\.\(\{ immediate: true \}\);\s*this\.lbxMetaToTop\?\.\(\);?\s*\}\s*\)/,
+    id: '207b-T1-watch-view-key', note: '[lint-guard:207b-T1-watch-view-key] 換片監聽缺失 → 文字停在上一部的位置且舊浮層仍顯示。' },
+
+  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])openLightbox\s*\(\s*index\s*\)\s*\{/, braceBalanced: true },
+    pattern: /(?<![\w.])this\.lbxFavsLoad\?\.\(\);/,
+    id: '207b-T2-favs-open', note: '[lint-guard:207b-T2-favs-open] 載入接線缺失 → 搜尋結果燈箱不顯示收藏女優頭像。' },
+  { file: 'web/static/js/pages/search/state/wishlist.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])openWishlistLightbox\s*\(\s*index\s*\)\s*\{/, braceBalanced: true },
+    pattern: /(?<![\w.])this\.lbxFavsLoad\?\.\(\);/,
+    id: '207b-T2-favs-open-wishlist', note: '[lint-guard:207b-T2-favs-open-wishlist] 載入接線缺失 → 先開書籤燈箱時沒有收藏女優頭像。' },
+  { file: 'web/static/js/pages/search/state/base.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])async\s+addFavoriteActress\s*\(\s*\)\s*\{/, braceBalanced: true },
+    pattern: /resp\.status\s*===\s*200\s*\|\|\s*resp\.status\s*===\s*409\s*\)\s*this\.lbxFavsReload\?\.\(\);/,
+    id: '207b-T2-favs-reload', note: '[lint-guard:207b-T2-favs-reload] 重載接線缺失 → 收藏女優後燈箱頭像要重新整理才出現。' },
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', stripLineComments: true,
+    pattern: [/(?<![\w.])searchStateLbxFavs\(\)\s*,/, /(?<![\w:-])\$watch\(\s*\(\)\s*=>\s*this\.lbxViewKey\(\)\s*,\s*\(\)\s*=>\s*\{\s*this\._refreshLbActorAges\?\.\(\);?\s*\}\s*\)/],
+    id: '207b-T2-favs-wired', note: '[lint-guard:207b-T2-favs-wired] 分片或換片刷新缺失 → 燈箱沒有頭像或顯示上一部的頭像。' },
+
+  { file: "web/templates/search.html", kind: "structure-count", pattern: 'lb-video-branch', count: 2, id: '207b-T3a-branch-count', note: '[lint-guard:207b-T3a-branch-count] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<template\ x\-if="lbxOwner\(\)\ ===\ 'search'\ \&\&\ lightboxIndex\ >=\ 0\ \&\&\ lbxView\(\)">/, window: 150 }, pattern: ["class=\"lb-video-branch\""], id: '207b-T3a-branch-scope', note: '[lint-guard:207b-T3a-branch-scope] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: /<div class="lightbox-metadata lbx-meta[^"]*"[^>]*>/, pattern: ["x-ref=\"lbxMeta\"", "@scroll.passive=\"lbxPopClose()\""], id: '207b-T3a-meta-root', note: '[lint-guard:207b-T3a-meta-root] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: /<template x-if="lbxOwner\(\) === \'search\'">\s*(<div class="lbx-pop-host"[^>]*>)/, pattern: ["x-ref=\"lbxPopHost\"", "@click.stop", "@pointerdown.window=\"lbxPopOnPointerDown($event)\"", "@resize.window=\"lbxPopClose()\""], id: '207b-T3a-pop-host-root', note: '[lint-guard:207b-T3a-pop-host-root] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "tag-scan", mode: 'class-tag', tagName: 'div', className: 'showcase-lightbox', multi: true, expectedCount: 2, forbidden: ['@pointerdown.window', '@resize.window'], id: '207b-T3a-roots-no-window-listeners', note: '[lint-guard:207b-T3a-roots-no-window-listeners] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<div\ class="lightbox\-metadata\ lbx\-meta/, window: 210 }, pattern: ["{% include '_macros/lbx_search_video_meta.html' %}"], id: '207b-T3a-include-meta', note: '[lint-guard:207b-T3a-include-meta] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-pop\-host"/, window: 260 }, pattern: ["{% include '_macros/lbx_search_pop_host.html' %}"], id: '207b-T3a-include-pop', note: '[lint-guard:207b-T3a-include-pop] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "forbidden-string", pattern: ["bi-arrow-return-left", "searchFromMetadata", "<a ", "@click.prevent", "lbxActorAvatarTap", "pick-star", "lbxMenuHas", "bi-three-dots", "proxy-image", "resolveCoverUrl", "http", "bi-pencil", "bi-translate", "bi-play-fill", "bi-folder2-open", "bi-bookmark", "lbPlot", "lbxWorkTags"], id: '207b-T3a-meta-static', note: '[lint-guard:207b-T3a-meta-static] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_pop_host.html", kind: "forbidden-string", pattern: ["bi-arrow-return-left", "searchFromMetadata", "<a ", "@click.prevent", "lbxActorAvatarTap", "lbxPop.kind === 'menu'", "'verTip'", "lbPlot", "_lbPlotView", "lbx-plot-pop-btn", "/api/", "proxy-image", "resolveCoverUrl", "http", "bi-pencil", "bi-translate", "bi-play-fill", "bi-folder2-open", "bi-bookmark"], id: '207b-T3a-pop-static', note: '[lint-guard:207b-T3a-pop-static] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-title\-row">/, window: 10950 }, pattern: ["data-lbx-anchor=\"title\"", "data-lbx-anchor=\"otitle\"", "data-lbx-anchor=\"actorCard\"", "data-lbx-anchor=\"actresses\"", "data-lbx-anchor=\"info\"", "data-lbx-anchor=\"plot\""], id: '207b-T3a-anchors', note: '[lint-guard:207b-T3a-anchors] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-people\-row"/, window: 450 }, pattern: ["x-effect=\"lbxFitSchedule($el, lbxFitSig(lbxView(), false, lbxFavKey()))\"", "lbxFitMeasuring(lbxFitSig(lbxView(), false, lbxFavKey()))", ":data-crowded=\"lbxActressList().length >= 3\""], id: '207b-T3a-people-wired', note: '[lint-guard:207b-T3a-people-wired] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-measure"\ aria\-hidden="true"\ inert>/, window: 950 }, pattern: ["class=\"lbx-actor-text\"", "class=\"lbx-actor-sub\"", "lbxActorSub(name)", "<span class=\"lbx-avatar\""], id: '207b-T3a-measure-isomorphic', note: '[lint-guard:207b-T3a-measure-isomorphic] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<button\b[^>]*\bclass="lbx-avatar"[^>]*>/, window: 440 }, pattern: ["lbxPopHoverStart($event, 'actorCard', name, { dwell: true })", "@focus=", "@pointerleave=", "@blur=", "lbxPopTapOpen($event, 'actorCard', name)"], id: '207b-T3a-avatar-wired', note: '[lint-guard:207b-T3a-avatar-wired] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<button\ type="button"\ class="lbx\-sg\-btn"/, window: 280 }, pattern: ["lbxOpenSamples()"], id: '207b-T3a-sg-wired', note: '[lint-guard:207b-T3a-sg-wired] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /<button\ type="button"\ class="lbx\-plot\-row"/, window: 320 }, pattern: ["@click.stop=\"lbxPlotTap($event)\"", "x-text=\"lbxView().summary\""], id: '207b-T3a-plot-wired', note: '[lint-guard:207b-T3a-plot-wired] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_video_meta.html", kind: "required-string", scope: { anchor: /class="lb\-tag\ lbx\-work\ lbx\-work\-\-src"/, window: 90 }, pattern: ["x-show=\"lbxSrcPillShown()\""], id: '207b-T3a-src-pill', note: '[lint-guard:207b-T3a-src-pill] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_pop_host.html", kind: "required-string", scope: { anchor: /<template\ x\-if="lbxPop">/, window: 6510 }, pattern: ["lbxPop.kind === 'title'", "lbxPop.kind === 'otitle'", "lbxPop.kind === 'actresses'", "lbxPop.kind === 'info'", "lbxPop.kind === 'plot'", "lbxPop.kind === 'actorCard'"], id: '207b-T3a-pop-kinds', note: '[lint-guard:207b-T3a-pop-kinds] 搜尋燈箱結構與接線。' },
+  { file: "web/templates/_macros/lbx_search_pop_host.html", kind: "required-string", scope: { anchor: /<div\ class="lbx\-pop\-info">/, window: 3030 }, pattern: ["lbxInfoHas('number')", "lbxInfoHas('maker')", "lbxInfoHas('label')", "lbxInfoHas('series')", "lbxInfoHas('director')", "lbxInfoHas('release')", "lbxInfoHas('source_duration')"], id: '207b-T3a-info-rows', note: '[lint-guard:207b-T3a-info-rows] 搜尋燈箱結構與接線。' },
+
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', stripLineComments: true,
+    pattern: [/(?<![\w:-])import\s*\{\s*shouldYieldVerticalWheel\s*\}\s*from\s*'@\/shared\/lbx-wheel\.js';/, /(?<![\w:-])if \(vertical && shouldYieldVerticalWheel\(event\.target\)\) return;/],
+    id: '207b-T3c-wheel-showcase', note: '[lint-guard:207b-T3c-wheel-showcase] 燈箱滾輪共用判定缺失。' },
+  { file: 'web/static/js/pages/search/state/navigation.js', kind: 'required-string', stripLineComments: true,
+    pattern: [/(?<![\w:-])import\s*\{\s*shouldYieldVerticalWheel\s*\}\s*from\s*'@\/shared\/lbx-wheel\.js';/, /(?<![\w:-])if \(vertical && shouldYieldVerticalWheel\(event\.target\)\) return;/],
+    id: '207b-T3c-wheel-search', note: '[lint-guard:207b-T3c-wheel-search] 搜尋燈箱滾輪共用判定缺失。' },
+  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /^\s*closeLightbox\s*\([^)]*\)\s*\{/m, braceBalanced: true }, pattern: /(?<![\w.])this\.lbxPopClose\?\.\(\{ immediate: true \}\)/,
+    id: '207b-T3c-close-reset', note: '[lint-guard:207b-T3c-close-reset] 關燈箱時浮層未同步關閉。' },
+  { file: 'web/static/js/pages/search/state/grid-mode.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /^\s*openLightbox\s*\([^)]*\)\s*\{/m, braceBalanced: true }, pattern: /(?<![\w.])this\.\$nextTick\(\(\) => this\.lbxMetaToTop\?\.\(\)\);/,
+    id: '207b-T3c-open-top', note: '[lint-guard:207b-T3c-open-top] 開啟燈箱時文字區未回頂。' },
+
+  { file: 'web/templates/search.html', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /<template x-if="lbxOwner\(\) === 'wishlist' && wishlistLightboxIndex >= 0 && lbxView\(\)">/, window: 150 }, pattern: 'class="lb-video-branch"',
+    id: '207b-T4-branch-scope', note: '[lint-guard:207b-T4-branch-scope] 書籤影片分支缺失。' },
+  { file: 'web/templates/search.html', kind: 'required-string', stripLineComments: true,
+    scope: /<div class="lightbox-metadata lbx-meta[^\"]*"[^>]*x-ref="lbxMetaW"[^>]*>/, pattern: ['x-ref="lbxMetaW"', '@scroll.passive="lbxPopClose()"'],
+    id: '207b-T4-meta-root-w', note: '[lint-guard:207b-T4-meta-root-w] 書籤文字區接線缺失。' },
+  { file: 'web/templates/search.html', kind: 'required-string', stripLineComments: true,
+    scope: /<template x-if="lbxOwner\(\) === 'wishlist'">\s*(<div class="lbx-pop-host"[^>]*>)/, pattern: ['x-ref="lbxPopHostW"', '@click.stop', '@pointerdown.window="lbxPopOnPointerDown($event)"', '@resize.window="lbxPopClose()"'],
+    id: '207b-T4-pop-host-root-w', note: '[lint-guard:207b-T4-pop-host-root-w] 書籤浮層宿主接線缺失。' },
+  { file: 'web/templates/search.html', kind: 'structure-count', stripLineComments: true, pattern: "{% include '_macros/lbx_search_video_meta.html' %}", count: 2,
+    id: '207b-T4-include-meta-count', note: '[lint-guard:207b-T4-include-meta-count] 文字區 partial 數量錯誤。' },
+  { file: 'web/templates/search.html', kind: 'structure-count', stripLineComments: true, pattern: "{% include '_macros/lbx_search_pop_host.html' %}", count: 2,
+    id: '207b-T4-include-pop-count', note: '[lint-guard:207b-T4-include-pop-count] 浮層 partial 數量錯誤。' },
+  { file: 'web/templates/search.html', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /class="showcase-lightbox wishlist-lightbox"/, window: 500 }, pattern: '@click="handleWishlistBackdropClick($event)"',
+    id: '207b-T4-root-click', note: '[lint-guard:207b-T4-root-click] 書籤暗幕接線缺失。' },
+  { file: 'web/static/js/pages/search/state/wishlist.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])closeWishlistLightbox\s*\(\s*\)\s*\{/, braceBalanced: true }, pattern: /(?<![\w.])this\.lbxPopClose\?\.\(\{ immediate: true \}\)/,
+    id: '207b-T4-close-reset', note: '[lint-guard:207b-T4-close-reset] 關書籤時浮層未同步關閉。' },
+  { file: 'web/static/js/pages/search/state/wishlist.js', kind: 'required-string', stripLineComments: true,
+    scope: { anchor: /(?<![\w.])openWishlistLightbox\s*\(\s*index\s*\)\s*\{/, braceBalanced: true }, pattern: /(?<![\w.])this\.\$nextTick\(\(\) => this\.lbxMetaToTop\?\.\(\)\);/,
+    id: '207b-T4-open-top', note: '[lint-guard:207b-T4-open-top] 開書籤時文字區未回頂。' },
+
+  { file: "web/templates/search.html", kind: "structure-count", pattern: "lbx-actress-branch", count: 1, id: '207b-T5-branch-count', note: '[lint-guard:207b-T5-branch-count] 搜尋女優燈箱分支數量。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<template x-if="lightboxIndex === -1 && actressProfile">/, window: 120 }, pattern: ["class=\"lbx-actress-branch\""], id: '207b-T5-branch-scope', note: '[lint-guard:207b-T5-branch-scope] 搜尋女優燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: /<div class="lightbox-metadata actress-lightbox-meta[^\"]*"[^>]*>/, pattern: ["lbx-ap-meta", ":data-expanded=\"_actressChipsIsExpanded()\""], id: '207b-T5-meta-root', note: '[lint-guard:207b-T5-meta-root] 搜尋女優燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<div class="actress-lb-header">/, window: 2580 }, pattern: ["class=\"lbx-ap-lead\" aria-hidden=\"true\"></span>", "@click.stop=\"addFavoriteActress()\"", "<span class=\"btn-glass-circle is-favorite\"", "_safeUrl(actressProfile.blog_url)", "_safeUrl(actressProfile.official_url)", "rel=\"noopener\""], id: '207b-T5-header-wired', note: '[lint-guard:207b-T5-header-wired] 搜尋女優燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: /<div class="lb-actress-core"[\s\S]*?<\/template>\s*<\/div>/, pattern: ["_actressCoreMetadataParts()"], id: '207b-T5-core-wired', note: '[lint-guard:207b-T5-core-wired] 搜尋女優燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "forbidden-string", scope: /<div class="lb-actress-core"[\s\S]*?<\/template>\s*<\/div>/, pattern: ["<button", "@click", "lb-link", "_onActressMetadataClick", "searchFromMetadata"], id: '207b-T5-core-static', note: '[lint-guard:207b-T5-core-static] 搜尋女優燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<div class="lbx-ap-chips"/, window: 2460 }, pattern: ["x-effect=\"lbxApFitSchedule($el, lbxApFitSig(actressProfile?.name, _actressLbChips(), _actressChipsIsExpanded()))\"", "lbxApFitMeasuring(lbxApFitSig(", "x-text=\"'+' + lbxApFitHidden(_actressLbChips().length)\"", "_actressChipsExpanded = { aliases: true, info: true }", "class=\"lbx-ap-measure\" aria-hidden=\"true\" inert"], id: '207b-T5-chips-wired', note: '[lint-guard:207b-T5-chips-wired] 搜尋女優燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<div class="lbx-ap-measure"/, window: 490 }, pattern: ["lb-tag lbx-ap-chip", "lb-tag lbx-ap-more"], id: '207b-T5-measure-isomorphic', note: '[lint-guard:207b-T5-measure-isomorphic] 搜尋女優燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "required-string", scope: { anchor: /<div class="actress-lb-photo-frame">/, window: 1310 }, pattern: ["@error=\"handleHeroLightboxError($event)\"", "class=\"actress-lb-cover-placeholder\"", "<div class=\"lbx-actions\">", "!actressProfile?.is_favorite && _actressSourceUrl()", "openSourceUrl(_actressSourceUrl())"], id: '207b-T5-cover-wired', note: '[lint-guard:207b-T5-cover-wired] 搜尋女優燈箱結構與接線。' },
+  { file: "web/templates/search.html", kind: "forbidden-string", pattern: ["lbx-ap-strip", "lb-mask-btn", "lb-delete-btn", "lbx-faces", "cover-actions--focal-edit", "lb-actress-urls", "lb-chips-row", "_visibleAliases(", "_visibleInfoChips(", "_chipsLimit("], id: '207b-T5-not-brought', note: '[lint-guard:207b-T5-not-brought] 搜尋女優燈箱結構與接線。' },
+
+  { file: 'web/static/js/pages/search/state/batch.js', kind: 'forbidden-string', pattern: 'translated_summary', id: '207b-T6-batch-no-summary', note: '[lint-guard:207b-T6-batch-no-summary] 使用者按「全部翻譯」→ 簡介被偷偷一起翻、白花翻譯額度' },
+  { file: 'web/templates/search.html', kind: 'required-string', scope: { anchor: /<div class="info-row" id="summaryRow"/, window: 1600 }, pattern: ['x-show="current()._summary"', 'x-text="current().translated_summary || current()._summary"', 'x-show="canTranslateSummary()"', '@click="translateSummary()"', 'x-show="isTranslatingSummary"', "{{ t('search.label.summary') }}"], id: '207b-T6-detail-wired', note: '[lint-guard:207b-T6-detail-wired] 簡介列或翻譯鈕接線掉了 → 使用者看不到簡介，或翻譯鈕按了沒反應／翻完畫面不換' },
+  {
+    file: 'core/organizer.py', kind: 'required-string',
+    pattern: [/^[ \t]+plot, original_plot = resolve_plot_pair\(/m, /^[ \t]+summary=plot, original_summary=original_plot, /m],
+    note: '[lint-guard:207b-T7-plot-pair-wired] 少了簡介譯文與原文接線 → 使用者翻好簡介再整理，NFO 只有日文原文，到 Showcase 還要再翻一次，且沒有任何錯誤',
+  },
+  {
+    file: 'core/organizer.py', kind: 'required-string',
+    pattern: [/^[ \t]+plot_block = _plot_block\(summary, original_summary\)$/m, '{rating_line}  {plot_block}'],
+    note: '[lint-guard:207b-T7-plot-block-wired] 少了簡介區塊接線 → 整理出的 NFO 簡介區塊沒經過控制字元剝除／跳脫，整份 NFO 讀不出來',
+  },
 ];
 
 // ---- helpers ----

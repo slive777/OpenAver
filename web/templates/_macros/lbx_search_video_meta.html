@@ -1,0 +1,84 @@
+<div class="lbx-title-row">
+                                <div tabindex="0" data-lbx-anchor="title"
+                                     :aria-expanded="lbxPopIs('title', 'title')"
+                                     @pointerenter="lbxPopHoverStart($event, 'title', 'title')"
+                                     @focus="lbxPopHoverStart($event, 'title', 'title')"
+                                     @pointerleave="lbxPopHoverEnd()"
+                                     @blur="lbxPopHoverEnd()"
+                                     @click="lbxPopTapOpen($event, 'title', 'title')"
+                                     class="lb-title"><span x-text="lbxView()?.title || t('showcase.grid.unknown_title')"></span></div>
+                                <div class="lbx-title-acts">
+                                    <button type="button" class="lbx-sg-btn"
+                                            x-show="(lbxView()?.sample_images || []).length > 0"
+                                            @click="lbxOpenSamples()"
+                                            :aria-label="t('showcase.lightbox.samples_open_aria', { count: (lbxView()?.sample_images || []).length })"
+                                            :data-tooltip="t('showcase.lightbox.samples_open_aria', { count: (lbxView()?.sample_images || []).length })">
+                                        <i class="bi bi-images" aria-hidden="true"></i><span class="lbx-sg-count" x-text="(lbxView()?.sample_images || []).length"></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <template x-if="lbxHasOtitle()">
+                                <div class="lbx-otitle" tabindex="0" data-lbx-anchor="otitle"
+                                     :aria-expanded="lbxPopIs('otitle', 'otitle')"
+                                     @pointerenter="lbxPopHoverStart($event, 'otitle', 'otitle')"
+                                     @focus="lbxPopHoverStart($event, 'otitle', 'otitle')"
+                                     @pointerleave="lbxPopHoverEnd()"
+                                     @blur="lbxPopHoverEnd()"
+                                     @click="lbxPopTapOpen($event, 'otitle', 'otitle')"
+                                     x-text="lbxView()?.original_title"></div>
+                            </template>
+                            <div class="lbx-people-row"
+                                 :class="{'is-measuring': lbxFitMeasuring(lbxFitSig(lbxView(), false, lbxFavKey()))}"
+                                 x-effect="lbxFitSchedule($el, lbxFitSig(lbxView(), false, lbxFavKey()))"
+                                 :data-crowded="lbxActressList().length >= 3">
+                                <div class="lbx-actors">
+                                    <template x-for="name in lbxActressList().slice(0, lbxFit.actressShown)" :key="name">
+                                        <span class="lbx-actor-chip" :class="{'is-fav': !!_lbActorFavs[name]}"><template x-if="_lbActorFavs[name]"><button type="button" class="lbx-avatar" data-lbx-anchor="actorCard" :aria-label="name" @pointerenter="lbxPopHoverStart($event, 'actorCard', name, { dwell: true })" @focus="lbxPopHoverStart($event, 'actorCard', name)" @pointerleave="lbxPopHoverEnd()" @blur="lbxPopHoverEnd()" @click="lbxPopTapOpen($event, 'actorCard', name)"><span class="lbx-avatar-initial" x-text="_lbActorFavs[name].initial"></span><template x-if="_lbActorFavs[name].photo_url"><img alt="" loading="lazy" decoding="async" :src="_lbActorFavs[name].photo_url" @error="$el.hidden = true" @load="$el.hidden = false"></template></button></template><span class="lbx-actor-text"><span class="lbx-actor-line"><span class="lbx-link" x-text="name"></span><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span><template x-if="_lbActorFavs[name] && lbxActorSub(name).length > 0"><span class="lbx-actor-sub"><template x-for="seg in lbxActorSub(name)" :key="seg.id"><span class="lbx-sub-seg" x-text="seg.text"></span></template></span></template></span></span>
+                                    </template>
+                                    <template x-if="lbxActressList().length > lbxFit.actressShown">
+                                        <button type="button" class="lb-tag lbx-more-actors" data-lbx-anchor="actresses" aria-haspopup="true"
+                                                :aria-expanded="lbxPopIs('actresses', 'actresses')"
+                                                @click.stop="lbxPopToggle('actresses', $el, { mode: 'click', anchorKey: 'actresses' })"
+                                                x-text="t('showcase.lightbox.actresses_more', { n: lbxActressList().length - lbxFit.actressShown })"></button>
+                                    </template>
+                                </div>
+                                <div class="lbx-works">
+                                    <span class="lb-tag lbx-work lbx-work--num" x-show="lbxInfoHas('number')" x-text="lbxView()?.number"></span>
+                                    <span class="lb-tag lbx-work lbx-work--maker" x-show="lbxInfoHas('maker')"
+                                       :title="lbxView()?.maker"
+                                       x-text="lbxView()?.maker"></span>
+                                    <span class="lb-tag lbx-work lbx-work--series" x-show="lbxInfoHas('series')"
+                                       :title="lbxView()?.series"
+                                       x-text="lbxView()?.series"></span>
+                                    <span class="lb-tag lbx-work lbx-work--release" x-show="lbxInfoHas('release')" x-text="lbxView()?.release_date"></span>
+                                    <span class="lb-tag lbx-work lbx-work--src" x-show="lbxSrcPillShown()"
+                                          x-text="t('showcase.lightbox.source_duration', { n: lbxView()?.source_duration })"></span>
+                                    <button type="button" class="lbx-info-btn" data-lbx-anchor="info" aria-haspopup="true"
+                                            :aria-expanded="lbxPopIs('info', 'info')"
+                                            :aria-label="t('showcase.lightbox.info_open')"
+                                            :title="t('showcase.lightbox.info_open')"
+                                            @click.stop="lbxPopToggle('info', $el, { mode: 'click', anchorKey: 'info' })"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+                                </div>
+                                <div class="lbx-measure" aria-hidden="true" inert>
+                                    <template x-for="name in lbxActressList()" :key="name">
+                                        <span class="lbx-actor-chip" :class="{'is-fav': !!_lbActorFavs[name]}"><template x-if="_lbActorFavs[name]"><span class="lbx-avatar" aria-hidden="true"></span></template><span class="lbx-actor-text"><span class="lbx-actor-line"><span class="lbx-link" x-text="name"></span><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></span><template x-if="_lbActorFavs[name] && lbxActorSub(name).length > 0"><span class="lbx-actor-sub"><template x-for="seg in lbxActorSub(name)" :key="seg.id"><span class="lbx-sub-seg" x-text="seg.text"></span></template></span></template></span></span>
+                                    </template>
+                                    <template x-if="lbxActressList().length > 1">
+                                        <span class="lb-tag lbx-more-actors" x-text="t('showcase.lightbox.actresses_more', { n: lbxActressList().length - 1 })"></span>
+                                    </template>
+                                </div>
+                            </div>
+                            <template x-if="lbxView()?.summary">
+    <button type="button" class="lbx-plot-row" data-lbx-anchor="plot" aria-haspopup="true"
+            :aria-expanded="lbxPopIs('plot', 'plot')" @click.stop="lbxPlotTap($event)">
+        <span class="lbx-plot-text" x-text="lbxView().summary"></span>
+    </button>
+</template>
+<div class="lbx-tag-row">
+    <div class="lbx-tags-work">
+        <template x-for="tag in (lbxView()?.tags || '').split(',').filter(Boolean)" :key="tag">
+            <span class="lb-tag lbx-tag" x-text="tag"></span>
+        </template>
+    </div>
+</div>
+

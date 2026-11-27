@@ -25,7 +25,14 @@ function isTruncated(el) {
     return !!clamp && clamp !== 'none' && el.scrollHeight > el.clientHeight + 1;
 }
 
-export function stateLightboxPop() {
+// pop 底座選項（預設＝Showcase 今天）：getVideo 影片來源、avatarClick 滑鼠點頭像。
+// metaRef／hostRef 為兩個 ref 名；選項一律以 this 現算、不快取。
+export function stateLightboxPop({
+    getVideo = (self) => self.currentLightboxVideo,
+    avatarClick = (self, name) => self.searchFromMetadata(name, 'actress'),
+    metaRef = () => 'lbxMeta',
+    hostRef = () => 'lbxPopHost',
+} = {}) {
     return {
         // null | { kind, mode: 'hover'|'click', anchorKey, placed, style: { left, top, maxHeight? } }
         lbxPop: null,
@@ -65,7 +72,7 @@ export function stateLightboxPop() {
         _lbxPopPlace(gen, settle = false) {
             if (gen !== this._lbxPopGen || !this.lbxPop) return;
             const anchor = this._lbxPopAnchorEl;
-            const panel = this.$refs?.lbxPopHost?.querySelector?.('.lbx-pop');
+            const panel = this.$refs?.[hostRef(this)]?.querySelector?.('.lbx-pop');
             if (!panel || !anchor || typeof anchor.getBoundingClientRect !== 'function') return;
             // 限定在燈箱內查封面（搜尋頁兩個燈箱共用 .showcase-lightbox，FE-JS-03）
             const coverEl = anchor.closest?.('.lightbox-content')?.querySelector('.lightbox-cover');
@@ -128,7 +135,7 @@ export function stateLightboxPop() {
         },
 
         lbxMetaToTop() {
-            const meta = this.$refs?.lbxMeta;
+            const meta = this.$refs?.[metaRef(this)];
             if (meta) meta.scrollTop = 0;
         },
 
@@ -142,7 +149,7 @@ export function stateLightboxPop() {
             if (!cur) return;
             const anchor = this._lbxPopAnchorEl;
             if (ghostOnClose({ placed: cur.placed, immediate, prefersReducedMotion: window.OpenAver?.prefersReducedMotion })) {
-                const host = this.$refs?.lbxPopHost;
+                const host = this.$refs?.[hostRef(this)];
                 const panel = host?.querySelector?.('.lbx-pop');
                 if (panel) window.ShowcaseAnimations?.createGhost?.(panel, { parent: host.parentElement, kind: 'pop' })?.release();
             }
@@ -199,7 +206,7 @@ export function stateLightboxPop() {
         // 否則切版本後 currentLightboxVideo 已變，會把「剛切過去的那顆」誤判成目前這顆。
         lbxVerCapTap(e, path) {
             const el = e?.currentTarget;
-            if (!el || path !== this.currentLightboxVideo?.path) return;
+            if (!el || path !== getVideo(this)?.path) return;
             const touch = e.pointerType === 'touch' || window.matchMedia?.('(hover: none)')?.matches === true;
             if (!touch) return;
             this.lbxPopToggle('verTip', el, { mode: 'click', anchorKey: path });
@@ -225,7 +232,7 @@ export function stateLightboxPop() {
                 this.lbxPopToggle('actorCard', e.currentTarget, { mode: 'click', anchorKey: name });
                 return;
             }
-            this.searchFromMetadata(name, 'actress');
+            avatarClick(this, name);
         },
 
         // 小卡內容（199b-T3）：anchorKey＝片上寫的名字；開啟當下現讀（片數會隨「隱藏未連線硬碟」變動）。
@@ -243,11 +250,11 @@ export function stateLightboxPop() {
 
         // ⋯ 選單項目（條件在 lbx-logic.menuItems；模板只讀 lbxMenuHas，不再各自寫一份 gate）
         lbxMenuItems() {
-            return menuItems(this.currentLightboxVideo, {
-                sampleCount: (this.currentLightboxVideo?.sample_images || []).length,
+            return menuItems(getVideo(this), {
+                sampleCount: (getVideo(this)?.sample_images || []).length,
                 trVisible: this.lbTrShowOnTitle() || this.lbTrShowOnOtitle(),
-                hasPath: !!this.currentLightboxVideo?.path,
-                canFocal: !!this.currentLightboxVideo?.path && !this.lbIsBorrowed?.() && !!this.currentLightboxVideo?.has_cover,
+                hasPath: !!getVideo(this)?.path,
+                canFocal: !!getVideo(this)?.path && !this.lbIsBorrowed?.() && !!getVideo(this)?.has_cover,
             });
         },
 
@@ -256,7 +263,7 @@ export function stateLightboxPop() {
         },
 
         lbxHasOtitle() {
-            return hasDistinctOtitle(this.currentLightboxVideo);
+            return hasDistinctOtitle(getVideo(this));
         },
 
         // 燈箱根節點 @pointerdown.window：點在浮層與錨點之外 → 收（不還焦點）
@@ -264,7 +271,7 @@ export function stateLightboxPop() {
         lbxPopOnPointerDown(e) {
             this._lbxPopSwallowClick = false;
             if (!this.lbxPop) return;
-            const panel = this.$refs?.lbxPopHost?.querySelector?.('.lbx-pop');
+            const panel = this.$refs?.[hostRef(this)]?.querySelector?.('.lbx-pop');
             if (isOutsidePop(e?.target, panel, LBX_POP_ANCHOR_SEL)) {
                 this.lbxPopClose();
                 this._lbxPopSwallowClick = true;
@@ -278,7 +285,7 @@ export function stateLightboxPop() {
         // verTip 內容：檔名（路徑最後一段）＋ 編碼／實際片長／大小（與規格帶同源 bandParts，去掉等級）
         lbxVerTipParts() {
             const key = this.lbxPop?.anchorKey;
-            const ver = versionsOf(this.currentLightboxVideo).find((x) => x.path === key);
+            const ver = versionsOf(getVideo(this)).find((x) => x.path === key);
             if (!ver) return { name: '', specs: [] };
             const shown = typeof window.pathToDisplay === 'function' ? window.pathToDisplay(ver.path) : ver.path;
             const name = String(shown || '').split(/[\\/]/).pop();
@@ -290,7 +297,7 @@ export function stateLightboxPop() {
 
         // 第 3 列（199a-T5）：女優名單／作品資訊欄位。讀 currentLightboxVideo，屬 pop 分片的外求（CD-199a-3 已接受）；不放進 fit 分片
         lbxActressList() {
-            return orderFavoritesFirst(parseActresses(this.currentLightboxVideo), (n) => !!this._lbActorFavs?.[n]);
+            return orderFavoritesFirst(parseActresses(getVideo(this)), (n) => !!this._lbActorFavs?.[n]);
         },
 
         lbxActorSub(name) {
@@ -305,7 +312,7 @@ export function stateLightboxPop() {
         },
 
         lbxInfoField(id) {
-            return workInfoFields(this.currentLightboxVideo, { releaseClickable: this._isReleaseClickable(this.currentLightboxVideo) }).find((f) => f.id === id);
+            return workInfoFields(getVideo(this), { releaseClickable: this._isReleaseClickable(getVideo(this)) }).find((f) => f.id === id);
         },
 
         lbxInfoHas(id) {
@@ -314,7 +321,7 @@ export function stateLightboxPop() {
 
         // 文字區「來源 xxx 分」膠囊開關（207a-T1）：實際片長可信時藏起；ⓘ 那列不受影響
         lbxSrcPillShown() {
-            return sourceDurationPillShown(this.currentLightboxVideo);
+            return sourceDurationPillShown(getVideo(this));
         },
     };
 }

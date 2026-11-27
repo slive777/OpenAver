@@ -1,0 +1,71 @@
+<template x-if="lbxPop">
+                    <div class="lbx-pop"
+                         :class="{'is-placed': lbxPop.placed}"
+                         :data-mode="lbxPop.mode"
+                         :data-kind="lbxPop.kind"
+                         :style="lbxPop.style">
+                        <template x-if="lbxPop.kind === 'title'">
+                            <div class="lbx-pop-text lbx-pop-text--title" x-text="lbxView()?.title || t('showcase.grid.unknown_title')"></div>
+                        </template>
+                        <template x-if="lbxPop.kind === 'otitle'">
+                            <div class="lbx-pop-text lbx-pop-text--otitle" x-text="lbxView()?.original_title"></div>
+                        </template>
+                        <template x-if="lbxPop.kind === 'actresses'">
+                            <div class="lbx-pop-list">
+                                <div class="lbx-pop-title" x-text="t('showcase.lightbox.actresses_all_title', { n: lbxActressList().length })"></div>
+                                <template x-for="name in lbxActressList()" :key="name">
+                                    <div class="lbx-pop-row"><template x-if="_lbActorFavs[name]"><span class="lbx-avatar lbx-avatar--sm" aria-hidden="true"><span class="lbx-avatar-initial" x-text="_lbActorFavs[name].initial"></span><template x-if="_lbActorFavs[name].photo_url"><img alt="" loading="lazy" decoding="async" :src="_lbActorFavs[name].photo_url" @error="$el.hidden = true" @load="$el.hidden = false"></template></span></template><span class="lbx-link" x-text="name"></span><span class="lb-actor-age" x-show="_lbActorAges[name] != null" x-text="' (' + _lbActorAges[name] + t('showcase.unit.age_suffix') + ')'"></span></div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="lbxPop.kind === 'info'">
+                            <div class="lbx-pop-info">
+                                <div class="lbx-pop-title">{{ t('showcase.lightbox.info_title') }}</div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('number')">
+                                    <span class="lbx-pop-label">{{ t('showcase.table.col_number') }}</span>
+                                    <span class="lbx-pop-val" x-text="lbxView()?.number"></span>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('maker')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.maker') }}</span>
+                                    <span class="lbx-link lbx-pop-val" x-text="lbxView()?.maker"></span>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('label')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.label') }}</span>
+                                    <span class="lbx-link lbx-pop-val" x-text="lbxView()?.label"></span>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('series')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.series') }}</span>
+                                    <span class="lbx-link lbx-pop-val" x-text="lbxView()?.series"></span>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('director')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.director') }}</span>
+                                    <span class="lbx-link lbx-pop-val" x-text="lbxView()?.director"></span>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('release')">
+                                    <span class="lbx-pop-label">{{ t('showcase.label.date') }}</span>
+                                    <span class="lbx-pop-val" x-text="lbxView()?.release_date"></span>
+                                </div>
+                                <div class="lbx-pop-row" x-show="lbxInfoHas('source_duration')">
+                                    <span class="lbx-pop-label">{{ t('showcase.lightbox.info_source_duration') }}</span>
+                                    <span class="lbx-pop-val" x-text="lbxView()?.source_duration + ' ' + t('showcase.unit.minutes')"></span>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="lbxPop.kind === 'plot'">
+    <div class="lbx-plot-pop"><div class="lbx-plot-pop-sec"><p class="lbx-plot-pop-text" x-text="lbxView()?.summary"></p></div></div>
+</template>
+<template x-if="lbxPop.kind === 'actorCard'">
+                            <div class="lbx-actor-card">
+                                <template x-if="lbxActorCard().photo">
+                                    <img class="lbx-actor-card__photo" alt="" decoding="async" :src="lbxActorCard().photo" @error="$el.hidden = true">
+                                </template>
+                                <div class="lbx-actor-card__body">
+                                    <div class="lbx-actor-card__name" x-text="lbxActorCard().name"></div>
+                                    <template x-for="row in lbxActorCard().rows" :key="row.id">
+                                        <div class="lbx-actor-card__row" x-text="row.text"></div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>

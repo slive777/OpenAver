@@ -253,16 +253,6 @@
     overflow-y: auto;
 }
 
-/* Header row: title + sample gallery button */
-.lightbox-metadata .lb-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 0.25rem;
-    flex-wrap: wrap;
-}
-
 /* Title */
 .lightbox-metadata .lb-title {
     font-size: 0.9375rem;
@@ -310,12 +300,6 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;          /* 讓行末 muted icon 鈕（垃圾桶）與 metadata 文字垂直置中 */
-}
-
-/* 番號：比 muted 高一階、輕微加粗，一眼可辨（不放大過頭、不用 accent、不加底色）*/
-.lightbox-metadata .lb-details .lb-detail-num {
-    color: var(--text-secondary);
-    font-weight: 500;
 }
 
 /* 123-T3／T8：燈箱精選星（無補間）。兩層疊置：outline 永遠顯示、fill 用 --pick-fill clip。
@@ -453,12 +437,6 @@
     opacity: 0;
 }
 
-/* 欄位標籤（導演：/系列：/發行商：）：與其值輕微層次，值維持 muted */
-.lightbox-metadata .lb-details b {
-    font-weight: 600;
-    color: var(--text-secondary);
-}
-
 /* 分隔符由 HTML 中各 span 內部開頭的 " · " 控制，隨 x-show 一起顯示/隱藏 */
 
 /* Tags — pill flex wrap */
@@ -564,7 +542,7 @@
     transform: scale(0.95);
 }
 
-/* 98b-T4：焦點裁切遮罩 toggle — styled-like .lb-action-btn（上方）但更小，掛 metadata .lb-header。
+/* 98b-T4：焦點裁切遮罩 toggle — styled-like .lb-action-btn（上方）但更小，掛女優名字列 .actress-lb-header。
  * 低調玻璃圓鈕，退位不搶封面戲（feedback_ui_restraint_taste）。token only（§6）。 */
 .lightbox-metadata .lb-mask-btn {
     flex-shrink: 0;

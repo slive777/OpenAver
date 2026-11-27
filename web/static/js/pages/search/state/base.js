@@ -572,10 +572,6 @@ export function searchStateBase() {
 
         // ===== Phase 43 T6: Actress Chips Helpers =====
 
-        _chipsLimit() {
-            return window.innerWidth < 768 ? 6 : 10;
-        },
-
         _allInfoChips() {
             if (!this.actressProfile) return [];
             const p = this.actressProfile;
@@ -587,18 +583,6 @@ export function searchStateBase() {
                 ...(p.hobby ? [p.hobby] : []),
                 ...(p.debut_work ? [p.debut_work] : []),
             ];
-        },
-
-        _visibleAliases() {
-            const aliases = this.actressProfile?.aliases || [];
-            if (this._actressChipsExpanded.aliases) return aliases;
-            return aliases.slice(0, this._chipsLimit());
-        },
-
-        _visibleInfoChips() {
-            const chips = this._allInfoChips();
-            if (this._actressChipsExpanded.info) return chips;
-            return chips.slice(0, this._chipsLimit());
         },
 
         // ===== T5: Actress Favorite =====
@@ -660,6 +644,7 @@ export function searchStateBase() {
                 clearTimeout(this._actressFavoriteTimer);
                 this._actressFavoriteTimer = null;
 
+                if (resp.status === 200 || resp.status === 409) this.lbxFavsReload?.();
                 if (resp.status === 200) {
                     const data = await resp.json();
                     // stale-check：await 期間可能已切女優，丟棄過時結果

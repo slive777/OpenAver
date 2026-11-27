@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from core.plot_nfo import plot_norm
 from core.config import load_config, get_configured_gallery_dirs
 from core.database import VideoRepository, get_db_path, init_db
 from core.logger import get_logger
@@ -61,7 +62,7 @@ def _plot_fail(code: str) -> dict:
 
 def _norm(text: str) -> str:
     """空白正規化：用於 unchanged 判定（CD-187b-6.6）。"""
-    return " ".join(text.split())
+    return plot_norm(text)
 
 
 def _load_gallery_video(file_path: str):

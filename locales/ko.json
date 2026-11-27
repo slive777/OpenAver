@@ -267,8 +267,7 @@
     },
     "gallery": {
       "prev": "이전 이미지 (←)",
-      "next": "다음 이미지 (→)",
-      "sample_prefix": "스틸컷"
+      "next": "다음 이미지 (→)"
     },
     "grid": {
       "sample_prefix": "스틸컷",

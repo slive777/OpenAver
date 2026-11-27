@@ -518,7 +518,7 @@ body.sidebar-collapsed .showcase-footer {
     right: 0.75rem;
 }
 
-/* 入口按鈕（在 lightbox metadata .lb-header 內，pill 風格） */
+/* 入口按鈕（pill 風格） */
 .sg-open-btn {
     display: inline-flex;
     align-items: center;
@@ -590,7 +590,7 @@ body.sidebar-collapsed .showcase-footer {
 .actress-lightbox-meta .actress-lb-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* 100c-T2（CD-3）：當年用女優限定 `.lb-mask-btn { margin-left: auto }` 把 focal 推到
  * .actress-lb-header 行末（靠右），比照 .lb-delete-btn 先例（showcase.css:1586／今 :1706）。
- * 選女優限定選擇器（非共用 .lightbox-metadata .lb-mask-btn）——影片版 .lb-header 是
+ * 選女優限定選擇器（非共用 .lightbox-metadata .lb-mask-btn）——舊影片版標題列（已移除）是
  * justify-content:space-between + .lb-title flex:1，加在共用選擇器上有機會改變短標題時的
  * flex 自由空間分配；女優 .actress-lb-header 無 justify-content，當年加 margin-left 語意
  * 單純、零風險，完全不接觸影片版 CSS 規則。30px 圓鈕樣式靠 .lightbox-metadata .lb-mask-btn
@@ -629,26 +629,11 @@ body.sidebar-collapsed .showcase-footer {
     outline: 2px solid var(--stroke-default);
     outline-offset: 1px;
 }
-.actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
-.actress-lightbox-meta .lb-chips-more {
-    cursor: pointer; font-size: 0.85em; padding: 2px 8px;
-    border-radius: var(--radius-md); border: 1px solid currentColor; opacity: 0.6;
-}
-.actress-lightbox-meta .lb-chips-more:hover { opacity: 1; }
-.actress-lightbox-meta .lb-actress-urls { margin-top: 8px; }
-.actress-lightbox-meta .lb-actress-urls a { display: block; font-size: 0.8em; word-break: break-all; opacity: 0.7; }
-.actress-lightbox-meta .lb-actress-urls a:hover { opacity: 1; text-decoration: underline; }
 
 /* Actress Lightbox no-photo placeholder */
 .actress-lb-cover-placeholder {
     display: flex; align-items: center; justify-content: center;
     min-width: min(60vw, 600px); min-height: min(58vh, 460px);
-}
-
-/* lb-chips-more shared rule for video lightbox tags +N */
-.lightbox-metadata .lb-chips-more {
-    cursor: pointer; font-size: 0.85em; padding: 2px 8px;
-    border-radius: var(--radius-md); border: 1px solid currentColor; opacity: 0.6;
 }
 
 /* ==================== Mode Toggle Capsule (44c-T4) ==================== */
@@ -727,7 +712,6 @@ body.sidebar-collapsed .showcase-footer {
         --spotlight-right-slot: 8.5rem;
     }
 }
-.lightbox-metadata .lb-chips-more:hover { opacity: 1; }
 
 /* ==================== Filter pills (TASK-115-T5 shell + T6 appearance) =====
    Shared spotlight frame lives on .filter-pill-group (not the inner input).

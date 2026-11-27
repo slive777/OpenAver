@@ -593,6 +593,7 @@ export function searchStateWishlist() {
         },
 
         openWishlistLightbox(index) {
+            this.lbxFavsLoad?.();
             if (this.wishlistLightboxOpen && this.wishlistLightboxIndex === index) return;
             if (this.wishlistLightboxOpen && this.wishlistLightboxIndex !== index) {
                 var dir = index > this.wishlistLightboxIndex ? 'next' : 'prev';
@@ -614,6 +615,7 @@ export function searchStateWishlist() {
             var lbEl = safeQuery('.wishlist-lightbox');
             if (lbEl) lbEl.classList.add('gsap-animating');
             this.wishlistLightboxOpen = true;
+            this.$nextTick(() => this.lbxMetaToTop?.());
 
             var gen = ++this._wishlistLbGeneration;
             var self = this;
@@ -628,6 +630,14 @@ export function searchStateWishlist() {
                     window.SearchAnimations?.playLightboxOpen?.(el, {});
                 }
             });
+        },
+
+        handleWishlistBackdropClick(event) {
+            if (this._lbxPopSwallowClick) {
+                this._lbxPopSwallowClick = false;
+                return;
+            }
+            this.closeWishlistLightbox();
         },
 
         closeWishlistLightbox() {
@@ -653,6 +663,7 @@ export function searchStateWishlist() {
                 gsap.getById('lightboxSwitch')?.kill();
             }
             if (lbEl) lbEl.classList.remove('gsap-animating');
+            this.lbxPopClose?.({ immediate: true });
             this.wishlistLightboxOpen = false;
 
             // ★ Fly-back（對照 grid-mode.js:198-206）。找不到目標卡就不呼叫——
