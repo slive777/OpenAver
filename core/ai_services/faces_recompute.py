@@ -10,7 +10,7 @@ import threading
 from types import SimpleNamespace
 from typing import Optional
 
-from core.ai_services import faces_detect, faces_state, samples
+from core.ai_services import actress_faces, faces_detect, faces_state, samples
 from core.ai_services.faces_config import active_in
 from core.ai_services.job_shell import JobShell
 from core.config import load_config
@@ -118,6 +118,7 @@ def _failure_to_stop_reason(failure: Optional[str]) -> str:
 def ensure(model: str, kind: str = "model_change") -> bool:
     """設 target＝model；待處理＝0 → 不開工；已在跑 → 只更新 target；否則起 thread。"""
     faces_state.meta_set(META_TARGET, model)
+    actress_faces.kick()  # 207c-T6 ensure
     repo = VideoRepository()
     counts = _counts(repo, model)
     if counts["pending"] == 0:
@@ -171,6 +172,7 @@ def _start_rebuild_after_lock() -> dict:
         }
     _clear_for_rebuild(test.model)
     faces_state.meta_set(META_TARGET, test.model)
+    actress_faces.kick()  # 207c-T6 rebuild
     _start_thread("rebuild")
     return {"ok": True, "reason": "started"}
 
@@ -360,6 +362,8 @@ def on_settings_saved() -> bool:
         faces_state.observe_failure(test.kind, test.check)
         return False
     faces_state.observe_success(test.model)
+    faces_state.meta_set(META_TARGET, test.model)
+    actress_faces.kick()  # 207c-T6 on_settings_saved
     if not _pending_rows(VideoRepository(), test.model):
         return False
     started = ensure(test.model)

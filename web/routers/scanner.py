@@ -61,7 +61,7 @@ from core.platform_info import DSM_PERMISSION_HINT, LINUX_PERMISSION_HINT, is_he
 from core.proxy_policy import proxy_kwargs
 from web.routers.notifications import emit_notification as _emit_notif
 from core.wishlist_reconcile import reconcile_wishlist, format_wishlist_removed_message
-from core.ai_services import faces_state, post_ingest, similar_index, tags_backfill
+from core.ai_services import actress_faces, faces_state, post_ingest, similar_index, tags_backfill
 
 logger = get_logger(__name__)
 
@@ -342,11 +342,12 @@ def _post_scan_cleanup_and_plot_backfill(repo, config, path_mappings, is_aborted
 
 
 def _new_faces_round() -> None:
-    """掃描收尾（非 abort）：人臉端點「連不上」側欄通知可再出一次（187a-T4b）。"""
+    """掃描收尾（非 abort）：重置人臉通知輪次並喚醒女優補算。"""
     try:
         faces_state.new_round()
     except Exception:
         logger.exception("人臉通知輪次重置失敗（掃描完成收尾）")
+    actress_faces.kick()  # 207c-T6 scan_end
 
 
 def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Generator[str, None, None]:  # noqa: C901 — avlist SSE 生成主流程；109 已判定為「列 backlog、現在別搬」（60–100 處測試 patch target 焊死該函式，拆分成本由測試面而非邏輯面決定）

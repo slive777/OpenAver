@@ -527,6 +527,19 @@ def _no_real_avbase(request, monkeypatch):
     yield
 
 
+# 背景執行緒可能讀取其他測試的 DB 或啟動 Pigo；包含 lifespan 的整合測試也需隔離。
+# 主動 import 以涵蓋晚載入的模組；個別測試的 spy 可覆蓋，T5b 測試取回 _REAL_KICK。
+@pytest.fixture(autouse=True)
+def _no_actress_faces_sweep(monkeypatch):
+    try:
+        from core.ai_services import actress_faces as _af
+    except ImportError:
+        yield
+        return
+    monkeypatch.setattr(_af, "kick", lambda *a, **kw: None)
+    yield
+
+
 # ============ TASK-141a-T5：對帳 hook 的 DB 隔離（named fixture，非 autouse）====
 #
 # 為什麼需要它：141a-T5 讓 `generate_avlist()` 與 `enrich_single_endpoint()` 在收尾

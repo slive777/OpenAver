@@ -41,7 +41,7 @@ from core.config import load_config, mutate_config, migrate_config_secrets
 from core.secret_store import prime as prime_secret_store
 from core.data_layout import bootstrap_data_layout, consume_pending_bootstrap_result, consume_reset_access_auth_marker
 from core.focal import device_state
-from core.ai_services import faces_state, similar_index, tags_state
+from core.ai_services import actress_faces, faces_state, similar_index, tags_state
 from core.ai_services.tagging_aliases import seed_builtin_aliases
 from core.database import init_db
 from core.database import backfill_readonly_nfo_mtime_once
@@ -227,6 +227,7 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("lifespan: consume_reset_access_auth_marker failed unexpectedly", exc_info=True)
 
+    actress_faces.kick()  # 207c-T6 lifespan
     # TASK-104／166-T2: one-time heal for pre-0.12.6 readonly rows (see
     # core/database/migrate.py::backfill_readonly_nfo_mtime docstring). 會 stat NAS
     # 上的 .nfo，所以放背景 daemon thread，lifespan 不等它（就緒不等任何遠端 I/O）。

@@ -2087,3 +2087,81 @@ class TestAddFavoriteCropAfterAliasSync:
         assert not data["photo_downloaded"]
         assert mock_crop.call_count == 0
         assert ActressRepository().get_by_name(self.NEW_NAME).photo_source is None
+
+
+class TestActressFaceTriggers:
+    def _save_actress(self, client):
+        with patch("web.routers.actress.get_cached_profile", return_value=MOCK_PROFILE), \
+             patch("web.routers.actress.get_actress_profile"), \
+             patch("web.routers.actress.download_actress_photo", return_value=True), \
+             patch("web.routers.actress.get_local_photo_path", return_value=None):
+            return client.post("/api/actresses/favorite", json={"name": ACTRESS_NAME})
+
+    @staticmethod
+    def _cloud_download_writer(directory, content):
+        from core.organizer import sanitize_filename
+
+        def write(name, url, source):
+            (directory / f"{sanitize_filename(name)}.jpg").write_bytes(content)
+            return True
+        return write
+
+    @staticmethod
+    def _jpeg():
+        from io import BytesIO
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGB", (100, 100), (200, 50, 50)).save(buf, format="JPEG")
+        return buf.getvalue()
+
+    @pytest.mark.parametrize("case", ["set_photo_cloud", "upload", "upload_rejected"])
+    def test_photo_change_clears_result_and_kicks(self, client, tmp_db, tmp_path, monkeypatch, case):
+        from core.ai_services import actress_faces
+        from core.database import ActressRepository
+        from core.focal.face_judge import format_face_box
+
+        self._save_actress(client)
+        repo = ActressRepository(tmp_db)
+        repo.update_face_result(ACTRESS_NAME, "found", format_face_box(0.5, 0.5, 0.3), "model-A", "photo.jpg", 1, 1)
+        kicks = []
+        monkeypatch.setattr(actress_faces, "kick", lambda: kicks.append(1))
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.download_actress_photo", side_effect=self._cloud_download_writer(gfriends, self._jpeg())):
+            if case == "set_photo_cloud":
+                resp = client.post(f"/api/actresses/{ACTRESS_NAME}/photo", json={"source": "graphis", "url": "https://www.graphis.ne.jp/photo.jpg"})
+            else:
+                content_type = "text/plain" if case == "upload_rejected" else "image/jpeg"
+                resp = client.post(f"/api/actresses/{ACTRESS_NAME}/photo/upload", files={"file": ("photo.jpg", self._jpeg(), content_type)})
+        rejected = case == "upload_rejected"
+        assert resp.status_code == (415 if rejected else 200)
+        assert len(kicks) == (0 if rejected else 1)
+        assert repo.get_by_name(ACTRESS_NAME).face_status == ("found" if rejected else "")
+
+    def test_favorite_add_kicks_once_and_delete_clears_avatar(self, client, tmp_db, tmp_path, monkeypatch):
+        from core import actress_avatar
+        from core.ai_services import actress_faces
+        from core.database import ActressRepository
+        from core.focal.face_judge import format_face_box
+
+        kicks = []
+        monkeypatch.setattr(actress_faces, "kick", lambda: kicks.append(1))
+        monkeypatch.setattr(actress_avatar, "get_db_path", lambda: tmp_db)
+        assert self._save_actress(client).status_code == 200
+        assert len(kicks) == 1
+        assert self._save_actress(client).status_code == 409
+        assert len(kicks) == 1
+        repo = ActressRepository(tmp_db)
+        repo.update_face_result(ACTRESS_NAME, "found", format_face_box(0.5, 0.5, 0.3), "model-A", "photo.jpg", 1, 1)
+        photo = tmp_path / "photo.jpg"
+        photo.write_bytes(self._jpeg())
+        avatar = actress_avatar.get_or_create(repo.get_by_name(ACTRESS_NAME), photo)
+        assert avatar is not None and avatar.exists()
+        with patch("web.routers.actress.delete_local_photo"):
+            resp = client.delete(f"/api/actresses/{ACTRESS_NAME}")
+        assert resp.status_code == 200
+        assert not avatar.exists()
+        assert not list((tmp_path / "actress_avatar").rglob("*.webp"))

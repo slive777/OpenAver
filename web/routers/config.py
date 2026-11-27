@@ -46,6 +46,7 @@ from core.secret_fields import (
     secret_paths,
 )
 from core.database import VideoRepository, get_db_path, init_db
+from core.ai_services import actress_faces
 from core import thumbnail_cache
 from core.path_utils import uri_to_fs_path, reverse_path_mapping, CURRENT_ENV, is_fs_path_under_dir
 from core.data_root import resolve_gallery_output_path, get_project_root, get_data_root
@@ -441,6 +442,8 @@ def update_focal_device_disabled(request: FocalDeviceDisabledRequest) -> dict:
     """
     try:
         device_state.set_disabled_by_user(request.value)
+        if not request.value:
+            actress_faces.kick()  # 207c-T6 focal_toggle
         return {"success": True}
     except Exception as e:
         logger.error("更新 focal_device.disabled 失敗: %s", e)

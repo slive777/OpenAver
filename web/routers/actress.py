@@ -26,6 +26,8 @@ from fastapi import APIRouter, UploadFile, File, Query, HTTPException
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, ValidationError
 from PIL import Image
+from core import actress_avatar
+from core.ai_services import actress_faces
 from core.atomic_write import atomic_write
 from core.database.version_tracker import bump_showcase_revision
 from core.database.actress_library import get_favorite_actress_stats
@@ -416,6 +418,7 @@ def add_favorite(req: FavoriteRequest):
         actress.name, profile.get("photo_url"), profile.get("photo_source")
     )
 
+    actress_faces.kick()  # 207c-T6 add_favorite
     alias_repo = AliasRepository()
     video_count = repo.count_videos_for_actress_names(alias_repo.resolve(actress.name))
     # covered_names（TASK-117-T1）：sync 後完整 DB group ∪ 使用者這次點的 name——不得
@@ -1340,6 +1343,7 @@ async def _apply_photo_change(repo: ActressRepository, actress: Actress, name: s
             name, ctx="set_photo", err_msg=_SET_PHOTO_ERR_FAILED)
         if err:
             return None, err, False
+        actress_faces.kick()  # 207c-T6 apply_photo_change
         return photo_url, None, False
     except HTTPException:
         raise
@@ -1535,6 +1539,7 @@ async def upload_actress_photo(name: str, file: UploadFile = _UPLOAD_FILE_PARAM)
             name, ctx="upload", err_msg=_UPLOAD_ERR_FAILED)
         if err:
             return err
+        actress_faces.kick()  # 207c-T6 upload
         return JSONResponse(status_code=200, content={
             "photo_url": photo_url,
             "photo_source": "upload",
@@ -1756,6 +1761,7 @@ def delete_actress(name: str):
 
     repo.delete_by_name(name)
     delete_local_photo(name)  # idempotent，不需檢查回傳值
+    actress_avatar.invalidate(name)
     logger.info("[actress] 刪除女優：%s", name)
 
     return JSONResponse(
