@@ -349,6 +349,9 @@ def init_db(db_path: Path = None) -> None:
             photo_fp_path TEXT DEFAULT '',
             photo_fp_mtime_ns INTEGER DEFAULT 0,
             photo_fp_size INTEGER DEFAULT 0,
+            face_status TEXT NOT NULL DEFAULT '',
+            face_box TEXT DEFAULT '',
+            face_model TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -479,6 +482,13 @@ def init_db(db_path: Path = None) -> None:
         cursor.execute("ALTER TABLE actresses ADD COLUMN photo_fp_mtime_ns INTEGER DEFAULT 0")
     if 'photo_fp_size' not in existing_actress_cols:
         cursor.execute("ALTER TABLE actresses ADD COLUMN photo_fp_size INTEGER DEFAULT 0")
+    # Migration: 207c 臉部結果欄位
+    if 'face_status' not in existing_actress_cols:
+        cursor.execute("ALTER TABLE actresses ADD COLUMN face_status TEXT NOT NULL DEFAULT ''")
+    if 'face_box' not in existing_actress_cols:
+        cursor.execute("ALTER TABLE actresses ADD COLUMN face_box TEXT DEFAULT ''")
+    if 'face_model' not in existing_actress_cols:
+        cursor.execute("ALTER TABLE actresses ADD COLUMN face_model TEXT DEFAULT ''")
 
     conn.commit()
     conn.close()

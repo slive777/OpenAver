@@ -131,3 +131,21 @@ test('lbxFitSig 簽章隨頭像表（favKey）改變，不帶第三引數時與�
     assert.notEqual(ab, onlyA);
     assert.equal(pop.lbxFavKey.call({ _lbActorFavs: {} }), '');
 });
+
+test('actorFavsOf 小頭像圖：有特寫用特寫、否則原圖、皆無為空，頭像表不多出新鍵、實體仍是原圖', async () => {
+    const { actorFavsOf } = await import('../lbx-logic.js');
+    const list = [
+        { name: 'A', photo_url: '/api/actresses/photo/A', avatar_url: '/api/actresses/face-crop/A?v=1' },
+        { name: 'B', photo_url: '/api/actresses/photo/B', avatar_url: '' },
+        { name: 'C', photo_url: '/api/actresses/photo/C' },
+        { name: 'D' },
+    ];
+    const index = buildActressIndex(list, {});
+    const out = actorFavsOf({ actresses: 'A, B, C, D' }, index);
+    assert.equal(out.A.photo_url, '/api/actresses/face-crop/A?v=1');
+    assert.equal(out.B.photo_url, '/api/actresses/photo/B');
+    assert.equal(out.C.photo_url, '/api/actresses/photo/C');
+    assert.equal(out.D.photo_url, '');
+    assert.equal('avatar_url' in out.A, false);
+    assert.equal(index.lookup('A').photo_url, '/api/actresses/photo/A');
+});

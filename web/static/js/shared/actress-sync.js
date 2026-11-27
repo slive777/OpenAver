@@ -27,6 +27,8 @@ export function syncActressFields(paginatedActresses, name, data) {
     if (idx < 0) return;   // 女優已從陣列移除（篩選/刪除）→ 靜默 return，無牆格可更新
     const target = paginatedActresses[idx];
     if ('photo_url' in data) target.photo_url = data.photo_url;
+    // 換照片時舊特寫小圖就是舊照片的臉，一併清掉
+    if ('photo_url' in data) target.avatar_url = '';
     if ('photo_source' in data) target.photo_source = data.photo_source;
     if ('auto_focal' in data) target.auto_focal = data.auto_focal;
     if ('crop_mode' in data) target.crop_mode = data.crop_mode;

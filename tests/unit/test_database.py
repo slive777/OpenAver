@@ -379,6 +379,16 @@ class TestFocalCropMigration:
         assert "photo_fp_path" in columns
         assert "photo_fp_mtime_ns" in columns
         assert "photo_fp_size" in columns
+        assert "face_status" in columns
+        assert "face_box" in columns
+        assert "face_model" in columns
+        from core.database import ActressRepository
+        actress = ActressRepository(db_path).get_by_name("舊女優")
+        assert actress is not None
+        assert actress.face_status == ''
+        assert actress.face_box == ''
+        assert actress.face_model == ''
+        assert init_db(db_path) is None
 
 
 # ============ TASK-123-T1: user_rating migration（CD-123-2）============

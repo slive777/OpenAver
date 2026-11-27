@@ -30,6 +30,7 @@ class ExternalResult(NamedTuple):
     focal: Optional[tuple[float, float]] = None
     model: Optional[str] = None
     failure: Optional[str] = None
+    boxes: tuple = ()
 
 
 def observe_model(model: str) -> None:
@@ -90,10 +91,10 @@ def _to_external_result(
     model = faces_result.model
     if focal is None:
         kind = "NO_FACE"
-        out = ExternalResult(kind=kind, focal=None, model=model, failure=None)
+        out = ExternalResult(kind=kind, focal=None, model=model, failure=None, boxes=tuple(faces_result.boxes))
     else:
         kind = "FOUND"
-        out = ExternalResult(kind=kind, focal=focal, model=model, failure=None)
+        out = ExternalResult(kind=kind, focal=focal, model=model, failure=None, boxes=tuple(faces_result.boxes))
     if profile != "warmup":
         faces_state.observe_success(model)
         observe_model(model)

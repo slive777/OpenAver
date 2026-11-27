@@ -226,3 +226,63 @@ def test_update_fields_tags_roundtrip_append(repo):
     assert result.tags == ["美少女", "スレンダー"]
 
 
+def test_face_result_dies_with_photo_change(repo, tmp_path, monkeypatch):
+    """換照片後舊結果失效，並清除焦點與照片指紋。"""
+    from core.actress_face import current_photo_fp, result_is_valid
+
+    directory = tmp_path / "Gfriends"
+    monkeypatch.setattr('core.actress_photo.GFRIENDS_DIR', directory)
+    directory.mkdir()
+    path = directory / "face.jpg"
+    path.write_bytes(b"photo")
+    repo.save(Actress(name="face"))
+    stat = path.stat()
+    fp = current_photo_fp("face")
+    assert fp == (str(path), stat.st_mtime_ns, stat.st_size)
+    assert repo.update_face_result("face", "found", "0.5,0.4,0.3", "model", *fp)
+    actress = repo.get_by_name("face")
+    assert result_is_valid(actress, current_photo_fp("face"))
+    assert repo.update_face_result("face", "unsure", "", "model", *fp)
+    actress = repo.get_by_name("face")
+    assert result_is_valid(actress, fp)
+    assert not result_is_valid(actress, (fp[0] + "x", fp[1], fp[2]))
+    assert not result_is_valid(actress, (fp[0], fp[1] + 1, fp[2]))
+    assert not result_is_valid(actress, (fp[0], fp[1], fp[2] + 1))
+    assert not result_is_valid(actress, None)
+    actress.face_status = ''
+    assert not result_is_valid(actress, fp)
+    assert repo.update_manual_focal("face", "0.5000,0.4000")
+    assert repo.clear_focal("face")
+    actress = repo.get_by_name("face")
+    assert (actress.auto_focal, actress.crop_mode) == ('', 'auto')
+    assert (actress.face_status, actress.face_box, actress.face_model) == ('', '', '')
+    assert (actress.photo_fp_path, actress.photo_fp_mtime_ns, actress.photo_fp_size) == ('', 0, 0)
+    assert repo.clear_focal("不存在") is False
+
+
+def test_save_keeps_face_result(repo):
+    """重新儲存女優資料時保留既有臉部結果。"""
+    repo.save(Actress(name="face-save"))
+    assert repo.update_face_result("face-save", "found", "box", "model", "path", 123, 456)
+    repo.save(Actress(name="face-save", height="160cm"))
+    actress = repo.get_by_name("face-save")
+    assert actress.height == "160cm"
+    assert (actress.face_status, actress.face_box, actress.face_model) == ("found", "box", "model")
+    assert (actress.photo_fp_path, actress.photo_fp_mtime_ns, actress.photo_fp_size) == ("path", 123, 456)
+
+
+def test_update_face_result_leaves_manual_focal_alone(repo):
+    """背景寫入臉部結果時保留使用者設定的手動焦點。"""
+    repo.save(Actress(name="face-manual"))
+    assert repo.update_manual_focal("face-manual", "0.5000,0.4000")
+    before = repo.get_by_name("face-manual")
+    baseline = (before.auto_focal, before.crop_mode)
+    assert repo.update_face_result("face-manual", "found", "box", "model", "path", 123, 456) is True
+    actress = repo.get_by_name("face-manual")
+    assert (actress.auto_focal, actress.crop_mode) == baseline
+    assert (actress.face_status, actress.face_box, actress.face_model) == ("found", "box", "model")
+    assert (actress.photo_fp_path, actress.photo_fp_mtime_ns, actress.photo_fp_size) == ("path", 123, 456)
+    assert repo.update_face_result("不存在", "found", "box", "model", "path", 123, 456) is False
+    assert repo.get_by_name("不存在") is None
+
+

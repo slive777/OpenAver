@@ -13,6 +13,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 import dataclasses
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,36 @@ _STARTUP_TIMEOUT_S = 10.0
 _BREAKER_THRESHOLD = 3
 _slot_lock = threading.Lock()
 _breaker_streak = 0
+_cover_waiting: int = 0
+_cover_state_lock = threading.Lock()
+_last_cover_release_mono = None
+
+
+def _cover_wait_enter():
+    global _cover_waiting
+    with _cover_state_lock:
+        _cover_waiting += 1
+
+
+def _cover_wait_leave():
+    global _cover_waiting
+    with _cover_state_lock:
+        _cover_waiting -= 1
+
+
+def _note_cover_release():
+    global _last_cover_release_mono
+    _last_cover_release_mono = time.monotonic()
+
+
+def cover_waiting() -> int:
+    return _cover_waiting
+
+
+def cover_quiet_for() -> float:
+    last = _last_cover_release_mono
+    return float("inf") if last is None else time.monotonic() - last
+
 
 _TIMEOUT = object()  # sentinel from queue.get timeout
 
@@ -298,7 +329,11 @@ def _run_local_detection(
     call_state = _CallState()
     outcome_for_callback: RunnerOutcome | None = None
 
-    _slot_lock.acquire()
+    _cover_wait_enter()
+    try:
+        _slot_lock.acquire()
+    finally:
+        _cover_wait_leave()
     try:
         # Authoritative recheck under the lock: callers that passed the
         # lock-free short-circuit may still find the streak already open
@@ -353,6 +388,7 @@ def _run_local_detection(
                 on_outcome(outcome_for_callback)
             except Exception:
                 logger.exception("focal on_outcome callback raised")
+        _note_cover_release()
         _slot_lock.release()
 
 

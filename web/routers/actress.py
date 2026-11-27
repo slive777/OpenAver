@@ -4,6 +4,7 @@
 端點：
     POST   /api/actresses/favorite          收藏女優
     GET    /api/actresses/photo/{name}      取得本地照片（binary）
+    GET    /api/actresses/face-crop/{name}  取得臉部特寫
     GET    /api/actresses/library           列出庫內全部女優（依 alias group 聚合，TASK-117-T1）
     GET    /api/actresses/{name}            查詢已收藏女優
     DELETE /api/actresses/{name}            刪除已收藏女優
@@ -19,13 +20,17 @@ import re
 import uuid
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 from typing import Optional, List
 from urllib.parse import quote
 
-from fastapi import APIRouter, UploadFile, File, Query, HTTPException
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Request
+from fastapi.responses import JSONResponse, Response, StreamingResponse, RedirectResponse
 from pydantic import BaseModel, ValidationError
 from PIL import Image
+from core import actress_avatar
+from core.actress_face import avatar_stamp, current_photo_fp, result_is_valid
+from core.ai_services import actress_faces
 from core.atomic_write import atomic_write
 from core.database.version_tracker import bump_showcase_revision
 from core.database.actress_library import get_favorite_actress_stats
@@ -222,6 +227,29 @@ def _safe_recent_score(name: str, repo, alias_repo) -> float:
         return 0.0
 
 
+def _face_crop_valid(actress: Actress, fp) -> bool:
+    return actress.face_status == "found" and result_is_valid(actress, fp)
+
+
+def avatar_url_for(actress: Actress) -> str:
+    if actress.face_status != "found":
+        return ""
+    fp = current_photo_fp(actress.name)
+    if fp is None or not _face_crop_valid(actress, fp):
+        return ""
+    return f"/api/actresses/face-crop/{quote(actress.name)}?v={avatar_stamp(actress)}"
+
+
+def _redirect_to_photo(name: str):
+    return RedirectResponse(f"/api/actresses/photo/{quote(name)}", status_code=307, headers={"Cache-Control": "no-cache"})
+
+
+def _if_none_match_hits(header, etag) -> bool:
+    if not header:
+        return False
+    return etag in [tag.strip().removeprefix("W/") for tag in header.split(",")]
+
+
 def _actress_to_response(actress: Actress, video_count: int = 0, *, recent_score: float = 0.0) -> dict:
     """將 Actress dataclass 轉為 API response dict"""
     local_path = get_local_photo_path(actress.name)
@@ -250,6 +278,7 @@ def _actress_to_response(actress: Actress, video_count: int = 0, *, recent_score
         "blog_url": actress.blog_url,
         "official_url": actress.official_url,
         "photo_url": photo_url,
+        "avatar_url": avatar_url_for(actress),
         "photo_source": actress.photo_source,
         "primary_text_source": actress.primary_text_source,
         "auto_focal": actress.auto_focal,
@@ -416,6 +445,7 @@ def add_favorite(req: FavoriteRequest):
         actress.name, profile.get("photo_url"), profile.get("photo_source")
     )
 
+    actress_faces.kick()  # 207c-T6 add_favorite
     alias_repo = AliasRepository()
     video_count = repo.count_videos_for_actress_names(alias_repo.resolve(actress.name))
     # covered_names（TASK-117-T1）：sync 後完整 DB group ∪ 使用者這次點的 name——不得
@@ -633,6 +663,34 @@ def get_actress_photo(name: str):
         content=path.read_bytes(),
         media_type=media_type,
     )
+
+
+@router.get("/face-crop/{name}")
+def get_actress_face_crop(name: str, request: Request, v: Optional[str] = Query(None)):
+    init_db()
+    actress = ActressRepository().get_by_name(name)
+    if actress is None:
+        return Response(b"", status_code=404)
+    fp = current_photo_fp(name)
+    if fp is None:
+        return Response(b"", status_code=404)
+    if not _face_crop_valid(actress, fp):
+        return _redirect_to_photo(name)
+    stamp = avatar_stamp(actress)
+    if v is not None and v != stamp:
+        return _redirect_to_photo(name)
+    etag = f'"{stamp}"'
+    headers = {"ETag": etag, "Cache-Control": "no-cache"}
+    if _if_none_match_hits(request.headers.get("if-none-match"), etag):
+        return Response(status_code=304, headers=headers)
+    path = actress_avatar.get_or_create(actress, Path(fp[0]))
+    if path is None:
+        return _redirect_to_photo(name)
+    try:
+        content = path.read_bytes()
+    except OSError:
+        return _redirect_to_photo(name)
+    return Response(content=content, media_type="image/webp", headers=headers)
 
 
 # ---------------------------------------------------------------------------
@@ -1340,6 +1398,7 @@ async def _apply_photo_change(repo: ActressRepository, actress: Actress, name: s
             name, ctx="set_photo", err_msg=_SET_PHOTO_ERR_FAILED)
         if err:
             return None, err, False
+        actress_faces.kick()  # 207c-T6 apply_photo_change
         return photo_url, None, False
     except HTTPException:
         raise
@@ -1535,6 +1594,7 @@ async def upload_actress_photo(name: str, file: UploadFile = _UPLOAD_FILE_PARAM)
             name, ctx="upload", err_msg=_UPLOAD_ERR_FAILED)
         if err:
             return err
+        actress_faces.kick()  # 207c-T6 upload
         return JSONResponse(status_code=200, content={
             "photo_url": photo_url,
             "photo_source": "upload",
@@ -1756,6 +1816,7 @@ def delete_actress(name: str):
 
     repo.delete_by_name(name)
     delete_local_photo(name)  # idempotent，不需檢查回傳值
+    actress_avatar.invalidate(name)
     logger.info("[actress] 刪除女優：%s", name)
 
     return JSONResponse(

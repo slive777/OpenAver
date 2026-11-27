@@ -350,6 +350,7 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
 8. **換頭像（alias 本地候選）**：找「換頭像」按鈕 / `manage_photo_path` 入口
    - 點換頭像 → 預期跳本地候選清單 modal（**PyWebView 例外**：folder picker 為原生 API，瀏覽器無法觸發 → 改驗 alias 展開後候選列表的 UI 渲染，不驗 picker 本身）
    - **驗**：候選列表展開 alias 名做多名查詢（v0.8.8 A2）— UI 顯示候選圖片來自 alias 名查詢
+9. **[MCP] 影片燈箱的女優小頭像（0.19.7）**：到 `/showcase` 開一部有該女優的片 → 已算出臉部特寫的女優，小圓頭像 `img` 的 `src` 含 `/api/actresses/face-crop/`；沒特寫（找不到臉／把握不夠／多人照）的是 `/api/actresses/photo/` 整張照片；沒照片的是首字。滑過頭像出現的寫真卡、切到女優牆後的卡片與女優燈箱大照片，`src` 一律是 `/api/actresses/photo/`（原圖）
 
 ### 完成後 state
 
