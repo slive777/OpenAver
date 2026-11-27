@@ -3,7 +3,7 @@
 import threading
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from core import actress_avatar
 from core.actress_face import current_photo_fp, result_is_valid
@@ -83,6 +83,12 @@ def _detect_endpoint(row, fp):
 def _detect_pigo(row, fp):
     if row.photo_source == "local_crop":
         return "unsure", "", "local-pigo"
+    try:
+        with Image.open(fp[0]) as image:
+            ImageOps.exif_transpose(image).convert("RGB")
+    except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+        logger.warning("[actress_faces] cannot decode photo", exc_info=True)
+        return _SKIP
     logger.info("[actress_faces] detect pigo %s", row.name)
     result = face_runner.run_face_boxes(fp[0])
     if result[0] == "FOUND":
