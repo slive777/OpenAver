@@ -10681,6 +10681,7 @@ const RULES = [
     pattern: [/^[ \t]+plot_block = _plot_block\(summary, original_summary\)$/m, '{rating_line}  {plot_block}'],
     note: '[lint-guard:207b-T7-plot-block-wired] 少了簡介區塊接線 → 整理出的 NFO 簡介區塊沒經過控制字元剝除／跳脫，整份 NFO 讀不出來',
   },
+  { file: 'core/focal/face_runner.py', kind: 'forbidden-string', pattern: /record_outcome|_apply_breaker|run_detection\(/, id: '207c-T5a-face-runner-no-device-feed', note: '[lint-guard:207c-T5a-face-runner-no-device-feed] 女優偵測餵進裝置停用／斷路器、或退回封面入口 → 使用者的影片封面自動對焦被女優大圖的慢算整台關掉，或端點斷線時悄悄留下 Pigo 結果' },
 ];
 
 // ---- helpers ----
