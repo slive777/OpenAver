@@ -37,17 +37,14 @@ class Actress:
     primary_text_source: Optional[str] = None
     auto_focal: str = ''
     crop_mode: str = 'auto'
-    # Photo fingerprint (98d stat-on-load). Defaults MATCH the SQL column
-    # defaults ('' / 0 / 0) so a fresh save() and an ALTER-migrated row share
-    # ONE canonical "unset" sentinel — 98d compares (path, mtime_ns, size)
-    # and must not juggle None-vs-''/0 by row provenance.
-    # 98a 預留、spec-100 不使用：這三欄供 98a 規劃的 stat-on-load 背景 focal
-    # 演算法使用（未落地）。spec-100 的手動焦點
-    # 走 update_manual_focal，不寫這三欄（女優無背景 writer，CD-3）。保留欄位
-    # 不刪除，供未來背景 focal worker 落地時使用。
+    # 207c：這三欄是 face_* 結果所用照片的指紋（路徑字串、st_mtime_ns、st_size）。
     photo_fp_path: str = ''
     photo_fp_mtime_ns: int = 0
     photo_fp_size: int = 0
+    face_status: str = ''
+    # face_box 座標系為 EXIF 轉正後，格式 "cx,cy,fs"，四位小數。
+    face_box: str = ''
+    face_model: str = ''
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -95,14 +92,12 @@ class Actress:
 
 
 # save() ON CONFLICT 排除集合（CD-98a-6）：name 是 PK、恆不進 update_parts；
-# auto_focal/crop_mode/photo_fp_* 五欄只由專用 mutator 改寫，save() 衝突時一律保留
-# DB 既有值（比照 video.py 的 _FOCAL_PRESERVE）。現行 writer：clear_focal /
-# update_manual_focal（spec-100，auto_focal + crop_mode）。98a 曾預留
-# update_crop_mode/update_focal_result 供未落地的背景 focal worker 使用，
-# spec-100 未採用，已於 103-T1 隨同刪除。
+# focal、照片指紋與 face 結果只由專用 mutator 改寫，save() 衝突時保留 DB 既有值。
+# 寫入器為 clear_focal、update_manual_focal 與 update_face_result。
 _ACTRESS_FOCAL_PRESERVE = frozenset({
     'name', 'auto_focal', 'crop_mode',
     'photo_fp_path', 'photo_fp_mtime_ns', 'photo_fp_size',
+    'face_status', 'face_box', 'face_model',
 })
 _JSON_COLUMNS = frozenset({'tags'})
 
@@ -144,8 +139,7 @@ class ActressRepository:
 
             columns = list(actress_dict.keys())
             placeholders = ', '.join(['?'] * len(columns))
-            # preserve-on-conflict（CD-98a-6）：name 是 PK 恆排除；focal + photo fingerprint
-            # 五欄只由專用 mutator 改寫（現行＝clear_focal / update_manual_focal），save() 衝突時保留
+            # preserve-on-conflict：name、焦點、照片指紋與臉部結果在衝突時保留。
             update_parts = []
             for col in columns:
                 if col in _ACTRESS_FOCAL_PRESERVE:
@@ -167,9 +161,9 @@ class ActressRepository:
             conn.close()
 
     def clear_focal(self, name: str) -> bool:
-        """原子清空手動焦點（CD-98a-6 mutator，spec-100 T3 換圖時呼叫）。
+        """換照片時原子清空手動焦點、臉部結果及其照片指紋。
 
-        單一 UPDATE 一次寫完 auto_focal='' + crop_mode='auto'，換圖作廢舊焦點。
+        單一 UPDATE 作廢舊焦點及臉部結果。
 
         Args:
             name: 女優名稱（DB key）
@@ -182,6 +176,8 @@ class ActressRepository:
         try:
             cursor.execute(
                 "UPDATE actresses SET auto_focal = '', crop_mode = 'auto', "
+                "face_status = '', face_box = '', face_model = '', "
+                "photo_fp_path = '', photo_fp_mtime_ns = 0, photo_fp_size = 0, "
                 "updated_at = CURRENT_TIMESTAMP WHERE name = ?",
                 (name,)
             )
@@ -217,6 +213,22 @@ class ActressRepository:
                 "UPDATE actresses SET auto_focal = ?, crop_mode = 'manual', "
                 "updated_at = CURRENT_TIMESTAMP WHERE name = ?",
                 (focal, name)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def update_face_result(self, name, status, box, model, fp_path, fp_mtime_ns, fp_size) -> bool:
+        """原子寫入臉部結果與來源照片指紋。"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE actresses SET face_status = ?, face_box = ?, face_model = ?, "
+                "photo_fp_path = ?, photo_fp_mtime_ns = ?, photo_fp_size = ?, "
+                "updated_at = CURRENT_TIMESTAMP WHERE name = ?",
+                (status, box, model, fp_path, fp_mtime_ns, fp_size, name)
             )
             conn.commit()
             return cursor.rowcount > 0
