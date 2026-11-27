@@ -10682,6 +10682,8 @@ const RULES = [
     note: '[lint-guard:207b-T7-plot-block-wired] 少了簡介區塊接線 → 整理出的 NFO 簡介區塊沒經過控制字元剝除／跳脫，整份 NFO 讀不出來',
   },
   { file: 'core/focal/face_runner.py', kind: 'forbidden-string', pattern: /record_outcome|_apply_breaker|run_detection\(/, id: '207c-T5a-face-runner-no-device-feed', note: '[lint-guard:207c-T5a-face-runner-no-device-feed] 女優偵測餵進裝置停用／斷路器、或退回封面入口 → 使用者的影片封面自動對焦被女優大圖的慢算整台關掉，或端點斷線時悄悄留下 Pigo 結果' },
+  { file: 'core/ai_services/actress_faces.py', kind: 'forbidden-string', pattern: /record_outcome|_apply_breaker|run_detection\(/, id: '207c-T5b-actress-faces-no-device-feed', note: '[lint-guard:207c-T5b-actress-faces-no-device-feed] 女優背景補算餵進裝置停用／斷路器、或退回封面入口 → 使用者的影片封面自動對焦被女優大圖整台關掉，或端點斷線時悄悄留下 Pigo 結果' },
+  { file: 'core/ai_services/actress_faces.py', kind: 'forbidden-string', scope: /^def kick\(\):\n([\s\S]*?)(?=^def )/m, pattern: /load_config|open\(|os\.stat|os\.path/, id: '207c-T5b-kick-no-io', note: '[lint-guard:207c-T5b-kick-no-io] kick() 做了 I/O → async route 直接呼叫時阻塞事件迴圈，使用者按新增收藏／換照片時整個 App 卡住' },
 ];
 
 // ---- helpers ----
