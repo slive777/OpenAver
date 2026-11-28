@@ -9,8 +9,44 @@ export function settleLightboxRoot(root) {
   root.style.removeProperty('opacity');
 }
 
+const closeTeardowns = new WeakMap();
+
 export function cancelCloseTeardown(root) {
-  // T3 填實
+  if (!root) return;
+  const entry = closeTeardowns.get(root);
+  if (!entry) return;
+  root.removeEventListener('transitionend', entry.listener);
+  clearTimeout(entry.timer);
+  closeTeardowns.delete(root);
+}
+
+export function armCloseTeardown(root, run) {
+  cancelCloseTeardown(root);
+  if (!root) return setTimeout(run, 800);
+  const fire = () => {
+    cancelCloseTeardown(root);
+    run();
+  };
+  const listener = event => {
+    if (event.target !== root || event.propertyName !== 'opacity') return;
+    fire();
+  };
+  root.addEventListener('transitionend', listener);
+  const timer = setTimeout(fire, 800);
+  closeTeardowns.set(root, { listener, timer });
+  return timer;
+}
+
+export function flyBackToGrid(host, spec) {
+  const { findCard, fromRect, coverSrc, fromImg } = spec;
+  if (!fromRect || !window.GhostFly?.playLightboxToGrid) return;
+  const callback = () => {
+    const ghostFly = window.GhostFly;
+    const card = findCard();
+    if (card && ghostFly?.playLightboxToGrid) ghostFly.playLightboxToGrid(fromRect, card, { coverSrc, fromImg });
+  };
+  if (typeof host.$nextTick === 'function') host.$nextTick(callback);
+  else callback();
 }
 
 export function openLightboxFlow(host, spec) {

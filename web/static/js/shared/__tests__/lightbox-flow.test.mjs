@@ -104,3 +104,62 @@ test('openLightboxFlow falls back to the full open animation when the ghost cann
     ghostDone(); assert.equal(g.host.busy, false);
   } finally { cleanup(); }
 });
+
+
+const { armCloseTeardown, cancelCloseTeardown } = await import('../lightbox-flow.js');
+
+function closeHarness() {
+  const listeners = new Set(), timers = new Map();
+  let now = 0, id = 0;
+  const root = {
+    addEventListener(type, fn) { if (type === 'transitionend') listeners.add(fn); },
+    removeEventListener(type, fn) { if (type === 'transitionend') listeners.delete(fn); },
+    dispatch(event) { for (const fn of [...listeners]) fn(event); },
+    listenerCount(type) { return type === 'transitionend' ? listeners.size : 0; }
+  };
+  globalThis.setTimeout = (fn, delay) => { const key = ++id; timers.set(key, { fn, at: now + delay }); return key; };
+  globalThis.clearTimeout = key => timers.delete(key);
+  return { root, advance(ms) {
+    now += ms;
+    for (const [key, timer] of timers) if (timer.at <= now) { timers.delete(key); timer.fn(); }
+  } };
+}
+
+test('armCloseTeardown does not tear the content down before the root opacity fade ends', () => {
+  try {
+    const { root, advance } = closeHarness(); let calls = 0;
+    armCloseTeardown(root, () => calls++);
+    advance(249); assert.equal(calls, 0);
+    advance(1); assert.equal(calls, 0);
+    root.dispatch({ target: {}, propertyName: 'opacity' });
+    root.dispatch({ target: root, propertyName: 'transform' });
+    root.dispatch({ target: root, propertyName: 'visibility' });
+    assert.equal(calls, 0);
+    root.dispatch({ target: root, propertyName: 'opacity' }); assert.equal(calls, 1);
+    root.dispatch({ target: root, propertyName: 'opacity' }); advance(550); assert.equal(calls, 1);
+  } finally { globalThis.setTimeout = realSetTimeout; globalThis.clearTimeout = realClearTimeout; }
+});
+
+test('armCloseTeardown still tears the content down when the fade event never arrives', () => {
+  try {
+    const { root, advance } = closeHarness(); let calls = 0, nullCalls = 0;
+    assert.notEqual(armCloseTeardown(root, () => calls++), undefined);
+    assert.notEqual(armCloseTeardown(null, () => nullCalls++), undefined);
+    advance(799); assert.equal(calls, 0); assert.equal(nullCalls, 0);
+    advance(1); assert.equal(calls, 1); assert.equal(nullCalls, 1);
+    advance(800); assert.equal(calls, 1); assert.equal(nullCalls, 1);
+  } finally { globalThis.setTimeout = realSetTimeout; globalThis.clearTimeout = realClearTimeout; }
+});
+
+test('armCloseTeardown is cancelled by cancelCloseTeardown and replaced by a later arm', () => {
+  try {
+    const { root, advance } = closeHarness(); let old = 0, replaced = 0, latest = 0;
+    armCloseTeardown(root, () => old++); cancelCloseTeardown(root);
+    assert.equal(root.listenerCount('transitionend'), 0);
+    root.dispatch({ target: root, propertyName: 'opacity' }); advance(800); assert.equal(old, 0);
+    armCloseTeardown(root, () => replaced++); armCloseTeardown(root, () => latest++);
+    assert.equal(root.listenerCount('transitionend'), 1);
+    root.dispatch({ target: root, propertyName: 'opacity' }); advance(800);
+    assert.equal(replaced, 0); assert.equal(latest, 1);
+  } finally { globalThis.setTimeout = realSetTimeout; globalThis.clearTimeout = realClearTimeout; }
+});

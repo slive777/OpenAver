@@ -3733,6 +3733,27 @@ const RULES = [
     note: '[lint-guard:208a-T2-root-clear-interrupt] 開場動畫留下的殘值會讓之後關燈箱背景不淡出',
   },
   {
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'order',
+    scope: { anchor: /playLightboxToGrid\s*:\s*function\s*\([^)]*\)\s*\{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [{ pattern: 'restoreInstant(targetImg)' }, { pattern: 'cleanupGhost(ghost, targetImg' }],
+    note: '[lint-guard:208a-T3-landing-restore-grid] 使用者關燈箱封面飛回 → 落地後封面空一下再淡回來',
+  },
+  {
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'order',
+    scope: { anchor: /playActressToHeroCard\s*:\s*function\s*\([^)]*\)\s*\{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [{ pattern: 'restoreInstant(heroImg)' }, { pattern: 'cleanupGhost(ghost, heroImg' }],
+    note: '[lint-guard:208a-T3-landing-restore-hero] 使用者關燈箱封面飛回 → 落地後封面空一下再淡回來',
+  },
+  {
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'order',
+    scope: { anchor: /function\s+restoreInstant\s*\([^)]*\)\s*\{/, braceBalanced: true },
+    stripLineComments: true,
+    items: [{ pattern: ".style.transition = 'none'" }, { pattern: 'gsap.set(' }, { pattern: '.offsetWidth' }, { pattern: ".style.removeProperty('transition')" }],
+    note: '[lint-guard:208a-T3-landing-restore-order] 使用者關燈箱封面飛回 → 落地後封面空一下再淡回來',
+  },
+  {
     file: 'web/static/js/pages/search/animations.js', kind: 'required-string', pattern: 'GhostFly.playLightboxOpen',
     scope: { anchor: /playLightboxOpen: function/, window: 800 },
     note: '[TestShowcaseAnimationsFluent] test_search_animations_js_contains — Phase 51 T4.3 delegate',
