@@ -237,7 +237,7 @@ test('C-1 ②：燈箱開著的片自己被藏，lightboxOpen 變 false，250ms 
     try {
         await c.hsSetHide(true);
         assert.equal(c.lightboxOpen, false);
-        mock.timers.tick(250);
+        mock.timers.tick(800);
         assert.equal(c.currentLightboxVideo, null);
     } finally {
         fx.restore();

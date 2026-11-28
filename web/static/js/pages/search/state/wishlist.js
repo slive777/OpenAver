@@ -4,6 +4,7 @@
  */
 
 import { detectSwipe } from '@/shared/swipe.js';  // TASK-141b-T5：對照 grid-mode.js:6 既有寫法
+import { WISHLIST_LIGHTBOX_ROOT_SELECTOR, openLightboxFlow, settleLightboxRoot, flyBackToGrid } from '@/shared/lightbox-flow.js';
 import { classifyWishlistAging, ageDaysOf } from '../wishlist-aging.js';  // TASK-141b-T9
 
 // TASK-140-T6：三態互斥的共用 computed。grid／燈箱／detail 三處模板都只問這支，
@@ -65,6 +66,7 @@ export function searchStateWishlist() {
         _wishlistCoverRetry: {},
         wishlistLightboxOpen: false,   // T11a：書籤燈箱開關（獨立狀態機，不與 lightboxOpen 共用）
         wishlistLightboxIndex: -1,     // T11a：書籤燈箱目前顯示的 wishlistItems 索引
+        _wishlistLbLastRemoved: null,  // 刪除最後一筆後保留淡出期間的燈箱內容
         _wishlistLbImgError: false,    // T11a：燈箱封面破圖 flag（開燈箱時必須重設，否則殘留占位）
         // T7 review P2：切進書籤前的 displayMode，切回搜尋段時還原。
         // 沒有它的話：你在 detail 模式看著某一片 → 點書籤段 → 點回來 → 剛才那張卡
@@ -588,11 +590,13 @@ export function searchStateWishlist() {
         },
 
         currentWishlistLightboxItem() {
+            if (!this.wishlistItems.length && this.wishlistLightboxIndex >= 0 && this._wishlistLbLastRemoved) return this._wishlistLbLastRemoved;
             if (this.wishlistLightboxIndex < 0 || this.wishlistLightboxIndex >= this.wishlistItems.length) return undefined;
             return this.wishlistItems[this.wishlistLightboxIndex];
         },
 
         openWishlistLightbox(index) {
+            this._wishlistLbLastRemoved = null;
             this.lbxFavsLoad?.();
             if (this.wishlistLightboxOpen && this.wishlistLightboxIndex === index) return;
             if (this.wishlistLightboxOpen && this.wishlistLightboxIndex !== index) {
@@ -612,23 +616,13 @@ export function searchStateWishlist() {
 
             this._wishlistLbImgError = false;
             this.wishlistLightboxIndex = index;
-            var lbEl = safeQuery('.wishlist-lightbox');
-            if (lbEl) lbEl.classList.add('gsap-animating');
-            this.wishlistLightboxOpen = true;
+            var lbEl = safeQuery(WISHLIST_LIGHTBOX_ROOT_SELECTOR);
             this.$nextTick(() => this.lbxMetaToTop?.());
 
-            var gen = ++this._wishlistLbGeneration;
-            var self = this;
-            safeNextTick(this, function () {
-                if (self._wishlistLbGeneration !== gen) return;
-                var el = safeQuery('.wishlist-lightbox');
-                if (!el) return;
-                if (fromRect && window.GhostFly?.playGridToLightbox) {
-                    window.GhostFly.playGridToLightbox(fromRect, el, { coverSrc: coverSrc });
-                    window.SearchAnimations?.playLightboxOpen?.(el, { skipCover: true });
-                } else {
-                    window.SearchAnimations?.playLightboxOpen?.(el, {});
-                }
+            openLightboxFlow(this, {
+                root: lbEl, openKey: 'wishlistLightboxOpen', genKey: '_wishlistLbGeneration',
+                busyKey: null, animations: 'SearchAnimations',
+                fromRect: fromRect, coverSrc: coverSrc
             });
         },
 
@@ -646,7 +640,7 @@ export function searchStateWishlist() {
             // 隱藏，getBoundingClientRect() 就會回傳寬高皆 0，playLightboxToGrid 的
             // 「起點無效」分支（ghost-fly.js:834）會被觸發 ⇒ 封面直接消失、不拋錯。
             var closingIndex = this.wishlistLightboxIndex;
-            var lbEl = safeQuery('.wishlist-lightbox');
+            var lbEl = safeQuery(WISHLIST_LIGHTBOX_ROOT_SELECTOR);
             var lbImg = lbEl ? lbEl.querySelector('.lightbox-cover img') : null;
             var flybackFromRect = lbImg ? lbImg.getBoundingClientRect() : null;
             var flybackCoverSrc = lbImg ? lbImg.src : null;
@@ -662,26 +656,25 @@ export function searchStateWishlist() {
                 gsap.getById('lightboxOpen')?.kill();
                 gsap.getById('lightboxSwitch')?.kill();
             }
-            if (lbEl) lbEl.classList.remove('gsap-animating');
+            settleLightboxRoot(lbEl);
             this.lbxPopClose?.({ immediate: true });
             this.wishlistLightboxOpen = false;
 
             // ★ Fly-back（對照 grid-mode.js:198-206）。找不到目標卡就不呼叫——
             // 視窗外／已捲走的退化淡出交給 playLightboxToGrid 自己的 abort() 分支
             // （ghost-fly.js:842-869），T4 不寫任何 viewport 判斷（設計決策 5）。
-            if (closingIndex >= 0 && flybackFromRect && window.GhostFly?.playLightboxToGrid) {
-                safeNextTick(this, function () {
-                    var grid = safeQuery('.wishlist-grid');
-                    var cardEl = grid ? grid.querySelector('[data-slot="' + closingIndex + '"]') : null;
-                    if (cardEl) {
-                        window.GhostFly.playLightboxToGrid(flybackFromRect, cardEl, {
-                            coverSrc: flybackCoverSrc, fromImg: lbImg
-                        });
-                    }
+            if (closingIndex >= 0) {
+                flyBackToGrid(this, {
+                    findCard: function () {
+                        var grid = safeQuery('.wishlist-grid');
+                        return grid ? grid.querySelector('[data-slot="' + closingIndex + '"]') : null;
+                    },
+                    fromRect: flybackFromRect, coverSrc: flybackCoverSrc, fromImg: lbImg
                 });
             }
         },
         removeFromWishlistInLightbox() {
+            this._wishlistLbLastRemoved = null;
             var item = this.currentWishlistLightboxItem();
             if (!item) return;
             var oldIndex = this.wishlistLightboxIndex;
@@ -691,6 +684,7 @@ export function searchStateWishlist() {
             // await fetch(...) 之前，呼叫後立即讀 this.wishlistItems.length 已經是新長度。
             var newLen = this.wishlistItems.length;
             if (newLen === 0) {
+                this._wishlistLbLastRemoved = item;
                 this.closeWishlistLightbox();
             } else {
                 this.wishlistLightboxIndex = Math.min(oldIndex, newLen - 1);

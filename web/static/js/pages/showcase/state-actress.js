@@ -6,6 +6,7 @@
  */
 
 import { _actresses, _filteredActresses, _actressesLoaded, _nameToGroup, _loadAliasMap, _killLightboxTimelines, _setActressesLoaded, _setActresses, _setFilteredActresses, _videos, _videosReady, _aliasMapLoaded, _actressIndex, _actressWorkCounts, _setActressIndex, _setActressWorkCounts } from '@/showcase/state-base.js';
+import { LIGHTBOX_ROOT_SELECTOR, openLightboxFlow } from '@/shared/lightbox-flow.js';
 import { normalizePillValue } from '@/shared/pill-filter.js';
 import { actressAgeValue, actressHeightValue, actressCupValue, actressMetricRange } from '@/shared/actress-metric.js';
 import { buildActressPillPredicate } from '@/shared/actress-pill-filter.js';
@@ -711,36 +712,15 @@ export function stateActress() {
 
             this._setActressLightboxIndex(index);
             this.actressLightboxSource = 'grid';   // T5: 首次進入分支
-            var lightboxElPre = document.querySelector('.showcase-lightbox');
-            if (lightboxElPre) lightboxElPre.classList.add('gsap-animating');
-            this.lightboxOpen = true;
+            var lightboxEl = document.querySelector(LIGHTBOX_ROOT_SELECTOR);
             document.body.classList.add('overflow-hidden');
             // T3: fire-and-forget 即時查 aliases
             this._fetchLiveAliases(this.currentLightboxActress?.name, index);
 
-            var self = this;
-            var lbGen = ++this._lightboxGeneration;
-            this.$nextTick(function () {
-                if (self._lightboxGeneration !== lbGen) return;
-                var lightboxEl = document.querySelector('.showcase-lightbox');
-                if (!lightboxEl) return;
-
-                if (fromRect && window.GhostFly && window.GhostFly.playGridToLightbox) {
-                    self._lightboxAnimating = true;
-                    window.GhostFly.playGridToLightbox(fromRect, lightboxEl, {
-                        coverSrc: coverSrc,
-                        onComplete: function () { self._lightboxAnimating = false; }
-                    });
-                    if (window.ShowcaseAnimations && window.ShowcaseAnimations.playLightboxOpen) {
-                        window.ShowcaseAnimations.playLightboxOpen(lightboxEl, { skipCover: true });
-                    }
-                } else {
-                    self._lightboxAnimating = true;
-                    var tl = window.ShowcaseAnimations?.playLightboxOpen?.(lightboxEl, {
-                        onComplete: function () { self._lightboxAnimating = false; }
-                    });
-                    if (!tl) self._lightboxAnimating = false;
-                }
+            openLightboxFlow(this, {
+                root: lightboxEl, openKey: 'lightboxOpen', genKey: '_lightboxGeneration',
+                busyKey: '_lightboxAnimating', animations: 'ShowcaseAnimations',
+                fromRect: fromRect, coverSrc: coverSrc
             });
         },
 

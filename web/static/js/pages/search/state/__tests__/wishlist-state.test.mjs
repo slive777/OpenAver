@@ -562,6 +562,22 @@ function makeRemoveSpy(state) {
     return calls;
 }
 
+test('刪除最後一筆保留淡出內容，清單新增項目後顯示新項目', () => {
+    const removed = { number: 'OLD' };
+    const added = { number: 'NEW' };
+    const state = makeWishlistThis({ wishlistItems: [removed], wishlistLightboxOpen: true, wishlistLightboxIndex: 0 });
+    makeRemoveSpy(state);
+    const closeCalls = [];
+    state.closeWishlistLightbox = () => { closeCalls.push(1); };
+
+    state.removeFromWishlistInLightbox();
+
+    assert.equal(closeCalls.length, 1);
+    assert.equal(state.currentWishlistLightboxItem(), removed, '關閉淡出期間保留剛刪除的項目');
+    state.wishlistItems = [added];
+    assert.equal(state.currentWishlistLightboxItem(), added, '清單有新項目時不得顯示舊快照');
+});
+
 test('T7-DoD1-remove-middle-keeps-index-not-close', () => {
     const state = makeWishlistThis({
         wishlistItems: [{ number: 'A' }, { number: 'B' }, { number: 'C' }, { number: 'D' }, { number: 'E' }],
