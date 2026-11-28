@@ -1315,6 +1315,7 @@
                 id: timelineId,
                 onComplete: function () {
                     lightboxEl.classList.remove('gsap-animating');
+                    gsap.set(lightboxEl, { clearProps: 'opacity' }); // 208a CD-2 onComplete
                     // CD-51-14 cleanup：清掉動畫過程中累積的 inline transform/opacity，
                     // 避免被打斷時殘留半路狀態（用戶連點關開造成累積 stutter）
                     if (content) gsap.set(content, { clearProps: 'transform,opacity' });
@@ -1323,6 +1324,7 @@
                 },
                 onInterrupt: function () {
                     lightboxEl.classList.remove('gsap-animating');
+                    gsap.set(lightboxEl, { clearProps: 'opacity' }); // 208a CD-2 onInterrupt
                     // CD-51-14 cleanup：kill 中斷時 clearProps，避免殘留半路 transform/opacity
                     if (content) gsap.set(content, { clearProps: 'transform,opacity' });
                     if (coverImg && !opts.skipCover) gsap.set(coverImg, { clearProps: 'transform,opacity' });

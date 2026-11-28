@@ -3721,6 +3721,18 @@ const RULES = [
     note: '[TestShowcaseAnimationsFluent] test_ghost_fly_js_contains — white-list/ghost-fly 標注註解（OR）',
   },
   {
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: "gsap.set(lightboxEl, { clearProps: 'opacity' });",
+    scope: /id: timelineId,\s*onComplete: function \(\) \{[\s\S]*?(?=\n\s*\},\s*\n\s*onInterrupt:)/,
+    stripLineComments: true,
+    note: '[lint-guard:208a-T2-root-clear-complete] 開場動畫留下的殘值會讓之後關燈箱背景不淡出',
+  },
+  {
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: "gsap.set(lightboxEl, { clearProps: 'opacity' });",
+    scope: /(?<=id: timelineId,[\s\S]*?\},\s*)onInterrupt: function \(\) \{[\s\S]*?(?=\n\s*\}\s*\n\s*\}\);)/,
+    stripLineComments: true,
+    note: '[lint-guard:208a-T2-root-clear-interrupt] 開場動畫留下的殘值會讓之後關燈箱背景不淡出',
+  },
+  {
     file: 'web/static/js/pages/search/animations.js', kind: 'required-string', pattern: 'GhostFly.playLightboxOpen',
     scope: { anchor: /playLightboxOpen: function/, window: 800 },
     note: '[TestShowcaseAnimationsFluent] test_search_animations_js_contains — Phase 51 T4.3 delegate',
