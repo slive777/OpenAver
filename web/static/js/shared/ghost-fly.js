@@ -124,6 +124,8 @@
 
     function restoreInstant(el) {
         if (!el) return;
+        // 落地前才 hover → 別截斷 hover 放大的轉場
+        if (el.getAnimations?.().some(function (a) { return a.transitionProperty && a.transitionProperty !== 'opacity'; })) return;
         el.style.transition = 'none';
         gsap.set(el, { opacity: 1 });
         void el.offsetWidth;
