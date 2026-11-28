@@ -487,7 +487,22 @@ export function searchStateGridMode() {
     switchToDetail(index) {
         // 防禦：若 Lightbox 仍開啟，先關閉（避免覆蓋層影響 grid 卡片座標）
         if (this.lightboxOpen) {
+            if (this.lightboxCloseTimer) {
+                clearTimeout(this.lightboxCloseTimer);
+                this.lightboxCloseTimer = null;
+            }
+            var lbEl = document.querySelector(LIGHTBOX_ROOT_SELECTOR);
+            this._lightboxGeneration++;
+            if (typeof gsap !== 'undefined') {
+                gsap.getById('lightboxOpen')?.kill();
+                gsap.getById('lightboxSwitch')?.kill();
+            }
+            settleLightboxRoot(lbEl);
+            this._lightboxAnimating = false;
             this.lightboxOpen = false;
+            var self = this;
+            var gen = this._lightboxGeneration;
+            this.lightboxCloseTimer = armCloseTeardown(lbEl, () => { if (self._lightboxGeneration === gen && !self.lightboxOpen) self.lightboxIndex = -1; self.lightboxCloseTimer = null; });
         }
 
         // C17 step 1: capture source rect BEFORE state change
