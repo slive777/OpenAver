@@ -13,6 +13,7 @@
 import { _videos, _allVideos, _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER, _recomputeVideoBadges, _recomputeCardActorAges, _actresses, _nameToGroup, _actressIndex } from '@/showcase/state-base.js';
 import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
 import { detectSwipe } from '@/shared/swipe.js';
+import { LIGHTBOX_ROOT_SELECTOR, openLightboxFlow, settleLightboxRoot, flyBackToGrid, armCloseTeardown } from '@/shared/lightbox-flow.js';
 import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/wheel-nav.js';
 import { shouldYieldVerticalWheel } from '@/shared/lbx-wheel.js';
 import { shouldShowEnrichButton } from '@/shared/enrich-gate.js';
@@ -286,37 +287,12 @@ export function stateLightbox() {
             }
 
             this._setLightboxIndex(index);
-            var lightboxEl = document.querySelector('.showcase-lightbox');
-            if (lightboxEl) lightboxEl.classList.add('gsap-animating');
-            this.lightboxOpen = true;
+            var lightboxEl = document.querySelector(LIGHTBOX_ROOT_SELECTOR);
             document.body.classList.add('overflow-hidden');
-
-            // B16: GSAP 進場動畫（fire-and-forget）
-            var self = this;
-            var lbGen = ++this._lightboxGeneration;
-            this.$nextTick(function () {
-                if (self._lightboxGeneration !== lbGen) return;
-                if (!lightboxEl) return;
-
-                if (fromRect && window.GhostFly && window.GhostFly.playGridToLightbox) {
-                    self._lightboxAnimating = true;
-                    window.GhostFly.playGridToLightbox(fromRect, lightboxEl, {
-                        coverSrc: coverSrc,
-                        posterCrop: posterCrop,
-                        onComplete: function () { self._lightboxAnimating = false; }
-                    });
-                    if (window.ShowcaseAnimations && window.ShowcaseAnimations.playLightboxOpen) {
-                        window.ShowcaseAnimations.playLightboxOpen(lightboxEl, { skipCover: true });
-                    }
-                } else {
-                    self._lightboxAnimating = true;
-                    var tl = window.ShowcaseAnimations && window.ShowcaseAnimations.playLightboxOpen
-                        ? window.ShowcaseAnimations.playLightboxOpen(lightboxEl, {
-                            onComplete: function () { self._lightboxAnimating = false; }
-                        })
-                        : null;
-                    if (!tl) self._lightboxAnimating = false;
-                }
+            openLightboxFlow(this, {
+                root: lightboxEl, openKey: 'lightboxOpen', genKey: '_lightboxGeneration',
+                busyKey: '_lightboxAnimating', animations: 'ShowcaseAnimations',
+                fromRect: fromRect, coverSrc: coverSrc, posterCrop: posterCrop
             });
         },
 
@@ -330,10 +306,8 @@ export function stateLightbox() {
             this.currentLightboxActress = this._matchedActress;
             this.currentLightboxVideo = null;
             this.addingLbTag = false;
-            var lightboxEl = document.querySelector('.showcase-lightbox');
-            if (lightboxEl) lightboxEl.classList.add('gsap-animating');
+            var lightboxEl = document.querySelector(LIGHTBOX_ROOT_SELECTOR);
             this.actressLightboxSource = 'hero';   // T5: hero card 路徑
-            this.lightboxOpen = true;
             document.body.classList.add('overflow-hidden');
             // T3: fire-and-forget 即時查 aliases（hero card 路徑無 grid index）
             this._fetchLiveAliases(this._matchedActress?.name, null);
@@ -343,19 +317,9 @@ export function stateLightbox() {
             // 路徑上行為不可預期。呼叫本身冪等、無副作用風險。
             this._refreshActressPhotoLoaded();
 
-            // B19: 進場動畫（fire-and-forget，generation-guarded）
-            var lbGen = ++this._lightboxGeneration;
-            var self = this;
-            this.$nextTick(function () {
-                if (self._lightboxGeneration !== lbGen) return;
-                var el = document.querySelector('.showcase-lightbox');
-                if (window.ShowcaseAnimations && window.ShowcaseAnimations.playLightboxOpen) {
-                    self._lightboxAnimating = true;
-                    var tl = window.ShowcaseAnimations.playLightboxOpen(el, {
-                        onComplete: function () { self._lightboxAnimating = false; }
-                    });
-                    if (!tl) self._lightboxAnimating = false;
-                }
+            openLightboxFlow(this, {
+                root: lightboxEl, openKey: 'lightboxOpen', genKey: '_lightboxGeneration',
+                busyKey: '_lightboxAnimating', animations: 'ShowcaseAnimations'
             });
         },
 
@@ -388,7 +352,7 @@ export function stateLightbox() {
                 : (this.showFavoriteActresses
                     ? this.actressLightboxIndex
                     : this.lightboxIndex);
-            var lbEl = document.querySelector('.showcase-lightbox');
+            var lbEl = document.querySelector(LIGHTBOX_ROOT_SELECTOR);
             var lbImg = lbEl ? lbEl.querySelector('.lightbox-cover img') : null;
             var flybackFromRect = lbImg ? lbImg.getBoundingClientRect() : null;
             var flybackCoverSrc = lbImg ? lbImg.src : null;
@@ -413,7 +377,7 @@ export function stateLightbox() {
             // 123-T4b：GSAP 呼叫收斂進 animations.js（TestMotionInfra 守衛，見該檔
             // killPickStarTweens 註解）。
             window.ShowcaseAnimations?.killPickStarTweens?.({ clearFill: true, clearTransform: true });
-            if (lbEl) lbEl.classList.remove('gsap-animating');
+            settleLightboxRoot(lbEl);
             // Phase 50.x cleanup: kill timeline 後 clearProps 確保下次 open 從乾淨狀態起
             if (lbEl && window.OpenAver && window.OpenAver.motion) {
                 var _lbContent = lbEl.querySelector('.lightbox-content');
@@ -433,13 +397,10 @@ export function stateLightbox() {
             document.body.classList.remove('overflow-hidden');
 
             // ★ Fly-back — 用快照的 flipId 在整個頁面搜尋
-            if (flybackFlipId && flybackFromRect && window.GhostFly && window.GhostFly.playLightboxToGrid) {
-                var self = this;
-                this.$nextTick(function () {
-                    var cardEl = document.querySelector('[data-flip-id="' + CSS.escape(flybackFlipId) + '"]');
-                    if (cardEl) {
-                        window.GhostFly.playLightboxToGrid(flybackFromRect, cardEl, { coverSrc: flybackCoverSrc, fromImg: lbImg });
-                    }
+            if (flybackFlipId) {
+                flyBackToGrid(this, {
+                    findCard: function () { return document.querySelector('[data-flip-id="' + CSS.escape(flybackFlipId) + '"]'); },
+                    fromRect: flybackFromRect, coverSrc: flybackCoverSrc, fromImg: lbImg
                 });
             }
 
@@ -461,12 +422,12 @@ export function stateLightbox() {
             // F2: delay state clearing until CSS transition completes (250ms)
             var self = this;
             var gen = this._lightboxGeneration;  // capture current generation
-            this.lightboxCloseTimer = setTimeout(() => {
+            this.lightboxCloseTimer = armCloseTeardown(lbEl, () => {
                 if (self._lightboxGeneration === gen && !self.lightboxOpen) {
                     self._setLightboxIndex(-1);
                 }
                 self.lightboxCloseTimer = null;
-            }, 250);
+            });
         },
 
         // Metadata 點擊搜尋 (M3f)
@@ -489,8 +450,8 @@ export function stateLightbox() {
             // 123-T4b：GSAP 呼叫收斂進 animations.js（TestMotionInfra 守衛，見該檔
             // killPickStarTweens 註解）。
             window.ShowcaseAnimations?.killPickStarTweens?.({});
-            var lightboxEl = document.querySelector('.showcase-lightbox');
-            if (lightboxEl) lightboxEl.classList.remove('gsap-animating');
+            var lightboxEl = document.querySelector(LIGHTBOX_ROOT_SELECTOR);
+            settleLightboxRoot(lightboxEl);
             this._lightboxAnimating = false;
             this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
             this.lightboxOpen = false;
@@ -501,12 +462,12 @@ export function stateLightbox() {
             // F2: delay state clearing until CSS transition completes (250ms)
             var self = this;
             var gen = this._lightboxGeneration;  // capture current generation
-            this.lightboxCloseTimer = setTimeout(() => {
+            this.lightboxCloseTimer = armCloseTeardown(lightboxEl, () => {
                 if (self._lightboxGeneration === gen && !self.lightboxOpen) {
                     self._setLightboxIndex(-1);
                 }
                 self.lightboxCloseTimer = null;
-            }, 250);
+            });
 
             // TASK-124a-T2（CD-124a-6）：release 維度改走發售日入口 adapter，不經 addPill
             // （addPill 的正規化/去重路徑不適用 release 的 op/value2 結構）。
