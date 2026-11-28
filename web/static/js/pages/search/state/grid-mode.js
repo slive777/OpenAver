@@ -4,6 +4,7 @@
  */
 import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
 import { detectSwipe } from '@/shared/swipe.js';
+import { LIGHTBOX_ROOT_SELECTOR, openLightboxFlow, settleLightboxRoot, flyBackToGrid, armCloseTeardown } from '@/shared/lightbox-flow.js';
 // TASK-113c-T7: preview 失敗時決定要不要改試 cover（同一顆純函式供 hero/grid 共用，
 // 見 result-card.js 頂部 export，裁決 2：純函式回傳原始 URL，proxy 包裹留在呼叫點）。
 import { isStaleCoverError, shouldFallbackToCover } from '@/shared/cover-fallback.js';
@@ -125,37 +126,15 @@ export function searchStateGridMode() {
         var coverElOpen = document.querySelector('.lightbox-cover');
         if (coverElOpen) coverElOpen.style.removeProperty('--lb-cover-ar');
 
-        var lightboxEl = document.querySelector('.showcase-lightbox');
-        if (lightboxEl) lightboxEl.classList.add('gsap-animating');
-        this.lightboxOpen = true;
+        var lightboxEl = document.querySelector(LIGHTBOX_ROOT_SELECTOR);
         // 同步 currentIndex（讓 Detail 與 Grid 保持一致）
         this.currentIndex = index;
         this.$nextTick(() => this.lbxMetaToTop?.());
 
-        // D2: 進場動畫（fire-and-forget）
-        var lbGen = ++this._lightboxGeneration;
-        var self = this;
-        this.$nextTick(function () {
-            if (self._lightboxGeneration !== lbGen) return;  // B19: stale
-            var el = document.querySelector('.showcase-lightbox');
-            if (!el) return;
-            if (fromRect && window.GhostFly && window.GhostFly.playGridToLightbox) {
-                self._lightboxAnimating = true;
-                window.GhostFly.playGridToLightbox(fromRect, el, {
-                    coverSrc: coverSrc,
-                    posterCrop: posterCrop,   // T9-port
-                    onComplete: function () { self._lightboxAnimating = false; }
-                });
-                if (window.SearchAnimations && window.SearchAnimations.playLightboxOpen) {
-                    window.SearchAnimations.playLightboxOpen(el, { skipCover: true });
-                }
-            } else if (window.SearchAnimations && window.SearchAnimations.playLightboxOpen) {
-                self._lightboxAnimating = true;
-                var tl = window.SearchAnimations.playLightboxOpen(el, {
-                    onComplete: function () { self._lightboxAnimating = false; }
-                });
-                if (!tl) self._lightboxAnimating = false;
-            }
+        openLightboxFlow(this, {
+            root: lightboxEl, openKey: 'lightboxOpen', genKey: '_lightboxGeneration',
+            busyKey: '_lightboxAnimating', animations: 'SearchAnimations',
+            fromRect: fromRect, coverSrc: coverSrc, posterCrop: posterCrop
         });
     },
 
@@ -178,7 +157,7 @@ export function searchStateGridMode() {
 
         // ★ C11: fly-back capture
         var closingIndex = this.lightboxIndex;
-        var lbEl = document.querySelector('.showcase-lightbox');
+        var lbEl = document.querySelector(LIGHTBOX_ROOT_SELECTOR);
         var lbImg = lbEl ? lbEl.querySelector('.lightbox-cover img') : null;
         var flybackFromRect = lbImg ? lbImg.getBoundingClientRect() : null;
         var flybackCoverSrc = lbImg ? lbImg.src : null;
@@ -189,7 +168,7 @@ export function searchStateGridMode() {
             gsap.getById('lightboxOpen')?.kill();
             gsap.getById('lightboxSwitch')?.kill();
         }
-        if (lbEl) lbEl.classList.remove('gsap-animating');
+        settleLightboxRoot(lbEl);
         this._lightboxAnimating = false;
         this.lightboxOpen = false;
 
@@ -199,22 +178,22 @@ export function searchStateGridMode() {
         var self = this;
 
         // ★ Fly-back
-        if (closingIndex >= 0 && flybackFromRect && window.GhostFly && window.GhostFly.playLightboxToGrid) {
-            this.$nextTick(function () {
-                var grid = document.querySelector('.search-grid');
-                var cardEl = grid ? grid.querySelector('[data-slot="' + closingIndex + '"]') : null;
-                if (cardEl) {
-                    window.GhostFly.playLightboxToGrid(flybackFromRect, cardEl, { coverSrc: flybackCoverSrc, fromImg: lbImg });
-                }
+        if (closingIndex >= 0) {
+            flyBackToGrid(this, {
+                findCard: function () {
+                    var grid = document.querySelector('.search-grid');
+                    return grid ? grid.querySelector('[data-slot="' + closingIndex + '"]') : null;
+                },
+                fromRect: flybackFromRect, coverSrc: flybackCoverSrc, fromImg: lbImg
             });
         }
         var gen = this._lightboxGeneration;  // capture current generation
-        this.lightboxCloseTimer = setTimeout(() => {
+        this.lightboxCloseTimer = armCloseTeardown(lbEl, () => {
             if (self._lightboxGeneration === gen && !self.lightboxOpen) {
                 self.lightboxIndex = -1;
             }
             self.lightboxCloseTimer = null;
-        }, 250);
+        });
     },
 
     // 83a-T3: lightbox 封面比例 hook — img @load 讀 naturalW/H 寫 --lb-cover-ar
@@ -245,22 +224,10 @@ export function searchStateGridMode() {
         // 83a-T3-fix P2 注：不清除 --lb-cover-ar。女優模式下 .lightbox-cover 無 has-cover class
         // （search.html :class gate），CSS 選擇器 .has-cover 不命中，--lb-cover-ar 即使殘留也完全 inert。
         // 開影片 lightbox（openLightbox）才 removeProperty，確保影片封面用 fallback 1.5 撐盒直到 @load。
-        var lightboxEl = document.querySelector('.showcase-lightbox');
-        if (lightboxEl) lightboxEl.classList.add('gsap-animating');
-        this.lightboxOpen = true;
-
-        // D2: 進場動畫（fire-and-forget）
-        var lbGen = ++this._lightboxGeneration;
-        this.$nextTick(() => {
-            if (this._lightboxGeneration !== lbGen) return;  // B19: stale
-            var el = document.querySelector('.showcase-lightbox');
-            if (window.SearchAnimations?.playLightboxOpen) {
-                this._lightboxAnimating = true;
-                var tl = window.SearchAnimations.playLightboxOpen(el, {
-                    onComplete: () => { this._lightboxAnimating = false; }
-                });
-                if (!tl) this._lightboxAnimating = false;
-            }
+        var lightboxEl = document.querySelector(LIGHTBOX_ROOT_SELECTOR);
+        openLightboxFlow(this, {
+            root: lightboxEl, openKey: 'lightboxOpen', genKey: '_lightboxGeneration',
+            busyKey: '_lightboxAnimating', animations: 'SearchAnimations'
         });
     },
 
