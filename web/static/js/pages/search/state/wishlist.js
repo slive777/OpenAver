@@ -66,6 +66,7 @@ export function searchStateWishlist() {
         _wishlistCoverRetry: {},
         wishlistLightboxOpen: false,   // T11a：書籤燈箱開關（獨立狀態機，不與 lightboxOpen 共用）
         wishlistLightboxIndex: -1,     // T11a：書籤燈箱目前顯示的 wishlistItems 索引
+        _wishlistLbLastRemoved: null,  // 刪除最後一筆後保留淡出期間的燈箱內容
         _wishlistLbImgError: false,    // T11a：燈箱封面破圖 flag（開燈箱時必須重設，否則殘留占位）
         // T7 review P2：切進書籤前的 displayMode，切回搜尋段時還原。
         // 沒有它的話：你在 detail 模式看著某一片 → 點書籤段 → 點回來 → 剛才那張卡
@@ -589,11 +590,13 @@ export function searchStateWishlist() {
         },
 
         currentWishlistLightboxItem() {
+            if (!this.wishlistItems.length && this.wishlistLightboxIndex >= 0 && this._wishlistLbLastRemoved) return this._wishlistLbLastRemoved;
             if (this.wishlistLightboxIndex < 0 || this.wishlistLightboxIndex >= this.wishlistItems.length) return undefined;
             return this.wishlistItems[this.wishlistLightboxIndex];
         },
 
         openWishlistLightbox(index) {
+            this._wishlistLbLastRemoved = null;
             this.lbxFavsLoad?.();
             if (this.wishlistLightboxOpen && this.wishlistLightboxIndex === index) return;
             if (this.wishlistLightboxOpen && this.wishlistLightboxIndex !== index) {
@@ -671,6 +674,7 @@ export function searchStateWishlist() {
             }
         },
         removeFromWishlistInLightbox() {
+            this._wishlistLbLastRemoved = null;
             var item = this.currentWishlistLightboxItem();
             if (!item) return;
             var oldIndex = this.wishlistLightboxIndex;
@@ -680,6 +684,7 @@ export function searchStateWishlist() {
             // await fetch(...) 之前，呼叫後立即讀 this.wishlistItems.length 已經是新長度。
             var newLen = this.wishlistItems.length;
             if (newLen === 0) {
+                this._wishlistLbLastRemoved = item;
                 this.closeWishlistLightbox();
             } else {
                 this.wishlistLightboxIndex = Math.min(oldIndex, newLen - 1);
