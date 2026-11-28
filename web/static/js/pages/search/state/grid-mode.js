@@ -218,6 +218,10 @@ export function searchStateGridMode() {
     openActressLightbox() {
         if (this._lightboxAnimating) return;  // D2: guard
         if (!this.actressProfile) return;  // A6-2: 無女優資料時不開啟 lightbox
+        if (this.lightboxCloseTimer) {
+            clearTimeout(this.lightboxCloseTimer);
+            this.lightboxCloseTimer = null;
+        }
         this._heroLightboxImageError = false;  // A6-1: 重置圖片錯誤狀態
         this._actressChipsExpanded = { aliases: false, info: false };  // Phase 43 T6: 重置 chips 展開狀態
         this.lightboxIndex = -1;
